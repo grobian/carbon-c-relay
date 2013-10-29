@@ -27,8 +27,12 @@ typedef struct _ring_entry {
 	struct _ring_entry *next;
 } carbon_ring;
 
-unsigned short carbon_hashpos(const char *key);
 carbon_ring *carbon_addnode(
 		carbon_ring *ring,
 		const char *host,
 		const unsigned short port);
+void carbon_get_nodes(
+		carbon_ring *ret[],
+		carbon_ring *ring,
+		const char replcnt,
+		const char *metric);

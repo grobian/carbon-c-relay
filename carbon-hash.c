@@ -27,7 +27,7 @@
  * space.  Returns a number between 0 and 65535 based on the highest 2
  * bytes of the MD5 sum of key.
  */
-unsigned short carbon_hashpos(const char *key) {
+static unsigned short carbon_hashpos(const char *key) {
 	unsigned char md5[MD5_DIGEST_LENGTH];
 
 	MD5((unsigned char *)key, strlen(key), md5);
@@ -35,7 +35,9 @@ unsigned short carbon_hashpos(const char *key) {
 	return ((md5[0] << 8) + md5[1]);
 }
 
-//int (*compar)(const void *, const void *)
+/**
+ * Qsort comparator for carbon_ring structs on pos.
+ */
 static int entrycmp(const void *l, const void *r) {
 	return ((carbon_ring *)l)->pos - ((carbon_ring *)r)->pos;
 }
@@ -103,4 +105,41 @@ carbon_ring *carbon_addnode(
 	}
 
 	return ring;
+}
+
+/**
+ * Retrieve the nodes responsible for storing the given metric.  The
+ * replcnt argument specifies how many hosts should be retrieved.
+ * Results are stored in ret, an array of carbon_ring pointers.  The
+ * caller is responsible for ensuring that ret is large enough to store
+ * replcnt pointers.
+ */
+void carbon_get_nodes(
+		carbon_ring *ret[],
+		carbon_ring *ring,
+		const char replcnt,
+		const char *metric)
+{
+	carbon_ring *w;
+	unsigned short pos = carbon_hashpos(metric);
+	int i, j;
+
+	/* implement behaviour of Python's bisect_left on the ring */
+	for (w = ring, i = 0; w != NULL; i++, w = w->next)
+		if (w->pos >= pos)
+			break;
+	/* now fetch enough unique servers to match the requested count */
+	for (i = 0; i < replcnt; i++, w = w->next) {
+		if (w == NULL)
+			w = ring;
+		for (j = i - 1; j >= 0; j--) {
+			if (ret[j]->server == w->server) {
+				j = i;
+				break;
+			}
+		}
+		if (j == i)
+			continue;
+		ret[i] = w;
+	}
 }

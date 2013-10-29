@@ -23,12 +23,23 @@
 
 int main() {
 	carbon_ring *ring;
+	carbon_ring *targ;
+	char *s[] = { "In", "boomwortels", "Gelderse", "heeft" };
+	int i;
 
-	printf("%s: %d\n", "('ip1', None):1", carbon_hashpos("('ip1', None):1"));
 	ring = carbon_addnode(NULL, "ip1", 2003);
 	ring = carbon_addnode(ring, "ip2", 2003);
+	ring = carbon_addnode(ring, "ip3", 2003);
 
+	/*
 	for (; ring != NULL; ring = ring->next)
 		printf("(%d, %s:%d)\n", ring->pos, ring->server, ring->port);
+	*/
+
+	for (i = 0; i < 4; i++) {
+		carbon_get_nodes(&targ, ring, 1, s[i]);
+		printf("%s: %s (%d)\n", s[i], targ->server, targ->pos);
+	}
+
 	return 0;
 }
