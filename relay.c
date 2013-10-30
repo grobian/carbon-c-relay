@@ -23,13 +23,13 @@
 
 int main() {
 	carbon_ring *ring;
-	carbon_ring *targ;
+	carbon_ring *targ[2];
 	char *s[] = { "In", "boomwortels", "Gelderse", "heeft" };
 	int i;
 
 	ring = carbon_addnode(NULL, "ip1", 2003);
 	ring = carbon_addnode(ring, "ip2", 2003);
-	ring = carbon_addnode(ring, "ip3", 2003);
+	//ring = carbon_addnode(ring, "ip3", 2003);
 
 	/*
 	for (; ring != NULL; ring = ring->next)
@@ -37,8 +37,9 @@ int main() {
 	*/
 
 	for (i = 0; i < 4; i++) {
-		carbon_get_nodes(&targ, ring, 1, s[i]);
-		printf("%s: %s (%d)\n", s[i], targ->server, targ->pos);
+		carbon_get_nodes(targ, ring, 2, s[i]);
+		printf("%s: %s (%d)\n", s[i], targ[0]->server, targ[0]->pos);
+		printf("%s: %s (%d)\n", s[i], targ[1]->server, targ[1]->pos);
 	}
 
 	return 0;
