@@ -138,8 +138,10 @@ void carbon_get_nodes(
 				break;
 			}
 		}
-		if (j == i)
+		if (j == i) {
+			i--;
 			continue;
+		}
 		ret[i] = w;
 	}
 }
