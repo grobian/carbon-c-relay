@@ -201,8 +201,19 @@ dispatcher(void *arg)
 {
 	char self = *((char *)arg);
 	connection *conn;
+	int work;
+	struct timespec yield;
 
-	while (keep_running)
+	/* time to sleep between runs when nothing done */
+	yield.tv_sec = 0;
+	yield.tv_nsec = 10 * 1000;  /* 10ms */
+
+	while (keep_running) {
+		work = 0;
 		for (conn = connections; conn != NULL; conn = conn->next)
-			dispatch_connection(conn, self);
+			work += dispatch_connection(conn, self);
+
+		if (work == 0)  /* nothing done, avoid spinlocking */
+			nanosleep(&yield, NULL);
+	}
 }
