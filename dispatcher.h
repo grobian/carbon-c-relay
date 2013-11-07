@@ -16,4 +16,5 @@
  */
 
 
+int dispatch_addlistener(int sock);
 void dispatcher(void *arg);

@@ -193,6 +193,35 @@ dispatch_connection(connection *conn, const char mytid)
 }
 
 /**
+ * Adds an (initial) listener socket to the chain of connections.
+ * Listener sockets are those which need to be accept()-ed on.
+ */
+int
+dispatch_addlistener(int sock)
+{
+	connection *newconn;
+
+	newconn = malloc(sizeof(connection));
+	if (newconn == NULL)
+		return 0;
+	newconn->sock = sock;
+	newconn->type = LISTENER;
+	newconn->takenby = 0;
+	newconn->buflen = 0;
+	newconn->prev = NULL;
+	/* make sure connections won't change whilst we add an element
+	 * in front of it */
+	pthread_mutex_lock(&connections_lock);
+	newconn->next = connections;
+	if (connections != NULL) {
+		connections = connections->prev = newconn;
+	} else {
+		connections = newconn;
+	}
+	pthread_mutex_unlock(&connections_lock);
+}
+
+/**
  * pthread compatible routine that accepts connections and handles the
  * first block of data read.
  */
