@@ -26,7 +26,9 @@
 /**
  * Opens up a listener socket.  Returns the socket fd or -1 on failure.
  */
-int bindlisten(unsigned short port) {
+int
+bindlisten(unsigned short port)
+{
 	int sock;
 	struct sockaddr_in addr;
 	struct timeval tv;
