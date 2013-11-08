@@ -355,6 +355,41 @@ router_readconfig(const char *path)
 }
 
 /**
+ * Mere debugging function to check if the configuration is picked up
+ * alright.
+ */
+void
+router_printconfig(FILE *f)
+{
+	cluster *c;
+	route *r;
+	server *s;
+	carbon_ring *h;
+
+	for (c = clusters; c != NULL; c = c->next) {
+		fprintf(f, "cluster %s\n", c->name);
+		if (c->type == FORWARD) {
+			fprintf(f, "\tforward\n");
+			for (s = c->members.ips; s != NULL; s = s->next)
+				fprintf(f, "\t\t%s:%d\n", s->server, s->port);
+		} else if (c->type == CARBON_CH) {
+			fprintf(f, "\tcarbon_ch replication %d\n",
+					c->members.carbon_ch.repl_factor);
+			for (h = c->members.carbon_ch.ring; h != NULL; h = h->next)
+				fprintf(f, "\t\t%s:%d\n", h->server, h->port);
+		}
+		fprintf(f, "\t;\n");
+	}
+	fprintf(f, "\n");
+	for (r = routes; c != NULL; r = r->next) {
+		fprintf(f, "match %s\n\tsend to %s%s;\n",
+				r->matchall ? "*" : "???",
+				r->dest->name,
+				r->stop ? "\n\tstop" : "");
+	}
+}
+
+/**
  * Looks up the locations the given metric_path should be sent to, and
  * enqueues the metric for the matching destinations.
  */
