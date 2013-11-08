@@ -230,7 +230,7 @@ dispatch_addlistener(int sock)
  * pthread compatible routine that accepts connections and handles the
  * first block of data read.
  */
-void
+void *
 dispatcher(void *arg)
 {
 	char self = *((char *)arg);
@@ -250,4 +250,6 @@ dispatcher(void *arg)
 		if (work == 0)  /* nothing done, avoid spinlocking */
 			nanosleep(&yield, NULL);
 	}
+
+	return NULL;
 }
