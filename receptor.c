@@ -51,7 +51,7 @@ bindlisten(unsigned short port)
 		return -1;
 	}
 
-	if (listen(sock, 3) < 0) {; /* backlog of 3, enough? */
+	if (listen(sock, 3) < 0) {  /* backlog of 3, enough? */
 		close(sock);
 		return -1;
 	}
