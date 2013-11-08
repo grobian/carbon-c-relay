@@ -16,6 +16,7 @@
  */
 
 
+#include <stdlib.h>
 #include <unistd.h>
 #include <time.h>
 #include <string.h>
@@ -26,8 +27,9 @@
 #include <sys/socket.h>
 
 #include "relay.h"
+#include "router.h"
 
-emum conntype {
+enum conntype {
 	LISTENER,
 	CONNECTION
 };
@@ -35,7 +37,7 @@ emum conntype {
 typedef struct _connection {
 	int sock;
 	enum conntype type;
-	char taken_by;
+	char takenby;
 	char buf[8096];
 	int buflen;
 	struct _connection *prev;
@@ -43,7 +45,7 @@ typedef struct _connection {
 } connection;
 
 static connection *connections = NULL;
-static pthread_mutext_t connections_lock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t connections_lock = PTHREAD_MUTEX_INITIALIZER;
 
 static int
 dispatch_connection(connection *conn, const char mytid)
@@ -52,7 +54,7 @@ dispatch_connection(connection *conn, const char mytid)
 	fd_set fds;
 
 	/* atomically "claim" this connection */
-	if (!__sync_bool_compare_and_swap(&(conn->taken_by), 0, mytid))
+	if (!__sync_bool_compare_and_swap(&(conn->takenby), 0, mytid))
 		return 0;
 
 	tv.tv_sec = 0;
@@ -65,9 +67,10 @@ dispatch_connection(connection *conn, const char mytid)
 		/* a new connection should be waiting for us */
 		int client;
 		struct sockaddr addr;
+		socklen_t addrlen = sizeof(addr);
 		connection *newconn;
 
-		if ((client = accept(conn->sock, &addr, sizeof(addr))) < 0)
+		if ((client = accept(conn->sock, &addr, &addrlen)) < 0)
 			return 0;
 		tv.tv_sec = 0;
 		tv.tv_usec = 100 * 1000;
@@ -182,12 +185,12 @@ dispatch_connection(connection *conn, const char mytid)
 			close(conn->sock);
 			free(conn);
 			conn = NULL;
-			return;
+			return 1;
 		}
 	}
 
 	/* "release" this connection again */
-	conn->taken_by = 0;
+	conn->takenby = 0;
 
 	return 1;
 }
