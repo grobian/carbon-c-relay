@@ -16,4 +16,5 @@
  */
 
 
+int router_readconfig(const char *path);
 void router_route(const char *metric_path, const char *metric);
