@@ -16,6 +16,8 @@
  */
 
 
+#include "queue.h"
+
 /* this is hardwired in the carbon sources, and necessary to get
  * fair (re)balancing of metrics in the hash ring. */
 #define CARBON_REPLICAS  100
@@ -24,6 +26,7 @@ typedef struct _ring_entry {
 	unsigned short pos;
 	const char *server;
 	unsigned short port;
+	queue *queue;
 	struct _ring_entry *next;
 } carbon_ring;
 
