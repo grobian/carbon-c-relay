@@ -23,6 +23,7 @@
 #include <sys/stat.h>
 
 #include "carbon-hash.h"
+#include "queue.h"
 
 enum clusttype {
 	FORWARD,
@@ -33,6 +34,7 @@ enum clusttype {
 typedef struct _server {
 	const char *server;
 	unsigned short port;
+	queue *queue;
 	struct _server *next;
 } server;
 
@@ -50,9 +52,10 @@ typedef struct _cluster {
 } cluster;
 
 typedef struct _route {
-	regex_t rule;   /* regex on metric, NULL means match all */
-	cluster *dest;  /* where matches should go */
-	char stop;      /* whether to continue matching rules after this one */
+	regex_t rule;     /* regex on metric, only if !matchall */
+	cluster *dest;    /* where matches should go */
+	char stop:1;      /* whether to continue matching rules after this one */
+	char matchall:1;  /* whether we should use the regex when matching */
 	struct _route *next;
 } route;
 
@@ -154,7 +157,7 @@ router_readconfig(const char *path)
 						replcnt = 1;
 				}
 
-				if ((cl = malloc(sizeof cluster)) == NULL) {
+				if ((cl = malloc(sizeof(cluster))) == NULL) {
 					fprintf(stderr, "malloc failed in cluster carbon_ch\n");
 					return 0;
 				}
@@ -163,13 +166,13 @@ router_readconfig(const char *path)
 			} else if (strncmp(p, "forward", 7) == 0 && isspace(*(p + 7))) {
 				p += 8;
 
-				if ((cl = malloc(sizeof cluster)) == NULL) {
+				if ((cl = malloc(sizeof(cluster))) == NULL) {
 					fprintf(stderr, "malloc failed in cluster forward\n");
 					return 0;
 				}
 				cl->type = FORWARD;
 			} else {
-				type = p;
+				char *type = p;
 				for (; *p != '\0' && !isspace(*p); p++)
 					;
 				*p = 0;
@@ -300,7 +303,7 @@ router_readconfig(const char *path)
 							;
 						if (*p != ';') {
 							fprintf(stderr, "expected ';' after stop for "
-									"match %s\n", name);
+									"match %s\n", pat);
 							return 0;
 						}
 					}
@@ -308,7 +311,7 @@ router_readconfig(const char *path)
 					stop = 1;
 				} else {
 					fprintf(stderr, "expected 'stop' and/or ';' after '%s' "
-							"for %s\n", dest, name);
+							"for match %s\n", dest, pat);
 					return 0;
 				}
 			}
@@ -329,7 +332,7 @@ router_readconfig(const char *path)
 			}
 			r->dest = w;
 			if (strcmp(pat, "*") == 0) {
-				r->rule = NULL;
+				r->matchall = 1;
 			} else {
 				if (regcomp(&r->rule, pat, REG_EXTENDED | REG_NOSUB) != 0) {
 					fprintf(stderr, "invalid expression '%s' for match\n",
@@ -337,6 +340,7 @@ router_readconfig(const char *path)
 					free(r);
 					return 0;
 				}
+				r->matchall = 0;
 			}
 			r->stop = stop;
 			r->next = NULL;
@@ -346,6 +350,8 @@ router_readconfig(const char *path)
 			return 0;
 		}
 	} while (*p != '\0');
+
+	return 1;
 }
 
 /**
@@ -358,20 +364,20 @@ router_route(const char *metric_path, const char *metric)
 	route *w;
 	
 	for (w = routes; w != NULL; w = w->next) {
-		if (w->rule == NULL || regexec(w->rule, metric, 0, NULL, 0) == 0) {
+		if (w->matchall || regexec(&w->rule, metric, 0, NULL, 0) == 0) {
 			/* rule matches, send to destination(s) */
 			switch (w->dest->type) {
 				case FORWARD: {
 					/* simple case, no logic necessary */
-					server *w;
-					for (w = w->dest.members.ips; w != NULL; w = w->next)
-						queue_enqueue(w->queue, metric);
+					server *s;
+					for (s = w->dest->members.ips; s != NULL; s = s->next)
+						queue_enqueue(s->queue, metric);
 				}	break;
 				case CARBON_CH: {
 					/* let the ring(bearer) decide */
 					carbon_ring *dests[4];
 					int i;
-					if (w->dest.members.carbon_ch.repl_factor > sizeof(dests)) {
+					if (w->dest->members.carbon_ch.repl_factor > sizeof(dests)) {
 						/* need to increase size of dests, for
 						 * performance and ssp don't want to malloc and
 						 * can't alloca */
@@ -380,10 +386,10 @@ router_route(const char *metric_path, const char *metric)
 					}
 					carbon_get_nodes(
 							dests,
-							w->dest.members.carbon_ch.ring,
-							w->dest.members.carbon_ch.repl_factor,
+							w->dest->members.carbon_ch.ring,
+							w->dest->members.carbon_ch.repl_factor,
 							metric_path);
-					for (i = 0; i < w->dest.members.carbon_ch.repl_factor; i++)
+					for (i = 0; i < w->dest->members.carbon_ch.repl_factor; i++)
 						queue_enqueue(dests[i]->queue, metric);
 				}	break;
 			}
