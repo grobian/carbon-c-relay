@@ -203,7 +203,7 @@ dispatch_addlistener(int sock)
 
 	newconn = malloc(sizeof(connection));
 	if (newconn == NULL)
-		return 0;
+		return 1;
 	newconn->sock = sock;
 	newconn->type = LISTENER;
 	newconn->takenby = 0;
@@ -219,6 +219,8 @@ dispatch_addlistener(int sock)
 		connections = newconn;
 	}
 	pthread_mutex_unlock(&connections_lock);
+
+	return 0;
 }
 
 /**
