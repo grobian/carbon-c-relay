@@ -283,7 +283,7 @@ router_readconfig(const char *path)
 						dest);
 				return 0;
 			} else if (*p == ';') {
-				*p = '\0';
+				*p++ = '\0';
 				stop = 0;
 			} else {
 				*p++ = '\0';
@@ -394,7 +394,7 @@ router_printconfig(FILE *f)
 		fprintf(f, "\t;\n");
 	}
 	fprintf(f, "\n");
-	for (r = routes; c != NULL; r = r->next) {
+	for (r = routes; r != NULL; r = r->next) {
 		fprintf(f, "match %s\n\tsend to %s%s;\n",
 				r->matchall ? "*" : "???",
 				r->dest->name,
