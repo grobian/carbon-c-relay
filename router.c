@@ -100,7 +100,7 @@ router_readconfig(const char *path)
 	buf = malloc(st.st_size) + 1;
 	while ((len = fread(buf + len, 1, st.st_size - len, cnf)) != 0)
 		;
-	buf[len] = '\0';
+	buf[st.st_size] = '\0';
 	fclose(cnf);
 
 	p = buf;
@@ -387,6 +387,7 @@ router_printconfig(FILE *f)
 				r->dest->name,
 				r->stop ? "\n\tstop" : "");
 	}
+	fflush(f);
 }
 
 /**
