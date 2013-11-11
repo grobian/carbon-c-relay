@@ -373,10 +373,23 @@ router_printconfig(FILE *f)
 			for (s = c->members.ips; s != NULL; s = s->next)
 				fprintf(f, "\t\t%s:%d\n", s->server, s->port);
 		} else if (c->type == CARBON_CH) {
+			const char *uniq[128];
+			int i;
+			memset(uniq, 0, sizeof(uniq));
 			fprintf(f, "\tcarbon_ch replication %d\n",
 					c->members.carbon_ch.repl_factor);
-			for (h = c->members.carbon_ch.ring; h != NULL; h = h->next)
-				fprintf(f, "\t\t%s:%d\n", h->server, h->port);
+			for (h = c->members.carbon_ch.ring; h != NULL; h = h->next) {
+				for (i = 0; i < sizeof(uniq) / sizeof(char *); i++) {
+					if (uniq[i] == NULL) {
+						uniq[i] = h->server;
+						fprintf(f, "\t\t%s:%d\n", h->server, h->port);
+						break;
+					} else if (uniq[i] == h->server) {
+						break;
+					}
+				}
+				/* silently drop any further members */
+			}
 		}
 		fprintf(f, "\t;\n");
 	}
