@@ -19,9 +19,9 @@ CFLAGS ?= -O2 -Wall
 GIT_VERSION := $(shell git describe --abbrev=6 --dirty --always)
 GVCFLAGS += -DGIT_VERSION=\"$(GIT_VERSION)\"
 
-override CFLAGS += $(GVCFLAGS) `pkg-config openssl --cflags`
+override CFLAGS += $(GVCFLAGS) `pkg-config openssl --cflags` -pthread
 
-override LIBS += `pkg-config openssl --libs`
+override LIBS += `pkg-config openssl --libs` -pthread
 
 relay: relay.c carbon-hash.o receptor.o dispatcher.o router.o queue.o
 	$(CC) -o $@ $(LDFLAGS) $(LIBS) $^
