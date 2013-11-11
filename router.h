@@ -15,7 +15,13 @@
  *  along with carbon-c-relay.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#ifndef ROUTER_H
+#define ROUTER_H 1
+
+#include <stdio.h>
 
 int router_readconfig(const char *path);
 void router_printconfig(FILE *f);
 void router_route(const char *metric_path, const char *metric);
+
+#endif
