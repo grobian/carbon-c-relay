@@ -89,6 +89,36 @@ queue_dequeue(queue *q)
 }
 
 /**
+ * Returns at most len elements from the queue.  Attempts to use a
+ * single lock to read a vector of elements from the queue to minimise
+ * effects of locking.  Returns the number of elements stored in ret.
+ * The caller is responsible for freeing elements from ret, as well as
+ * making sure it is large enough to store len elements.
+ */
+size_t
+queue_dequeue_vector(const char **ret, queue *q, size_t len)
+{
+	size_t i;
+
+	pthread_mutex_lock(&q->lock);
+	if (q->len == 0) {
+		pthread_mutex_unlock(&q->lock);
+		return 0;
+	}
+	if (len > q->len)
+		len = q->len;
+	for (i = 0; i < len; i++) {
+		if (q->read == q->end)
+			q->read = q->queue[0];
+		ret[i] = q->read++;
+	}
+	q->len -= len;
+	pthread_mutex_unlock(&q->lock);
+
+	return len;
+}
+
+/**
  * Returns the (approximate) size of entries waiting to be read in the
  * queue.  The returned value cannot be taken accurate with multiple
  * readers/writers concurrently in action.  Hence it can only be seen as

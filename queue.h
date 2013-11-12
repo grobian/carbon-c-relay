@@ -33,6 +33,7 @@ typedef struct _queue {
 queue* queue_new(size_t size);
 void queue_enqueue(queue *q, const char *p);
 const char *queue_dequeue(queue *q);
+size_t queue_dequeue_vector(const char **ret, queue *q, size_t len);
 size_t queue_len(queue *q);
 
 #endif
