@@ -44,6 +44,20 @@ queue_new(size_t size)
 }
 
 /**
+ * Frees up allocated resources in use by the queue.  This doesn't take
+ * into account any consumers at all.  That is, the caller needs to
+ * ensure noone is using the queue any more.
+ */
+void
+queue_destroy(queue *q)
+{
+	q->len = 0;
+	pthread_mutex_destroy(&q->lock);
+	free(q->queue);
+	free(q);
+}
+
+/**
  * Enqueues the string pointed to by p at queue q.  If the queue is
  * full, the oldest entry is dropped.  For this reason, enqueuing will
  * never fail.
