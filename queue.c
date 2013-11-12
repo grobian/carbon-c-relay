@@ -87,3 +87,15 @@ queue_dequeue(queue *q)
 	pthread_mutex_unlock(&q->lock);
 	return ret;
 }
+
+/**
+ * Returns the (approximate) size of entries waiting to be read in the
+ * queue.  The returned value cannot be taken accurate with multiple
+ * readers/writers concurrently in action.  Hence it can only be seen as
+ * mere hint about the state of the queue.
+ */
+inline size_t
+queue_len(queue *q)
+{
+	return q->len;
+}
