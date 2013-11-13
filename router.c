@@ -192,14 +192,14 @@ router_readconfig(const char *path)
 					char *ip = ipbuf;
 					int port = 2003;
 					for (; *p != '\0' && !isspace(*p) && *p != ';'; p++) {
-						if (ip - ipbuf < sizeof(ipbuf) - 1)
-							*ip = *p;
 						if (*p == ':') {
-							*ip = '\0';
+							*p = '\0';
 							port = atoi(p + 1);
 						}
-						ip++;
+						if (ip - ipbuf < sizeof(ipbuf) - 1)
+							*ip++ = *p;
 					}
+					*ip = '\0';
 					if (*p == '\0') {
 						fprintf(stderr, "unexpected end of file at '%s' "
 								"for cluster %s\n", ip, name);
