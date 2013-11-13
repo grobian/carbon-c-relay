@@ -46,6 +46,8 @@ int main() {
 	id = 1;
 	pthread_create(&w, NULL, &dispatcher, &id);
 
+	sleep(10);
+	fprintf(stdout, "shutting down...\n");
 	keep_running = 0;
 	router_shutdown();
 	pthread_join(w, NULL);
