@@ -18,7 +18,6 @@
 
 #include <stdlib.h>
 #include <unistd.h>
-#include <time.h>
 #include <string.h>
 #include <errno.h>
 #include <pthread.h>
@@ -58,7 +57,7 @@ dispatch_connection(connection *conn, const char mytid)
 		return 0;
 
 	tv.tv_sec = 0;
-	tv.tv_usec = 100 * 1000;
+	tv.tv_usec = 50 * 1000;  /* 50ms */
 	FD_SET(conn->sock, &fds);
 	if (select(conn->sock + 1, &fds, NULL, NULL, &tv) <= 0)
 		return 0;
@@ -160,8 +159,6 @@ dispatch_connection(connection *conn, const char mytid)
 			}
 		}
 		if (len == 0 || (len < 0 && errno != EINTR)) {  /* EOF */
-			struct timespec yield;
-
 			/* since we never "release" this connection, we just need to
 			 * make sure we "detach" the next pointer safely */
 			pthread_mutex_lock(&connections_lock);
@@ -179,9 +176,7 @@ dispatch_connection(connection *conn, const char mytid)
 			pthread_mutex_unlock(&connections_lock);
 			/* if some other thread was looking at conn, make sure it
 			 * will have moved on before freeing this object */
-			yield.tv_sec = 0;
-			yield.tv_nsec = 1000;  /* 1ms */
-			nanosleep(&yield, NULL);
+			usleep(10 * 1000);  /* 10ms */
 			close(conn->sock);
 			free(conn);
 			conn = NULL;
@@ -236,11 +231,6 @@ dispatcher(void *arg)
 	char self = *((char *)arg);
 	connection *conn;
 	int work;
-	struct timespec yield;
-
-	/* time to sleep between runs when nothing done */
-	yield.tv_sec = 0;
-	yield.tv_nsec = 10 * 1000;  /* 10ms */
 
 	while (keep_running) {
 		work = 0;
@@ -248,7 +238,7 @@ dispatcher(void *arg)
 			work += dispatch_connection(conn, self);
 
 		if (work == 0)  /* nothing done, avoid spinlocking */
-			nanosleep(&yield, NULL);
+			usleep(250 * 1000);  /* 250ms */
 	}
 
 	return NULL;

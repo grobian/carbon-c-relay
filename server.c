@@ -17,7 +17,6 @@
 
 
 #include <stdio.h>
-#include <time.h>
 #include <unistd.h>
 #include <string.h>
 #include <pthread.h>
@@ -56,17 +55,14 @@ server_queuereader(void *d)
 	size_t qlen;
 	size_t i;
 	size_t len;
-	struct timespec yield;
 	const char *metric;
 
 	while (1) {
 		if ((qlen = queue_len(self->queue)) == 0) {
 			if (!keep_running)
 				break;  /* terminate gracefully */
+			usleep(250 * 1000);  /* 250ms */
 			/* skip this run */
-			yield.tv_sec = 0;
-			yield.tv_nsec = 10 * 1000;  /* 10ms */
-			nanosleep(&yield, NULL);
 			continue;
 		}
 
@@ -82,9 +78,7 @@ server_queuereader(void *d)
 			fprintf(stderr, "failed to connect() to %s:%u: %s\n",
 					self->ip, self->port, strerror(errno));
 			/* sleep a little to allow the server to catchup */
-			yield.tv_sec = 0;
-			yield.tv_nsec = 1500 * 1000;  /* 1.5s */
-			nanosleep(&yield, NULL);
+			usleep(1500 * 1000);  /* 1.5s */
 			continue;
 		}
 
