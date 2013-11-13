@@ -23,7 +23,7 @@ override CFLAGS += $(GVCFLAGS) `pkg-config openssl --cflags` -pthread
 
 override LIBS += `pkg-config openssl --libs` -pthread
 
-relay: relay.c carbon-hash.o receptor.o dispatcher.o router.o queue.o
+relay: relay.c carbon-hash.o receptor.o dispatcher.o router.o queue.o server.o
 	$(CC) -o $@ $(LDFLAGS) $(LIBS) $^
 
 clean:

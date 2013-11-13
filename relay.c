@@ -17,30 +17,38 @@
 
 
 #include <stdio.h>
+#include <pthread.h>
 
 #include "carbon-hash.h"
+#include "server.h"
+#include "router.h"
+#include "receptor.h"
+#include "dispatcher.h"
 
+int keep_running = 1;
 
 int main() {
-	carbon_ring *ring;
-	carbon_ring *targ[2];
-	char *s[] = { "In", "boomwortels", "Gelderse", "heeft" };
-	int i;
+	int sock;
+	char id;
+	pthread_t w;
 
-	ring = carbon_addnode(NULL, "ip1", 2003);
-	ring = carbon_addnode(ring, "ip2", 2003);
-	//ring = carbon_addnode(ring, "ip3", 2003);
+	router_readconfig("myconf");
+	router_printconfig(stdout);
 
-	/*
-	for (; ring != NULL; ring = ring->next)
-		printf("(%d, %s:%d)\n", ring->pos, ring->server, ring->port);
-	*/
-
-	for (i = 0; i < 4; i++) {
-		carbon_get_nodes(targ, ring, 2, s[i]);
-		printf("%s: %s (%d)\n", s[i], targ[0]->server, targ[0]->pos);
-		printf("%s: %s (%d)\n", s[i], targ[1]->server, targ[1]->pos);
+	sock = bindlisten(2003);
+	if (sock < 0)
+		return -1;
+	if (dispatch_addlistener(sock) != 0) {
+		close(sock);
+		return -1;
 	}
+
+	id = 1;
+	pthread_create(&w, NULL, &dispatcher, &id);
+
+	keep_running = 0;
+	router_shutdown();
+	pthread_join(w, NULL);
 
 	return 0;
 }

@@ -21,8 +21,10 @@
 #include <ctype.h>
 #include <regex.h>
 #include <sys/stat.h>
+#include <errno.h>
 
 #include "carbon-hash.h"
+#include "server.h"
 #include "queue.h"
 
 enum clusttype {
@@ -31,12 +33,10 @@ enum clusttype {
 	/* room for a better/different hash definition */
 };
 
-typedef struct _server {
-	const char *server;
-	unsigned short port;
-	queue *queue;
-	struct _server *next;
-} server;
+typedef struct _forward {
+	server *server;
+	struct _forward *next;
+} forward;
 
 typedef struct _cluster {
 	char *name;
@@ -46,7 +46,7 @@ typedef struct _cluster {
 			unsigned char repl_factor;
 			carbon_ring *ring;
 		} carbon_ch;
-		server *ips;
+		forward *forward;
 	} members;
 	struct _cluster *next;
 } cluster;
@@ -118,7 +118,7 @@ router_readconfig(const char *path)
 
 		if (strncmp(p, "cluster", 7) == 0 && isspace(*(p + 7))) {
 			/* group config */
-			server *w;
+			forward *w;
 			char *name;
 			p += 8;
 			for (; *p != '\0' && isspace(*p); p++)
@@ -171,6 +171,7 @@ router_readconfig(const char *path)
 					return 0;
 				}
 				cl->type = FORWARD;
+				cl->members.forward = NULL;
 			} else {
 				char *type = p;
 				for (; *p != '\0' && !isspace(*p); p++)
@@ -187,26 +188,25 @@ router_readconfig(const char *path)
 					;
 				w = NULL;
 				do {
-					char *ip = p;
+					char ipbuf[64];  /* should be enough for everyone */
+					char *ip = ipbuf;
 					int port = 2003;
 					for (; *p != '\0' && !isspace(*p) && *p != ';'; p++) {
+						if (ip - ipbuf < sizeof(ipbuf) - 1)
+							*ip = *p;
 						if (*p == ':') {
-							*p = '\0';
+							*ip = '\0';
 							port = atoi(p + 1);
 						}
+						ip++;
 					}
 					if (*p == '\0') {
 						fprintf(stderr, "unexpected end of file at '%s' "
 								"for cluster %s\n", ip, name);
 						free(cl);
 						return 0;
-					} else if (*p == ';') {
-						*p = '\0';
-						ip = strdup(ip);
-						*p = ';';
-					} else {
+					} else if (*p != ';') {
 						*p++ = '\0';
-						ip = strdup(ip);
 					}
 
 					if (cl->type == CARBON_CH) {
@@ -214,24 +214,35 @@ router_readconfig(const char *path)
 								cl->members.carbon_ch.ring,
 								ip, (unsigned short)port);
 						if (cl->members.carbon_ch.ring == NULL) {
-							fprintf(stderr, "out of memory allocating ring members\n");
+							fprintf(stderr, "failed to add server %s:%d "
+									"to ring: %s\n", ipbuf, port,
+									strerror(errno));
 							free(cl);
 							return 0;
 						}
 					} else if (cl->type == FORWARD) {
 						if (w == NULL) {
-							cl->members.ips = w = malloc(sizeof(server));
+							cl->members.forward = w =
+								malloc(sizeof(struct _server*));
 						} else {
-							w = w->next = malloc(sizeof(server));
+							w = w->next = malloc(sizeof(struct _server*));
 						}
 						if (w == NULL) {
 							free(cl);
-							fprintf(stderr, "malloc failed in cluster forward ip\n");
+							fprintf(stderr, "malloc failed in cluster "
+									"forward ip\n");
 							return 0;
 						}
 						w->next = NULL;
-						w->server = ip;
-						w->port = (unsigned short)port;
+						w->server = server_new(ipbuf, (unsigned short)port);
+						if (w->server == NULL) {
+							fprintf(stderr, "failed to add server %s:%d "
+									"to forwarders: %s\n", ipbuf, port,
+									strerror(errno));
+							free(w);
+							free(cl);
+							return 0;
+						}
 					}
 					for (; *p != '\0' && isspace(*p) && *p != ';'; p++)
 						;
@@ -363,17 +374,18 @@ router_printconfig(FILE *f)
 {
 	cluster *c;
 	route *r;
-	server *s;
+	forward *s;
 	carbon_ring *h;
 
 	for (c = clusters; c != NULL; c = c->next) {
 		fprintf(f, "cluster %s\n", c->name);
 		if (c->type == FORWARD) {
 			fprintf(f, "\tforward\n");
-			for (s = c->members.ips; s != NULL; s = s->next)
-				fprintf(f, "\t\t%s:%d\n", s->server, s->port);
+			for (s = c->members.forward; s != NULL; s = s->next)
+				fprintf(f, "\t\t%s:%d\n",
+						server_ip(s->server), server_port(s->server));
 		} else if (c->type == CARBON_CH) {
-			const char *uniq[128];
+			server *uniq[128];
 			int i;
 			memset(uniq, 0, sizeof(uniq));
 			fprintf(f, "\tcarbon_ch replication %d\n",
@@ -382,7 +394,8 @@ router_printconfig(FILE *f)
 				for (i = 0; i < sizeof(uniq) / sizeof(char *); i++) {
 					if (uniq[i] == NULL) {
 						uniq[i] = h->server;
-						fprintf(f, "\t\t%s:%d\n", h->server, h->port);
+						fprintf(f, "\t\t%s:%d\n",
+								server_ip(h->server), server_port(h->server));
 						break;
 					} else if (uniq[i] == h->server) {
 						break;
@@ -418,13 +431,13 @@ router_route(const char *metric_path, const char *metric)
 			switch (w->dest->type) {
 				case FORWARD: {
 					/* simple case, no logic necessary */
-					server *s;
-					for (s = w->dest->members.ips; s != NULL; s = s->next)
-						queue_enqueue(s->queue, metric);
+					forward *s;
+					for (s = w->dest->members.forward; s != NULL; s = s->next)
+						server_send(s->server, metric);
 				}	break;
 				case CARBON_CH: {
 					/* let the ring(bearer) decide */
-					carbon_ring *dests[4];
+					server *dests[4];
 					int i;
 					if (w->dest->members.carbon_ch.repl_factor > sizeof(dests)) {
 						/* need to increase size of dests, for
@@ -439,13 +452,46 @@ router_route(const char *metric_path, const char *metric)
 							w->dest->members.carbon_ch.repl_factor,
 							metric_path);
 					for (i = 0; i < w->dest->members.carbon_ch.repl_factor; i++)
-						queue_enqueue(dests[i]->queue, metric);
+						server_send(dests[i], metric);
 				}	break;
 			}
 
 			/* stop processing further rules if requested */
 			if (w->stop)
 				break;
+		}
+	}
+}
+
+void
+router_shutdown(void)
+{
+	cluster *c;
+	forward *s;
+	carbon_ring *h;
+
+	for (c = clusters; c != NULL; c = c->next) {
+		if (c->type == FORWARD) {
+			for (s = c->members.forward; s != NULL; s = s->next)
+				server_shutdown(s->server);
+		} else if (c->type == CARBON_CH) {
+			server *uniq[128];
+			int i;
+			memset(uniq, 0, sizeof(uniq));
+			for (h = c->members.carbon_ch.ring; h != NULL; h = h->next) {
+				for (i = 0; i < sizeof(uniq) / sizeof(char *); i++) {
+					if (uniq[i] == NULL) {
+						uniq[i] = h->server;
+						server_shutdown(h->server);
+						break;
+					} else if (uniq[i] == h->server) {
+						break;
+					}
+				}
+				if (i == sizeof(uniq) / sizeof(char *))
+					fprintf(stderr, "FIXME: need larger array to "
+							"properly cleanup in router_shutdown()\n");
+			}
 		}
 	}
 }

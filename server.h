@@ -15,25 +15,15 @@
  *  along with carbon-c-relay.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef CARBON_HASH_H
-#define CARBON_HASH_H 1
+#ifndef SERVER_H
+#define SERVER_H 1
 
-#include "server.h"
+typedef struct _server server;
 
-typedef struct _ring_entry {
-	unsigned short pos;
-	server *server;
-	struct _ring_entry *next;
-} carbon_ring;
-
-carbon_ring *carbon_addnode(
-		carbon_ring *ring,
-		const char *host,
-		const unsigned short port);
-void carbon_get_nodes(
-		server *ret[],
-		carbon_ring *ring,
-		const char replcnt,
-		const char *metric);
+server *server_new(const char *ip, unsigned short port);
+void server_send(server *s, const char *d);
+void server_shutdown(server *s);
+const char *server_ip(server *s);
+unsigned short server_port(server *s);
 
 #endif

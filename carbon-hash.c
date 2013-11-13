@@ -20,14 +20,23 @@
 #include <string.h>
 #include <openssl/md5.h>
 
+#include "server.h"
 #include "carbon-hash.h"
+
+
+/* this is hardwired in the carbon sources, and necessary to get
+ * fair (re)balancing of metrics in the hash ring. */
+#define CARBON_REPLICAS  100
+
 
 /**
  * Computes the hash position for key in a 16-bit unsigned integer
  * space.  Returns a number between 0 and 65535 based on the highest 2
  * bytes of the MD5 sum of key.
  */
-static unsigned short carbon_hashpos(const char *key) {
+static unsigned short
+carbon_hashpos(const char *key)
+{
 	unsigned char md5[MD5_DIGEST_LENGTH];
 
 	MD5((unsigned char *)key, strlen(key), md5);
@@ -38,7 +47,9 @@ static unsigned short carbon_hashpos(const char *key) {
 /**
  * Qsort comparator for carbon_ring structs on pos.
  */
-static int entrycmp(const void *l, const void *r) {
+static int
+entrycmp(const void *l, const void *r)
+{
 	return ((carbon_ring *)l)->pos - ((carbon_ring *)r)->pos;
 }
 
@@ -48,16 +59,17 @@ static int entrycmp(const void *l, const void *r) {
  * address.  The port component is just stored and not used in the hash
  * calculation.  Returns an updated ring, or a new ring if none given.
  */
-carbon_ring *carbon_addnode(
-		carbon_ring *ring,
-		const char *host,
-		const unsigned short port)
+carbon_ring *
+carbon_addnode(carbon_ring *ring, const char *host, const unsigned short port)
 {
 	int i;
 	char buf[256];
+	server *s;
 	carbon_ring *entries = (carbon_ring *)malloc(sizeof(carbon_ring) * CARBON_REPLICAS);
 
 	if (entries == NULL)
+		return NULL;
+	if ((s = server_new(host, port)) == NULL)
 		return NULL;
 
 	for (i = 0; i < CARBON_REPLICAS; i++) {
@@ -65,11 +77,11 @@ carbon_ring *carbon_addnode(
 		 * serialised form as input for the hash */
 		snprintf(buf, sizeof(buf), "('%s', None):%d", host, i);
 		entries[i].pos = carbon_hashpos(buf);
-		entries[i].server = host;
-		entries[i].port = port;
+		entries[i].server = s;
 		entries[i].next = NULL;
 	}
 
+	/* sort to allow merge joins later down the road */
 	qsort(entries, CARBON_REPLICAS, sizeof(carbon_ring), *entrycmp);
 
 	if (ring == NULL) {
@@ -114,8 +126,9 @@ carbon_ring *carbon_addnode(
  * caller is responsible for ensuring that ret is large enough to store
  * replcnt pointers.
  */
-void carbon_get_nodes(
-		carbon_ring *ret[],
+void
+carbon_get_nodes(
+		server *ret[],
 		carbon_ring *ring,
 		const char replcnt,
 		const char *metric)
@@ -133,7 +146,7 @@ void carbon_get_nodes(
 		if (w == NULL)
 			w = ring;
 		for (j = i - 1; j >= 0; j--) {
-			if (ret[j]->server == w->server) {
+			if (ret[j] == w->server) {
 				j = i;
 				break;
 			}
@@ -142,6 +155,6 @@ void carbon_get_nodes(
 			i--;
 			continue;
 		}
-		ret[i] = w;
+		ret[i] = w->server;
 	}
 }
