@@ -59,8 +59,10 @@ dispatch_connection(connection *conn, const char mytid)
 	tv.tv_sec = 0;
 	tv.tv_usec = 50 * 1000;  /* 50ms */
 	FD_SET(conn->sock, &fds);
-	if (select(conn->sock + 1, &fds, NULL, NULL, &tv) <= 0)
+	if (select(conn->sock + 1, &fds, NULL, NULL, &tv) <= 0) {
+		conn->takenby = 0;
 		return 0;
+	}
 
 	if (conn->type == LISTENER) {
 		/* a new connection should be waiting for us */
@@ -69,8 +71,10 @@ dispatch_connection(connection *conn, const char mytid)
 		socklen_t addrlen = sizeof(addr);
 		connection *newconn;
 
-		if ((client = accept(conn->sock, &addr, &addrlen)) < 0)
+		if ((client = accept(conn->sock, &addr, &addrlen)) < 0) {
+			conn->takenby = 0;
 			return 0;
+		}
 		tv.tv_sec = 0;
 		tv.tv_usec = 100 * 1000;
 		setsockopt(client, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
@@ -78,6 +82,7 @@ dispatch_connection(connection *conn, const char mytid)
 		newconn = malloc(sizeof(connection));
 		if (newconn == NULL) {
 			close(client);
+			conn->takenby = 0;
 			return 0;
 		}
 		newconn->sock = client;
