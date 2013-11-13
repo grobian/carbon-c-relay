@@ -31,7 +31,6 @@
 typedef struct _server {
 	const char *ip;
 	unsigned short port;
-	int sock;
 	struct sockaddr_in serv_addr;
 	queue *queue;
 	pthread_t tid;
@@ -71,10 +70,10 @@ server_queuereader(void *d)
 			qlen = BATCH_SIZE;
 
 		/* try to connect */
-		fd = connect(self->sock,
-				(struct sockaddr *)&(self->serv_addr),
-				sizeof(self->serv_addr));
-		if (fd < 0) {
+		if ((fd = socket(PF_INET, SOCK_STREAM, 0)) < 0 ||
+			connect(fd, (struct sockaddr *)&(self->serv_addr),
+				sizeof(self->serv_addr)) < 0)
+		{
 			fprintf(stderr, "failed to connect() to %s:%u: %s\n",
 					self->ip, self->port, strerror(errno));
 			/* sleep a little to allow the server to catchup */
@@ -121,7 +120,6 @@ server_new(const char *ip, unsigned short port)
 		return NULL;
 	ret->ip = strdup(ip);
 	ret->port = port;
-	ret->sock = socket(PF_INET, SOCK_STREAM, 0);
 	ret->serv_addr.sin_family = AF_INET;
 	ret->serv_addr.sin_port = htons(port);
 	if (inet_pton(AF_INET, ip, &(ret->serv_addr.sin_addr)) <= 0) {
