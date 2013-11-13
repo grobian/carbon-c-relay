@@ -22,7 +22,7 @@
 #include <pthread.h>
 
 typedef struct _queue {
-	const char **queue;
+	const char *queue;
 	const char *end;  
 	const char *write;
 	const char *read;

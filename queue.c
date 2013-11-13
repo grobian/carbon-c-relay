@@ -15,6 +15,8 @@
  *  along with carbon-c-relay.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <string.h>
+
 #include "queue.h"
 
 /**
@@ -29,14 +31,14 @@ queue_new(size_t size)
 		return NULL;
 
 	ret->queue = malloc(sizeof(void *) * size);
-	ret->write = ret->read = ret->queue[0];
+	ret->write = ret->read = ret->queue;
 
 	if (ret->queue == NULL) {
 		free(ret);
 		return NULL;
 	}
 
-	ret->end = ret->queue[size];
+	ret->end = ret->queue + size;
 	ret->len = 0;
 	pthread_mutex_init(&ret->lock, NULL);
 
@@ -53,7 +55,7 @@ queue_destroy(queue *q)
 {
 	q->len = 0;
 	pthread_mutex_destroy(&q->lock);
-	free(q->queue);
+	free((char *)q->queue);
 	free(q);
 }
 
@@ -71,11 +73,11 @@ queue_enqueue(queue *q, const char *p)
 		q->read++;
 		q->len--;
 		if (q->write == q->end)
-			q->read = q->queue[1];
+			q->read = q->queue + 1;
 	}
 	if (q->write == q->end)
-		q->write = q->queue[0];
-	q->write = p;
+		q->write = q->queue;
+	q->write = strdup(p);
 	q->write++;
 	q->len++;
 	pthread_mutex_unlock(&q->lock);
@@ -95,7 +97,7 @@ queue_dequeue(queue *q)
 		return NULL;
 	}
 	if (q->read == q->end)
-		q->read = q->queue[0];
+		q->read = q->queue;
 	ret = q->read++;
 	q->len--;
 	pthread_mutex_unlock(&q->lock);
@@ -123,7 +125,7 @@ queue_dequeue_vector(const char **ret, queue *q, size_t len)
 		len = q->len;
 	for (i = 0; i < len; i++) {
 		if (q->read == q->end)
-			q->read = q->queue[0];
+			q->read = q->queue;
 		ret[i] = q->read++;
 	}
 	q->len -= len;
