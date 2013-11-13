@@ -212,7 +212,7 @@ router_readconfig(const char *path)
 					if (cl->type == CARBON_CH) {
 						cl->members.carbon_ch.ring = carbon_addnode(
 								cl->members.carbon_ch.ring,
-								ip, (unsigned short)port);
+								ipbuf, (unsigned short)port);
 						if (cl->members.carbon_ch.ring == NULL) {
 							fprintf(stderr, "failed to add server %s:%d "
 									"to ring: %s\n", ipbuf, port,
