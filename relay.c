@@ -17,7 +17,9 @@
 
 
 #include <stdio.h>
+#include <string.h>
 #include <pthread.h>
+#include <errno.h>
 
 #include "carbon-hash.h"
 #include "server.h"
@@ -32,14 +34,18 @@ int main() {
 	char id;
 	pthread_t w;
 
-	router_readconfig("myconf");
+	router_readconfig("testconf");
 	router_printconfig(stdout);
 
 	sock = bindlisten(2003);
-	if (sock < 0)
+	if (sock < 0) {
+		fprintf(stderr, "failed to bind on port %d: %s\n",
+				2003, strerror(errno));
 		return -1;
+	}
 	if (dispatch_addlistener(sock) != 0) {
 		close(sock);
+		fprintf(stderr, "failed to add listener\n");
 		return -1;
 	}
 
