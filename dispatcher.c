@@ -159,8 +159,9 @@ dispatch_connection(connection *conn, const char mytid)
 			}
 			if (lastnl != NULL) {
 				/* move remaining stuff to the front */
-				conn->buflen -= lastnl + 1 - conn->buf;
-				memmove(conn->buf, lastnl + 1, conn->buflen);
+				size_t remaining = lastnl + 1 - conn->buf;
+				conn->buflen -= remaining;
+				memmove(conn->buf, lastnl + 1, remaining);
 			}
 		}
 		if (len == 0 || (len < 0 && errno != EINTR)) {  /* EOF */
