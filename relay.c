@@ -56,15 +56,46 @@ exit_handler(int sig)
 int main() {
 	int sock;
 	char id;
-	pthread_t w;
+	pthread_t *workers;
+	char workercnt = 16;
+	char *routes = "testconf";
+	unsigned short listenport = 2003;
 
 	fprintf(stdout, "Starting carbon-c-relay %s (%s)\n",
-			VERSION, GIT_VERSION);
-
-	router_readconfig("testconf");
+		VERSION, GIT_VERSION);
+	fprintf(stdout, "configuration:\n");
+	fprintf(stdout, "    listen port = %u\n", listenport);
+	fprintf(stdout, "    workers = %d\n", workercnt);
+	fprintf(stdout, "    routes configuration = %s\n", routes);
+	fprintf(stdout, "\n");
+	if (router_readconfig(routes) == 0)
+		return 1;
+	fprintf(stdout, "parsed configuration follows:\n");
 	router_printconfig(stdout);
+	fprintf(stdout, "\n");
 
-	sock = bindlisten(2003);
+	if (signal(SIGINT, exit_handler) == SIG_ERR) {
+		fprintf(stderr, "failed to create SIGINT handler: %s\n",
+				strerror(errno));
+		return 1;
+	}
+	if (signal(SIGTERM, exit_handler) == SIG_ERR) {
+		fprintf(stderr, "failed to create SIGTERM handler: %s\n",
+				strerror(errno));
+		return 1;
+	}
+	if (signal(SIGQUIT, exit_handler) == SIG_ERR) {
+		fprintf(stderr, "failed to create SIGQUIT handler: %s\n",
+				strerror(errno));
+		return 1;
+	}
+	workers = malloc(sizeof(pthread_t) * workercnt);
+	if (workers == NULL) {
+		fprintf(stderr, "failed to allocate memory for workers\n");
+		return 1;
+	}
+
+	sock = bindlisten(listenport);
 	if (sock < 0) {
 		fprintf(stderr, "failed to bind on port %d: %s\n",
 				2003, strerror(errno));
@@ -75,28 +106,32 @@ int main() {
 		fprintf(stderr, "failed to add listener\n");
 		return -1;
 	}
-
-	if (signal(SIGINT, exit_handler) == SIG_ERR) {
-		fprintf(stderr, "failed to create SIGINT handler: %s\n",
-				strerror(errno));
+	fprintf(stdout, "listening on port %u\n", listenport);
+	
+	for (id = 1; id <= workercnt; id++) {
+		int err = pthread_create(&workers[id - 1], NULL, &dispatcher, &id);
+		if (err != 0) {
+			fprintf(stderr, "failed to add worker %d: %s\n", id, strerror(err));
+			break;
+		}
+		fprintf(stderr, "started worker %d\n", id);
 	}
-	if (signal(SIGTERM, exit_handler) == SIG_ERR) {
-		fprintf(stderr, "failed to create SIGTERM handler: %s\n",
-				strerror(errno));
-	}
-	if (signal(SIGQUIT, exit_handler) == SIG_ERR) {
-		fprintf(stderr, "failed to create SIGQUIT handler: %s\n",
-				strerror(errno));
+	if (id <= workercnt) {
+		fprintf(stderr, "shutting down due to errors\n");
+		keep_running = 0;
 	}
 
-	id = 1;
-	pthread_create(&w, NULL, &dispatcher, &id);
+	/* workers do the work, just wait */
+	while (keep_running)
+		sleep(1);
 
-	sleep(100);
 	fprintf(stdout, "shutting down...\n");
-	keep_running = 0;
 	router_shutdown();
-	pthread_join(w, NULL);
+	for (id = 0; id < workercnt; id++) {
+		pthread_join(workers[id + 0], NULL);
+		fprintf(stdout, "worker %d stopped\n", id + 1);
+	}
 
+	free(workers);
 	return 0;
 }
