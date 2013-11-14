@@ -253,7 +253,7 @@ router_readconfig(const char *path)
 							return 0;
 						}
 					}
-					for (; *p != '\0' && isspace(*p) && *p != ';'; p++)
+					for (; *p != '\0' && isspace(*p); p++)
 						;
 				} while (*p != ';');
 				p++; /* skip over ';' */
