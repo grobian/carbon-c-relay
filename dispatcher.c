@@ -143,6 +143,11 @@ dispatch_connection(connection *conn, const char mytid)
 				} else if (*p == '\n') {
 					/* end of metric */
 					lastnl = p;
+
+					/* just a newline on it's own? skip */
+					if (q == metric)
+						continue;
+
 					*q++ = *p;
 					*q = '\0';
 
