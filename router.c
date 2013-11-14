@@ -128,6 +128,7 @@ router_readconfig(const char *path)
 				;
 			if (*p == '\0') {
 				fprintf(stderr, "unexpected end of file after 'cluster'\n");
+				free(buf);
 				return 0;
 			}
 			*p++ = '\0';
@@ -150,6 +151,7 @@ router_readconfig(const char *path)
 						fprintf(stderr, "unexpected end of file after "
 								"'replication %s' for cluster %s\n",
 								repl, name);
+						free(buf);
 						return 0;
 					}
 					*p++ = '\0';
@@ -159,6 +161,7 @@ router_readconfig(const char *path)
 
 				if ((cl = malloc(sizeof(cluster))) == NULL) {
 					fprintf(stderr, "malloc failed in cluster carbon_ch\n");
+					free(buf);
 					return 0;
 				}
 				cl->type = CARBON_CH;
@@ -168,6 +171,7 @@ router_readconfig(const char *path)
 
 				if ((cl = malloc(sizeof(cluster))) == NULL) {
 					fprintf(stderr, "malloc failed in cluster forward\n");
+					free(buf);
 					return 0;
 				}
 				cl->type = FORWARD;
@@ -179,6 +183,7 @@ router_readconfig(const char *path)
 				*p = 0;
 				fprintf(stderr, "unknown cluster type '%s' for cluster %s\n",
 						type, name);
+				free(buf);
 				return 0;
 			}
 
@@ -204,6 +209,7 @@ router_readconfig(const char *path)
 						fprintf(stderr, "unexpected end of file at '%s' "
 								"for cluster %s\n", ip, name);
 						free(cl);
+						free(buf);
 						return 0;
 					} else if (*p != ';') {
 						*p++ = '\0';
@@ -218,6 +224,7 @@ router_readconfig(const char *path)
 									"to ring: %s\n", ipbuf, port,
 									strerror(errno));
 							free(cl);
+							free(buf);
 							return 0;
 						}
 					} else if (cl->type == FORWARD) {
@@ -228,9 +235,10 @@ router_readconfig(const char *path)
 							w = w->next = malloc(sizeof(struct _server*));
 						}
 						if (w == NULL) {
-							free(cl);
 							fprintf(stderr, "malloc failed in cluster "
 									"forward ip\n");
+							free(cl);
+							free(buf);
 							return 0;
 						}
 						w->next = NULL;
@@ -241,6 +249,7 @@ router_readconfig(const char *path)
 									strerror(errno));
 							free(w);
 							free(cl);
+							free(buf);
 							return 0;
 						}
 					}
@@ -267,6 +276,7 @@ router_readconfig(const char *path)
 				;
 			if (*p == '\0') {
 				fprintf(stderr, "unexpected end of file after 'match'\n");
+				free(buf);
 				return 0;
 			}
 			*p++ = '\0';
@@ -274,6 +284,7 @@ router_readconfig(const char *path)
 				;
 			if (strncmp(p, "send", 4) != 0 || !isspace(*(p + 4))) {
 				fprintf(stderr, "expected 'send to' after match %s\n", pat);
+				free(buf);
 				return 0;
 			}
 			p += 5;
@@ -281,6 +292,7 @@ router_readconfig(const char *path)
 				;
 			if (strncmp(p, "to", 2) != 0 || !isspace(*(p + 2))) {
 				fprintf(stderr, "expected 'send to' after match %s\n", pat);
+				free(buf);
 				return 0;
 			}
 			p += 2;
@@ -292,6 +304,7 @@ router_readconfig(const char *path)
 			if (*p == '\0') {
 				fprintf(stderr, "unexpected end of file after 'send to %s'\n",
 						dest);
+				free(buf);
 				return 0;
 			} else if (*p == ';') {
 				*p++ = '\0';
@@ -315,6 +328,7 @@ router_readconfig(const char *path)
 						if (*p != ';') {
 							fprintf(stderr, "expected ';' after stop for "
 									"match %s\n", pat);
+							free(buf);
 							return 0;
 						}
 					}
@@ -323,6 +337,7 @@ router_readconfig(const char *path)
 				} else {
 					fprintf(stderr, "expected 'stop' and/or ';' after '%s' "
 							"for match %s\n", dest, pat);
+					free(buf);
 					return 0;
 				}
 			}
@@ -334,6 +349,7 @@ router_readconfig(const char *path)
 			}
 			if (w == NULL) {
 				fprintf(stderr, "no such cluster '%s' for match\n", dest);
+				free(buf);
 				return 0;
 			}
 			if (r == NULL) {
@@ -349,6 +365,7 @@ router_readconfig(const char *path)
 					fprintf(stderr, "invalid expression '%s' for match\n",
 							pat);
 					free(r);
+					free(buf);
 					return 0;
 				}
 				r->matchall = 0;
@@ -357,11 +374,13 @@ router_readconfig(const char *path)
 			r->next = NULL;
 		} else {
 			/* garbage? */
-			fprintf(stderr, "garbage in config: %s", p);
+			fprintf(stderr, "garbage in config: %s\n", p);
+			free(buf);
 			return 0;
 		}
 	} while (*p != '\0');
 
+	free(buf);
 	return 1;
 }
 
