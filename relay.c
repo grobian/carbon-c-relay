@@ -108,13 +108,13 @@ int main() {
 	}
 	fprintf(stdout, "listening on port %u\n", listenport);
 	
+	fprintf(stderr, "starting %d workers\n", workercnt);
 	for (id = 1; id <= workercnt; id++) {
 		int err = pthread_create(&workers[id - 1], NULL, &dispatcher, &id);
 		if (err != 0) {
 			fprintf(stderr, "failed to add worker %d: %s\n", id, strerror(err));
 			break;
 		}
-		fprintf(stderr, "started worker %d\n", id);
 	}
 	if (id <= workercnt) {
 		fprintf(stderr, "shutting down due to errors\n");
@@ -129,8 +129,8 @@ int main() {
 	router_shutdown();
 	for (id = 0; id < workercnt; id++) {
 		pthread_join(workers[id + 0], NULL);
-		fprintf(stdout, "worker %d stopped\n", id + 1);
 	}
+	fprintf(stdout, "%d workers stopped\n", workercnt);
 
 	free(workers);
 	return 0;
