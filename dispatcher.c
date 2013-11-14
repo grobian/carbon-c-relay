@@ -116,7 +116,10 @@ dispatch_connection(connection *conn, const char mytid)
 			firstspace = NULL;
 			lastnl = NULL;
 			for (p = conn->buf; p - conn->buf < conn->buflen + len; p++) {
-				if ((*p >= 'a' && *p <= 'z') || (*p >= 'A' && *p <= 'Z')) {
+				if ((*p >= 'a' && *p <= 'z') ||
+						(*p >= 'A' && *p <= 'Z')||
+						(*p >= '0' && *p <= '9'))
+				{
 					/* copy char */
 					*q++ = *p;
 				} else if (*p == ' ') {
