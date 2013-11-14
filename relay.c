@@ -17,8 +17,10 @@
 
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#include <signal.h>
 #include <pthread.h>
 #include <errno.h>
 
@@ -30,6 +32,26 @@
 #include "dispatcher.h"
 
 int keep_running = 1;
+
+static void
+exit_handler(int sig)
+{
+	char *signal = "unknown signal";
+
+	switch (sig) {
+		case SIGTERM:
+			signal = "SIGTERM";
+			break;
+		case SIGINT:
+			signal = "SIGINT";
+			break;
+		case SIGQUIT:
+			signal = "SIGQUIT";
+			break;
+	}
+	fprintf(stdout, "caught %s, terminating...\n", signal);
+	keep_running = 0;
+}
 
 int main() {
 	int sock;
@@ -52,6 +74,19 @@ int main() {
 		close(sock);
 		fprintf(stderr, "failed to add listener\n");
 		return -1;
+	}
+
+	if (signal(SIGINT, exit_handler) == SIG_ERR) {
+		fprintf(stderr, "failed to create SIGINT handler: %s\n",
+				strerror(errno));
+	}
+	if (signal(SIGTERM, exit_handler) == SIG_ERR) {
+		fprintf(stderr, "failed to create SIGTERM handler: %s\n",
+				strerror(errno));
+	}
+	if (signal(SIGQUIT, exit_handler) == SIG_ERR) {
+		fprintf(stderr, "failed to create SIGQUIT handler: %s\n",
+				strerror(errno));
 	}
 
 	id = 1;
