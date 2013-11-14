@@ -349,7 +349,8 @@ router_readconfig(const char *path)
 					break;
 			}
 			if (w == NULL) {
-				fprintf(stderr, "no such cluster '%s' for match\n", dest);
+				fprintf(stderr, "no such cluster '%s' for 'match %s'\n",
+						dest, pat);
 				free(buf);
 				return 0;
 			}
