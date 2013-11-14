@@ -97,7 +97,7 @@ router_readconfig(const char *path)
 
 	if ((cnf = fopen(path, "r")) == NULL || stat(path, &st) == -1)
 		return 0;
-	buf = malloc(st.st_size) + 1;
+	buf = malloc(st.st_size + 1);
 	while ((len = fread(buf + len, 1, st.st_size - len, cnf)) != 0)
 		;
 	buf[st.st_size] = '\0';
