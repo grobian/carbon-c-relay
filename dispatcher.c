@@ -43,17 +43,26 @@ typedef struct _connection {
 	struct _connection *next;
 } connection;
 
+typedef struct _dispatcher {
+	char id;
+	struct timeval start;
+	size_t metrics;
+} dispatcher;
+
 static connection *connections = NULL;
 static pthread_mutex_t connections_lock = PTHREAD_MUTEX_INITIALIZER;
 
+/**
+ * Look at conn and see if works needs to be done.  If so, do it.
+ */
 static int
-dispatch_connection(connection *conn, const char mytid)
+dispatch_connection(connection *conn, dispatcher *self)
 {
 	struct timeval tv;
 	fd_set fds;
 
 	/* atomically "claim" this connection */
-	if (!__sync_bool_compare_and_swap(&(conn->takenby), 0, mytid))
+	if (!__sync_bool_compare_and_swap(&(conn->takenby), 0, self->id))
 		return 0;
 
 	tv.tv_sec = 0;
@@ -96,6 +105,8 @@ dispatch_connection(connection *conn, const char mytid)
 		newconn->next = connections;
 		connections = connections->prev = newconn;
 		pthread_mutex_unlock(&connections_lock);
+
+		self->metrics++;
 	} else if (conn->type == CONNECTION) {
 		/* data should be available for reading */
 		char *p, *q, *firstspace, *lastnl;
@@ -156,6 +167,8 @@ dispatch_connection(connection *conn, const char mytid)
 					*firstspace = ' ';
 					/* perform routing of this metric */
 					router_route(metric_path, metric);
+
+					self->metrics++;
 
 					/* restart building new one from the start */
 					q = metric;
@@ -236,20 +249,24 @@ dispatch_addlistener(int sock)
 }
 
 /**
- * pthread compatible routine that accepts connections and handles the
- * first block of data read.
+ * pthread compatible routine that handles connections and processes
+ * whatever comes in on those.
  */
 void *
 dispatcher(void *arg)
 {
-	char self = *((char *)arg);
+	dispatcher self;
 	connection *conn;
 	int work;
+
+	self.id = *((char *)arg);
+	gettimeofday(&self.start, NULL);
+	self.metrics = 0;
 
 	while (keep_running) {
 		work = 0;
 		for (conn = connections; conn != NULL; conn = conn->next)
-			work += dispatch_connection(conn, self);
+			work += dispatch_connection(conn, &self);
 
 		if (work == 0)  /* nothing done, avoid spinlocking */
 			usleep(250 * 1000);  /* 250ms */
