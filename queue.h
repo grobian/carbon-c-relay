@@ -19,16 +19,8 @@
 #define QUEUE_H 1
 
 #include <stdlib.h>
-#include <pthread.h>
 
-typedef struct _queue {
-	const char *queue;
-	const char *end;  
-	const char *write;
-	const char *read;
-	size_t len;
-	pthread_mutex_t lock;
-} queue;
+typedef struct _queue queue;
 
 queue* queue_new(size_t size);
 void queue_destroy(queue *q);

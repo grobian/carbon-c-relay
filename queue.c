@@ -15,9 +15,18 @@
  *  along with carbon-c-relay.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <stdlib.h>
 #include <string.h>
+#include <pthread.h>
 
-#include "queue.h"
+typedef struct _queue {
+	const char **queue;
+	size_t end;  
+	size_t write;
+	size_t read;
+	size_t len;
+	pthread_mutex_t lock;
+} queue;
 
 /**
  * Allocates a new queue structure with capacity to hold size elements.
@@ -30,15 +39,15 @@ queue_new(size_t size)
 	if (ret == NULL)
 		return NULL;
 
-	ret->queue = malloc(sizeof(void *) * size);
-	ret->write = ret->read = ret->queue;
-
+	ret->queue = malloc(sizeof(char *) * size);
 	if (ret->queue == NULL) {
 		free(ret);
 		return NULL;
 	}
 
-	ret->end = ret->queue + size;
+	memset(ret->queue, 0, sizeof(void *) * size);
+	ret->end = size;
+	ret->read = ret->write = 0;
 	ret->len = 0;
 	pthread_mutex_init(&ret->lock, NULL);
 
@@ -55,7 +64,7 @@ queue_destroy(queue *q)
 {
 	q->len = 0;
 	pthread_mutex_destroy(&q->lock);
-	free((char *)q->queue);
+	free(q->queue);
 	free(q);
 }
 
@@ -68,16 +77,16 @@ void
 queue_enqueue(queue *q, const char *p)
 {
 	pthread_mutex_lock(&q->lock);
-	if (q->write == q->read) {
-		free((void *)(q->read));
+	if (q->len != 0 && q->write == q->read) {
+		free((char *)(q->queue[q->read]));
 		q->read++;
 		q->len--;
 		if (q->write == q->end)
-			q->read = q->queue + 1;
+			q->read = 1;
 	}
 	if (q->write == q->end)
-		q->write = q->queue;
-	q->write = strdup(p);
+		q->write = 0;
+	q->queue[q->write] = strdup(p);
 	q->write++;
 	q->len++;
 	pthread_mutex_unlock(&q->lock);
@@ -97,8 +106,8 @@ queue_dequeue(queue *q)
 		return NULL;
 	}
 	if (q->read == q->end)
-		q->read = q->queue;
-	ret = q->read++;
+		q->read = 0;
+	ret = q->queue[q->read++];
 	q->len--;
 	pthread_mutex_unlock(&q->lock);
 	return ret;
@@ -125,8 +134,8 @@ queue_dequeue_vector(const char **ret, queue *q, size_t len)
 		len = q->len;
 	for (i = 0; i < len; i++) {
 		if (q->read == q->end)
-			q->read = q->queue;
-		ret[i] = q->read++;
+			q->read = 0;
+		ret[i] = q->queue[q->read++];
 	}
 	q->len -= len;
 	pthread_mutex_unlock(&q->lock);
