@@ -52,6 +52,7 @@ typedef struct _cluster {
 } cluster;
 
 typedef struct _route {
+	char *pattern;    /* original regex input, used for printing only */
 	regex_t rule;     /* regex on metric, only if !matchall */
 	cluster *dest;    /* where matches should go */
 	char stop:1;      /* whether to continue matching rules after this one */
@@ -360,6 +361,7 @@ router_readconfig(const char *path)
 			r->dest = w;
 			if (strcmp(pat, "*") == 0) {
 				r->matchall = 1;
+				r->pattern = NULL;
 			} else {
 				if (regcomp(&r->rule, pat, REG_EXTENDED | REG_NOSUB) != 0) {
 					fprintf(stderr, "invalid expression '%s' for match\n",
@@ -368,6 +370,7 @@ router_readconfig(const char *path)
 					free(buf);
 					return 0;
 				}
+				r->pattern = strdup(pat);
 				r->matchall = 0;
 			}
 			r->stop = stop;
@@ -428,7 +431,7 @@ router_printconfig(FILE *f)
 	fprintf(f, "\n");
 	for (r = routes; r != NULL; r = r->next) {
 		fprintf(f, "match %s\n\tsend to %s%s;\n",
-				r->matchall ? "*" : "???",
+				r->matchall ? "*" : r->pattern,
 				r->dest->name,
 				r->stop ? "\n\tstop" : "");
 	}
@@ -443,7 +446,7 @@ void
 router_route(const char *metric_path, const char *metric)
 {
 	route *w;
-	
+
 	for (w = routes; w != NULL; w = w->next) {
 		if (w->matchall || regexec(&w->rule, metric, 0, NULL, 0) == 0) {
 			/* rule matches, send to destination(s) */
