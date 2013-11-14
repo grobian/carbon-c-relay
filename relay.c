@@ -17,10 +17,12 @@
 
 
 #include <stdio.h>
+#include <unistd.h>
 #include <string.h>
 #include <pthread.h>
 #include <errno.h>
 
+#include "relay.h"
 #include "carbon-hash.h"
 #include "server.h"
 #include "router.h"
@@ -33,6 +35,9 @@ int main() {
 	int sock;
 	char id;
 	pthread_t w;
+
+	fprintf(stdout, "Starting carbon-c-relay %s (%s)\n",
+			VERSION, GIT_VERSION);
 
 	router_readconfig("testconf");
 	router_printconfig(stdout);
@@ -52,7 +57,7 @@ int main() {
 	id = 1;
 	pthread_create(&w, NULL, &dispatcher, &id);
 
-	sleep(10);
+	sleep(100);
 	fprintf(stdout, "shutting down...\n");
 	keep_running = 0;
 	router_shutdown();

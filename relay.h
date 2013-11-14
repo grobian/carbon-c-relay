@@ -18,6 +18,8 @@
 #ifndef HAVE_RELAY_H
 #define HAVE_RELAY_H 1
 
+#define VERSION "0.1"
+
 extern int keep_running;
 
 #endif
