@@ -162,6 +162,7 @@ server_shutdown(server *s)
 {
 	pthread_join(s->tid, NULL);
 	queue_destroy(s->queue);
+	free((char *)s->ip);
 	free(s);
 }
 
