@@ -21,6 +21,7 @@
 #include <string.h>
 #include <pthread.h>
 #include <errno.h>
+#include <sys/time.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
@@ -34,6 +35,8 @@ typedef struct _server {
 	struct sockaddr_in serv_addr;
 	queue *queue;
 	pthread_t tid;
+	struct timeval start;
+	size_t metrics;
 } server;
 
 #define BATCH_SIZE   2500
@@ -56,6 +59,8 @@ server_queuereader(void *d)
 	size_t len;
 	const char *metric;
 
+	gettimeofday(&self->start, NULL);
+	self->metrics = 0;
 	while (1) {
 		if ((qlen = queue_len(self->queue)) == 0) {
 			if (!keep_running)
@@ -101,6 +106,7 @@ server_queuereader(void *d)
 			free((char *)metric);
 		}
 		close(fd);
+		self->metrics += i;
 	}
 
 	return NULL;
