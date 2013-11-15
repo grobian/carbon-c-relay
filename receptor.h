@@ -16,4 +16,9 @@
  */
 
 
+#ifndef RECEPTOR_H
+#define RECEPTOR_H 1
+
 int bindlisten(unsigned short port);
+
+#endif
