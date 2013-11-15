@@ -46,7 +46,7 @@ typedef struct _server {
  * remote server to find a good balance between efficiency and load
  * balancing.
  */
-void *
+static void *
 server_queuereader(void *d)
 {
 	server *self = (server *)d;
