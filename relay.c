@@ -110,7 +110,7 @@ int main() {
 	
 	fprintf(stderr, "starting %d workers\n", workercnt);
 	for (id = 1; id <= workercnt; id++) {
-		int err = pthread_create(&workers[id - 1], NULL, &dispatcher, &id);
+		int err = pthread_create(&workers[id - 1], NULL, &dispatch_runner, &id);
 		if (err != 0) {
 			fprintf(stderr, "failed to add worker %d: %s\n", id, strerror(err));
 			break;

@@ -22,6 +22,7 @@
 #include <errno.h>
 #include <pthread.h>
 #include <sys/uio.h>
+#include <sys/time.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 
@@ -253,7 +254,7 @@ dispatch_addlistener(int sock)
  * whatever comes in on those.
  */
 void *
-dispatcher(void *arg)
+dispatch_runner(void *arg)
 {
 	dispatcher self;
 	connection *conn;
