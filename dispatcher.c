@@ -45,6 +45,7 @@ typedef struct _connection {
 } connection;
 
 typedef struct _dispatcher {
+	pthread_t tid;
 	char id;
 	struct timeval start;
 	size_t metrics;
@@ -253,25 +254,54 @@ dispatch_addlistener(int sock)
  * pthread compatible routine that handles connections and processes
  * whatever comes in on those.
  */
-void *
+static void *
 dispatch_runner(void *arg)
 {
-	dispatcher self;
+	dispatcher *self = (dispatcher *)arg;
 	connection *conn;
 	int work;
 
-	self.id = *((char *)arg);
-	gettimeofday(&self.start, NULL);
-	self.metrics = 0;
+	gettimeofday(&self->start, NULL);
+	self->metrics = 0;
 
 	while (keep_running) {
 		work = 0;
 		for (conn = connections; conn != NULL; conn = conn->next)
-			work += dispatch_connection(conn, &self);
+			work += dispatch_connection(conn, self);
 
 		if (work == 0)  /* nothing done, avoid spinlocking */
 			usleep(250 * 1000);  /* 250ms */
 	}
 
 	return NULL;
+}
+
+/**
+ * Starts a new dispatcher with the given id, and returns its handle.
+ */
+dispatcher *
+dispatch_new(char id)
+{
+	dispatcher *ret = malloc(sizeof(dispatcher));
+	
+	if (ret == NULL)
+		return NULL;
+
+	ret->id = id;
+	if (pthread_create(&ret->tid, NULL, dispatch_runner, ret) != 0) {
+		free(ret);
+		return NULL;
+	}
+
+	return ret;
+}
+
+/**
+ * Shuts down and frees up dispatcher d.
+ */
+void
+dispatch_shutdown(dispatcher *d)
+{
+	pthread_join(d->tid, NULL);
+	free(d);
 }

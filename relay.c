@@ -21,7 +21,6 @@
 #include <unistd.h>
 #include <string.h>
 #include <signal.h>
-#include <pthread.h>
 #include <errno.h>
 
 #include "relay.h"
@@ -56,7 +55,7 @@ exit_handler(int sig)
 int main() {
 	int sock;
 	char id;
-	pthread_t *workers;
+	dispatcher **workers;
 	char workercnt = 16;
 	char *routes = "testconf";
 	unsigned short listenport = 2003;
@@ -89,7 +88,7 @@ int main() {
 				strerror(errno));
 		return 1;
 	}
-	workers = malloc(sizeof(pthread_t) * workercnt);
+	workers = malloc(sizeof(dispatcher *) * workercnt);
 	if (workers == NULL) {
 		fprintf(stderr, "failed to allocate memory for workers\n");
 		return 1;
@@ -107,12 +106,12 @@ int main() {
 		return -1;
 	}
 	fprintf(stdout, "listening on port %u\n", listenport);
-	
+
 	fprintf(stderr, "starting %d workers\n", workercnt);
 	for (id = 1; id <= workercnt; id++) {
-		int err = pthread_create(&workers[id - 1], NULL, &dispatch_runner, &id);
-		if (err != 0) {
-			fprintf(stderr, "failed to add worker %d: %s\n", id, strerror(err));
+		workers[id - 1] = dispatch_new(id);
+		if (workers[id - 1] == NULL) {
+			fprintf(stderr, "failed to add worker %d\n", id);
 			break;
 		}
 	}
@@ -127,9 +126,8 @@ int main() {
 
 	fprintf(stdout, "shutting down...\n");
 	router_shutdown();
-	for (id = 0; id < workercnt; id++) {
-		pthread_join(workers[id + 0], NULL);
-	}
+	for (id = 0; id < workercnt; id++)
+		dispatch_shutdown(workers[id + 0]);
 	fprintf(stdout, "%d workers stopped\n", workercnt);
 
 	free(workers);

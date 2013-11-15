@@ -15,6 +15,13 @@
  *  along with carbon-c-relay.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#ifndef DISPATCHER_H
+#define DISPATCHER_H 1
+
+typedef struct _dispatcher dispatcher;
 
 int dispatch_addlistener(int sock);
-void *dispatch_runner(void *arg);
+dispatcher *dispatch_new(char id);
+void dispatch_shutdown(dispatcher *d);
+
+#endif
