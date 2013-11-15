@@ -15,12 +15,14 @@
  *  along with carbon-c-relay.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef HAVE_RELAY_H
-#define HAVE_RELAY_H 1
 
-#define VERSION "0.1"
+#ifndef COLLECTOR_H
+#define COLLECTOR_H 1
 
-extern int keep_running;
-extern char relay_hostname[];
+#define timediff_ms(X, Y) \
+	(Y.tv_sec > X.tv_sec ? (Y.tv_sec - X.tv_sec) * 1000 * 1000 + ((Y.tv_usec - X.tv_usec)) : Y.tv_usec - X.tv_usec) / 1000
+
+void collector_start(int dcnt, void **d);
+void collector_stop(void);
 
 #endif

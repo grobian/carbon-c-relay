@@ -18,10 +18,14 @@
 #ifndef DISPATCHER_H
 #define DISPATCHER_H 1
 
+#include <stdlib.h>
+
 typedef struct _dispatcher dispatcher;
 
 int dispatch_addlistener(int sock);
 dispatcher *dispatch_new(char id);
 void dispatch_shutdown(dispatcher *d);
+size_t dispatch_get_ticks(dispatcher *self);
+size_t dispatch_get_metrics(dispatcher *self);
 
 #endif

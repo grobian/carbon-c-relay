@@ -25,5 +25,7 @@ void server_send(server *s, const char *d);
 void server_shutdown(server *s);
 const char *server_ip(server *s);
 unsigned short server_port(server *s);
+size_t server_get_ticks(server *self);
+size_t server_get_metrics(server *self);
 
 #endif

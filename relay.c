@@ -29,8 +29,10 @@
 #include "router.h"
 #include "receptor.h"
 #include "dispatcher.h"
+#include "collector.h"
 
 int keep_running = 1;
+char relay_hostname[128];
 
 static void
 exit_handler(int sig)
@@ -60,9 +62,13 @@ int main() {
 	char *routes = "testconf";
 	unsigned short listenport = 2003;
 
+	if (gethostname(relay_hostname, sizeof(relay_hostname)) < 0)
+		snprintf(relay_hostname, sizeof(relay_hostname), "127.0.0.1");
+
 	fprintf(stdout, "Starting carbon-c-relay %s (%s)\n",
 		VERSION, GIT_VERSION);
 	fprintf(stdout, "configuration:\n");
+	fprintf(stdout, "    relay hostname = %s\n", relay_hostname);
 	fprintf(stdout, "    listen port = %u\n", listenport);
 	fprintf(stdout, "    workers = %d\n", workercnt);
 	fprintf(stdout, "    routes configuration = %s\n", routes);
@@ -119,6 +125,8 @@ int main() {
 		fprintf(stderr, "shutting down due to errors\n");
 		keep_running = 0;
 	}
+
+	collector_start(workercnt, (void **)workers);
 
 	/* workers do the work, just wait */
 	while (keep_running)

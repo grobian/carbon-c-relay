@@ -28,6 +28,7 @@
 
 #include "relay.h"
 #include "router.h"
+#include "collector.h"
 
 enum conntype {
 	LISTENER,
@@ -47,8 +48,8 @@ typedef struct _connection {
 typedef struct _dispatcher {
 	pthread_t tid;
 	char id;
-	struct timeval start;
 	size_t metrics;
+	size_t ticks;
 } dispatcher;
 
 static connection *connections = NULL;
@@ -107,15 +108,15 @@ dispatch_connection(connection *conn, dispatcher *self)
 		newconn->next = connections;
 		connections = connections->prev = newconn;
 		pthread_mutex_unlock(&connections_lock);
-
-		self->metrics++;
 	} else if (conn->type == CONNECTION) {
 		/* data should be available for reading */
 		char *p, *q, *firstspace, *lastnl;
 		char metric[sizeof(conn->buf)];
 		char metric_path[sizeof(conn->buf)];
 		int len;
+		struct timeval start, stop;
 
+		gettimeofday(&start, NULL);
 		while ((len = read(conn->sock,
 						conn->buf + conn->buflen, 
 						sizeof(conn->buf) - conn->buflen)) > 0)
@@ -187,6 +188,8 @@ dispatch_connection(connection *conn, dispatcher *self)
 				memmove(conn->buf, lastnl + 1, remaining);
 			}
 		}
+		gettimeofday(&stop, NULL);
+		self->ticks += timediff_ms(start, stop);
 		if (len == 0 || (len < 0 && errno != EINTR)) {  /* EOF */
 			/* since we never "release" this connection, we just need to
 			 * make sure we "detach" the next pointer safely */
@@ -261,8 +264,8 @@ dispatch_runner(void *arg)
 	connection *conn;
 	int work;
 
-	gettimeofday(&self->start, NULL);
 	self->metrics = 0;
+	self->ticks = 0;
 
 	while (keep_running) {
 		work = 0;
@@ -304,4 +307,22 @@ dispatch_shutdown(dispatcher *d)
 {
 	pthread_join(d->tid, NULL);
 	free(d);
+}
+
+/**
+ * Returns the wall-clock time in milliseconds consumed by this dispatcher.
+ */
+inline size_t
+dispatch_get_ticks(dispatcher *self)
+{
+	return self->ticks;
+}
+
+/**
+ * Returns the number of metrics dispatched since start.
+ */
+inline size_t
+dispatch_get_metrics(dispatcher *self)
+{
+	return self->metrics;
 }

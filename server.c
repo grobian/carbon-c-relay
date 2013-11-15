@@ -28,6 +28,7 @@
 
 #include "relay.h"
 #include "queue.h"
+#include "collector.h"
 
 typedef struct _server {
 	const char *ip;
@@ -35,8 +36,8 @@ typedef struct _server {
 	struct sockaddr_in serv_addr;
 	queue *queue;
 	pthread_t tid;
-	struct timeval start;
 	size_t metrics;
+	size_t ticks;
 } server;
 
 #define BATCH_SIZE   2500
@@ -58,9 +59,11 @@ server_queuereader(void *d)
 	size_t i;
 	size_t len;
 	const char *metric;
+	struct timeval start, stop;
 
-	gettimeofday(&self->start, NULL);
 	self->metrics = 0;
+	self->ticks = 0;
+
 	while (1) {
 		if ((qlen = queue_len(self->queue)) == 0) {
 			if (!keep_running)
@@ -73,6 +76,8 @@ server_queuereader(void *d)
 		/* send up to BATCH_SIZE */
 		if (qlen > BATCH_SIZE)
 			qlen = BATCH_SIZE;
+
+		gettimeofday(&start, NULL);
 
 		/* try to connect */
 		if ((fd = socket(PF_INET, SOCK_STREAM, 0)) < 0 ||
@@ -106,7 +111,9 @@ server_queuereader(void *d)
 			free((char *)metric);
 		}
 		close(fd);
+		gettimeofday(&stop, NULL);
 		self->metrics += i;
+		self->ticks += timediff_ms(start, stop);
 	}
 
 	return NULL;
@@ -192,4 +199,22 @@ server_port(server *s)
 	if (s == NULL)
 		return 0;
 	return s->port;
+}
+
+/**
+ * Returns the wall-clock time in milliseconds consumed sending metrics.
+ */
+inline size_t
+server_get_ticks(server *self)
+{
+	return self->ticks;
+}
+
+/**
+ * Returns the number of metrics sent since start.
+ */
+inline size_t
+server_get_metrics(server *self)
+{
+	return self->metrics;
 }
