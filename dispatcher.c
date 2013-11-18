@@ -41,7 +41,6 @@ typedef struct _connection {
 	char takenby;
 	char buf[8096];
 	int buflen;
-	struct _connection *prev;
 	struct _connection *next;
 } connection;
 
@@ -101,12 +100,11 @@ dispatch_connection(connection *conn, dispatcher *self)
 		newconn->type = CONNECTION;
 		newconn->takenby = 0;
 		newconn->buflen = 0;
-		newconn->prev = NULL;
 		/* make sure connections won't change whilst we add an element
 		 * in front of it */
 		pthread_mutex_lock(&connections_lock);
 		newconn->next = connections;
-		connections = connections->prev = newconn;
+		connections = newconn;
 		pthread_mutex_unlock(&connections_lock);
 	} else if (conn->type == CONNECTION) {
 		/* data should be available for reading */
@@ -194,15 +192,14 @@ dispatch_connection(connection *conn, dispatcher *self)
 			/* since we never "release" this connection, we just need to
 			 * make sure we "detach" the next pointer safely */
 			pthread_mutex_lock(&connections_lock);
-			if (conn->prev != NULL) {
-				/* if a thread follows conn->prev->next to end up at
-				 * conn, it's ok, since its still claimed and existing */
-				conn->prev->next = conn->next;
-				conn->next->prev = conn->prev;
+			if (conn != connections) {
+				connection *w;
+				for (w = connections; w->next != conn; w = w->next)
+					;
+				w->next = conn->next;
 			} else {
 				/* if a thread references conn, it still is ok, since it
 				 * isn't cleared */
-				conn->next->prev = NULL;
 				connections = conn->next;
 			}
 			pthread_mutex_unlock(&connections_lock);
@@ -238,16 +235,11 @@ dispatch_addlistener(int sock)
 	newconn->type = LISTENER;
 	newconn->takenby = 0;
 	newconn->buflen = 0;
-	newconn->prev = NULL;
 	/* make sure connections won't change whilst we add an element
 	 * in front of it */
 	pthread_mutex_lock(&connections_lock);
 	newconn->next = connections;
-	if (connections != NULL) {
-		connections = connections->prev = newconn;
-	} else {
-		connections = newconn;
-	}
+	connections = newconn;
 	pthread_mutex_unlock(&connections_lock);
 
 	return 0;
