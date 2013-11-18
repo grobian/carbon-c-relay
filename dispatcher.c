@@ -75,7 +75,7 @@ dispatch_connection(connection *conn, dispatcher *self)
 		struct sockaddr addr;
 		socklen_t addrlen = sizeof(addr);
 		connection *newconn;
-		short c;
+		int c;
 
 		if ((client = accept(conn->sock, &addr, &addrlen)) < 0) {
 			conn->takenby = 0;
@@ -190,7 +190,7 @@ dispatch_connection(connection *conn, dispatcher *self)
 		gettimeofday(&stop, NULL);
 		self->ticks += timediff(start, stop);
 		if (len == 0 || (len < 0 && errno != EINTR)) {  /* EOF */
-			short c;
+			int c;
 
 			/* find connection */
 			for (c = 0; c < sizeof(connections); c++)
@@ -226,7 +226,7 @@ int
 dispatch_addlistener(int sock)
 {
 	connection *newconn;
-	short c;
+	int c;
 
 	newconn = malloc(sizeof(connection));
 	if (newconn == NULL)
@@ -257,7 +257,7 @@ dispatch_runner(void *arg)
 	dispatcher *self = (dispatcher *)arg;
 	connection *conn;
 	int work;
-	short c;
+	int c;
 
 	self->metrics = 0;
 	self->ticks = 0;
