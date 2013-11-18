@@ -33,10 +33,10 @@ enum clusttype {
 	/* room for a better/different hash definition */
 };
 
-typedef struct _forward {
+typedef struct _servers {
 	server *server;
-	struct _forward *next;
-} forward;
+	struct _servers *next;
+} servers;
 
 typedef struct _cluster {
 	char *name;
@@ -45,8 +45,9 @@ typedef struct _cluster {
 		struct {
 			unsigned char repl_factor;
 			carbon_ring *ring;
+			servers *servers;
 		} carbon_ch;
-		forward *forward;
+		servers *forward;
 	} members;
 	struct _cluster *next;
 } cluster;
@@ -119,7 +120,7 @@ router_readconfig(const char *path)
 
 		if (strncmp(p, "cluster", 7) == 0 && isspace(*(p + 7))) {
 			/* group config */
-			forward *w;
+			servers *w;
 			char *name;
 			p += 8;
 			for (; *p != '\0' && isspace(*p); p++)
@@ -217,13 +218,35 @@ router_readconfig(const char *path)
 					}
 
 					if (cl->type == CARBON_CH) {
+						if (w == NULL) {
+							cl->members.carbon_ch.servers = w =
+								malloc(sizeof(servers));
+						} else {
+							w = w->next = malloc(sizeof(servers));
+						}
+						if (w == NULL) {
+							fprintf(stderr, "malloc failed in carbon_ch ip\n");
+							free(cl);
+							free(buf);
+							return 0;
+						}
+						w->next = NULL;
+						w->server = server_new(ipbuf, (unsigned short)port);
+						if (w->server == NULL) {
+							fprintf(stderr, "failed to add server %s:%d "
+									"to carbon_ch: %s\n", ipbuf, port,
+									strerror(errno));
+							free(w);
+							free(cl);
+							free(buf);
+							return 0;
+						}
 						cl->members.carbon_ch.ring = carbon_addnode(
 								cl->members.carbon_ch.ring,
-								ipbuf, (unsigned short)port);
+								w->server);
 						if (cl->members.carbon_ch.ring == NULL) {
 							fprintf(stderr, "failed to add server %s:%d "
-									"to ring: %s\n", ipbuf, port,
-									strerror(errno));
+									"to ring: out of memory\n", ipbuf, port);
 							free(cl);
 							free(buf);
 							return 0;
@@ -231,9 +254,9 @@ router_readconfig(const char *path)
 					} else if (cl->type == FORWARD) {
 						if (w == NULL) {
 							cl->members.forward = w =
-								malloc(sizeof(struct _server*));
+								malloc(sizeof(servers));
 						} else {
-							w = w->next = malloc(sizeof(struct _server*));
+							w = w->next = malloc(sizeof(servers));
 						}
 						if (w == NULL) {
 							fprintf(stderr, "malloc failed in cluster "
@@ -397,8 +420,7 @@ router_printconfig(FILE *f)
 {
 	cluster *c;
 	route *r;
-	forward *s;
-	carbon_ring *h;
+	servers *s;
 
 	for (c = clusters; c != NULL; c = c->next) {
 		fprintf(f, "cluster %s\n", c->name);
@@ -408,24 +430,11 @@ router_printconfig(FILE *f)
 				fprintf(f, "\t\t%s:%d\n",
 						server_ip(s->server), server_port(s->server));
 		} else if (c->type == CARBON_CH) {
-			server *uniq[128];
-			int i;
-			memset(uniq, 0, sizeof(uniq));
 			fprintf(f, "\tcarbon_ch replication %d\n",
 					c->members.carbon_ch.repl_factor);
-			for (h = c->members.carbon_ch.ring; h != NULL; h = h->next) {
-				for (i = 0; i < sizeof(uniq) / sizeof(char *); i++) {
-					if (uniq[i] == NULL) {
-						uniq[i] = h->server;
-						fprintf(f, "\t\t%s:%d\n",
-								server_ip(h->server), server_port(h->server));
-						break;
-					} else if (uniq[i] == h->server) {
-						break;
-					}
-				}
-				/* silently drop any further members */
-			}
+			for (s = c->members.carbon_ch.servers; s != NULL; s = s->next)
+				fprintf(f, "\t\t%s:%d\n",
+						server_ip(s->server), server_port(s->server));
 		}
 		fprintf(f, "\t;\n");
 	}
@@ -454,7 +463,7 @@ router_route(const char *metric_path, const char *metric)
 			switch (w->dest->type) {
 				case FORWARD: {
 					/* simple case, no logic necessary */
-					forward *s;
+					servers *s;
 					for (s = w->dest->members.forward; s != NULL; s = s->next)
 						server_send(s->server, metric);
 				}	break;
@@ -490,31 +499,52 @@ void
 router_shutdown(void)
 {
 	cluster *c;
-	forward *s;
-	carbon_ring *h;
+	servers *s;
 
 	for (c = clusters; c != NULL; c = c->next) {
 		if (c->type == FORWARD) {
 			for (s = c->members.forward; s != NULL; s = s->next)
 				server_shutdown(s->server);
 		} else if (c->type == CARBON_CH) {
-			server *uniq[128];
-			int i;
-			memset(uniq, 0, sizeof(uniq));
-			for (h = c->members.carbon_ch.ring; h != NULL; h = h->next) {
-				for (i = 0; i < sizeof(uniq) / sizeof(char *); i++) {
-					if (uniq[i] == NULL) {
-						uniq[i] = h->server;
-						server_shutdown(h->server);
-						break;
-					} else if (uniq[i] == h->server) {
-						break;
-					}
-				}
-				if (i == sizeof(uniq) / sizeof(char *))
-					fprintf(stderr, "FIXME: need larger array to "
-							"properly cleanup in router_shutdown()\n");
-			}
+			for (s = c->members.carbon_ch.servers; s != NULL; s = s->next)
+				server_shutdown(s->server);
 		}
 	}
+}
+
+/**
+ * Returns a NULL-terminated list of servers.
+ */
+server **
+router_getservers(void)
+{
+	size_t cnt = 0;
+	cluster *c;
+	servers *s;
+	server **ret;
+
+	for (c = clusters; c != NULL; c = c->next) {
+		if (c->type == FORWARD) {
+			for (s = c->members.forward; s != NULL; s = s->next)
+				cnt++;
+		} else if (c->type == CARBON_CH) {
+			for (s = c->members.carbon_ch.servers; s != NULL; s = s->next)
+				cnt++;
+		}
+	}
+
+	ret = malloc(sizeof(server *) * (cnt + 1));
+	cnt = 0;
+	for (c = clusters; c != NULL; c = c->next) {
+		if (c->type == FORWARD) {
+			for (s = c->members.forward; s != NULL; s = s->next)
+				ret[cnt++] = s->server;
+		} else if (c->type == CARBON_CH) {
+			for (s = c->members.carbon_ch.servers; s != NULL; s = s->next)
+				ret[cnt++] = s->server;
+		}
+	}
+	ret[cnt] = NULL;
+
+	return ret;
 }

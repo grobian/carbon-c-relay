@@ -60,22 +60,19 @@ entrycmp(const void *l, const void *r)
  * calculation.  Returns an updated ring, or a new ring if none given.
  */
 carbon_ring *
-carbon_addnode(carbon_ring *ring, const char *host, const unsigned short port)
+carbon_addnode(carbon_ring *ring, server *s)
 {
 	int i;
 	char buf[256];
-	server *s;
 	carbon_ring *entries = (carbon_ring *)malloc(sizeof(carbon_ring) * CARBON_REPLICAS);
 
 	if (entries == NULL)
-		return NULL;
-	if ((s = server_new(host, port)) == NULL)
 		return NULL;
 
 	for (i = 0; i < CARBON_REPLICAS; i++) {
 		/* this format is actually Python's tuple format that is used in
 		 * serialised form as input for the hash */
-		snprintf(buf, sizeof(buf), "('%s', None):%d", host, i);
+		snprintf(buf, sizeof(buf), "('%s', None):%d", server_ip(s), i);
 		entries[i].pos = carbon_hashpos(buf);
 		entries[i].server = s;
 		entries[i].next = NULL;

@@ -19,10 +19,10 @@
 #ifndef COLLECTOR_H
 #define COLLECTOR_H 1
 
-#define timediff_ms(X, Y) \
-	(Y.tv_sec > X.tv_sec ? (Y.tv_sec - X.tv_sec) * 1000 * 1000 + ((Y.tv_usec - X.tv_usec)) : Y.tv_usec - X.tv_usec) / 1000
+#define timediff(X, Y) \
+	(Y.tv_sec > X.tv_sec ? (Y.tv_sec - X.tv_sec) * 1000 * 1000 + ((Y.tv_usec - X.tv_usec)) : Y.tv_usec - X.tv_usec)
 
-void collector_start(int dcnt, void **d);
+void collector_start(void **d, void **s);
 void collector_stop(void);
 
 #endif

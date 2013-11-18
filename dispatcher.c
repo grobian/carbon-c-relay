@@ -189,7 +189,7 @@ dispatch_connection(connection *conn, dispatcher *self)
 			}
 		}
 		gettimeofday(&stop, NULL);
-		self->ticks += timediff_ms(start, stop);
+		self->ticks += timediff(start, stop);
 		if (len == 0 || (len < 0 && errno != EINTR)) {  /* EOF */
 			/* since we never "release" this connection, we just need to
 			 * make sure we "detach" the next pointer safely */

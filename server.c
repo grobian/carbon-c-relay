@@ -113,7 +113,7 @@ server_queuereader(void *d)
 		close(fd);
 		gettimeofday(&stop, NULL);
 		self->metrics += i;
-		self->ticks += timediff_ms(start, stop);
+		self->ticks += timediff(start, stop);
 	}
 
 	return NULL;

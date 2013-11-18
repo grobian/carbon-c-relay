@@ -57,6 +57,7 @@ exit_handler(int sig)
 int main() {
 	int sock;
 	char id;
+	server **servers;
 	dispatcher **workers;
 	char workercnt = 16;
 	char *routes = "testconf";
@@ -94,7 +95,7 @@ int main() {
 				strerror(errno));
 		return 1;
 	}
-	workers = malloc(sizeof(dispatcher *) * workercnt);
+	workers = malloc(sizeof(dispatcher *) * (workercnt + 1));
 	if (workers == NULL) {
 		fprintf(stderr, "failed to allocate memory for workers\n");
 		return 1;
@@ -121,12 +122,14 @@ int main() {
 			break;
 		}
 	}
+	workers[id - 1] = NULL;
 	if (id <= workercnt) {
 		fprintf(stderr, "shutting down due to errors\n");
 		keep_running = 0;
 	}
 
-	collector_start(workercnt, (void **)workers);
+	servers = router_getservers();
+	collector_start((void **)workers, (void **)servers);
 
 	/* workers do the work, just wait */
 	while (keep_running)

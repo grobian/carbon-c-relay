@@ -26,10 +26,7 @@ typedef struct _ring_entry {
 	struct _ring_entry *next;
 } carbon_ring;
 
-carbon_ring *carbon_addnode(
-		carbon_ring *ring,
-		const char *host,
-		const unsigned short port);
+carbon_ring *carbon_addnode( carbon_ring *ring, server *s);
 void carbon_get_nodes(
 		server *ret[],
 		carbon_ring *ring,
