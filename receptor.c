@@ -30,6 +30,7 @@ int
 bindlisten(unsigned short port)
 {
 	int sock;
+	int optval;
 	struct sockaddr_in addr;
 	struct timeval tv;
 
@@ -44,7 +45,8 @@ bindlisten(unsigned short port)
 	tv.tv_sec = 0;
 	tv.tv_usec = 500 * 1000;
 	setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
-	setsockopt(sock, SOL_SOCKET, SO_REUSEPORT, NULL, 0);  /* allow takeover */
+	optval = 1;  /* allow takeover */
+	setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval));
 
 	if (bind(sock, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
 		close(sock);
