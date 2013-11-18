@@ -205,16 +205,20 @@ server_port(server *s)
  * Returns the wall-clock time in milliseconds consumed sending metrics.
  */
 inline size_t
-server_get_ticks(server *self)
+server_get_ticks(server *s)
 {
-	return self->ticks;
+	if (s == NULL)
+		return 0;
+	return s->ticks;
 }
 
 /**
  * Returns the number of metrics sent since start.
  */
 inline size_t
-server_get_metrics(server *self)
+server_get_metrics(server *s)
 {
-	return self->metrics;
+	if (s == NULL)
+		return 0;
+	return s->metrics;
 }
