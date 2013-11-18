@@ -41,7 +41,6 @@ typedef struct _connection {
 	char takenby;
 	char buf[8096];
 	int buflen;
-	struct _connection *next;
 } connection;
 
 typedef struct _dispatcher {
@@ -51,8 +50,7 @@ typedef struct _dispatcher {
 	size_t ticks;
 } dispatcher;
 
-static connection *connections = NULL;
-static pthread_mutex_t connections_lock = PTHREAD_MUTEX_INITIALIZER;
+static connection *connections[32768];  /* 32K conns, enough? */
 
 /**
  * Look at conn and see if works needs to be done.  If so, do it.
@@ -62,10 +60,6 @@ dispatch_connection(connection *conn, dispatcher *self)
 {
 	struct timeval tv;
 	fd_set fds;
-
-	/* atomically "claim" this connection */
-	if (!__sync_bool_compare_and_swap(&(conn->takenby), 0, self->id))
-		return 0;
 
 	tv.tv_sec = 0;
 	tv.tv_usec = 50 * 1000;  /* 50ms */
@@ -81,6 +75,7 @@ dispatch_connection(connection *conn, dispatcher *self)
 		struct sockaddr addr;
 		socklen_t addrlen = sizeof(addr);
 		connection *newconn;
+		short c;
 
 		if ((client = accept(conn->sock, &addr, &addrlen)) < 0) {
 			conn->takenby = 0;
@@ -100,12 +95,17 @@ dispatch_connection(connection *conn, dispatcher *self)
 		newconn->type = CONNECTION;
 		newconn->takenby = 0;
 		newconn->buflen = 0;
-		/* make sure connections won't change whilst we add an element
-		 * in front of it */
-		pthread_mutex_lock(&connections_lock);
-		newconn->next = connections;
-		connections = newconn;
-		pthread_mutex_unlock(&connections_lock);
+		for (c = 0; c < sizeof(connections); c++)
+			if (__sync_bool_compare_and_swap(&(connections[c]), NULL, newconn))
+				break;
+		if (c == sizeof(connections)) {
+			close(client);
+			conn->takenby = 0;
+			free(newconn);
+			fprintf(stderr, "cannot accept new connection: "
+					"no more free connection slots\n");
+			return 0;
+		}
 	} else if (conn->type == CONNECTION) {
 		/* data should be available for reading */
 		char *p, *q, *firstspace, *lastnl;
@@ -119,6 +119,8 @@ dispatch_connection(connection *conn, dispatcher *self)
 						conn->buf + conn->buflen, 
 						sizeof(conn->buf) - conn->buflen)) > 0)
 		{
+			conn->buflen += len;
+
 			/* metrics look like this: metric_path value timestamp\n
 			 * due to various messups we need to sanitise the
 			 * metrics_path here, to ensure we can calculate the metric
@@ -127,7 +129,7 @@ dispatch_connection(connection *conn, dispatcher *self)
 			q = metric;
 			firstspace = NULL;
 			lastnl = NULL;
-			for (p = conn->buf; p - conn->buf < conn->buflen + len; p++) {
+			for (p = conn->buf; p - conn->buf < conn->buflen; p++) {
 				if ((*p >= 'a' && *p <= 'z') ||
 						(*p >= 'A' && *p <= 'Z')||
 						(*p >= '0' && *p <= '9'))
@@ -156,8 +158,8 @@ dispatch_connection(connection *conn, dispatcher *self)
 					/* end of metric */
 					lastnl = p;
 
-					/* just a newline on it's own? skip */
-					if (q == metric)
+					/* just a newline on it's own? some random garbage? skip */
+					if (q == metric || firstspace == NULL)
 						continue;
 
 					*q++ = *p;
@@ -181,34 +183,31 @@ dispatch_connection(connection *conn, dispatcher *self)
 			}
 			if (lastnl != NULL) {
 				/* move remaining stuff to the front */
-				size_t remaining = lastnl + 1 - conn->buf;
-				conn->buflen -= remaining;
-				memmove(conn->buf, lastnl + 1, remaining);
+				conn->buflen -= lastnl + 1 - conn->buf;
+				memmove(conn->buf, lastnl + 1, conn->buflen);
 			}
 		}
 		gettimeofday(&stop, NULL);
 		self->ticks += timediff(start, stop);
 		if (len == 0 || (len < 0 && errno != EINTR)) {  /* EOF */
-			/* since we never "release" this connection, we just need to
-			 * make sure we "detach" the next pointer safely */
-			pthread_mutex_lock(&connections_lock);
-			if (conn != connections) {
-				connection *w;
-				for (w = connections; w->next != conn; w = w->next)
-					;
-				w->next = conn->next;
-			} else {
-				/* if a thread references conn, it still is ok, since it
-				 * isn't cleared */
-				connections = conn->next;
+			short c;
+
+			/* find connection */
+			for (c = 0; c < sizeof(connections); c++)
+				if (connections[c] == conn)
+					break;
+			if (c == sizeof(connections)) {
+				/* not found?!? */
+				fprintf(stderr, "PANIC: can't find my own connections!\n");
+				return 1;
 			}
-			pthread_mutex_unlock(&connections_lock);
+			/* make this connection no longer visible */
+			connections[c] = NULL;
 			/* if some other thread was looking at conn, make sure it
 			 * will have moved on before freeing this object */
 			usleep(10 * 1000);  /* 10ms */
 			close(conn->sock);
 			free(conn);
-			conn = NULL;
 			return 1;
 		}
 	}
@@ -227,6 +226,7 @@ int
 dispatch_addlistener(int sock)
 {
 	connection *newconn;
+	short c;
 
 	newconn = malloc(sizeof(connection));
 	if (newconn == NULL)
@@ -235,12 +235,14 @@ dispatch_addlistener(int sock)
 	newconn->type = LISTENER;
 	newconn->takenby = 0;
 	newconn->buflen = 0;
-	/* make sure connections won't change whilst we add an element
-	 * in front of it */
-	pthread_mutex_lock(&connections_lock);
-	newconn->next = connections;
-	connections = newconn;
-	pthread_mutex_unlock(&connections_lock);
+	for (c = 0; c < sizeof(connections); c++)
+		if (__sync_bool_compare_and_swap(&(connections[c]), NULL, newconn))
+			break;
+	if (c == sizeof(connections)) {
+		fprintf(stderr, "cannot add new listener: "
+				"no more free connection slots\n");
+		return 1;
+	}
 
 	return 0;
 }
@@ -255,14 +257,22 @@ dispatch_runner(void *arg)
 	dispatcher *self = (dispatcher *)arg;
 	connection *conn;
 	int work;
+	short c;
 
 	self->metrics = 0;
 	self->ticks = 0;
 
 	while (keep_running) {
 		work = 0;
-		for (conn = connections; conn != NULL; conn = conn->next)
+		for (c = 0; c < sizeof(connections); c++) {
+			conn = connections[c];
+			if (conn == NULL)
+				continue;
+			/* atomically try to "claim" this connection */
+			if (!__sync_bool_compare_and_swap(&(conn->takenby), 0, self->id))
+				continue;
 			work += dispatch_connection(conn, self);
+		}
 
 		if (work == 0)  /* nothing done, avoid spinlocking */
 			usleep(250 * 1000);  /* 250ms */
@@ -278,7 +288,7 @@ dispatcher *
 dispatch_new(char id)
 {
 	dispatcher *ret = malloc(sizeof(dispatcher));
-	
+
 	if (ret == NULL)
 		return NULL;
 

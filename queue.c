@@ -45,7 +45,7 @@ queue_new(size_t size)
 		return NULL;
 	}
 
-	memset(ret->queue, 0, sizeof(void *) * size);
+	memset(ret->queue, 0, sizeof(char *) * size);
 	ret->end = size;
 	ret->read = ret->write = 0;
 	ret->len = 0;
@@ -78,11 +78,11 @@ queue_enqueue(queue *q, const char *p)
 {
 	pthread_mutex_lock(&q->lock);
 	if (q->len != 0 && q->write == q->read) {
+		if (q->read == q->end)
+			q->read = 0;
 		free((char *)(q->queue[q->read]));
 		q->read++;
 		q->len--;
-		if (q->write == q->end)
-			q->read = 1;
 	}
 	if (q->write == q->end)
 		q->write = 0;
