@@ -134,6 +134,8 @@ int main() {
 
 	fprintf(stdout, "shutting down...\n");
 	router_shutdown();
+	/* since workers will be freed, stop querying the structures */
+	collector_stop();
 	for (id = 0; id < workercnt; id++)
 		dispatch_shutdown(workers[id + 0]);
 	fprintf(stdout, "%d workers stopped\n", workercnt);

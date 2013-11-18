@@ -42,8 +42,12 @@ collector_runner(void *p)
 	time_t now;
 	(void)p;  /* pacify compiler */
 
+	i = 0;
 	while (keep_running) {
-		sleep(60);
+		sleep(1);
+		i++;
+		if (i < 60)
+			continue;
 		now = time(NULL);
 		totticks = 0;
 		totmetrics = 0;
@@ -59,6 +63,7 @@ collector_runner(void *p)
 				relay_hostname, totmetrics, (size_t)now);
 		fprintf(stdout, "carbon.relays.%s.wallTime_ms %zd %zd\n",
 				relay_hostname, totticks, (size_t)now);
+		i = 0;
 	}
 
 	return NULL;
