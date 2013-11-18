@@ -74,8 +74,10 @@ int main() {
 	fprintf(stdout, "    workers = %d\n", workercnt);
 	fprintf(stdout, "    routes configuration = %s\n", routes);
 	fprintf(stdout, "\n");
-	if (router_readconfig(routes) == 0)
+	if (router_readconfig(routes) == 0) {
+		fprintf(stderr, "failed to read configuration '%s'\n", routes);
 		return 1;
+	}
 	fprintf(stdout, "parsed configuration follows:\n");
 	router_printconfig(stdout);
 	fprintf(stdout, "\n");
