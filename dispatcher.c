@@ -63,6 +63,7 @@ dispatch_connection(connection *conn, dispatcher *self)
 
 	tv.tv_sec = 0;
 	tv.tv_usec = 50 * 1000;  /* 50ms */
+	FD_ZERO(&fds);
 	FD_SET(conn->sock, &fds);
 	if (select(conn->sock + 1, &fds, NULL, NULL, &tv) <= 0) {
 		conn->takenby = 0;
