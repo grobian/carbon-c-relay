@@ -46,9 +46,9 @@ typedef struct _server {
 /**
  * Reads from the queue and sends items to the remote server.  This
  * function is designed to be a thread.  Data sending is attempted to be
- * batched, but sizeable chunks with reconnects per chunk to allow the
- * remote server to find a good balance between efficiency and load
- * balancing.
+ * batched, but sent one by one to reduce loss on sending failure.
+ * Reconnecting is done for each batch to allow the remote server to
+ * find a good balance between efficiency and load balancing.
  */
 static void *
 server_queuereader(void *d)
