@@ -154,3 +154,13 @@ queue_len(queue *q)
 {
 	return q->len;
 }
+
+/**
+ * Returns the (approximate) size of free entries in the queue.  The
+ * same conditions as for queue_len apply.
+ */
+inline size_t
+queue_free(queue *q)
+{
+	return q->end - q->len;
+}

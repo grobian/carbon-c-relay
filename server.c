@@ -36,7 +36,9 @@ typedef struct _server {
 	struct sockaddr_in serv_addr;
 	queue *queue;
 	pthread_t tid;
+	char failure;
 	size_t metrics;
+	size_t dropped;
 	size_t ticks;
 } server;
 
@@ -106,12 +108,14 @@ server_queuereader(void *d)
 						self->ip, self->port, strerror(errno));
 				fprintf(stderr, "dropping metric: %s", metric);
 				free((char *)metric);
+				self->failure = 1;
 				break;
 			}
 			free((char *)metric);
 		}
 		close(fd);
 		gettimeofday(&stop, NULL);
+		self->failure = 0;
 		self->metrics += i;
 		self->ticks += timediff(start, stop);
 	}
@@ -147,6 +151,11 @@ server_new(const char *ip, unsigned short port)
 		return NULL;
 	}
 
+	ret->failure = 0;
+	ret->metrics = 0;
+	ret->dropped = 0;
+	ret->ticks = 0;
+
 	if (pthread_create(&ret->tid, NULL, &server_queuereader, ret) != 0) {
 		free((char *)ret->ip);
 		free(ret);
@@ -162,6 +171,17 @@ server_new(const char *ip, unsigned short port)
 inline void
 server_send(server *s, const char *d)
 {
+	if (queue_free(s->queue) == 0) {
+		if (s->failure) {
+			s->dropped++;
+			/* event will be dropped by the enqueue below */
+		} else {
+			/* wait */
+			do {
+				usleep(250 * 1000);  /* 250ms */
+			} while (queue_free(s->queue) == 0);
+		}
+	}
 	queue_enqueue(s->queue, d);
 }
 
@@ -221,4 +241,15 @@ server_get_metrics(server *s)
 	if (s == NULL)
 		return 0;
 	return s->metrics;
+}
+
+/**
+ * Returns the number of metrics dropped since start.
+ */
+inline size_t
+server_get_dropped(server *s)
+{
+	if (s == NULL)
+		return 0;
+	return s->dropped;
 }
