@@ -265,7 +265,7 @@ dispatch_runner(void *arg)
 
 	while (keep_running) {
 		work = 0;
-		for (c = 0; c < sizeof(connections); c++) {
+		for (c = 0; c < sizeof(connections) / sizeof(connection); c++) {
 			conn = connections[c];
 			if (conn == NULL)
 				continue;
