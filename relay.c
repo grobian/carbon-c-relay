@@ -84,7 +84,7 @@ main(int argc, char * const argv[])
 	server **servers;
 	dispatcher **workers;
 	char workercnt = 16;
-	char *routes = "testconf";
+	char *routes = NULL;
 	unsigned short listenport = 2003;
 	int bflag, ch;
 
