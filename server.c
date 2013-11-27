@@ -86,6 +86,7 @@ server_queuereader(void *d)
 			connect(fd, (struct sockaddr *)&(self->serv_addr),
 				sizeof(self->serv_addr)) < 0)
 		{
+			self->failure = 1;
 			fprintf(stderr, "failed to connect() to %s:%u: %s\n",
 					self->ip, self->port, strerror(errno));
 			/* sleep a little to allow the server to catchup */
