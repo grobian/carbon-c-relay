@@ -54,7 +54,31 @@ exit_handler(int sig)
 	keep_running = 0;
 }
 
-int main() {
+void
+do_version(void)
+{
+	printf("carbon-c-relay v" VERSION " (" GIT_VERSION ")\n");
+
+	exit(0);
+}
+
+void
+do_usage(int exitcode)
+{
+	printf("Usage: relay [-v] -f <config> [-p <port>] [-w <workers>]\n");
+	printf("\n");
+	printf("Options:\n");
+	printf("  -v  print version and exit\n");
+	printf("  -f  read <config> for clusters and routes\n");
+	printf("  -p  listen on <port> for connections, defaults to 2003\n");
+	printf("  -w  user <workers> worker threads, defaults to 16\n");
+
+	exit(exitcode);
+}
+
+int
+main(int argc, char * const argv[])
+{
 	int sock;
 	char id;
 	server **servers;
@@ -62,11 +86,49 @@ int main() {
 	char workercnt = 16;
 	char *routes = "testconf";
 	unsigned short listenport = 2003;
+	int bflag, ch;
+
+	bflag = 0;
+	while ((ch = getopt(argc, argv, ":hvf:p:w:")) != -1) {
+		switch (ch) {
+			case 'v':
+				do_version();
+				break;
+			case 'f':
+				routes = optarg;
+				break;
+			case 'p':
+				listenport = (unsigned short)atoi(optarg);
+				if (listenport == 0) {
+					fprintf(stderr, "error: port needs to be a number >0\n");
+					do_usage(1);
+				}
+				break;
+			case 'w':
+				workercnt = (char)atoi(optarg);
+				if (workercnt <= 0) {
+					fprintf(stderr, "error: workers needs to be a number >0\n");
+					do_usage(1);
+				}
+				break;
+			case '?':
+			case ':':
+				do_usage(1);
+				break;
+			case 'h':
+			default:
+				do_usage(0);
+				break;
+		}
+	}
+	if (optind == 1)
+		do_usage(1);
+
 
 	if (gethostname(relay_hostname, sizeof(relay_hostname)) < 0)
 		snprintf(relay_hostname, sizeof(relay_hostname), "127.0.0.1");
 
-	fprintf(stdout, "Starting carbon-c-relay %s (%s)\n",
+	fprintf(stdout, "Starting carbon-c-relay v%s (%s)\n",
 		VERSION, GIT_VERSION);
 	fprintf(stdout, "configuration:\n");
 	fprintf(stdout, "    relay hostname = %s\n", relay_hostname);
@@ -106,7 +168,7 @@ int main() {
 	sock = bindlisten(listenport);
 	if (sock < 0) {
 		fprintf(stderr, "failed to bind on port %d: %s\n",
-				2003, strerror(errno));
+				listenport, strerror(errno));
 		return -1;
 	}
 	if (dispatch_addlistener(sock) != 0) {
