@@ -343,6 +343,7 @@ router_readconfig(const char *path)
 				for (; *p != '\0' && isspace(*p); p++)
 					;
 				if (*p == ';') {
+					p++;
 					stop = 0;
 				} else if (strncmp(p, "stop", 4) == 0 &&
 						(isspace(*(p + 4)) || *(p + 4) == ';'))
