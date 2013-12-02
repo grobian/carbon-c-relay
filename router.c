@@ -135,6 +135,8 @@ router_readconfig(const char *path)
 			}
 			*p++ = '\0';
 			cl = NULL;
+			for (; *p != '\0' && isspace(*p); p++)
+				;
 			if (strncmp(p, "carbon_ch", 9) == 0 && isspace(*(p + 9))) {
 				int replcnt = 1;
 				p += 10;
