@@ -170,6 +170,7 @@ router_readconfig(const char *path)
 				}
 				cl->type = CARBON_CH;
 				cl->members.carbon_ch.repl_factor = (unsigned char)replcnt;
+				cl->members.carbon_ch.ring = NULL;
 			} else if (strncmp(p, "forward", 7) == 0 && isspace(*(p + 7))) {
 				p += 8;
 
