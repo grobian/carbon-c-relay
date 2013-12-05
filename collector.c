@@ -104,6 +104,7 @@ collector_runner(void *unused)
 		i = 0;
 	}
 
+	free(hostname);
 	return NULL;
 }
 
