@@ -22,7 +22,7 @@
 #define timediff(X, Y) \
 	(Y.tv_sec > X.tv_sec ? (Y.tv_sec - X.tv_sec) * 1000 * 1000 + ((Y.tv_usec - X.tv_usec)) : Y.tv_usec - X.tv_usec)
 
-void collector_start(void **d, void **s);
+void collector_start(void **d, void **s, char dbg);
 void collector_stop(void);
 
 #endif

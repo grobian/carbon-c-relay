@@ -28,6 +28,8 @@
 
 static dispatcher **dispatchers;
 static server **servers;
+static char debug;
+static int metricsock;
 static pthread_t collectorid;
 
 /**
@@ -47,12 +49,21 @@ collector_runner(void *unused)
 	char *hostname = strdup(relay_hostname);
 	char ipbuf[32];
 	char *p;
+	FILE *dest = stdout;
 	(void)unused;  /* pacify compiler */
 
 	/* prepare hostname for graphite metrics */
 	for (p = hostname; *p != '\0'; p++)
 		if (*p == '.')
 			*p = '_';
+
+	/* create a stream (unless we are in debug mode) */
+	if (debug == 0) {
+		if ((dest = fdopen(metricsock, "w")) == NULL) {
+			fprintf(stderr, "failed to open pipe socket for writing, no statistics will be sent\n");
+			dest = stdout;
+		}
+	}
 
 	i = 0;
 	while (keep_running) {
@@ -66,14 +77,14 @@ collector_runner(void *unused)
 		for (i = 0; dispatchers[i] != NULL; i++) {
 			totticks += ticks = dispatch_get_ticks(dispatchers[i]);
 			totmetrics += metrics = dispatch_get_metrics(dispatchers[i]);
-			fprintf(stdout, "carbon.relays.%s.dispatcher%d.metricsReceived %zd %zd\n",
+			fprintf(dest, "carbon.relays.%s.dispatcher%d.metricsReceived %zd %zd\n",
 					hostname, i + 1, metrics, (size_t)now);
-			fprintf(stdout, "carbon.relays.%s.dispatcher%d.wallTime_ns %zd %zd\n",
+			fprintf(dest, "carbon.relays.%s.dispatcher%d.wallTime_ns %zd %zd\n",
 					hostname, i + 1, ticks, (size_t)now);
 		}
-		fprintf(stdout, "carbon.relays.%s.metricsReceived %zd %zd\n",
+		fprintf(dest, "carbon.relays.%s.metricsReceived %zd %zd\n",
 				hostname, totmetrics, (size_t)now);
-		fprintf(stdout, "carbon.relays.%s.dispatch_wallTime_ns %zd %zd\n",
+		fprintf(dest, "carbon.relays.%s.dispatch_wallTime_ns %zd %zd\n",
 				hostname, totticks, (size_t)now);
 
 		totticks = 0;
@@ -87,18 +98,18 @@ collector_runner(void *unused)
 			for (p = ipbuf; *p != '\0'; p++)
 				if (*p == '.')
 					*p = '_';
-			fprintf(stdout, "carbon.relays.%s.destinations.%s:%u.sent %zd %zd\n",
+			fprintf(dest, "carbon.relays.%s.destinations.%s:%u.sent %zd %zd\n",
 					hostname, ipbuf, server_port(servers[i]), metrics, (size_t)now);
-			fprintf(stdout, "carbon.relays.%s.destinations.%s:%u.dropped %zd %zd\n",
+			fprintf(dest, "carbon.relays.%s.destinations.%s:%u.dropped %zd %zd\n",
 					hostname, ipbuf, server_port(servers[i]), dropped, (size_t)now);
-			fprintf(stdout, "carbon.relays.%s.destinations.%s:%u.wallTime_ns %zd %zd\n",
+			fprintf(dest, "carbon.relays.%s.destinations.%s:%u.wallTime_ns %zd %zd\n",
 					hostname, ipbuf, server_port(servers[i]), ticks, (size_t)now);
 		}
-		fprintf(stdout, "carbon.relays.%s.metricsSent %zd %zd\n",
+		fprintf(dest, "carbon.relays.%s.metricsSent %zd %zd\n",
 				hostname, totmetrics, (size_t)now);
-		fprintf(stdout, "carbon.relays.%s.metricsDropped %zd %zd\n",
+		fprintf(dest, "carbon.relays.%s.metricsDropped %zd %zd\n",
 				hostname, totdropped, (size_t)now);
-		fprintf(stdout, "carbon.relays.%s.server_wallTime_ns %zd %zd\n",
+		fprintf(dest, "carbon.relays.%s.server_wallTime_ns %zd %zd\n",
 				hostname, totticks, (size_t)now);
 
 		i = 0;
@@ -112,10 +123,25 @@ collector_runner(void *unused)
  * Initialises and starts the collector.
  */
 void
-collector_start(dispatcher **d, server **s)
+collector_start(dispatcher **d, server **s, char dbg)
 {
 	dispatchers = d;
 	servers = s;
+	debug = dbg;
+	metricsock = -1;
+
+	if (debug != 0) {
+		int pipefds[2];
+
+		/* create pipe to relay metrics over */
+		if (pipe(pipefds) < 0) {
+			fprintf(stderr, "failed to create pipe, statistics will not be sent\n");
+			debug = 0;
+		} else {
+			dispatch_addconnection(pipefds[0]);
+			metricsock = pipefds[1];
+		}
+	}
 
 	if (pthread_create(&collectorid, NULL, collector_runner, NULL) != 0)
 		fprintf(stderr, "failed to start collector!\n");

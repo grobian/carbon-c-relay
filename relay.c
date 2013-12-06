@@ -65,13 +65,14 @@ do_version(void)
 void
 do_usage(int exitcode)
 {
-	printf("Usage: relay [-v] -f <config> [-p <port>] [-w <workers>]\n");
+	printf("Usage: relay [-vd] -f <config> [-p <port>] [-w <workers>]\n");
 	printf("\n");
 	printf("Options:\n");
 	printf("  -v  print version and exit\n");
 	printf("  -f  read <config> for clusters and routes\n");
 	printf("  -p  listen on <port> for connections, defaults to 2003\n");
 	printf("  -w  user <workers> worker threads, defaults to 16\n");
+	printf("  -d  debug mode: currently writes statistics to stdout\n");
 
 	exit(exitcode);
 }
@@ -86,13 +87,17 @@ main(int argc, char * const argv[])
 	char workercnt = 16;
 	char *routes = NULL;
 	unsigned short listenport = 2003;
+	char debug = 0;
 	int bflag, ch;
 
 	bflag = 0;
-	while ((ch = getopt(argc, argv, ":hvf:p:w:")) != -1) {
+	while ((ch = getopt(argc, argv, ":hvdf:p:w:")) != -1) {
 		switch (ch) {
 			case 'v':
 				do_version();
+				break;
+			case 'd':
+				debug = 1;
 				break;
 			case 'f':
 				routes = optarg;
@@ -134,6 +139,8 @@ main(int argc, char * const argv[])
 	fprintf(stdout, "    relay hostname = %s\n", relay_hostname);
 	fprintf(stdout, "    listen port = %u\n", listenport);
 	fprintf(stdout, "    workers = %d\n", workercnt);
+	if (debug)
+		fprintf(stdout, "    debug = true\n");
 	fprintf(stdout, "    routes configuration = %s\n", routes);
 	fprintf(stdout, "\n");
 	if (router_readconfig(routes) == 0) {
@@ -193,7 +200,7 @@ main(int argc, char * const argv[])
 	}
 
 	servers = router_getservers();
-	collector_start((void **)workers, (void **)servers);
+	collector_start((void **)workers, (void **)servers, debug);
 
 	/* workers do the work, just wait */
 	while (keep_running)
