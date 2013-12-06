@@ -138,8 +138,13 @@ collector_start(dispatcher **d, server **s, char dbg)
 			fprintf(stderr, "failed to create pipe, statistics will not be sent\n");
 			debug = 1;
 		} else {
-			dispatch_addconnection(pipefds[0]);
-			metricsock = pipefds[1];
+			if (dispatch_addconnection(pipefds[0]) != 0) {
+				close(pipefds[0]);
+				close(pipefds[1]);
+				debug = 1;
+			} else {
+				metricsock = pipefds[1];
+			}
 		}
 	}
 
