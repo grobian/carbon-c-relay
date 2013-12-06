@@ -75,8 +75,6 @@ dispatch_connection(connection *conn, dispatcher *self)
 		int client;
 		struct sockaddr addr;
 		socklen_t addrlen = sizeof(addr);
-		connection *newconn;
-		int c;
 
 		if ((client = accept(conn->sock, &addr, &addrlen)) < 0) {
 			conn->takenby = 0;
