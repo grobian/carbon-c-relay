@@ -153,5 +153,7 @@ collector_start(dispatcher **d, server **s, char dbg)
 void
 collector_stop(void)
 {
+	if (debug == 0)
+		close(metricsock);
 	pthread_join(collectorid, NULL);
 }
