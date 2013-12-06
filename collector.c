@@ -130,13 +130,13 @@ collector_start(dispatcher **d, server **s, char dbg)
 	debug = dbg;
 	metricsock = -1;
 
-	if (debug != 0) {
+	if (debug == 0) {
 		int pipefds[2];
 
 		/* create pipe to relay metrics over */
 		if (pipe(pipefds) < 0) {
 			fprintf(stderr, "failed to create pipe, statistics will not be sent\n");
-			debug = 0;
+			debug = 1;
 		} else {
 			dispatch_addconnection(pipefds[0]);
 			metricsock = pipefds[1];
