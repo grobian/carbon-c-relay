@@ -23,6 +23,7 @@
 typedef struct _dispatcher dispatcher;
 
 int dispatch_addlistener(int sock);
+int dispatch_addconnection(int sock);
 dispatcher *dispatch_new(char id);
 void dispatch_shutdown(dispatcher *d);
 size_t dispatch_get_ticks(dispatcher *self);

@@ -85,26 +85,9 @@ dispatch_connection(connection *conn, dispatcher *self)
 		tv.tv_sec = 0;
 		tv.tv_usec = 100 * 1000;
 		setsockopt(client, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
-		/* add client to list */
-		newconn = malloc(sizeof(connection));
-		if (newconn == NULL) {
+		if (dispatch_addconnection(client) != 0) {
 			close(client);
 			conn->takenby = 0;
-			return 0;
-		}
-		newconn->sock = client;
-		newconn->type = CONNECTION;
-		newconn->takenby = 0;
-		newconn->buflen = 0;
-		for (c = 0; c < sizeof(connections); c++)
-			if (__sync_bool_compare_and_swap(&(connections[c]), NULL, newconn))
-				break;
-		if (c == sizeof(connections)) {
-			close(client);
-			conn->takenby = 0;
-			free(newconn);
-			fprintf(stderr, "cannot accept new connection: "
-					"no more free connection slots\n");
 			return 0;
 		}
 	} else if (conn->type == CONNECTION) {
@@ -242,6 +225,36 @@ dispatch_addlistener(int sock)
 	if (c == sizeof(connections)) {
 		free(newconn);
 		fprintf(stderr, "cannot add new listener: "
+				"no more free connection slots\n");
+		return 1;
+	}
+
+	return 0;
+}
+
+/**
+ * Adds a connection socket to the chain of connections.
+ * Connection sockets are those which need to be read from.
+ */
+int
+dispatch_addconnection(int sock)
+{
+	connection *newconn;
+	int c;
+
+	newconn = malloc(sizeof(connection));
+	if (newconn == NULL)
+		return 1;
+	newconn->sock = sock;
+	newconn->type = CONNECTION;
+	newconn->takenby = 0;
+	newconn->buflen = 0;
+	for (c = 0; c < sizeof(connections); c++)
+		if (__sync_bool_compare_and_swap(&(connections[c]), NULL, newconn))
+			break;
+	if (c == sizeof(connections)) {
+		free(newconn);
+		fprintf(stderr, "cannot add new connection: "
 				"no more free connection slots\n");
 		return 1;
 	}
