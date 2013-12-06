@@ -240,6 +240,7 @@ dispatch_addlistener(int sock)
 		if (__sync_bool_compare_and_swap(&(connections[c]), NULL, newconn))
 			break;
 	if (c == sizeof(connections)) {
+		free(newconn);
 		fprintf(stderr, "cannot add new listener: "
 				"no more free connection slots\n");
 		return 1;
