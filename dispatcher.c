@@ -53,6 +53,66 @@ typedef struct _dispatcher {
 static connection *connections[32768];  /* 32K conns, enough? */
 
 /**
+ * Adds an (initial) listener socket to the chain of connections.
+ * Listener sockets are those which need to be accept()-ed on.
+ */
+int
+dispatch_addlistener(int sock)
+{
+	connection *newconn;
+	int c;
+
+	newconn = malloc(sizeof(connection));
+	if (newconn == NULL)
+		return 1;
+	newconn->sock = sock;
+	newconn->type = LISTENER;
+	newconn->takenby = 0;
+	newconn->buflen = 0;
+	for (c = 0; c < sizeof(connections); c++)
+		if (__sync_bool_compare_and_swap(&(connections[c]), NULL, newconn))
+			break;
+	if (c == sizeof(connections)) {
+		free(newconn);
+		fprintf(stderr, "cannot add new listener: "
+				"no more free connection slots\n");
+		return 1;
+	}
+
+	return 0;
+}
+
+/**
+ * Adds a connection socket to the chain of connections.
+ * Connection sockets are those which need to be read from.
+ */
+int
+dispatch_addconnection(int sock)
+{
+	connection *newconn;
+	int c;
+
+	newconn = malloc(sizeof(connection));
+	if (newconn == NULL)
+		return 1;
+	newconn->sock = sock;
+	newconn->type = CONNECTION;
+	newconn->takenby = 0;
+	newconn->buflen = 0;
+	for (c = 0; c < sizeof(connections); c++)
+		if (__sync_bool_compare_and_swap(&(connections[c]), NULL, newconn))
+			break;
+	if (c == sizeof(connections)) {
+		free(newconn);
+		fprintf(stderr, "cannot add new connection: "
+				"no more free connection slots\n");
+		return 1;
+	}
+
+	return 0;
+}
+
+/**
  * Look at conn and see if works needs to be done.  If so, do it.
  */
 static int
@@ -198,66 +258,6 @@ dispatch_connection(connection *conn, dispatcher *self)
 	conn->takenby = 0;
 
 	return 1;
-}
-
-/**
- * Adds an (initial) listener socket to the chain of connections.
- * Listener sockets are those which need to be accept()-ed on.
- */
-int
-dispatch_addlistener(int sock)
-{
-	connection *newconn;
-	int c;
-
-	newconn = malloc(sizeof(connection));
-	if (newconn == NULL)
-		return 1;
-	newconn->sock = sock;
-	newconn->type = LISTENER;
-	newconn->takenby = 0;
-	newconn->buflen = 0;
-	for (c = 0; c < sizeof(connections); c++)
-		if (__sync_bool_compare_and_swap(&(connections[c]), NULL, newconn))
-			break;
-	if (c == sizeof(connections)) {
-		free(newconn);
-		fprintf(stderr, "cannot add new listener: "
-				"no more free connection slots\n");
-		return 1;
-	}
-
-	return 0;
-}
-
-/**
- * Adds a connection socket to the chain of connections.
- * Connection sockets are those which need to be read from.
- */
-int
-dispatch_addconnection(int sock)
-{
-	connection *newconn;
-	int c;
-
-	newconn = malloc(sizeof(connection));
-	if (newconn == NULL)
-		return 1;
-	newconn->sock = sock;
-	newconn->type = CONNECTION;
-	newconn->takenby = 0;
-	newconn->buflen = 0;
-	for (c = 0; c < sizeof(connections); c++)
-		if (__sync_bool_compare_and_swap(&(connections[c]), NULL, newconn))
-			break;
-	if (c == sizeof(connections)) {
-		free(newconn);
-		fprintf(stderr, "cannot add new connection: "
-				"no more free connection slots\n");
-		return 1;
-	}
-
-	return 0;
 }
 
 /**
