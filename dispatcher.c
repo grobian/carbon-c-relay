@@ -157,7 +157,7 @@ dispatch_connection(connection *conn, dispatcher *self)
 		struct timeval start, stop;
 
 		gettimeofday(&start, NULL);
-		while ((len = read(conn->sock,
+		if ((len = read(conn->sock,
 						conn->buf + conn->buflen, 
 						sizeof(conn->buf) - conn->buflen)) > 0)
 		{
