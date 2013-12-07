@@ -100,6 +100,9 @@ collector_runner(void *unused)
 					*p = '_';
 			fprintf(dest, "carbon.relays.%s.destinations.%s:%u.sent %zd %zd\n",
 					hostname, ipbuf, server_port(servers[i]), metrics, (size_t)now);
+			fprintf(dest, "carbon.relays.%s.destinations.%s:%u.queued %zd %zd\n",
+					hostname, ipbuf, server_port(servers[i]),
+					server_get_queue_len(servers[i]), (size_t)now);
 			fprintf(dest, "carbon.relays.%s.destinations.%s:%u.dropped %zd %zd\n",
 					hostname, ipbuf, server_port(servers[i]), dropped, (size_t)now);
 			fprintf(dest, "carbon.relays.%s.destinations.%s:%u.wallTime_ns %zd %zd\n",

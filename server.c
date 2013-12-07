@@ -254,3 +254,14 @@ server_get_dropped(server *s)
 		return 0;
 	return s->dropped;
 }
+
+/**
+ * Returns the (approximate) number of metrics waiting to be sent.
+ */
+inline size_t
+server_get_queue_len(server *s)
+{
+	if (s == NULL)
+		return 0;
+	return queue_len(s->queue);
+}

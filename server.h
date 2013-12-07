@@ -28,5 +28,6 @@ unsigned short server_port(server *s);
 size_t server_get_ticks(server *s);
 size_t server_get_metrics(server *s);
 size_t server_get_dropped(server *s);
+size_t server_get_queue_len(server *s);
 
 #endif
