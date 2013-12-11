@@ -506,4 +506,6 @@ router_shutdown(void)
 
 	for (; *s != NULL; s++)
 		server_shutdown(*s);
+
+	free(s);
 }

@@ -215,5 +215,6 @@ main(int argc, char * const argv[])
 	fprintf(stdout, "%d workers stopped\n", workercnt);
 
 	free(workers);
+	free(servers);
 	return 0;
 }
