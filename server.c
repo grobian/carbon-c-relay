@@ -40,10 +40,13 @@ typedef struct _server {
 	size_t metrics;
 	size_t dropped;
 	size_t ticks;
+	struct _server *next;
 } server;
 
 #define BATCH_SIZE   2500
 #define QUEUE_SIZE  25000
+
+static server *servers = NULL;
 
 /**
  * Reads from the queue and sends items to the remote server.  This
@@ -132,10 +135,26 @@ server_queuereader(void *d)
 server *
 server_new(const char *ip, unsigned short port)
 {
-	server *ret = malloc(sizeof(server));
+	server *ret = servers;
+
+	/* first try and see if this server already exists, if so, return it */
+	if (ret != NULL) {
+		while (1) {
+			if (strcmp(ret->ip, ip) == 0 && ret->port == port)
+				return ret;
+			if (ret->next == NULL) {
+				ret = ret->next = malloc(sizeof(server));
+				break;
+			}
+			ret = ret->next;
+		}
+	} else {
+		ret = servers = malloc(sizeof(server));
+	}
 
 	if (ret == NULL)
 		return NULL;
+
 	ret->ip = strdup(ip);
 	ret->port = port;
 	ret->serv_addr.sin_family = AF_INET;
@@ -184,6 +203,28 @@ server_send(server *s, const char *d)
 		}
 	}
 	queue_enqueue(s->queue, d);
+}
+
+/**
+ * Returns a NULL-terminated list of servers.
+ */
+server **
+server_get_servers(void)
+{
+	size_t cnt = 0;
+	server *walk;
+	server **ret;
+
+	for (walk = servers; walk != NULL; walk = walk->next)
+		cnt++;
+
+	ret = malloc(sizeof(server *) * (cnt + 1));
+	cnt = 0;
+	for (walk = servers; walk != NULL; walk = walk->next)
+		ret[cnt++] = walk;
+	ret[cnt] = NULL;
+
+	return ret;
 }
 
 /**

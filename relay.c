@@ -199,7 +199,7 @@ main(int argc, char * const argv[])
 		keep_running = 0;
 	}
 
-	servers = router_getservers();
+	servers = server_get_servers();
 	collector_start((void **)workers, (void **)servers, debug);
 
 	/* workers do the work, just wait */
