@@ -502,16 +502,8 @@ router_route(const char *metric_path, const char *metric)
 void
 router_shutdown(void)
 {
-	cluster *c;
-	servers *s;
+	server **s = server_get_servers();
 
-	for (c = clusters; c != NULL; c = c->next) {
-		if (c->type == FORWARD) {
-			for (s = c->members.forward; s != NULL; s = s->next)
-				server_shutdown(s->server);
-		} else if (c->type == CARBON_CH) {
-			for (s = c->members.carbon_ch.servers; s != NULL; s = s->next)
-				server_shutdown(s->server);
-		}
-	}
+	for (; *s != NULL; s++)
+		server_shutdown(*s);
 }
