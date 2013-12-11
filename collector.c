@@ -41,9 +41,11 @@ collector_runner(void *unused)
 	int i;
 	size_t totticks;
 	size_t totmetrics;
+	size_t totqueued;
 	size_t totdropped;
 	size_t ticks;
 	size_t metrics;
+	size_t queued;
 	size_t dropped;
 	time_t now;
 	char *hostname = strdup(relay_hostname);
@@ -89,10 +91,12 @@ collector_runner(void *unused)
 
 		totticks = 0;
 		totmetrics = 0;
+		totqueued = 0;
 		totdropped = 0;
 		for (i = 0; servers[i] != NULL; i++) {
 			totticks += ticks = server_get_ticks(servers[i]);
 			totmetrics += metrics = server_get_metrics(servers[i]);
+			totqueued += queued = server_get_queue_len(servers[i]);
 			totdropped += dropped = server_get_dropped(servers[i]);
 			snprintf(ipbuf, sizeof(ipbuf), "%s", server_ip(servers[i]));
 			for (p = ipbuf; *p != '\0'; p++)
@@ -101,8 +105,7 @@ collector_runner(void *unused)
 			fprintf(dest, "carbon.relays.%s.destinations.%s:%u.sent %zd %zd\n",
 					hostname, ipbuf, server_port(servers[i]), metrics, (size_t)now);
 			fprintf(dest, "carbon.relays.%s.destinations.%s:%u.queued %zd %zd\n",
-					hostname, ipbuf, server_port(servers[i]),
-					server_get_queue_len(servers[i]), (size_t)now);
+					hostname, ipbuf, server_port(servers[i]), queued, (size_t)now);
 			fprintf(dest, "carbon.relays.%s.destinations.%s:%u.dropped %zd %zd\n",
 					hostname, ipbuf, server_port(servers[i]), dropped, (size_t)now);
 			fprintf(dest, "carbon.relays.%s.destinations.%s:%u.wallTime_ns %zd %zd\n",
