@@ -18,6 +18,7 @@
 
 #include <stdlib.h>
 #include <unistd.h>
+#include <fcntl.h>
 #include <string.h>
 #include <errno.h>
 #include <pthread.h>
@@ -65,6 +66,7 @@ dispatch_addlistener(int sock)
 	newconn = malloc(sizeof(connection));
 	if (newconn == NULL)
 		return 1;
+	fcntl(sock, F_SETFD, O_NONBLOCK);
 	newconn->sock = sock;
 	newconn->type = LISTENER;
 	newconn->takenby = 0;
@@ -95,6 +97,7 @@ dispatch_addconnection(int sock)
 	newconn = malloc(sizeof(connection));
 	if (newconn == NULL)
 		return 1;
+	fcntl(sock, F_SETFD, O_NONBLOCK);
 	newconn->sock = sock;
 	newconn->type = CONNECTION;
 	newconn->takenby = 0;
@@ -118,18 +121,6 @@ dispatch_addconnection(int sock)
 static int
 dispatch_connection(connection *conn, dispatcher *self)
 {
-	struct timeval tv;
-	fd_set fds;
-
-	tv.tv_sec = 0;
-	tv.tv_usec = 50 * 1000;  /* 50ms */
-	FD_ZERO(&fds);
-	FD_SET(conn->sock, &fds);
-	if (select(conn->sock + 1, &fds, NULL, NULL, &tv) <= 0) {
-		conn->takenby = 0;
-		return 0;
-	}
-
 	if (conn->type == LISTENER) {
 		/* a new connection should be waiting for us */
 		int client;
@@ -140,9 +131,6 @@ dispatch_connection(connection *conn, dispatcher *self)
 			conn->takenby = 0;
 			return 0;
 		}
-		tv.tv_sec = 0;
-		tv.tv_usec = 100 * 1000;
-		setsockopt(client, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
 		if (dispatch_addconnection(client) != 0) {
 			close(client);
 			conn->takenby = 0;
@@ -232,7 +220,11 @@ dispatch_connection(connection *conn, dispatcher *self)
 		}
 		gettimeofday(&stop, NULL);
 		self->ticks += timediff(start, stop);
-		if (len == 0 || (len < 0 && errno != EINTR)) {  /* EOF */
+		if (len == 0 || (len < 0 &&
+					(errno != EINTR &&
+					 errno != EAGAIN &&
+					 errno != EWOULDBLOCK)))
+		{  /* EOF */
 			int c;
 
 			/* find connection */
@@ -241,7 +233,7 @@ dispatch_connection(connection *conn, dispatcher *self)
 					break;
 			if (c == sizeof(connections)) {
 				/* not found?!? */
-				fprintf(stderr, "PANIC: can't find my own connections!\n");
+				fprintf(stderr, "PANIC: can't find my own connection!\n");
 				return 1;
 			}
 			/* make this connection no longer visible */
