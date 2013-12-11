@@ -289,7 +289,7 @@ dispatch_runner(void *arg)
 		}
 
 		if (work == 0)  /* nothing done, avoid spinlocking */
-			usleep(250 * 1000);  /* 250ms */
+			usleep(150 * 1000);  /* 150ms */
 	}
 
 	return NULL;
