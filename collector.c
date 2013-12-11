@@ -113,6 +113,8 @@ collector_runner(void *unused)
 		}
 		fprintf(dest, "carbon.relays.%s.metricsSent %zd %zd\n",
 				hostname, totmetrics, (size_t)now);
+		fprintf(dest, "carbon.relays.%s.metricsQueued %zd %zd\n",
+				hostname, totqueued, (size_t)now);
 		fprintf(dest, "carbon.relays.%s.metricsDropped %zd %zd\n",
 				hostname, totdropped, (size_t)now);
 		fprintf(dest, "carbon.relays.%s.server_wallTime_ns %zd %zd\n",
