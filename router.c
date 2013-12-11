@@ -503,9 +503,10 @@ void
 router_shutdown(void)
 {
 	server **s = server_get_servers();
+	server *w;
 
-	for (; *s != NULL; s++)
-		server_shutdown(*s);
+	for (w = *s; w != NULL; w++)
+		server_shutdown(w);
 
 	free(s);
 }
