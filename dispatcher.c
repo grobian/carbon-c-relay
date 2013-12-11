@@ -66,7 +66,7 @@ dispatch_addlistener(int sock)
 	newconn = malloc(sizeof(connection));
 	if (newconn == NULL)
 		return 1;
-	fcntl(sock, F_SETFD, O_NONBLOCK);
+	fcntl(sock, F_SETFL, O_NONBLOCK);
 	newconn->sock = sock;
 	newconn->type = LISTENER;
 	newconn->takenby = 0;
@@ -97,7 +97,7 @@ dispatch_addconnection(int sock)
 	newconn = malloc(sizeof(connection));
 	if (newconn == NULL)
 		return 1;
-	fcntl(sock, F_SETFD, O_NONBLOCK);
+	fcntl(sock, F_SETFL, O_NONBLOCK);
 	newconn->sock = sock;
 	newconn->type = CONNECTION;
 	newconn->takenby = 0;
