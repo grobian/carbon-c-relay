@@ -219,10 +219,10 @@ server_get_servers(void)
 	for (walk = servers; walk != NULL; walk = walk->next)
 		cnt++;
 
-	ret = malloc(sizeof(server *) * (cnt + 1));
-	cnt = 0;
-	for (walk = servers; walk != NULL; walk = walk->next)
-		ret[cnt++] = walk;
+	if ((ret = malloc(sizeof(server *) * (cnt + 1))) == NULL)
+		return NULL;
+	for (cnt = 0, walk = servers; walk != NULL; walk = walk->next, cnt++)
+		ret[cnt] = walk;
 	ret[cnt] = NULL;
 
 	return ret;
