@@ -28,5 +28,6 @@ dispatcher *dispatch_new(char id);
 void dispatch_shutdown(dispatcher *d);
 size_t dispatch_get_ticks(dispatcher *self);
 size_t dispatch_get_metrics(dispatcher *self);
+size_t dispatch_get_connections(void);
 
 #endif

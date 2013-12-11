@@ -337,3 +337,19 @@ dispatch_get_metrics(dispatcher *self)
 {
 	return self->metrics;
 }
+
+/**
+ * Returns approximate number of connections in use
+ */
+size_t
+dispatch_get_connections(void)
+{
+	int c;
+	size_t ret = 0;
+
+	for (c = 0; c < sizeof(connections) / sizeof(connection *); c++)
+		if (connections[c] != NULL && connections[c]->type != LISTENER)
+			ret++;
+
+	return ret;
+}
