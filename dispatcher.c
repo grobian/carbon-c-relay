@@ -220,11 +220,14 @@ dispatch_connection(connection *conn, dispatcher *self)
 		}
 		gettimeofday(&stop, NULL);
 		self->ticks += timediff(start, stop);
-		if (len == 0 || (len < 0 &&
-					(errno != EINTR &&
-					 errno != EAGAIN &&
-					 errno != EWOULDBLOCK)))
-		{  /* EOF */
+		if (len < 0 && (errno == EINTR ||
+					errno == EAGAIN ||
+					errno == EWOULDBLOCK))
+		{
+			/* nothing available/no work done */
+			conn->takenby = 0;
+			return 0;
+		} else if (len <= 0) {  /* EOF + error */
 			int c;
 
 			/* find connection */
