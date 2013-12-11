@@ -155,6 +155,7 @@ server_new(const char *ip, unsigned short port)
 	if (ret == NULL)
 		return NULL;
 
+	ret->next = NULL;
 	ret->ip = strdup(ip);
 	ret->port = port;
 	ret->serv_addr.sin_family = AF_INET;
