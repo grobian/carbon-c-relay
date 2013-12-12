@@ -110,8 +110,14 @@ server_queuereader(void *d)
 				 * indication of a failure */
 				fprintf(stderr, "failed to send() to %s:%u: %s\n",
 						self->ip, self->port, strerror(errno));
-				fprintf(stderr, "dropping metric: %s", metric);
-				free((char *)metric);
+				if (queue_free(self->queue) == 0) {
+					fprintf(stderr, "dropping metric: %s", metric);
+					self->dropped++;
+					free((char *)metric);
+				} else {
+					queue_enqueue(self->queue, metric);
+					free((char *)metric);
+				}
 				self->failure = 1;
 				break;
 			}
