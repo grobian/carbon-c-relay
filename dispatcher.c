@@ -114,24 +114,6 @@ dispatch_addconnection(int sock)
 	return 0;
 }
 
-static int
-dispatch_listener(connection *conn, dispatcher *self)
-{
-	int client;
-	struct sockaddr addr;
-	socklen_t addrlen = sizeof(addr);
-	(void)self;
-
-	if ((client = accept(conn->sock, &addr, &addrlen)) < 0)
-		return 0;
-	if (dispatch_addconnection(client) != 0) {
-		close(client);
-		return 0;
-	}
-
-	return 1;
-}
-
 /**
  * Look at conn and see if works needs to be done.  If so, do it.
  */
@@ -291,8 +273,18 @@ dispatch_runner(void *arg)
 					conn = listeners[c];
 					if (conn == NULL)
 						break;
-					if (FD_ISSET(conn->sock, &fds))
-						dispatch_listener(conn, self);
+					if (FD_ISSET(conn->sock, &fds)) {
+						int client;
+						struct sockaddr addr;
+						socklen_t addrlen = sizeof(addr);
+
+						if ((client = accept(conn->sock, &addr, &addrlen)) < 0)
+							continue;
+						if (dispatch_addconnection(client) != 0) {
+							close(client);
+							continue;
+						}
+					}
 				}
 			}
 		}
