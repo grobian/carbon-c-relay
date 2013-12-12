@@ -38,7 +38,6 @@ enum conntype {
 
 typedef struct _connection {
 	int sock;
-	enum conntype type;
 	char takenby;
 	char buf[8096];
 	int buflen;
@@ -46,11 +45,13 @@ typedef struct _connection {
 
 typedef struct _dispatcher {
 	pthread_t tid;
+	enum conntype type;
 	char id;
 	size_t metrics;
 	size_t ticks;
 } dispatcher;
 
+static connection *listeners[32];       /* hopefully enough */
 static connection *connections[32768];  /* 32K conns, enough? */
 
 /**
@@ -68,16 +69,15 @@ dispatch_addlistener(int sock)
 		return 1;
 	fcntl(sock, F_SETFL, O_NONBLOCK);
 	newconn->sock = sock;
-	newconn->type = LISTENER;
 	newconn->takenby = 0;
 	newconn->buflen = 0;
-	for (c = 0; c < sizeof(connections) / sizeof(connection *); c++)
-		if (__sync_bool_compare_and_swap(&(connections[c]), NULL, newconn))
+	for (c = 0; c < sizeof(listeners) / sizeof(connection *); c++)
+		if (__sync_bool_compare_and_swap(&(listeners[c]), NULL, newconn))
 			break;
-	if (c == sizeof(connections) / sizeof(connection *)) {
+	if (c == sizeof(listeners) / sizeof(connection *)) {
 		free(newconn);
 		fprintf(stderr, "cannot add new listener: "
-				"no more free connection slots\n");
+				"no more free listener slots\n");
 		return 1;
 	}
 
@@ -99,7 +99,6 @@ dispatch_addconnection(int sock)
 		return 1;
 	fcntl(sock, F_SETFL, O_NONBLOCK);
 	newconn->sock = sock;
-	newconn->type = CONNECTION;
 	newconn->takenby = 0;
 	newconn->buflen = 0;
 	for (c = 0; c < sizeof(connections) / sizeof(connection *); c++)
@@ -115,139 +114,139 @@ dispatch_addconnection(int sock)
 	return 0;
 }
 
+static int
+dispatch_listener(connection *conn, dispatcher *self)
+{
+	int client;
+	struct sockaddr addr;
+	socklen_t addrlen = sizeof(addr);
+	(void)self;
+
+	if ((client = accept(conn->sock, &addr, &addrlen)) < 0)
+		return 0;
+	if (dispatch_addconnection(client) != 0) {
+		close(client);
+		return 0;
+	}
+
+	return 1;
+}
+
 /**
  * Look at conn and see if works needs to be done.  If so, do it.
  */
 static int
 dispatch_connection(connection *conn, dispatcher *self)
 {
-	if (conn->type == LISTENER) {
-		/* a new connection should be waiting for us */
-		int client;
-		struct sockaddr addr;
-		socklen_t addrlen = sizeof(addr);
+	char *p, *q, *firstspace, *lastnl;
+	char metric[sizeof(conn->buf)];
+	char metric_path[sizeof(conn->buf)];
+	int len;
+	struct timeval start, stop;
 
-		if ((client = accept(conn->sock, &addr, &addrlen)) < 0) {
-			conn->takenby = 0;
-			return 0;
-		}
-		if (dispatch_addconnection(client) != 0) {
-			close(client);
-			conn->takenby = 0;
-			return 0;
-		}
-	} else if (conn->type == CONNECTION) {
-		/* data should be available for reading */
-		char *p, *q, *firstspace, *lastnl;
-		char metric[sizeof(conn->buf)];
-		char metric_path[sizeof(conn->buf)];
-		int len;
-		struct timeval start, stop;
+	gettimeofday(&start, NULL);
+	if ((len = read(conn->sock,
+					conn->buf + conn->buflen, 
+					sizeof(conn->buf) - conn->buflen)) > 0)
+	{
+		conn->buflen += len;
 
-		gettimeofday(&start, NULL);
-		if ((len = read(conn->sock,
-						conn->buf + conn->buflen, 
-						sizeof(conn->buf) - conn->buflen)) > 0)
-		{
-			conn->buflen += len;
-
-			/* metrics look like this: metric_path value timestamp\n
-			 * due to various messups we need to sanitise the
-			 * metrics_path here, to ensure we can calculate the metric
-			 * name off the filesystem path (and actually retrieve it in
-			 * the web interface). */
-			q = metric;
-			firstspace = NULL;
-			lastnl = NULL;
-			for (p = conn->buf; p - conn->buf < conn->buflen; p++) {
-				if ((*p >= 'a' && *p <= 'z') ||
-						(*p >= 'A' && *p <= 'Z') ||
-						(*p >= '0' && *p <= '9') ||
-						*p == '-' || *p == '_' || *p == ':')
-				{
-					/* copy char */
-					*q++ = *p;
-				} else if (*p == ' ') {
-					/* separator */
-					if (firstspace == NULL) {
-						if (q == metric)
-							continue;
-						if (*(q - 1) == '.')
-							q--;  /* strip trailing separator */
-						firstspace = q;
-						*q++ = '\0';
-					} else {
-						*q++ = *p;
-					}
-				} else if (*p == '.') {
-					/* metric_path separator,
-					 * - duplicate elimination
-					 * - don't start with separator */
-					if (q != metric && *(q - 1) != '.')
-						*q++ = *p;
-				} else if (*p == '\n') {
-					/* end of metric */
-					lastnl = p;
-
-					/* just a newline on it's own? some random garbage? skip */
-					if (q == metric || firstspace == NULL)
+		/* metrics look like this: metric_path value timestamp\n
+		 * due to various messups we need to sanitise the
+		 * metrics_path here, to ensure we can calculate the metric
+		 * name off the filesystem path (and actually retrieve it in
+		 * the web interface). */
+		q = metric;
+		firstspace = NULL;
+		lastnl = NULL;
+		for (p = conn->buf; p - conn->buf < conn->buflen; p++) {
+			if ((*p >= 'a' && *p <= 'z') ||
+					(*p >= 'A' && *p <= 'Z') ||
+					(*p >= '0' && *p <= '9') ||
+					*p == '-' || *p == '_' || *p == ':')
+			{
+				/* copy char */
+				*q++ = *p;
+			} else if (*p == ' ') {
+				/* separator */
+				if (firstspace == NULL) {
+					if (q == metric)
 						continue;
-
-					*q++ = *p;
-					*q = '\0';
-
-					/* copy metric_path alone (up to firstspace) */
-					memcpy(metric_path, metric, firstspace + 1 - metric);
-					*firstspace = ' ';
-					/* perform routing of this metric */
-					router_route(metric_path, metric);
-
-					self->metrics++;
-
-					/* restart building new one from the start */
-					q = metric;
-					firstspace = NULL;
+					if (*(q - 1) == '.')
+						q--;  /* strip trailing separator */
+					firstspace = q;
+					*q++ = '\0';
 				} else {
-					/* something barf, replace by underscore */
-					*q++ = '_';
+					*q++ = *p;
 				}
-			}
-			if (lastnl != NULL) {
-				/* move remaining stuff to the front */
-				conn->buflen -= lastnl + 1 - conn->buf;
-				memmove(conn->buf, lastnl + 1, conn->buflen);
+			} else if (*p == '.') {
+				/* metric_path separator,
+				 * - duplicate elimination
+				 * - don't start with separator */
+				if (q != metric && *(q - 1) != '.')
+					*q++ = *p;
+			} else if (*p == '\n') {
+				/* end of metric */
+				lastnl = p;
+
+				/* just a newline on it's own? some random garbage? skip */
+				if (q == metric || firstspace == NULL)
+					continue;
+
+				*q++ = *p;
+				*q = '\0';
+
+				/* copy metric_path alone (up to firstspace) */
+				memcpy(metric_path, metric, firstspace + 1 - metric);
+				*firstspace = ' ';
+				/* perform routing of this metric */
+				router_route(metric_path, metric);
+
+				self->metrics++;
+
+				/* restart building new one from the start */
+				q = metric;
+				firstspace = NULL;
+			} else {
+				/* something barf, replace by underscore */
+				*q++ = '_';
 			}
 		}
-		gettimeofday(&stop, NULL);
-		self->ticks += timediff(start, stop);
-		if (len < 0 && (errno == EINTR ||
-					errno == EAGAIN ||
-					errno == EWOULDBLOCK))
-		{
-			/* nothing available/no work done */
-			conn->takenby = 0;
-			return 0;
-		} else if (len <= 0) {  /* EOF + error */
-			int c;
+		if (lastnl != NULL) {
+			/* move remaining stuff to the front */
+			conn->buflen -= lastnl + 1 - conn->buf;
+			memmove(conn->buf, lastnl + 1, conn->buflen);
+		}
+	}
+	gettimeofday(&stop, NULL);
+	self->ticks += timediff(start, stop);
+	if (len < 0 && (errno == EINTR ||
+				errno == EAGAIN ||
+				errno == EWOULDBLOCK))
+	{
+		/* nothing available/no work done */
+		conn->takenby = 0;
+		return 0;
+	} else if (len <= 0) {  /* EOF + error */
+		int c;
 
-			/* find connection */
-			for (c = 0; c < sizeof(connections) / sizeof(connection *); c++)
-				if (connections[c] == conn)
-					break;
-			if (c == sizeof(connections) / sizeof(connection *)) {
-				/* not found?!? */
-				fprintf(stderr, "PANIC: can't find my own connection!\n");
-				return 1;
-			}
-			/* make this connection no longer visible */
-			connections[c] = NULL;
-			/* if some other thread was looking at conn, make sure it
-			 * will have moved on before freeing this object */
-			usleep(10 * 1000);  /* 10ms */
-			close(conn->sock);
-			free(conn);
+		/* find connection */
+		for (c = 0; c < sizeof(connections) / sizeof(connection *); c++)
+			if (connections[c] == conn)
+				break;
+		if (c == sizeof(connections) / sizeof(connection *)) {
+			/* not found?!? */
+			fprintf(stderr, "PANIC: can't find my own connection!\n");
 			return 1;
 		}
+		/* make this connection no longer visible */
+		connections[c] = NULL;
+		/* if some other thread was looking at conn, make sure it
+		 * will have moved on before freeing this object */
+		usleep(10 * 1000);  /* 10ms */
+		close(conn->sock);
+		free(conn);
+		return 1;
 	}
 
 	/* "release" this connection again */
@@ -271,30 +270,61 @@ dispatch_runner(void *arg)
 	self->metrics = 0;
 	self->ticks = 0;
 
-	while (keep_running) {
-		work = 0;
-		for (c = 0; c < sizeof(connections) / sizeof(connection *); c++) {
-			conn = connections[c];
-			if (conn == NULL)
-				continue;
-			/* atomically try to "claim" this connection */
-			if (!__sync_bool_compare_and_swap(&(conn->takenby), 0, self->id))
-				continue;
-			work += dispatch_connection(conn, self);
+	if (self->type == LISTENER) {
+		fd_set fds;
+		int maxfd = -1;
+		struct timeval tv;
+		while (keep_running) {
+			FD_ZERO(&fds);
+			tv.tv_sec = 0;
+			tv.tv_usec = 250 * 1000;  /* 250 ms */
+			for (c = 0; c < sizeof(listeners) / sizeof(connection *); c++) {
+				conn = listeners[c];
+				if (conn == NULL)
+					break;
+				FD_SET(conn->sock, &fds);
+				if (conn->sock > maxfd)
+					maxfd = conn->sock;
+			}
+			if (select(maxfd + 1, &fds, NULL, NULL, &tv) > 0) {
+				for (c = 0; c < sizeof(listeners) / sizeof(connection *); c++) {
+					conn = listeners[c];
+					if (conn == NULL)
+						break;
+					if (FD_ISSET(conn->sock, &fds))
+						dispatch_listener(conn, self);
+				}
+			}
 		}
+	} else if (self->type == CONNECTION) {
+		while (keep_running) {
+			work = 0;
+			for (c = 0; c < sizeof(connections) / sizeof(connection *); c++) {
+				conn = connections[c];
+				if (conn == NULL)
+					continue;
+				/* atomically try to "claim" this connection */
+				if (!__sync_bool_compare_and_swap(&(conn->takenby), 0, self->id))
+					continue;
+				work += dispatch_connection(conn, self);
+			}
 
-		if (work == 0)  /* nothing done, avoid spinlocking */
-			usleep(150 * 1000);  /* 150ms */
+			if (work == 0)  /* nothing done, avoid spinlocking */
+				usleep(250 * 1000);  /* 250ms */
+		}
+	} else {
+		fprintf(stderr, "huh? unknown self type!\n");
 	}
 
 	return NULL;
 }
 
 /**
- * Starts a new dispatcher with the given id, and returns its handle.
+ * Starts a new dispatcher for the given type and with the given id.
+ * Returns its handle.
  */
-dispatcher *
-dispatch_new(char id)
+static dispatcher *
+dispatch_new(char id, enum conntype type)
 {
 	dispatcher *ret = malloc(sizeof(dispatcher));
 
@@ -302,12 +332,37 @@ dispatch_new(char id)
 		return NULL;
 
 	ret->id = id;
+	ret->type = type;
 	if (pthread_create(&ret->tid, NULL, dispatch_runner, ret) != 0) {
 		free(ret);
 		return NULL;
 	}
 
 	return ret;
+}
+
+static char globalid = 0;
+
+/**
+ * Starts a new dispatcher specialised in handling incoming connections
+ * (and putting them on the queue for handling the connections).
+ */
+dispatcher *
+dispatch_new_listener(void)
+{
+	char id = __sync_fetch_and_add(&globalid, 1);
+	return dispatch_new(id, LISTENER);
+}
+
+/**
+ * Starts a new dispatcher specialised in handling incoming data on
+ * existing connections.
+ */
+dispatcher *
+dispatch_new_connection(void)
+{
+	char id = __sync_fetch_and_add(&globalid, 1);
+	return dispatch_new(id, CONNECTION);
 }
 
 /**
@@ -348,7 +403,7 @@ dispatch_get_connections(void)
 	size_t ret = 0;
 
 	for (c = 0; c < sizeof(connections) / sizeof(connection *); c++)
-		if (connections[c] != NULL && connections[c]->type != LISTENER)
+		if (connections[c] != NULL)
 			ret++;
 
 	return ret;

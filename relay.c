@@ -172,7 +172,7 @@ main(int argc, char * const argv[])
 		return 1;
 	}
 
-	workers = malloc(sizeof(dispatcher *) * (workercnt + 1));
+	workers = malloc(sizeof(dispatcher *) * (1 + workercnt + 1));
 	if (workers == NULL) {
 		fprintf(stderr, "failed to allocate memory for workers\n");
 		return 1;
@@ -190,23 +190,25 @@ main(int argc, char * const argv[])
 		return -1;
 	}
 	fprintf(stdout, "listening on port %u\n", listenport);
+	if ((workers[0] = dispatch_new_listener()) == NULL)
+		fprintf(stderr, "failed to add listener\n");
 
 	fprintf(stderr, "starting %d workers\n", workercnt);
-	for (id = 1; id <= workercnt; id++) {
-		workers[id - 1] = dispatch_new(id);
-		if (workers[id - 1] == NULL) {
+	for (id = 1; id < 1 + workercnt; id++) {
+		workers[id + 0] = dispatch_new_connection();
+		if (workers[id + 0] == NULL) {
 			fprintf(stderr, "failed to add worker %d\n", id);
 			break;
 		}
 	}
-	workers[id - 1] = NULL;
-	if (id <= workercnt) {
+	workers[id + 0] = NULL;
+	if (id < 1 + workercnt) {
 		fprintf(stderr, "shutting down due to errors\n");
 		keep_running = 0;
 	}
 
 	servers = server_get_servers();
-	collector_start((void **)workers, (void **)servers, debug);
+	collector_start((void **)&workers[1], (void **)servers, debug);
 
 	/* workers do the work, just wait */
 	while (keep_running)
@@ -216,7 +218,7 @@ main(int argc, char * const argv[])
 	router_shutdown();
 	/* since workers will be freed, stop querying the structures */
 	collector_stop();
-	for (id = 0; id < workercnt; id++)
+	for (id = 0; id < 1 + workercnt; id++)
 		dispatch_shutdown(workers[id + 0]);
 	fprintf(stdout, "%d workers stopped\n", workercnt);
 
