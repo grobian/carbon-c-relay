@@ -166,6 +166,12 @@ main(int argc, char * const argv[])
 				strerror(errno));
 		return 1;
 	}
+	if (signal(SIGPIPE, SIG_IGN) == SIG_ERR) {
+		fprintf(stderr, "failed to ignore SIGPIPE: %s\n",
+				strerror(errno));
+		return 1;
+	}
+
 	workers = malloc(sizeof(dispatcher *) * (workercnt + 1));
 	if (workers == NULL) {
 		fprintf(stderr, "failed to allocate memory for workers\n");
