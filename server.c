@@ -205,7 +205,7 @@ server_send(server *s, const char *d)
 		} else {
 			/* wait */
 			do {
-				usleep(250 * 1000);  /* 250ms */
+				usleep(100 * 1000);  /* 100ms */
 			} while (queue_free(s->queue) == 0);
 		}
 	}
