@@ -30,11 +30,17 @@
 #include "queue.h"
 #include "collector.h"
 
+enum servertype {
+	ORIGIN,
+	BACKUP
+};
+
 typedef struct _server {
 	const char *ip;
 	unsigned short port;
 	struct sockaddr_in serv_addr;
 	queue *queue;
+	enum servertype type;
 	pthread_t tid;
 	char failure;
 	size_t metrics;
@@ -134,12 +140,10 @@ server_queuereader(void *d)
 }
 
 /**
- * Allocate a new (outbound) server.  Effectively this means a thread
- * that reads from the queue and sends this as good as it can to the ip
- * address and port associated.
+ * Allocates a new server and starts the thread.
  */
-server *
-server_new(const char *ip, unsigned short port)
+static server *
+server_new_intern(const char *ip, unsigned short port, queue *queue)
 {
 	server *ret = servers;
 
@@ -171,11 +175,17 @@ server_new(const char *ip, unsigned short port)
 		free(ret);
 		return NULL;
 	}
-	ret->queue = queue_new(QUEUE_SIZE);
-	if (ret->queue == NULL) {
-		free((char *)ret->ip);
-		free(ret);
-		return NULL;
+	if (queue == NULL) {
+		ret->queue = queue_new(QUEUE_SIZE);
+		if (ret->queue == NULL) {
+			free((char *)ret->ip);
+			free(ret);
+			return NULL;
+		}
+		ret->type = ORIGIN;
+	} else {
+		ret->queue = queue;
+		ret->type = BACKUP;
 	}
 
 	ret->failure = 0;
@@ -190,6 +200,32 @@ server_new(const char *ip, unsigned short port)
 	}
 
 	return ret;
+}
+
+/**
+ * Allocate a new (outbound) server.  Effectively this means a thread
+ * that reads from the queue and sends this as good as it can to the ip
+ * address and port associated.
+ */
+server *
+server_new(const char *ip, unsigned short port)
+{
+	return server_new_intern(ip, port, NULL);
+}
+
+/**
+ * Allocate a new backup server.  Effectively this means a thread that
+ * reads from the same queue as the original server.  Due to
+ * multi-thread handling, it is expected that in the long run, both the
+ * original and backup server get roughly the same amount of data
+ * (assuming both are up).  A backup server really is, just because when
+ * one of them can't be sent to, everything will go to the other.  This
+ * is e.g. ok when using an upstream relay pair as target.
+ */
+server *
+server_backup(const char *ip, unsigned short port, server *original)
+{
+	return server_new_intern(ip, port, original->queue);
 }
 
 /**
@@ -243,7 +279,8 @@ void
 server_shutdown(server *s)
 {
 	pthread_join(s->tid, NULL);
-	queue_destroy(s->queue);
+	if (s->type == ORIGIN)
+		queue_destroy(s->queue);
 	free((char *)s->ip);
 	free(s);
 }

@@ -38,16 +38,23 @@ cluster.  The syntax in this file is as follows:
 ```
 # comments are allowed in any place and start with a hash (#)
 
-cluster <name> <forward | carbon_ch [replication <count>]> <ip[:port]> ... ;
+cluster <name> <forward | any_of | carbon_ch [replication <count>]> <ip[:port]> ... ;
 
 match <* | <expression>> send to <cluster> [stop] ;
 ```
 
 Multiple clusters can be defined, and need not to be referenced by a
 match rule.  A `forward` cluster simply sends everything it receives to
-all defined members (ip addresses).  The `carbon_ch` cluster sends it to
+all defined members (ip addresses).  The `any_of` cluster is a small
+variant of the `forward` cluster, but instead of sending to all defined
+members, it sends each incoming metric to one of defined members.  This
+is not much useful in itself, but since any of the members can receive
+each metric, this means that when one of the members is unreachable, the
+other members will receive all of the metrics.  This can be useful when
+the cluster points to other relays.  The `carbon_ch` cluster sends it to
 the member that is responsible according to the consistent hash
-algorithm, or multiple memmbers if replication is set to more than 1.
+algorithm (as used in the original carbon), or multiple members if
+replication is set to more than 1.
 
 Match rules are the way to direct incoming metrics to one or more
 clusters.  Match rules are processed top to bottom as they are defined

@@ -29,8 +29,8 @@
 
 enum clusttype {
 	FORWARD,
-	CARBON_CH
-	/* room for a better/different hash definition */
+	CARBON_CH,  /* room for a better/different hash definition */
+	ANYOF
 };
 
 typedef struct _servers {
@@ -69,7 +69,7 @@ static cluster *clusters = NULL;
  *
  * Config file supports the following:
  *
- * cluster (name) (forward | carbon_ch [replication (count)]) (ip:port[ ip:port ...]) ;
+ * cluster (name) (forward | round-robin | carbon_ch [replication (count)]) (ip:port[ ip:port ...]) ;
  * match (* | regex) send to (group) [stop] ;
  *
  * Comments start with a #-char.
@@ -181,6 +181,16 @@ router_readconfig(const char *path)
 				}
 				cl->type = FORWARD;
 				cl->members.forward = NULL;
+			} else if (strncmp(p, "any_of", 6) == 0 && isspace(*(p + 6))) {
+				p += 7;
+
+				if ((cl = malloc(sizeof(cluster))) == NULL) {
+					fprintf(stderr, "malloc failed in cluster any_of\n");
+					free(buf);
+					return 0;
+				}
+				cl->type = ANYOF;
+				cl->members.forward = NULL;
 			} else {
 				char *type = p;
 				for (; *p != '\0' && !isspace(*p); p++)
@@ -254,22 +264,28 @@ router_readconfig(const char *path)
 							free(buf);
 							return 0;
 						}
-					} else if (cl->type == FORWARD) {
+					} else if (cl->type == FORWARD || cl->type == ANYOF) {
 						if (w == NULL) {
-							cl->members.forward = w =
-								malloc(sizeof(servers));
+							w = malloc(sizeof(servers));
 						} else {
 							w = w->next = malloc(sizeof(servers));
 						}
 						if (w == NULL) {
-							fprintf(stderr, "malloc failed in cluster "
-									"forward ip\n");
+							fprintf(stderr, "malloc failed in cluster %s ip\n",
+									cl->type == FORWARD ? "forward" : "any_of");
 							free(cl);
 							free(buf);
 							return 0;
 						}
 						w->next = NULL;
-						w->server = server_new(ipbuf, (unsigned short)port);
+						if (cl->type == ANYOF && cl->members.forward != NULL) {
+							w->server = server_backup(
+									ipbuf,
+									(unsigned short)port,
+									cl->members.forward->server);
+						} else {
+							w->server = server_new(ipbuf, (unsigned short)port);
+						}
 						if (w->server == NULL) {
 							fprintf(stderr, "failed to add server %s:%d "
 									"to forwarders: %s\n", ipbuf, port,
@@ -279,6 +295,8 @@ router_readconfig(const char *path)
 							free(buf);
 							return 0;
 						}
+						if (cl->members.forward == NULL)
+							cl->members.forward = w;
 					}
 					for (; *p != '\0' && isspace(*p); p++)
 						;
@@ -428,8 +446,8 @@ router_printconfig(FILE *f)
 
 	for (c = clusters; c != NULL; c = c->next) {
 		fprintf(f, "cluster %s\n", c->name);
-		if (c->type == FORWARD) {
-			fprintf(f, "\tforward\n");
+		if (c->type == FORWARD || c->type == ANYOF) {
+			fprintf(f, "\t%s\n", c->type == FORWARD ? "forward" : "any_of");
 			for (s = c->members.forward; s != NULL; s = s->next)
 				fprintf(f, "\t\t%s:%d\n",
 						server_ip(s->server), server_port(s->server));
@@ -470,6 +488,12 @@ router_route(const char *metric_path, const char *metric)
 					servers *s;
 					for (s = w->dest->members.forward; s != NULL; s = s->next)
 						server_send(s->server, metric);
+				}	break;
+				case ANYOF: {
+					/* only queue at the first, since all servers here
+					 * share the same queue */
+					if (w->dest->members.forward != NULL)
+						server_send(w->dest->members.forward->server, metric);
 				}	break;
 				case CARBON_CH: {
 					/* let the ring(bearer) decide */

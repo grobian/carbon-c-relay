@@ -21,6 +21,7 @@
 typedef struct _server server;
 
 server *server_new(const char *ip, unsigned short port);
+server *server_backup(const char *ip, unsigned short port, server *original);
 void server_send(server *s, const char *d);
 void server_shutdown(server *s);
 const char *server_ip(server *s);
