@@ -117,7 +117,7 @@ server_queuereader(void *d)
 				fprintf(stderr, "failed to send() to %s:%u: %s\n",
 						self->ip, self->port, strerror(errno));
 				if (queue_free(self->queue) == 0) {
-					fprintf(stderr, "dropping metric: %s", metric);
+					fprintf(stderr, "dropping metric: %s\n", metric);
 					self->dropped++;
 					free((char *)metric);
 				} else {
