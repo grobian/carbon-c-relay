@@ -215,6 +215,7 @@ main(int argc, char * const argv[])
 		sleep(1);
 
 	fprintf(stdout, "shutting down...\n");
+	close(sock); /* make sure we don't accept anything more */
 	router_shutdown();
 	/* since workers will be freed, stop querying the structures */
 	collector_stop();
