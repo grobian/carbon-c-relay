@@ -73,6 +73,10 @@ carbon_addnode(carbon_ring *ring, server *s)
 		/* this format is actually Python's tuple format that is used in
 		 * serialised form as input for the hash */
 		snprintf(buf, sizeof(buf), "('%s', None):%d", server_ip(s), i);
+		/* TODO:
+		 * https://github.com/graphite-project/carbon/commit/024f9e67ca47619438951c59154c0dec0b0518c7
+		 * Question is how harmful the collision is -- it will probably
+		 * change the location of some metrics */
 		entries[i].pos = carbon_hashpos(buf);
 		entries[i].server = s;
 		entries[i].next = NULL;
