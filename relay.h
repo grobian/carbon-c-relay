@@ -20,6 +20,8 @@
 
 #define VERSION "0.2"
 
+enum rmode { NORMAL, DEBUG, SUBMISSION };
+
 extern int keep_running;
 extern char relay_hostname[];
 

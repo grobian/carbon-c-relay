@@ -65,7 +65,7 @@ do_version(void)
 void
 do_usage(int exitcode)
 {
-	printf("Usage: relay [-vd] -f <config> [-p <port>] [-w <workers>]\n");
+	printf("Usage: relay [-vds] -f <config> [-p <port>] [-w <workers>]\n");
 	printf("\n");
 	printf("Options:\n");
 	printf("  -v  print version and exit\n");
@@ -73,6 +73,7 @@ do_usage(int exitcode)
 	printf("  -p  listen on <port> for connections, defaults to 2003\n");
 	printf("  -w  user <workers> worker threads, defaults to 16\n");
 	printf("  -d  debug mode: currently writes statistics to stdout\n");
+	printf("  -s  submission mode: write info about errors to stdout\n");
 
 	exit(exitcode);
 }
@@ -84,20 +85,23 @@ main(int argc, char * const argv[])
 	char id;
 	server **servers;
 	dispatcher **workers;
-	char workercnt = 16;
+	char workercnt = 0;
 	char *routes = NULL;
 	unsigned short listenport = 2003;
-	char debug = 0;
+	enum rmode mode = NORMAL;
 	int bflag, ch;
 
 	bflag = 0;
-	while ((ch = getopt(argc, argv, ":hvdf:p:w:")) != -1) {
+	while ((ch = getopt(argc, argv, ":hvdsf:p:w:")) != -1) {
 		switch (ch) {
 			case 'v':
 				do_version();
 				break;
 			case 'd':
-				debug = 1;
+				mode = DEBUG;
+				break;
+			case 's':
+				mode = SUBMISSION;
 				break;
 			case 'f':
 				routes = optarg;
@@ -133,14 +137,19 @@ main(int argc, char * const argv[])
 	if (gethostname(relay_hostname, sizeof(relay_hostname)) < 0)
 		snprintf(relay_hostname, sizeof(relay_hostname), "127.0.0.1");
 
+	if (workercnt == 0)
+		workercnt = mode == SUBMISSION ? 2 : 16;
+
 	fprintf(stdout, "Starting carbon-c-relay v%s (%s)\n",
 		VERSION, GIT_VERSION);
 	fprintf(stdout, "configuration:\n");
 	fprintf(stdout, "    relay hostname = %s\n", relay_hostname);
 	fprintf(stdout, "    listen port = %u\n", listenport);
 	fprintf(stdout, "    workers = %d\n", workercnt);
-	if (debug)
+	if (mode == DEBUG)
 		fprintf(stdout, "    debug = true\n");
+	else if (mode == SUBMISSION)
+		fprintf(stdout, "    submission = true\n");
 	fprintf(stdout, "    routes configuration = %s\n", routes);
 	fprintf(stdout, "\n");
 	if (router_readconfig(routes) == 0) {
@@ -208,7 +217,7 @@ main(int argc, char * const argv[])
 	}
 
 	servers = server_get_servers();
-	collector_start((void **)&workers[1], (void **)servers, debug);
+	collector_start((void **)&workers[1], (void **)servers, mode);
 
 	/* workers do the work, just wait */
 	while (keep_running)

@@ -130,36 +130,75 @@ collector_runner(void *unused)
 }
 
 /**
+ * Writes messages about dropped events or high queue sizes.
+ */
+static size_t lastdropped = 0;
+static void *
+collector_writer(void *unused)
+{
+	int i = 0;
+	size_t queued;
+	size_t totdropped;
+
+	while (keep_running) {
+		sleep(1);
+		i++;
+		if (i < 60)
+			continue;
+		totdropped = 0;
+		for (i = 0; servers[i] != NULL; i++) {
+			queued = server_get_queue_len(servers[i]);
+			totdropped += server_get_dropped(servers[i]);
+
+			if (queued > 150)
+				fprintf(stdout, "warning: metrics queuing up for %s:%u: %zd metrics\n",
+						server_ip(servers[i]), server_port(servers[i]), queued);
+		}
+		if (totdropped - lastdropped > 0)
+			fprintf(stdout, "warning: dropped %zd metrics\n",
+					totdropped - lastdropped);
+		lastdropped = totdropped;
+
+		i = 0;
+	}
+	return NULL;
+}
+
+/**
  * Initialises and starts the collector.
  */
 void
-collector_start(dispatcher **d, server **s, char dbg)
+collector_start(dispatcher **d, server **s, enum rmode mode)
 {
 	dispatchers = d;
 	servers = s;
-	debug = dbg;
 	metricsock = -1;
 
-	if (debug == 0) {
+	if (mode == NORMAL) {
 		int pipefds[2];
 
 		/* create pipe to relay metrics over */
 		if (pipe(pipefds) < 0) {
 			fprintf(stderr, "failed to create pipe, statistics will not be sent\n");
-			debug = 1;
+			mode = DEBUG;
 		} else {
 			if (dispatch_addconnection(pipefds[0]) != 0) {
 				close(pipefds[0]);
 				close(pipefds[1]);
-				debug = 1;
+				mode = DEBUG;
 			} else {
 				metricsock = pipefds[1];
 			}
 		}
 	}
 
-	if (pthread_create(&collectorid, NULL, collector_runner, NULL) != 0)
-		fprintf(stderr, "failed to start collector!\n");
+	if (mode != SUBMISSION) {
+		if (pthread_create(&collectorid, NULL, collector_runner, NULL) != 0)
+			fprintf(stderr, "failed to start collector!\n");
+	} else {
+		if (pthread_create(&collectorid, NULL, collector_writer, NULL) != 0)
+			fprintf(stderr, "failed to start collector!\n");
+	}
 }
 
 /**
