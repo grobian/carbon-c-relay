@@ -105,16 +105,17 @@ router_readconfig(const char *path)
 	buf[st.st_size] = '\0';
 	fclose(cnf);
 
+	/* remove all comments to ease parsing below */
+	p = buf;
+	for (; *p != '\0'; p++)
+		if (*p == '#')
+			for (; *p != '\0' && *p != '\n'; p++)
+				*p = ' ';
+
 	p = buf;
 	do {
 		for (; *p != '\0' && isspace(*p); p++)
 			;
-		/* skip comments */
-		if (*p == '#') {
-			for (; *p != '\0' && *p != '\n'; p++)
-				;
-			continue;
-		}
 		if (*p == '\0')
 			break;
 
