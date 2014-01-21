@@ -348,5 +348,7 @@ server_get_queue_len(server *s)
 {
 	if (s == NULL)
 		return 0;
+	if (s->type == BACKUP)
+		return 0;
 	return queue_len(s->queue);
 }
