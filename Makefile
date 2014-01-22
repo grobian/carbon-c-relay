@@ -16,7 +16,7 @@
 
 CFLAGS ?= -O2 -Wall
 
-GIT_VERSION := $(shell git describe --abbrev=6 --dirty --always)
+GIT_VERSION := $(shell git describe --abbrev=6 --dirty --always || date +%F)
 GVCFLAGS += -DGIT_VERSION=\"$(GIT_VERSION)\"
 
 override CFLAGS += $(GVCFLAGS) `pkg-config openssl --cflags` -pthread
