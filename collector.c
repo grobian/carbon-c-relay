@@ -151,15 +151,19 @@ collector_writer(void *unused)
 			queued = server_get_queue_len(servers[i]);
 			totdropped += server_get_dropped(servers[i]);
 
-			if (queued > 150)
+			if (queued > 150) {
 				fprintf(stdout, "[%s] warning: metrics queuing up "
 						"for %s:%u: %zd metrics\n",
 						fmtnow(nowbuf),
 						server_ip(servers[i]), server_port(servers[i]), queued);
+				fflush(stdout);
+			}
 		}
-		if (totdropped - lastdropped > 0)
+		if (totdropped - lastdropped > 0) {
 			fprintf(stdout, "[%s] warning: dropped %zd metrics\n",
 					fmtnow(nowbuf), totdropped - lastdropped);
+			fflush(stdout);
+		}
 		lastdropped = totdropped;
 
 		i = 0;
