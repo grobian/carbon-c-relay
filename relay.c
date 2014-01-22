@@ -250,6 +250,8 @@ main(int argc, char * const argv[])
 		dispatch_shutdown(workers[id + 0]);
 	fprintf(stdout, "[%s] %d workers stopped\n", fmtnow(nowbuf), workercnt);
 
+	fflush(NULL);  /* ensure our termination messages are out */
+
 	free(workers);
 	free(servers);
 	return 0;
