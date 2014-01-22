@@ -25,9 +25,11 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
+#include <sys/resource.h>
 
 #include "relay.h"
 #include "queue.h"
+#include "dispatcher.h"
 #include "collector.h"
 
 enum servertype {
@@ -101,6 +103,19 @@ server_queuereader(void *d)
 				close(fd);
 			fprintf(stderr, "[%s] failed to connect() to %s:%u: %s\n",
 					fmtnow(nowbuf), self->ip, self->port, strerror(errno));
+			if (errno == EISCONN || errno == EMFILE) {
+				struct rlimit ofiles;
+				/* rlimit can be changed for the running process (at
+				 * least on Linux 2.6+) so refetch this value every
+				 * time, should only occur on errors anyway */
+				if (getrlimit(RLIMIT_NOFILE, &ofiles) < 0)
+					ofiles.rlim_max = 0;
+				if (ofiles.rlim_max != RLIM_INFINITY && ofiles.rlim_max > 0)
+					fprintf(stderr, "process configured maximum connections = %d, "
+							"current connections: %zd, "
+							"raise max open files/max descriptor limit\n",
+							(int)ofiles.rlim_max, dispatch_get_connections());
+			}
 			/* sleep a little to allow the server to catchup */
 			usleep(1500 * 1000);  /* 1.5s */
 			continue;

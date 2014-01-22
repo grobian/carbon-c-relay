@@ -78,7 +78,8 @@ dispatch_addlistener(int sock)
 		char nowbuf[24];
 		free(newconn);
 		fprintf(stderr, "[%s] cannot add new listener: "
-				"no more free listener slots\n", fmtnow(nowbuf));
+				"no more free listener slots (max = %zd)\n",
+				fmtnow(nowbuf), sizeof(listeners) / sizeof(connection *));
 		return 1;
 	}
 
@@ -109,7 +110,8 @@ dispatch_addconnection(int sock)
 		char nowbuf[24];
 		free(newconn);
 		fprintf(stderr, "[%s] cannot add new connection: "
-				"no more free connection slots\n", fmtnow(nowbuf));
+				"no more free connection slots (max = %zd)\n",
+				fmtnow(nowbuf), sizeof(connections) / sizeof(connection *));
 		return 1;
 	}
 
