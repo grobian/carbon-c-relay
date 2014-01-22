@@ -145,7 +145,7 @@ main(int argc, char * const argv[])
 				break;
 		}
 	}
-	if (optind == 1)
+	if (optind == 1 || routes == NULL)
 		do_usage(1);
 
 
