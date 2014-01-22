@@ -75,9 +75,10 @@ dispatch_addlistener(int sock)
 		if (__sync_bool_compare_and_swap(&(listeners[c]), NULL, newconn))
 			break;
 	if (c == sizeof(listeners) / sizeof(connection *)) {
+		char nowbuf[24];
 		free(newconn);
-		fprintf(stderr, "cannot add new listener: "
-				"no more free listener slots\n");
+		fprintf(stderr, "[%s] cannot add new listener: "
+				"no more free listener slots\n", fmtnow(nowbuf));
 		return 1;
 	}
 
@@ -105,9 +106,10 @@ dispatch_addconnection(int sock)
 		if (__sync_bool_compare_and_swap(&(connections[c]), NULL, newconn))
 			break;
 	if (c == sizeof(connections) / sizeof(connection *)) {
+		char nowbuf[24];
 		free(newconn);
-		fprintf(stderr, "cannot add new connection: "
-				"no more free connection slots\n");
+		fprintf(stderr, "[%s] cannot add new connection: "
+				"no more free connection slots\n", fmtnow(nowbuf));
 		return 1;
 	}
 

@@ -21,6 +21,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <signal.h>
+#include <time.h>
 #include <errno.h>
 
 #include "relay.h"
@@ -52,6 +53,19 @@ exit_handler(int sig)
 	}
 	fprintf(stdout, "caught %s, terminating...\n", signal);
 	keep_running = 0;
+}
+
+char *
+fmtnow(char nowbuf[24])
+{
+	time_t now;
+	struct tm *tm_now;
+
+	time(&now);
+	tm_now = localtime(&now);
+	strftime(nowbuf, 24, "%Y-%m-%d %H:%M:%S", tm_now);
+
+	return nowbuf;
 }
 
 void
@@ -90,6 +104,7 @@ main(int argc, char * const argv[])
 	unsigned short listenport = 2003;
 	enum rmode mode = NORMAL;
 	int bflag, ch;
+	char nowbuf[24];
 
 	bflag = 0;
 	while ((ch = getopt(argc, argv, ":hvdsf:p:w:")) != -1) {
@@ -140,8 +155,8 @@ main(int argc, char * const argv[])
 	if (workercnt == 0)
 		workercnt = mode == SUBMISSION ? 2 : 16;
 
-	fprintf(stdout, "Starting carbon-c-relay v%s (%s)\n",
-		VERSION, GIT_VERSION);
+	fprintf(stdout, "[%s] starting carbon-c-relay v%s (%s)\n",
+		fmtnow(nowbuf), VERSION, GIT_VERSION);
 	fprintf(stdout, "configuration:\n");
 	fprintf(stdout, "    relay hostname = %s\n", relay_hostname);
 	fprintf(stdout, "    listen port = %u\n", listenport);
@@ -202,7 +217,7 @@ main(int argc, char * const argv[])
 	if ((workers[0] = dispatch_new_listener()) == NULL)
 		fprintf(stderr, "failed to add listener\n");
 
-	fprintf(stderr, "starting %d workers\n", workercnt);
+	fprintf(stdout, "starting %d workers\n", workercnt);
 	for (id = 1; id < 1 + workercnt; id++) {
 		workers[id + 0] = dispatch_new_connection();
 		if (workers[id + 0] == NULL) {
@@ -216,21 +231,24 @@ main(int argc, char * const argv[])
 		keep_running = 0;
 	}
 
+	fprintf(stdout, "starting statistics collector\n");
 	servers = server_get_servers();
 	collector_start((void **)&workers[1], (void **)servers, mode);
+
+	fflush(stdout);  /* ensure all info stuff up here is out of the door */
 
 	/* workers do the work, just wait */
 	while (keep_running)
 		sleep(1);
 
-	fprintf(stdout, "shutting down...\n");
+	fprintf(stdout, "[%s] shutting down...\n", fmtnow(nowbuf));
 	close(sock); /* make sure we don't accept anything more */
 	router_shutdown();
 	/* since workers will be freed, stop querying the structures */
 	collector_stop();
 	for (id = 0; id < 1 + workercnt; id++)
 		dispatch_shutdown(workers[id + 0]);
-	fprintf(stdout, "%d workers stopped\n", workercnt);
+	fprintf(stdout, "[%s] %d workers stopped\n", fmtnow(nowbuf), workercnt);
 
 	free(workers);
 	free(servers);

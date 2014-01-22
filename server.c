@@ -71,6 +71,7 @@ server_queuereader(void *d)
 	size_t len;
 	const char *metric;
 	struct timeval start, stop;
+	char nowbuf[24];
 
 	self->metrics = 0;
 	self->ticks = 0;
@@ -96,8 +97,8 @@ server_queuereader(void *d)
 				sizeof(self->serv_addr)) < 0)
 		{
 			self->failure = 1;
-			fprintf(stderr, "failed to connect() to %s:%u: %s\n",
-					self->ip, self->port, strerror(errno));
+			fprintf(stderr, "[%s] failed to connect() to %s:%u: %s\n",
+					fmtnow(nowbuf), self->ip, self->port, strerror(errno));
 			/* sleep a little to allow the server to catchup */
 			usleep(1500 * 1000);  /* 1.5s */
 			continue;
@@ -114,8 +115,8 @@ server_queuereader(void *d)
 				 * partially sent data is an error for us, since we use
 				 * blocking sockets, and hence partial sent is
 				 * indication of a failure */
-				fprintf(stderr, "failed to send() to %s:%u: %s\n",
-						self->ip, self->port, strerror(errno));
+				fprintf(stderr, "[%s] failed to send() to %s:%u: %s\n",
+						fmtnow(nowbuf), self->ip, self->port, strerror(errno));
 				if (queue_free(self->queue) == 0) {
 					fprintf(stderr, "dropping metric: %s\n", metric);
 					self->dropped++;
