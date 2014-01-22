@@ -97,6 +97,8 @@ server_queuereader(void *d)
 				sizeof(self->serv_addr)) < 0)
 		{
 			self->failure = 1;
+			if (fd >= 0)
+				close(fd);
 			fprintf(stderr, "[%s] failed to connect() to %s:%u: %s\n",
 					fmtnow(nowbuf), self->ip, self->port, strerror(errno));
 			/* sleep a little to allow the server to catchup */
