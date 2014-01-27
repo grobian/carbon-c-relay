@@ -28,7 +28,7 @@
 
 static dispatcher **dispatchers;
 static server **servers;
-static char debug;
+static char debug = 0;
 static int metricsock;
 static pthread_t collectorid;
 
@@ -200,6 +200,9 @@ collector_start(dispatcher **d, server **s, enum rmode mode)
 			}
 		}
 	}
+
+	if (mode == DEBUG)
+		debug = 1;
 
 	if (mode != SUBMISSION) {
 		if (pthread_create(&collectorid, NULL, collector_runner, NULL) != 0)
