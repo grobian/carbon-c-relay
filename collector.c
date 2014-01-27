@@ -123,6 +123,8 @@ collector_runner(void *unused)
 				hostname, dispatch_get_connections() - (debug ? 0 : 1), (size_t)now);
 
 		i = 0;
+
+		fflush(dest);
 	}
 
 	free(hostname);
