@@ -76,8 +76,21 @@ queue_destroy(queue *q)
 void
 queue_enqueue(queue *q, const char *p)
 {
+	/* queue normal:
+	 * |=====-----------------------------|  4
+	 * ^    ^
+	 * r    w
+	 * queue wrap:
+	 * |===---------------------------====|  6
+	 *    ^                           ^
+	 *    w                           r
+	 * queue full
+	 * |==================================| 23
+	 *          ^
+	 *         w+r
+	 */
 	pthread_mutex_lock(&q->lock);
-	if (q->len != 0 && q->write == q->read) {
+	if (q->len == q->end) {
 		if (q->read == q->end)
 			q->read = 0;
 		free((char *)(q->queue[q->read]));
