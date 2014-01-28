@@ -157,6 +157,32 @@ queue_dequeue_vector(const char **ret, queue *q, size_t len)
 }
 
 /**
+ * Puts the entry p at the front of the queue, instead of the end, if
+ * there is space available in the queue.  Returns 0 when no space is
+ * available, non-zero otherwise.  Compared to queue_enqueue,
+ * queue_putback does not strdup p, because it assumes that putback is
+ * used after a dequeue, and putback is hence used as revert.
+ */
+char
+queue_putback(queue *q, const char *p)
+{
+	pthread_mutex_lock(&q->lock);
+	if (q->len == q->end) {
+		pthread_mutex_unlock(&q->lock);
+		return 0;
+	}
+
+	if (q->read == 1)
+		q->read == q->end;
+	q->read--;
+	q->queue[q->read] = p;
+	q->len++;
+	pthread_mutex_unlock(&q->lock);
+
+	return 1;
+}
+
+/**
  * Returns the (approximate) size of entries waiting to be read in the
  * queue.  The returned value cannot be taken accurate with multiple
  * readers/writers concurrently in action.  Hence it can only be seen as
