@@ -38,9 +38,22 @@ cluster.  The syntax in this file is as follows:
 ```
 # comments are allowed in any place and start with a hash (#)
 
-cluster <name> <forward | any_of | carbon_ch [replication <count>]> <ip[:port]> ... ;
-
-match <* | <expression>> send to <cluster> [stop] ;
+cluster <name>
+    <forward | any_of | carbon_ch [replication <count>]>
+        <ip[:port]> ...
+    ;
+match <* | <expression>>
+    send to <cluster>
+    [stop]
+    ;
+aggregate
+        <expression> ...
+    every <interval> seconds
+    expire after <expiration> seconds
+    compute <sum | count | max | min | average> write to
+        <metric>
+    [compute ...]
+    ;
 ```
 
 Multiple clusters can be defined, and need not to be referenced by a
@@ -64,6 +77,20 @@ match rule, the same match expression can be used to target multiple
 clusters.  This ability allows to replicate metrics, as well as send
 certain metrics to alternative clusters with careful ordering and usage
 of the `stop` keyword.
+
+The aggregations defined take one or more input metrics expressed by one
+or more regular expresions, similar to the match rules.  Incoming
+metrics are aggregated over a period of time defined by the interval in
+seconds.  Since events may arrive a bit later in time, the expiration
+time in seconds defines when the aggregations should be considered
+final, as no new entries are allowed to be added any more.  On top of an
+aggregation multiple aggregations can be computed.  They can be of the
+same or different aggregation types, but should write to a unique new
+metric.  Produced metrics are sent to the relay as if they were
+submitted from the outside, hence match and aggregation rules apply to
+those.  Care should be taken that loops are avoided.  Also, since
+aggregations appear as matches without `stop` keyword, their positioning
+matters in the same way ordering of match statements.
 
 
 Author

@@ -73,11 +73,11 @@ static cluster *clusters = NULL;
  * Config file supports the following:
  *
  * cluster (name)
- *     (forward | round-robin | carbon_ch [replication (count)])
+ *     (forward | any_of | carbon_ch [replication (count)])
  *         (ip:port[ ip:port ...])
  *     ;
  * match (* | regex)
- *     send to (group)
+ *     send to (cluster)
  *     [stop]
  *     ;
  * aggregate
