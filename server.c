@@ -79,6 +79,10 @@ server_queuereader(void *d)
 	self->ticks = 0;
 
 	while (1) {
+		/* terminate directly if this isn't going to fly */
+		if (self->failure && !keep_running)
+			break;
+		/* else, try to flush the queue before exiting */
 		if ((qlen = queue_len(self->queue)) == 0) {
 			if (!keep_running)
 				break;  /* terminate gracefully */
