@@ -31,7 +31,8 @@ OBJS = \
 	router.o \
 	queue.o \
 	server.o \
-	collector.o
+	collector.o \
+	aggregator.o
 
 relay: $(OBJS)
 	$(CC) -o $@ $(LDFLAGS) $(LIBS) $^

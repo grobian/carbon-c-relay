@@ -26,6 +26,7 @@
 #include "carbon-hash.h"
 #include "server.h"
 #include "queue.h"
+#include "aggregator.h"
 
 enum clusttype {
 	FORWARD,
@@ -49,15 +50,7 @@ typedef struct _cluster {
 			servers *servers;
 		} carbon_ch;
 		servers *forward;
-		struct {
-			unsigned short interval;  /* when to perform the aggregation */
-			unsigned short expire;    /* when incoming metrics are no longer valid */
-			struct _aggr_computes {
-				enum { SUM, CNT, MAX, MIN, AVG } type;
-				char *metric;         /* name of metric to produce */
-				struct _aggr_computes *next;
-			} *computes;
-		} aggregation;
+		aggregator *aggregation;
 	} members;
 	struct _cluster *next;
 } cluster;
@@ -450,6 +443,7 @@ router_readconfig(const char *path)
 			/* aggregation rule */
 			char *pat;
 			char *interval;
+			char *expire;
 			cluster *w;
 			struct _aggr_computes *ac = NULL;
 
@@ -512,7 +506,6 @@ router_readconfig(const char *path)
 				return 0;
 			}
 			*p++ = '\0';
-			w->members.aggregation.interval = atoi(interval);
 			for (; *p != '\0' && isspace(*p); p++)
 				;
 			if (strncmp(p, "seconds", 7) != 0 || !isspace(*(p + 7))) {
@@ -541,12 +534,12 @@ router_readconfig(const char *path)
 			p += 6;
 			for (; *p != '\0' && isspace(*p); p++)
 				;
-			interval = p;
+			expire = p;
 			for (; *p != '\0' && isdigit(*p); p++)
 				;
 			if (*p == '\0') {
 				fprintf(stderr, "unexpected end of file after 'expire after %s'\n",
-						interval);
+						expire);
 				free(buf);
 				return 0;
 			}
@@ -557,12 +550,12 @@ router_readconfig(const char *path)
 				return 0;
 			}
 			*p++ = '\0';
-			w->members.aggregation.expire = atoi(interval);
+			w->members.aggregation = aggregator_new(atoi(interval), atoi(expire));
 			for (; *p != '\0' && isspace(*p); p++)
 				;
 			if (strncmp(p, "seconds", 7) != 0 || !isspace(*(p + 7))) {
 				fprintf(stderr, "expected 'seconds' after 'expire after %s'\n",
-						interval);
+						expire);
 				free(buf);
 				return 0;
 			}
@@ -587,7 +580,7 @@ router_readconfig(const char *path)
 				*p++ = '\0';
 
 				if (ac == NULL) {
-					ac = w->members.aggregation.computes = malloc(sizeof(struct _aggr_computes));
+					ac = w->members.aggregation->computes = malloc(sizeof(struct _aggr_computes));
 				} else {
 					ac = ac->next = malloc(sizeof(struct _aggr_computes));
 				}
@@ -692,9 +685,9 @@ router_printconfig(FILE *f)
 					&& (r = r->next) != NULL);
 			fprintf(f, "\tevery %u seconds\n"
 					"\texpire after %u seconds\n",
-					aggr->members.aggregation.interval,
-					aggr->members.aggregation.expire);
-			for (ac = aggr->members.aggregation.computes; ac != NULL; ac = ac->next)
+					aggr->members.aggregation->interval,
+					aggr->members.aggregation->expire);
+			for (ac = aggr->members.aggregation->computes; ac != NULL; ac = ac->next)
 				fprintf(f, "\tcompute %s write to\n"
 						"\t\t%s\n",
 						ac->type == SUM ? "sum" : ac->type == CNT ? "count" :
@@ -751,26 +744,9 @@ router_route_destination(
 		}	break;
 		case AGGREGATION: {
 			/* aggregation rule */
-			char nmetric[8096];
-			char *nmetric_path;
-
-			aggregator_append(
-					w->dest->members.aggregation.container,
-					w->dest->members.aggregation.interval,
-					w->dest->members.aggregation.expire,
+			aggregator_putmetric(
+					w->dest->members.aggregation,
 					metric);
-			while ((m = aggregator_expire(
-					&nmetric_path,
-					&nmetric,
-					w->dest->members.aggregation.container,
-					w->dest->members.aggregation.interval,
-					w->dest->members.aggregation.expire)) != NULL)
-			{
-				router_route_destination(
-						w->dest->members.aggregation.dest,
-						path,
-						m);
-			}
 		}	break;
 	}
 }

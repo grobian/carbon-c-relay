@@ -30,6 +30,7 @@
 #include "router.h"
 #include "receptor.h"
 #include "dispatcher.h"
+#include "aggregator.h"
 #include "collector.h"
 
 int keep_running = 1;
@@ -231,6 +232,14 @@ main(int argc, char * const argv[])
 		keep_running = 0;
 	}
 
+	if (aggregator_hasaggregators()) {
+		fprintf(stdout, "starting aggregator\n");
+		if (!aggregator_start()) {
+			fprintf(stderr, "shutting down due to failure to start aggregator\n");
+			keep_running = 0;
+		}
+	}
+
 	fprintf(stdout, "starting statistics collector\n");
 	servers = server_get_servers();
 	collector_start((void **)&workers[1], (void **)servers, mode);
@@ -246,6 +255,8 @@ main(int argc, char * const argv[])
 	router_shutdown();
 	/* since workers will be freed, stop querying the structures */
 	collector_stop();
+	if (aggregator_hasaggregators())
+		aggregator_stop();
 	for (id = 0; id < 1 + workercnt; id++)
 		dispatch_shutdown(workers[id + 0]);
 	fprintf(stdout, "[%s] %d workers stopped\n", fmtnow(nowbuf), workercnt);
