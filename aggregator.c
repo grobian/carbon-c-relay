@@ -211,12 +211,18 @@ aggregator_expire(void *unused)
 }
 
 /**
- * Returns true if there are aggregators defined.
+ * Returns the number of aggregators defined.
  */
-char
-aggregator_hasaggregators(void)
+size_t
+aggregator_numaggregators(void)
 {
-	return aggregators != NULL;
+	size_t totaggregators = 0;
+	aggregator *a;
+
+	for (a = aggregators; a != NULL; a = a->next)
+		totaggregators++;
+
+	return totaggregators;
 }
 
 /**

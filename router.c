@@ -647,10 +647,12 @@ router_readconfig(const char *path)
 
 /**
  * Mere debugging function to check if the configuration is picked up
- * alright.
+ * alright.  If all is set to false, aggregation rules won't be printed.
+ * This comes in handy because aggregations usually come in the order of
+ * thousands.
  */
 void
-router_printconfig(FILE *f)
+router_printconfig(FILE *f, char all)
 {
 	cluster *c;
 	route *r;
@@ -677,6 +679,9 @@ router_printconfig(FILE *f)
 		if (r->dest->type == AGGREGATION) {
 			cluster *aggr = r->dest;
 			struct _aggr_computes *ac;
+
+			if (!all)
+				continue;
 
 			fprintf(f, "aggregate\n");
 			do {

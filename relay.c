@@ -106,6 +106,7 @@ main(int argc, char * const argv[])
 	enum rmode mode = NORMAL;
 	int bflag, ch;
 	char nowbuf[24];
+	size_t numaggregators;
 
 	bflag = 0;
 	while ((ch = getopt(argc, argv, ":hvdsf:p:w:")) != -1) {
@@ -172,8 +173,15 @@ main(int argc, char * const argv[])
 		fprintf(stderr, "failed to read configuration '%s'\n", routes);
 		return 1;
 	}
-	fprintf(stdout, "parsed configuration follows:\n");
-	router_printconfig(stdout);
+	numaggregators = aggregator_numaggregators();
+	if (numaggregators > 10) {
+		fprintf(stdout, "parsed configuration follows "
+				"(aggregations omitted for brevity):\n");
+		router_printconfig(stdout, 0);
+	} else {
+		fprintf(stdout, "parsed configuration follows:\n");
+		router_printconfig(stdout, 1);
+	}
 	fprintf(stdout, "\n");
 
 	if (signal(SIGINT, exit_handler) == SIG_ERR) {
@@ -232,7 +240,7 @@ main(int argc, char * const argv[])
 		keep_running = 0;
 	}
 
-	if (aggregator_hasaggregators()) {
+	if (numaggregators > 0) {
 		fprintf(stdout, "starting aggregator\n");
 		if (!aggregator_start()) {
 			fprintf(stderr, "shutting down due to failure to start aggregator\n");
@@ -255,7 +263,7 @@ main(int argc, char * const argv[])
 	router_shutdown();
 	/* since workers will be freed, stop querying the structures */
 	collector_stop();
-	if (aggregator_hasaggregators())
+	if (numaggregators > 0)
 		aggregator_stop();
 	for (id = 0; id < 1 + workercnt; id++)
 		dispatch_shutdown(workers[id + 0]);

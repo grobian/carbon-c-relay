@@ -47,7 +47,7 @@ aggregator *aggregator_new(unsigned int interval, unsigned int expire);
 void aggregator_putmetric(aggregator *s, const char *metric);
 int aggregator_start(void);
 void aggregator_stop(void);
-char aggregator_hasaggregators(void);
+size_t aggregator_numaggregators(void);
 size_t aggregator_get_received(void);
 size_t aggregator_get_sent(void);
 size_t aggregator_get_dropped(void);
