@@ -122,7 +122,7 @@ collector_runner(void *unused)
 		fprintf(dest, "carbon.relays.%s.server_wallTime_ns %zd %zd\n",
 				hostname, totticks, (size_t)now);
 		fprintf(dest, "carbon.relays.%s.connections %zd %zd\n",
-				hostname, dispatch_get_connections() - (debug ? 0 : 1) - numaggregators > 0, (size_t)now);
+				hostname, dispatch_get_connections() - (debug ? 0 : 1) - (numaggregators > 0), (size_t)now);
 
 		if (numaggregators > 0) {
 			fprintf(dest, "carbon.relays.%s.aggregators.metricsReceived %zd %zd\n",
