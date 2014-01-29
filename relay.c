@@ -80,7 +80,7 @@ do_version(void)
 void
 do_usage(int exitcode)
 {
-	printf("Usage: relay [-vds] -f <config> [-p <port>] [-w <workers>]\n");
+	printf("Usage: relay [-vdst] -f <config> [-p <port>] [-w <workers>]\n");
 	printf("\n");
 	printf("Options:\n");
 	printf("  -v  print version and exit\n");
@@ -89,6 +89,7 @@ do_usage(int exitcode)
 	printf("  -w  user <workers> worker threads, defaults to 16\n");
 	printf("  -d  debug mode: currently writes statistics to stdout\n");
 	printf("  -s  submission mode: write info about errors to stdout\n");
+	printf("  -t  config test mode: prints rule matches from input on stdin\n");
 
 	exit(exitcode);
 }
@@ -109,7 +110,7 @@ main(int argc, char * const argv[])
 	size_t numaggregators;
 
 	bflag = 0;
-	while ((ch = getopt(argc, argv, ":hvdsf:p:w:")) != -1) {
+	while ((ch = getopt(argc, argv, ":hvdstf:p:w:")) != -1) {
 		switch (ch) {
 			case 'v':
 				do_version();
@@ -119,6 +120,9 @@ main(int argc, char * const argv[])
 				break;
 			case 's':
 				mode = SUBMISSION;
+				break;
+			case 't':
+				mode = TEST;
 				break;
 			case 'f':
 				routes = optarg;
@@ -183,6 +187,21 @@ main(int argc, char * const argv[])
 		router_printconfig(stdout, 1);
 	}
 	fprintf(stdout, "\n");
+
+	/* shortcut for rule testing mode */
+	if (mode == TEST) {
+		char metricbuf[8096];
+		char *p;
+
+		fflush(stdout);
+		while (keep_running == 1 && fgets(metricbuf, sizeof(metricbuf), stdin) != NULL) {
+			if ((p = strchr(metricbuf, '\n')) != NULL)
+				*p = '\0';
+			router_test(metricbuf);
+		}
+
+		exit(0);
+	}
 
 	if (signal(SIGINT, exit_handler) == SIG_ERR) {
 		fprintf(stderr, "failed to create SIGINT handler: %s\n",

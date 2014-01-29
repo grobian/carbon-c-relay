@@ -768,6 +768,33 @@ router_route(const char *metric_path, const char *metric)
 	}
 }
 
+/**
+ * Prints for metric_path which rules and/or aggregations would be
+ * triggered.  Useful for testing regular expressions.
+ */
+void
+router_test(const char *metric_path)
+{
+	route *w;
+	char gotmatch = 0;
+
+	for (w = routes; w != NULL; w = w->next) {
+		if (w->matchall || regexec(&w->rule, metric_path, 0, NULL, 0) == 0) {
+			gotmatch = 1;
+			fprintf(stdout, "%s is matched by %s (%s)\n",
+					metric_path, w->matchall ? "*" : w->pattern,
+					w->dest->type == AGGREGATION ? "aggregation" : "match");
+			if (w->stop) {
+				fprintf(stdout, "stop\n");
+				break;
+			}
+		}
+	}
+	if (!gotmatch)
+		fprintf(stdout, "nothing matched %s\n", metric_path);
+	fflush(stdout);
+}
+
 void
 router_shutdown(void)
 {

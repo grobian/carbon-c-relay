@@ -25,6 +25,7 @@
 int router_readconfig(const char *path);
 void router_printconfig(FILE *f, char all);
 void router_route(const char *metric_path, const char *metric);
+void router_test(const char *metric_path);
 void router_shutdown(void);
 
 #endif
