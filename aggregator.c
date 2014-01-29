@@ -54,7 +54,9 @@ aggregator_new(unsigned int interval, unsigned int expire)
 
 	ret->interval = interval;
 	ret->expire = expire;
-	ret->dropped_too_old = 0;
+	ret->received = 0;
+	ret->sent = 0;
+	ret->dropped = 0;
 	ret->next = NULL;
 
 	pthread_mutex_init(&ret->bucketlock, NULL);
@@ -105,7 +107,7 @@ aggregator_putmetric(
 	epoch -= s->buckets[0]->start;
 	if (epoch < 0) {
 		/* drop too old metric */
-		s->dropped_too_old++;
+		s->dropped++;
 		return;
 	}
 
@@ -113,10 +115,12 @@ aggregator_putmetric(
 	if (slot >= s->bucketcnt) {
 		fprintf(stderr, "aggregator: dropping metric too far in the future: %s",
 				metric);
+		s->dropped++;
 		return;
 	}
 
 	pthread_mutex_lock(&s->bucketlock);
+	s->received++;
 	bucket = s->buckets[slot];
 	if (bucket->cnt == 0) {
 		bucket->cnt = 1;
@@ -189,6 +193,7 @@ aggregator_expire(void *unused)
 					}
 				}
 				pthread_mutex_lock(&s->bucketlock);
+				s->sent++;
 				/* move the bucket to the end, to make room for new ones */
 				memmove(&s->buckets[0], &s->buckets[1],
 						sizeof(b) * (s->bucketcnt - 1));
@@ -259,4 +264,51 @@ aggregator_stop(void)
 {
 	fclose(metricsock);
 	pthread_join(aggregatorid, NULL);
+}
+
+/**
+ * Returns an approximate number of received metrics by all aggregators.
+ */
+size_t
+aggregator_get_received(void)
+{
+	size_t totreceived = 0;
+	aggregator *a;
+
+	for (a = aggregators; a != NULL; a = a->next)
+		totreceived += a->received;
+
+	return totreceived;
+}
+
+/**
+ * Returns an approximate number of metrics sent by all aggregators.
+ */
+size_t
+aggregator_get_sent(void)
+{
+	size_t totsent = 0;
+	aggregator *a;
+
+	for (a = aggregators; a != NULL; a = a->next)
+		totsent += a->sent;
+
+	return totsent;
+}
+
+/**
+ * Returns an approximate number of dropped metrics by all aggregators.
+ * Metrics are dropped if they are too much in the past (past expiry
+ * time) or if they are too much in the future.
+ */
+size_t
+aggregator_get_dropped(void)
+{
+	size_t totdropped = 0;
+	aggregator *a;
+
+	for (a = aggregators; a != NULL; a = a->next)
+		totdropped += a->dropped;
+
+	return totdropped;
 }

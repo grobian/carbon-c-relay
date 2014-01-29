@@ -31,7 +31,9 @@ typedef struct _aggregator {
 		double max;
 		double min;
 	} **buckets;
-	size_t dropped_too_old;
+	size_t received;
+	size_t sent;
+	size_t dropped;
 	struct _aggr_computes {
 		enum { SUM, CNT, MAX, MIN, AVG } type;
 		char *metric;         /* name of metric to produce */
@@ -46,5 +48,8 @@ void aggregator_putmetric(aggregator *s, const char *metric);
 int aggregator_start(void);
 void aggregator_stop(void);
 char aggregator_hasaggregators(void);
+size_t aggregator_get_received(void);
+size_t aggregator_get_sent(void);
+size_t aggregator_get_dropped(void);
 
 #endif
