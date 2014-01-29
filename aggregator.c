@@ -95,7 +95,7 @@ aggregator_putmetric(
 	struct _bucket *bucket;
 
 	/* get value */
-	if ((v = strchr(metric, ' ')) == NULL || (t = strchr(v, ' ')) == NULL) {
+	if ((v = strchr(metric, ' ')) == NULL || (t = strchr(v + 1, ' ')) == NULL) {
 		/* metric includes \n */
 		fprintf(stderr, "aggregator: dropping incorrect metric: %s", metric);
 		return;
