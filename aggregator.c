@@ -163,37 +163,40 @@ aggregator_expire(void *unused)
 			while (s->buckets[0]->start + s->interval < now - s->expire) {
 				/* yay, let's produce something cool */
 				b = s->buckets[0];
-				for (c = s->computes; c != NULL; c = c->next) {
-					switch (c->type) {
-						case SUM:
-							fprintf(metricsock, "%s %f %lld\n",
-									c->metric, b->sum,
-									b->start + s->interval);
-							break;
-						case CNT:
-							fprintf(metricsock, "%s %zd %lld\n",
-									c->metric, b->cnt,
-									b->start + s->interval);
-							break;
-						case MAX:
-							fprintf(metricsock, "%s %f %lld\n",
-									c->metric, b->max,
-									b->start + s->interval);
-							break;
-						case MIN:
-							fprintf(metricsock, "%s %f %lld\n",
-									c->metric, b->min,
-									b->start + s->interval);
-							break;
-						case AVG:
-							fprintf(metricsock, "%s %f %lld\n",
-									c->metric, b->sum / (double)b->cnt,
-									b->start + s->interval);
-							break;
+				if (b->cnt > 0) {  /* avoid emitting empty/unitialised data */
+					for (c = s->computes; c != NULL; c = c->next) {
+						switch (c->type) {
+							case SUM:
+								fprintf(metricsock, "%s %f %lld\n",
+										c->metric, b->sum,
+										b->start + s->interval);
+								break;
+							case CNT:
+								fprintf(metricsock, "%s %zd %lld\n",
+										c->metric, b->cnt,
+										b->start + s->interval);
+								break;
+							case MAX:
+								fprintf(metricsock, "%s %f %lld\n",
+										c->metric, b->max,
+										b->start + s->interval);
+								break;
+							case MIN:
+								fprintf(metricsock, "%s %f %lld\n",
+										c->metric, b->min,
+										b->start + s->interval);
+								break;
+							case AVG:
+								fprintf(metricsock, "%s %f %lld\n",
+										c->metric, b->sum / (double)b->cnt,
+										b->start + s->interval);
+								break;
+						}
 					}
 				}
 				pthread_mutex_lock(&s->bucketlock);
-				s->sent++;
+				if (b->cnt > 0)
+					s->sent++;
 				/* move the bucket to the end, to make room for new ones */
 				memmove(&s->buckets[0], &s->buckets[1],
 						sizeof(b) * (s->bucketcnt - 1));
