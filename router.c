@@ -719,7 +719,7 @@ router_route(const char *metric_path, const char *metric)
 	route *w;
 
 	for (w = routes; w != NULL; w = w->next) {
-		if (w->matchall || regexec(&w->rule, metric, 0, NULL, 0) == 0) {
+		if (w->matchall || regexec(&w->rule, metric_path, 0, NULL, 0) == 0) {
 			/* rule matches, send to destination(s) */
 			switch (w->dest->type) {
 				case FORWARD: {
