@@ -709,53 +709,6 @@ router_printconfig(FILE *f, char all)
 	fflush(f);
 }
 
-static void
-router_route_destination(
-		const route *w,
-		const char *metric_path,
-		const char *metric)
-{
-	switch (w->dest->type) {
-		case FORWARD: {
-			/* simple case, no logic necessary */
-			servers *s;
-			for (s = w->dest->members.forward; s != NULL; s = s->next)
-				server_send(s->server, metric);
-		}	break;
-		case ANYOF: {
-			/* only queue at the first, since all servers here
-			 * share the same queue */
-			if (w->dest->members.forward != NULL)
-				server_send(w->dest->members.forward->server, metric);
-		}	break;
-		case CARBON_CH: {
-			/* let the ring(bearer) decide */
-			server *dests[4];
-			int i;
-			if (w->dest->members.carbon_ch.repl_factor > sizeof(dests)) {
-				/* need to increase size of dests, for
-				 * performance and ssp don't want to malloc and
-				 * can't alloca */
-				fprintf(stderr, "PANIC: increase dests array size!\n");
-				return;
-			}
-			carbon_get_nodes(
-					dests,
-					w->dest->members.carbon_ch.ring,
-					w->dest->members.carbon_ch.repl_factor,
-					metric_path);
-			for (i = 0; i < w->dest->members.carbon_ch.repl_factor; i++)
-				server_send(dests[i], metric);
-		}	break;
-		case AGGREGATION: {
-			/* aggregation rule */
-			aggregator_putmetric(
-					w->dest->members.aggregation,
-					metric);
-		}	break;
-	}
-}
-
 /**
  * Looks up the locations the given metric_path should be sent to, and
  * enqueues the metric for the matching destinations.
@@ -768,7 +721,45 @@ router_route(const char *metric_path, const char *metric)
 	for (w = routes; w != NULL; w = w->next) {
 		if (w->matchall || regexec(&w->rule, metric, 0, NULL, 0) == 0) {
 			/* rule matches, send to destination(s) */
-			router_route_destination(w, metric_path, metric);
+			switch (w->dest->type) {
+				case FORWARD: {
+					/* simple case, no logic necessary */
+					servers *s;
+					for (s = w->dest->members.forward; s != NULL; s = s->next)
+						server_send(s->server, metric);
+				}	break;
+				case ANYOF: {
+					/* only queue at the first, since all servers here
+					 * share the same queue */
+					if (w->dest->members.forward != NULL)
+						server_send(w->dest->members.forward->server, metric);
+				}	break;
+				case CARBON_CH: {
+					/* let the ring(bearer) decide */
+					server *dests[4];
+					int i;
+					if (w->dest->members.carbon_ch.repl_factor > sizeof(dests)) {
+						/* need to increase size of dests, for
+						 * performance and ssp don't want to malloc and
+						 * can't alloca */
+						fprintf(stderr, "PANIC: increase dests array size!\n");
+						return;
+					}
+					carbon_get_nodes(
+							dests,
+							w->dest->members.carbon_ch.ring,
+							w->dest->members.carbon_ch.repl_factor,
+							metric_path);
+					for (i = 0; i < w->dest->members.carbon_ch.repl_factor; i++)
+						server_send(dests[i], metric);
+				}	break;
+				case AGGREGATION: {
+					/* aggregation rule */
+					aggregator_putmetric(
+							w->dest->members.aggregation,
+							metric);
+				}	break;
+			}
 
 			/* stop processing further rules if requested */
 			if (w->stop)
