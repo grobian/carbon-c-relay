@@ -25,6 +25,7 @@
 #include "relay.h"
 #include "dispatcher.h"
 #include "server.h"
+#include "aggregator.h"
 
 static dispatcher **dispatchers;
 static server **servers;
@@ -52,6 +53,7 @@ collector_runner(void *unused)
 	char ipbuf[32];
 	char *p;
 	FILE *dest = stdout;
+	size_t numaggregators = aggregator_numaggregators();
 	(void)unused;  /* pacify compiler */
 
 	/* prepare hostname for graphite metrics */
@@ -120,7 +122,16 @@ collector_runner(void *unused)
 		fprintf(dest, "carbon.relays.%s.server_wallTime_ns %zd %zd\n",
 				hostname, totticks, (size_t)now);
 		fprintf(dest, "carbon.relays.%s.connections %zd %zd\n",
-				hostname, dispatch_get_connections() - (debug ? 0 : 1), (size_t)now);
+				hostname, dispatch_get_connections() - (debug ? 0 : 1) - numaggregators > 0, (size_t)now);
+
+		if (numaggregators > 0) {
+			fprintf(dest, "carbon.relays.%s.aggregators.metricsReceived %zd %zd\n",
+					hostname, aggregator_get_received(), (size_t)now);
+			fprintf(dest, "carbon.relays.%s.aggregators.metricsSent %zd %zd\n",
+					hostname, aggregator_get_sent(), (size_t)now);
+			fprintf(dest, "carbon.relays.%s.aggregators.metricsDropped %zd %zd\n",
+					hostname, aggregator_get_dropped(), (size_t)now);
+		}
 
 		i = 0;
 
@@ -135,6 +146,7 @@ collector_runner(void *unused)
  * Writes messages about dropped events or high queue sizes.
  */
 static size_t lastdropped = 0;
+static size_t lastaggrdropped = 0;
 static void *
 collector_writer(void *unused)
 {
@@ -142,6 +154,7 @@ collector_writer(void *unused)
 	size_t queued;
 	size_t totdropped;
 	char nowbuf[24];
+	size_t numaggregators = aggregator_numaggregators();
 
 	while (keep_running) {
 		sleep(1);
@@ -167,6 +180,15 @@ collector_writer(void *unused)
 			fflush(stdout);
 		}
 		lastdropped = totdropped;
+		if (numaggregators > 0) {
+			totdropped = aggregator_get_dropped();
+			if (totdropped - lastaggrdropped > 0) {
+				fprintf(stdout, "[%s] warning: aggregator dropped %zd metrics\n",
+						fmtnow(nowbuf), totdropped - lastaggrdropped);
+				fflush(stdout);
+			}
+			lastaggrdropped = totdropped;
+		}
 
 		i = 0;
 	}
