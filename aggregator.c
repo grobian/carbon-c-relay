@@ -101,6 +101,8 @@ aggregator_putmetric(
 		return;
 	}
 
+	s->received++;
+
 	val = atof(v + 1);
 	epoch = atoll(t + 1);
 
@@ -120,7 +122,6 @@ aggregator_putmetric(
 	}
 
 	pthread_mutex_lock(&s->bucketlock);
-	s->received++;
 	bucket = s->buckets[slot];
 	if (bucket->cnt == 0) {
 		bucket->cnt = 1;
