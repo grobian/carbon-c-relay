@@ -180,7 +180,7 @@ main(int argc, char * const argv[])
 	numaggregators = aggregator_numaggregators();
 	if (numaggregators > 10) {
 		fprintf(stdout, "parsed configuration follows "
-				"(aggregations omitted for brevity):\n");
+				"(%zd aggregations omitted for brevity):\n", numaggregators);
 		router_printconfig(stdout, 0);
 	} else {
 		fprintf(stdout, "parsed configuration follows:\n");
