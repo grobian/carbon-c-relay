@@ -65,8 +65,8 @@ aggregator_new(unsigned int interval, unsigned int expire)
 	time(&now);
 	now -= ((expire - 1) / interval) * interval;
 
-	/* allocate enough buckets to hold the past + some future */
-	ret->bucketcnt = expire / interval + 1 + 2;
+	/* allocate enough buckets to hold the past + future */
+	ret->bucketcnt = (expire / interval) * 2 + 1 ;
 	ret->buckets = malloc(sizeof(struct _bucket *) * ret->bucketcnt);
 	for (i = 0; i < ret->bucketcnt; i++) {
 		ret->buckets[i] = malloc(sizeof(struct _bucket));
