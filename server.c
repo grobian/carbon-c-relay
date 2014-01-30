@@ -260,10 +260,15 @@ server_send(server *s, const char *d)
 			s->dropped++;
 			/* event will be dropped by the enqueue below */
 		} else {
-			/* wait */
-			do {
+			char i;
+			/* wait a little bit */
+			for (i = 0; i < 3; i++) {
 				usleep(100 * 1000);  /* 100ms */
-			} while (queue_free(s->queue) == 0);
+				if (queue_free(s->queue) > 0)
+					break;
+			}
+			if (i == 3)
+				s->dropped++;
 		}
 	}
 	queue_enqueue(s->queue, d);
