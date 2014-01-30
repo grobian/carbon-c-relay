@@ -153,14 +153,13 @@ aggregator_expire(void *unused)
 	aggregator *s;
 	struct _bucket *b;
 	struct _aggr_computes *c;
-	int i;
+	int work;
 
-	i = 0;
 	while (keep_running) {
-		sleep(1);
-		now = time(NULL);
+		work = 0;
 
 		for (s = aggregators; s != NULL; s = s->next) {
+			now = time(NULL);
 			while (s->buckets[0]->start + s->interval < now - s->expire) {
 				/* yay, let's produce something cool */
 				b = s->buckets[0];
@@ -205,10 +204,15 @@ aggregator_expire(void *unused)
 				b->start = s->buckets[s->bucketcnt - 2]->start + s->interval;
 				s->buckets[s->bucketcnt - 1] = b;
 				pthread_mutex_unlock(&s->bucketlock);
+
+				work++;
 			}
 		}
 		/* push away whatever we produced */
 		fflush(metricsock);
+
+		if (work == 0)  /* nothing done, avoid spinlocking */
+			usleep(250 * 1000);  /* 250ms */
 	}
 
 	return NULL;
