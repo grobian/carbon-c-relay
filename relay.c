@@ -194,7 +194,7 @@ main(int argc, char * const argv[])
 		char *p;
 
 		fflush(stdout);
-		while (keep_running == 1 && fgets(metricbuf, sizeof(metricbuf), stdin) != NULL) {
+		while (fgets(metricbuf, sizeof(metricbuf), stdin) != NULL) {
 			if ((p = strchr(metricbuf, '\n')) != NULL)
 				*p = '\0';
 			router_test(metricbuf);
