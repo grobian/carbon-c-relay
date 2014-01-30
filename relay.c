@@ -158,6 +158,9 @@ main(int argc, char * const argv[])
 	if (gethostname(relay_hostname, sizeof(relay_hostname)) < 0)
 		snprintf(relay_hostname, sizeof(relay_hostname), "127.0.0.1");
 
+	/* seed randomiser for aggregator "splay" */
+	srand(time(NULL));
+
 	if (workercnt == 0)
 		workercnt = mode == SUBMISSION ? 2 : 16;
 

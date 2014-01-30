@@ -61,9 +61,12 @@ aggregator_new(unsigned int interval, unsigned int expire)
 
 	pthread_mutex_init(&ret->bucketlock, NULL);
 
-	/* start buckets in the past, but before expiry */
+	/* start buckets in the past with a splay, but before expiry
+	 * the splay is necessary to avoid a thundering herd of expirations
+	 * when the config lists many aggregations which then all get the
+	 * same start time */
 	time(&now);
-	now -= ((expire - 1) / interval) * interval;
+	now -= expire + 1 + (rand() % interval);
 
 	/* allocate enough buckets to hold the past + future */
 	ret->bucketcnt = (expire / interval) * 2 + 1 ;
