@@ -49,6 +49,7 @@ collector_runner(void *unused)
 	size_t queued;
 	size_t dropped;
 	time_t now;
+	time_t nextcycle;
 	char *hostname = strdup(relay_hostname);
 	char ipbuf[32];
 	char *p;
@@ -69,13 +70,13 @@ collector_runner(void *unused)
 		}
 	}
 
-	i = 0;
+	nextcycle = time(NULL) + 60;
 	while (keep_running) {
 		sleep(1);
-		i++;
-		if (i < 60)
-			continue;
 		now = time(NULL);
+		if (nextcycle > now)
+			continue;
+		nextcycle += 60;
 		totticks = 0;
 		totmetrics = 0;
 		for (i = 0; dispatchers[i] != NULL; i++) {
