@@ -108,6 +108,7 @@ main(int argc, char * const argv[])
 	int bflag, ch;
 	char nowbuf[24];
 	size_t numaggregators;
+	server *internal_submission;
 
 	bflag = 0;
 	while ((ch = getopt(argc, argv, ":hvdstf:p:w:")) != -1) {
@@ -262,17 +263,26 @@ main(int argc, char * const argv[])
 		keep_running = 0;
 	}
 
+	servers = server_get_servers();
+
+	/* server used for delivering metrics produced inside the relay,
+	 * that is collector (statistics) and aggregator (aggregations) */
+	if ((internal_submission = server_new("127.0.0.1", listenport)) == NULL) {
+		fprintf(stderr, "failed to create internal submission queue, shutting down\n");
+		keep_running = 0;
+	}
+
 	if (numaggregators > 0) {
 		fprintf(stdout, "starting aggregator\n");
-		if (!aggregator_start()) {
+		if (!aggregator_start(internal_submission)) {
 			fprintf(stderr, "shutting down due to failure to start aggregator\n");
 			keep_running = 0;
 		}
 	}
 
 	fprintf(stdout, "starting statistics collector\n");
-	servers = server_get_servers();
-	collector_start((void **)&workers[1], (void **)servers, mode);
+	collector_start((void **)&workers[1], (void **)servers, mode,
+			internal_submission);
 
 	fflush(stdout);  /* ensure all info stuff up here is out of the door */
 

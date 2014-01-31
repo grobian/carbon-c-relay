@@ -20,6 +20,8 @@
 
 #include <pthread.h>
 
+#include "server.h"
+
 typedef struct _aggregator {
 	unsigned short interval;  /* when to perform the aggregation */
 	unsigned short expire;    /* when incoming metrics are no longer valid */
@@ -45,7 +47,7 @@ typedef struct _aggregator {
 
 aggregator *aggregator_new(unsigned int interval, unsigned int expire);
 void aggregator_putmetric(aggregator *s, const char *metric);
-int aggregator_start(void);
+int aggregator_start(server *submission);
 void aggregator_stop(void);
 size_t aggregator_numaggregators(void);
 size_t aggregator_get_received(void);

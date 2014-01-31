@@ -24,6 +24,7 @@
 
 #include "relay.h"
 #include "dispatcher.h"
+#include "server.h"
 #include "aggregator.h"
 
 static FILE *metricsock = NULL;
@@ -150,13 +151,15 @@ aggregator_putmetric(
  * list.
  */
 static void *
-aggregator_expire(void *unused)
+aggregator_expire(void *sub)
 {
 	time_t now;
 	aggregator *s;
 	struct _bucket *b;
 	struct _aggr_computes *c;
 	int work;
+	server *submission = (server *)sub;
+	char metric[8096];
 
 	while (keep_running) {
 		work = 0;
@@ -170,31 +173,32 @@ aggregator_expire(void *unused)
 					for (c = s->computes; c != NULL; c = c->next) {
 						switch (c->type) {
 							case SUM:
-								fprintf(metricsock, "%s %f %lld\n",
+								snprintf(metric, sizeof(metric), "%s %f %lld\n",
 										c->metric, b->sum,
 										b->start + s->interval);
 								break;
 							case CNT:
-								fprintf(metricsock, "%s %zd %lld\n",
+								snprintf(metric, sizeof(metric), "%s %zd %lld\n",
 										c->metric, b->cnt,
 										b->start + s->interval);
 								break;
 							case MAX:
-								fprintf(metricsock, "%s %f %lld\n",
+								snprintf(metric, sizeof(metric), "%s %f %lld\n",
 										c->metric, b->max,
 										b->start + s->interval);
 								break;
 							case MIN:
-								fprintf(metricsock, "%s %f %lld\n",
+								snprintf(metric, sizeof(metric), "%s %f %lld\n",
 										c->metric, b->min,
 										b->start + s->interval);
 								break;
 							case AVG:
-								fprintf(metricsock, "%s %f %lld\n",
+								snprintf(metric, sizeof(metric), "%s %f %lld\n",
 										c->metric, b->sum / (double)b->cnt,
 										b->start + s->interval);
 								break;
 						}
+						server_send(submission, metric);
 					}
 				}
 				pthread_mutex_lock(&s->bucketlock);
@@ -211,8 +215,6 @@ aggregator_expire(void *unused)
 				work++;
 			}
 		}
-		/* push away whatever we produced */
-		fflush(metricsock);
 
 		if (work == 0)  /* nothing done, avoid spinlocking */
 			usleep(250 * 1000);  /* 250ms */
@@ -241,32 +243,10 @@ aggregator_numaggregators(void)
  * failed, true otherwise.
  */
 int
-aggregator_start(void)
+aggregator_start(server *submission)
 {
-	int pipefds[2];
-
-	/* create pipe to relay metrics over */
-	if (pipe(pipefds) < 0) {
-		fprintf(stderr, "aggregator: failed to create pipe\n");
-		return 0;
-	} else {
-		if (dispatch_addconnection(pipefds[0]) != 0) {
-			fprintf(stderr, "aggregator: unable a add connection\n");
-			close(pipefds[0]);
-			close(pipefds[1]);
-			return 0;
-		}
-	}
-	if ((metricsock = fdopen(pipefds[1], "w")) == NULL) {
-		fprintf(stderr, "aggregator: failed to open pipe socket for writing\n");
-		close(pipefds[0]);
-		close(pipefds[1]);
-		return 0;
-	}
-	if (pthread_create(&aggregatorid, NULL, aggregator_expire, NULL) != 0) {
+	if (pthread_create(&aggregatorid, NULL, aggregator_expire, submission) != 0) {
 		fprintf(stderr, "failed to start aggregator!\n");
-		close(pipefds[0]);
-		close(pipefds[1]);
 		return 0;
 	}
 
