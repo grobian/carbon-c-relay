@@ -310,7 +310,7 @@ dispatch_runner(void *arg)
 
 			self->state = SLEEPING;
 			if (work == 0)  /* nothing done, avoid spinlocking */
-				usleep(250 * 1000);  /* 250ms */
+				usleep((100 + (rand() % 200)) * 1000);  /* 100ms - 300ms */
 		}
 	} else {
 		fprintf(stderr, "huh? unknown self type!\n");
