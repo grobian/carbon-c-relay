@@ -29,6 +29,7 @@ dispatcher *dispatch_new_connection(void);
 void dispatch_shutdown(dispatcher *d);
 size_t dispatch_get_ticks(dispatcher *self);
 size_t dispatch_get_metrics(dispatcher *self);
+char dispatch_busy(dispatcher *self);
 size_t dispatch_get_connections(void);
 
 #endif

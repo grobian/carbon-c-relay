@@ -49,6 +49,7 @@ typedef struct _dispatcher {
 	char id;
 	size_t metrics;
 	size_t ticks;
+	enum { RUNNING, SLEEPING } state;
 } dispatcher;
 
 static connection *listeners[32];       /* hopefully enough */
@@ -255,6 +256,7 @@ dispatch_runner(void *arg)
 
 	self->metrics = 0;
 	self->ticks = 0;
+	self->state = SLEEPING;
 
 	if (self->type == LISTENER) {
 		fd_set fds;
@@ -302,9 +304,11 @@ dispatch_runner(void *arg)
 				/* atomically try to "claim" this connection */
 				if (!__sync_bool_compare_and_swap(&(conn->takenby), 0, self->id))
 					continue;
+				self->state = RUNNING;
 				work += dispatch_connection(conn, self);
 			}
 
+			self->state = SLEEPING;
 			if (work == 0)  /* nothing done, avoid spinlocking */
 				usleep(250 * 1000);  /* 250ms */
 		}
@@ -387,6 +391,18 @@ inline size_t
 dispatch_get_metrics(dispatcher *self)
 {
 	return self->metrics;
+}
+
+/**
+ * Returns whether this dispatcher is currently running, or not.  A
+ * dispatcher is running when it is actively handling a connection, and
+ * all tasks related to getting the data received in the place where it
+ * should be.
+ */
+inline char
+dispatch_busy(dispatcher *self)
+{
+	return self->state == RUNNING;
 }
 
 /**
