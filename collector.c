@@ -47,6 +47,8 @@ collector_runner(void *s)
 	size_t metrics;
 	size_t queued;
 	size_t dropped;
+	size_t dispatchers_idle;
+	size_t dispatchers_busy;
 	time_t now;
 	time_t nextcycle;
 	char *hostname = strdup(relay_hostname);
@@ -76,7 +78,14 @@ collector_runner(void *s)
 		nextcycle += 60;
 		totticks = 0;
 		totmetrics = 0;
+		dispatchers_idle = 0;
+		dispatchers_busy = 0;
 		for (i = 0; dispatchers[i] != NULL; i++) {
+			if (dispatch_busy(dispatchers[i])) {
+				dispatchers_busy++;
+			} else {
+				dispatchers_idle++;
+			}
 			totticks += ticks = dispatch_get_ticks(dispatchers[i]);
 			totmetrics += metrics = dispatch_get_metrics(dispatchers[i]);
 			snprintf(metric, sizeof(metric), "carbon.relays.%s.dispatcher%d.metricsReceived %zd %zd\n",
@@ -92,6 +101,10 @@ collector_runner(void *s)
 		snprintf(metric, sizeof(metric), "carbon.relays.%s.dispatch_wallTime_ns %zd %zd\n",
 				hostname, totticks, (size_t)now);
 		send(metric);
+		snprintf(metric, sizeof(metric), "carbon.relays.%s.dispatch_busy %zd %zd\n",
+				hostname, dispatchers_busy, (size_t)now);
+		snprintf(metric, sizeof(metric), "carbon.relays.%s.dispatch_idle %zd %zd\n",
+				hostname, dispatchers_idle, (size_t)now);
 
 		totticks = 0;
 		totmetrics = 0;
