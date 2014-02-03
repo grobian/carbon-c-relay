@@ -27,7 +27,6 @@
 #include "server.h"
 #include "aggregator.h"
 
-static FILE *metricsock = NULL;
 static pthread_t aggregatorid;
 static aggregator *aggregators = NULL;
 static aggregator *lastaggr = NULL;
@@ -259,7 +258,6 @@ aggregator_start(server *submission)
 void
 aggregator_stop(void)
 {
-	fclose(metricsock);
 	pthread_join(aggregatorid, NULL);
 }
 
