@@ -292,12 +292,11 @@ main(int argc, char * const argv[])
 
 	fprintf(stdout, "[%s] shutting down...\n", fmtnow(nowbuf));
 	close(sock); /* make sure we don't accept anything more */
-	router_shutdown();
 	/* since workers will be freed, stop querying the structures */
 	collector_stop();
 	if (numaggregators > 0)
 		aggregator_stop();
-	server_shutdown(internal_submission);
+	router_shutdown();  /* stops internal_submission */
 	for (id = 0; id < 1 + workercnt; id++)
 		dispatch_shutdown(workers[id + 0]);
 	fprintf(stdout, "[%s] %d workers stopped\n", fmtnow(nowbuf), workercnt);
