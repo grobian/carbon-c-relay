@@ -103,8 +103,10 @@ collector_runner(void *s)
 		send(metric);
 		snprintf(metric, sizeof(metric), "carbon.relays.%s.dispatch_busy %zd %zd\n",
 				hostname, dispatchers_busy, (size_t)now);
+		send(metric);
 		snprintf(metric, sizeof(metric), "carbon.relays.%s.dispatch_idle %zd %zd\n",
 				hostname, dispatchers_idle, (size_t)now);
+		send(metric);
 
 		totticks = 0;
 		totmetrics = 0;
