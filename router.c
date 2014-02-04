@@ -30,6 +30,7 @@
 #include "relay.h"
 
 enum clusttype {
+	GROUP,      /* pseudo type to create a matching tree */
 	FORWARD,
 	CARBON_CH,  /* room for a better/different hash definition */
 	ANYOF,
@@ -52,6 +53,7 @@ typedef struct _cluster {
 		} carbon_ch;
 		servers *forward;
 		aggregator *aggregation;
+		struct _route *routes;
 	} members;
 	struct _cluster *next;
 } cluster;
@@ -646,6 +648,264 @@ router_readconfig(const char *path)
 	return 1;
 }
 
+typedef struct _block {
+	char *pattern;
+	size_t hash;
+	char prio;
+	size_t refcnt;
+	size_t seqnr;
+	route *firstroute;
+	route *lastroute;
+	struct _block *prev;
+	struct _block *next;
+} block;
+
+/**
+ * Tries to optimise the match and aggregation rules in such a way that
+ * the number of matches for non-matching metrics are reduced.  The
+ * problem is that with many metrics flowing in, the time to perform
+ * lots of regex matches is high.  This is not too bad if that time
+ * spent actually results in a metric being counted (aggregation) or
+ * sent further (match), but it is when the metric would be discarded
+ * for it did not match anything.
+ * Hence, we employ a simple strategy to try and reduce the incoming
+ * stream of metrics as soon as possible before performing the more
+ * specific and expensive matches to confirm fit.
+ */
+void
+router_optimise(void)
+{
+	char *p;
+	char pblock[64];
+	char *b;
+	route *rwalk;
+	route *rnext;
+	block *blocks;
+	block *bwalk;
+	block *bstart;
+	block *blast;
+	size_t bsum;
+	size_t seq;
+
+	/* avoid optimising anything if it won't pay off */
+	seq = 0;
+	for (rwalk = routes; rwalk != NULL && seq < 50; rwalk = rwalk->next)
+		seq++;
+	if (seq < 50)
+		return;
+
+	/* Heuristic: the last part of the matching regex is the most
+	 * discriminating part of the metric.  The last part is defined as a
+	 * block of characters matching [a-zA-Z_]+ at the end disregarding
+	 * any characters not matched by the previous expression.  Then from
+	 * these last parts we create groups, that -- if having enough
+	 * members -- is used to reduce the amount of comparisons done
+	 * before determining that an input metric cannot match any regex we
+	 * have defined. */
+	seq = 0;
+	blast = bstart = blocks = malloc(sizeof(block));
+	blocks->refcnt = 0;
+	blocks->seqnr = seq++;
+	blocks->prev = NULL;
+	blocks->next = NULL;
+	for (rwalk = routes; rwalk != NULL; rwalk = rnext) {
+		/* matchall rules cannot be in a group */
+		if (rwalk->matchall) {
+			blast->next = malloc(sizeof(block));
+			blast->next->prev = blast;
+			blast = blast->next;
+			blast->pattern = NULL;
+			blast->hash = 0;
+			blast->prio = 1;
+			blast->refcnt = 1;
+			blast->seqnr = seq++;
+			blast->firstroute = rwalk;
+			blast->lastroute = rwalk;
+			blast->next = NULL;
+			rnext = rwalk->next;
+			rwalk->next = NULL;
+			bstart = blast;
+			continue;
+		}
+
+		p = rwalk->pattern + strlen(rwalk->pattern);
+		/* strip off chars that won't belong to a block */
+		while (
+				p > rwalk->pattern &&
+				(*p < 'a' || *p > 'z') &&
+				(*p < 'A' || *p > 'Z') &&
+				*p != '_'
+			  )
+			p--;
+		if (p == rwalk->pattern) {
+			/* nothing we can do with a pattern like this */
+			blast->next = malloc(sizeof(block));
+			blast->next->prev = blast;
+			blast = blast->next;
+			blast->pattern = NULL;
+			blast->hash = 0;
+			blast->prio = rwalk->stop ? 1 : 2;
+			blast->refcnt = 1;
+			blast->seqnr = seq;
+			blast->firstroute = rwalk;
+			blast->lastroute = rwalk;
+			blast->next = NULL;
+			rnext = rwalk->next;
+			rwalk->next = NULL;
+			if (rwalk->stop) {
+				bstart = blast;
+				seq++;
+			}
+			continue;
+		}
+		/* find the block */
+		bsum = 0;
+		b = pblock;
+		while (
+				p > rwalk->pattern && b - pblock < sizeof(pblock) &&
+				(
+				(*p >= 'a' && *p <= 'z') ||
+				(*p >= 'A' && *p <= 'Z') ||
+				*p == '_'
+				)
+			  )
+		{
+			bsum += *p;
+			*b++ = *p--;
+		}
+		*b = '\0';
+		b = pblock;
+		if (strlen(b) < 3) {
+			/* this probably isn't selective enough */
+			blast->next = malloc(sizeof(block));
+			blast->next->prev = blast;
+			blast = blast->next;
+			blast->pattern = NULL;
+			blast->hash = 0;
+			blast->prio = rwalk->stop ? 1 : 2;
+			blast->refcnt = 1;
+			blast->seqnr = seq;
+			blast->firstroute = rwalk;
+			blast->lastroute = rwalk;
+			blast->next = NULL;
+			rnext = rwalk->next;
+			rwalk->next = NULL;
+			if (rwalk->stop) {
+				bstart = blast;
+				seq++;
+			}
+			continue;
+		}
+
+		/* at this point, b points to the tail block in reverse, see if
+		 * we already had such tail in place */
+		for (bwalk = bstart->next; bwalk != NULL; bwalk = bwalk->next) {
+			if (bwalk->hash != bsum || strcmp(bwalk->pattern, b) != 0)
+				continue;
+			break;
+		}
+		if (bwalk == NULL) {
+			blast->next = malloc(sizeof(block));
+			blast->next->prev = blast;
+			blast = blast->next;
+			blast->pattern = strdup(b);
+			blast->hash = bsum;
+			blast->prio = rwalk->stop ? 1 : 2;
+			blast->refcnt = 1;
+			blast->seqnr = seq;
+			blast->firstroute = rwalk;
+			blast->lastroute = rwalk;
+			blast->next = NULL;
+			rnext = rwalk->next;
+			rwalk->next = NULL;
+			if (rwalk->stop) {
+				bstart = blast;
+				seq++;
+			}
+			continue;
+		}
+
+		bwalk->refcnt++;
+		bwalk->lastroute = bwalk->lastroute->next = rwalk;
+		rnext = rwalk->next;
+		rwalk->next = NULL;
+		if (rwalk->stop) {
+			/* move this one to the end */
+			if (bwalk->next != NULL) {
+				bwalk->prev->next = bwalk->next;
+				blast = blast->next = bwalk;
+				bwalk->next = NULL;
+			}
+			bwalk->prio = 1;
+			bstart = blast;
+			seq++;
+		}
+	}
+	/* make loop below easier by appending a dummy (reuse the one from
+	 * start) */
+	blast = blast->next = blocks;
+	blocks = blocks->next;
+	blast->next = NULL;
+	blast->seqnr = seq;
+
+	rwalk = routes = NULL;
+	seq = 1;
+	bstart = NULL;
+	/* create groups, if feasible */
+	for (bwalk = blocks; bwalk != NULL; bwalk = blast) {
+		if (bwalk->seqnr != seq) {
+			seq++;
+			if (bstart != NULL) {
+				bstart->next = bwalk;
+				bwalk = bstart;
+			} else {
+				blast = bwalk;
+				continue;
+			}
+		} else if (bwalk->prio == 1) {
+			bstart = bwalk;
+			blast = bwalk->next;
+			bstart->next = NULL;
+			continue;
+		}
+
+		if (bwalk->refcnt == 0) {
+			blast = bwalk->next;
+			free(bwalk);
+			continue;
+		} else if (bwalk->refcnt < 3) {
+			if (routes == NULL) {
+				rwalk = routes = bwalk->firstroute;
+			} else {
+				rwalk->next = bwalk->firstroute;
+			}
+			rwalk = bwalk->lastroute;
+			blast = bwalk->next;
+			free(bwalk->pattern);
+			free(bwalk);
+		} else {
+			if (routes == NULL) {
+				rwalk = routes = malloc(sizeof(route));
+			} else {
+				rwalk = rwalk->next = malloc(sizeof(route));
+			}
+			rwalk->pattern = NULL;
+			rwalk->stop = 0;
+			rwalk->matchall = 0;
+			rwalk->dest = malloc(sizeof(cluster));
+			rwalk->dest->name = bwalk->pattern;
+			rwalk->dest->type = GROUP;
+			rwalk->dest->members.routes = bwalk->firstroute;
+			rwalk->dest->next = NULL;
+			rwalk->next = NULL;
+			blast = bwalk->next;
+			free(bwalk);
+		}
+		if (bwalk == bstart)
+			bstart = NULL;
+	}
+}
+
 /**
  * Mere debugging function to check if the configuration is picked up
  * alright.  If all is set to false, aggregation rules won't be printed.
@@ -700,6 +960,21 @@ router_printconfig(FILE *f, char all)
 						ac->type == MAX ? "max" : ac->type == MIN ? "min" :
 						ac->type == AVG ? "average" : "<unknown>", ac->metric);
 			fprintf(f, "\t;\n");
+		} else if (r->dest->type == GROUP) {
+			size_t cnt = 0;
+			route *rwalk;
+			char blockname[64];
+			char *b = &blockname[sizeof(blockname) - 1];
+			char *p;
+			
+			for (rwalk = r->dest->members.routes; rwalk != NULL; rwalk = rwalk->next)
+				cnt++;
+			/* reverse the name, to make it human consumable */
+			*b-- ='\0';
+			for (p = r->dest->name; *p != '\0' && b > blockname; p++)
+				*b-- = *p;
+			fprintf(f, "# group %s: contains %zd aggregations/matches\n",
+					++b, cnt);
 		} else {
 			fprintf(f, "match %s\n\tsend to %s%s\n\t;\n",
 					r->matchall ? "*" : r->pattern,
@@ -710,17 +985,41 @@ router_printconfig(FILE *f, char all)
 	fflush(f);
 }
 
-/**
- * Looks up the locations the given metric_path should be sent to, and
- * enqueues the metric for the matching destinations.
- */
-void
-router_route(const char *metric_path, const char *metric)
+static char
+router_route_intern(
+		const char *metric_path,
+		const char *metric,
+		const route *r)
 {
-	route *w;
+	const route *w;
+	char stop = 0;
+	const char *p;
+	const char *q = NULL;
+	const char *t;
 
-	for (w = routes; w != NULL && keep_running != 0; w = w->next) {
-		if (w->matchall || regexec(&w->rule, metric_path, 0, NULL, 0) == 0) {
+	for (w = r; w != NULL && keep_running != 0; w = w->next) {
+		if (w->dest->type == GROUP) {
+			/* strrstr doesn't exist, grrr
+			 * therefore the pattern in the group is stored in reverse,
+			 * such that we can start matching the tail easily without
+			 * having to calculate the end of the pattern string all the
+			 * time */
+			for (p = metric_path + strlen(metric_path) - 1; p >= metric_path; p--) {
+				for (q = w->dest->name, t = p; *q != '\0' && t >= metric_path; q++, t--) {
+					if (*q != *t)
+						break;
+				}
+				if (*q == '\0')
+					break;
+			}
+			/* indirection */
+			if (*q == '\0')
+				stop = router_route_intern(
+						metric_path,
+						metric,
+						w->dest->members.routes);
+		} else if (w->matchall || regexec(&w->rule, metric_path, 0, NULL, 0) == 0) {
+			stop = w->stop;
 			/* rule matches, send to destination(s) */
 			switch (w->dest->type) {
 				case FORWARD: {
@@ -744,7 +1043,7 @@ router_route(const char *metric_path, const char *metric)
 						 * performance and ssp don't want to malloc and
 						 * can't alloca */
 						fprintf(stderr, "PANIC: increase dests array size!\n");
-						return;
+						return 1;
 					}
 					carbon_get_nodes(
 							dests,
@@ -760,13 +1059,28 @@ router_route(const char *metric_path, const char *metric)
 							w->dest->members.aggregation,
 							metric);
 				}	break;
+				case GROUP: {
+					/* this should not happen */
+				}	break;
 			}
 
 			/* stop processing further rules if requested */
-			if (w->stop)
+			if (stop)
 				break;
 		}
 	}
+
+	return stop;
+}
+
+/**
+ * Looks up the locations the given metric_path should be sent to, and
+ * enqueues the metric for the matching destinations.
+ */
+inline void
+router_route(const char *metric_path, const char *metric)
+{
+	(void)router_route_intern(metric_path, metric, routes);
 }
 
 /**

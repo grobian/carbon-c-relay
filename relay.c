@@ -181,6 +181,7 @@ main(int argc, char * const argv[])
 		fprintf(stderr, "failed to read configuration '%s'\n", routes);
 		return 1;
 	}
+	router_optimise();
 	numaggregators = aggregator_numaggregators();
 	if (numaggregators > 10) {
 		fprintf(stdout, "parsed configuration follows "
