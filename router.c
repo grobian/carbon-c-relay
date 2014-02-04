@@ -922,18 +922,18 @@ router_printconfig(FILE *f, char all)
 	for (c = clusters; c != NULL; c = c->next) {
 		fprintf(f, "cluster %s\n", c->name);
 		if (c->type == FORWARD || c->type == ANYOF) {
-			fprintf(f, "\t%s\n", c->type == FORWARD ? "forward" : "any_of");
+			fprintf(f, "    %s\n", c->type == FORWARD ? "forward" : "any_of");
 			for (s = c->members.forward; s != NULL; s = s->next)
-				fprintf(f, "\t\t%s:%d\n",
+				fprintf(f, "        %s:%d\n",
 						server_ip(s->server), server_port(s->server));
 		} else if (c->type == CARBON_CH) {
-			fprintf(f, "\tcarbon_ch replication %d\n",
+			fprintf(f, "    carbon_ch replication %d\n",
 					c->members.carbon_ch.repl_factor);
 			for (s = c->members.carbon_ch.servers; s != NULL; s = s->next)
-				fprintf(f, "\t\t%s:%d\n",
+				fprintf(f, "        %s:%d\n",
 						server_ip(s->server), server_port(s->server));
 		}
-		fprintf(f, "\t;\n");
+		fprintf(f, "    ;\n");
 	}
 	fprintf(f, "\n");
 	for (r = routes; r != NULL; r = r->next) {
@@ -946,20 +946,20 @@ router_printconfig(FILE *f, char all)
 
 			fprintf(f, "aggregate\n");
 			do {
-				fprintf(f, "\t\t%s\n", r->pattern);
+				fprintf(f, "        %s\n", r->pattern);
 			} while (r->next != NULL && r->next->dest == aggr
 					&& (r = r->next) != NULL);
-			fprintf(f, "\tevery %u seconds\n"
-					"\texpire after %u seconds\n",
+			fprintf(f, "    every %u seconds\n"
+					"    expire after %u seconds\n",
 					aggr->members.aggregation->interval,
 					aggr->members.aggregation->expire);
 			for (ac = aggr->members.aggregation->computes; ac != NULL; ac = ac->next)
-				fprintf(f, "\tcompute %s write to\n"
-						"\t\t%s\n",
+				fprintf(f, "    compute %s write to\n"
+						"        %s\n",
 						ac->type == SUM ? "sum" : ac->type == CNT ? "count" :
 						ac->type == MAX ? "max" : ac->type == MIN ? "min" :
 						ac->type == AVG ? "average" : "<unknown>", ac->metric);
-			fprintf(f, "\t;\n");
+			fprintf(f, "    ;\n");
 		} else if (r->dest->type == GROUP) {
 			size_t cnt = 0;
 			route *rwalk;
@@ -976,10 +976,10 @@ router_printconfig(FILE *f, char all)
 			fprintf(f, "# group %s: contains %zd aggregations/matches\n",
 					++b, cnt);
 		} else {
-			fprintf(f, "match %s\n\tsend to %s%s\n\t;\n",
+			fprintf(f, "match %s\n    send to %s%s\n    ;\n",
 					r->matchall ? "*" : r->pattern,
 					r->dest->name,
-					r->stop ? "\n\tstop" : "");
+					r->stop ? "\n    stop" : "");
 		}
 	}
 	fflush(f);
