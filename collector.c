@@ -147,7 +147,7 @@ collector_runner(void *s)
 				hostname, totticks, (size_t)now);
 		send(metric);
 		snprintf(metric, sizeof(metric), "carbon.relays.%s.connections %zd %zd\n",
-				hostname, dispatch_get_connections() - (debug ? 0 : 1) - (numaggregators > 0), (size_t)now);
+				hostname, dispatch_get_connections(), (size_t)now);
 		send(metric);
 
 		if (numaggregators > 0) {
