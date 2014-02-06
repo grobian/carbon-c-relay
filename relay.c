@@ -105,12 +105,11 @@ main(int argc, char * const argv[])
 	char *routes = NULL;
 	unsigned short listenport = 2003;
 	enum rmode mode = NORMAL;
-	int bflag, ch;
+	int ch;
 	char nowbuf[24];
 	size_t numaggregators;
 	server *internal_submission;
 
-	bflag = 0;
 	while ((ch = getopt(argc, argv, ":hvdstf:p:w:")) != -1) {
 		switch (ch) {
 			case 'v':
