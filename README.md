@@ -3,10 +3,7 @@ carbon-c-relay
 
 Carbon-like graphite line mode relay.
 
-This project aims to be a replacement of the original Carbon relay
-[#carbon]_.
-
-.. [#carbon] http://graphite.readthedocs.org/en/1.0/carbon-daemons.html#carbon-relay-py
+This project aims to be a replacement of the original [Carbon relay](http://graphite.readthedocs.org/en/1.0/carbon-daemons.html#carbon-relay-py)
 
 The main reason to build a replacement is performance and
 configurability.  Carbon is single threaded, and sending metrics to
@@ -15,11 +12,8 @@ project provides a multithreaded relay which can address multiple
 targets and clusters for each and every metric based on pattern matches.
 
 There are a couple more replacement projects out there we know of, which
-are carbon-relay-ng [#carbon-relay-ng]_ and graphite-relay
-[#graphite-relay]_.
-
-.. [#carbon-relay-ng] https://github.com/rcrowley/carbon-relay-ng
-.. [#graphite-relay] https://github.com/markchadwick/graphite-relay
+are [carbon-relay-ng](https://github.com/rcrowley/carbon-relay-ng) and [graphite-relay](https://github.com/markchadwick/graphite-relay
+)
 
 Compared to carbon-relay-ng, this project does provide carbon's
 consistent-hash routing.  graphite-relay, which does this, however
