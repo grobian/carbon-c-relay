@@ -35,7 +35,7 @@ OBJS = \
 	aggregator.o
 
 relay: $(OBJS)
-	$(CC) -o $@ $(LDFLAGS) $(LIBS) $^
+	$(CC) -o $@ $(LDFLAGS) $^ $(LIBS)
 
 clean:
 	rm -f *.o relay
