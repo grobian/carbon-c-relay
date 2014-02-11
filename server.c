@@ -102,8 +102,6 @@ server_queuereader(void *d)
 			connect(fd, (struct sockaddr *)&(self->serv_addr),
 				sizeof(self->serv_addr)) < 0)
 		{
-			if (fd >= 0)
-				close(fd);
 			if (!self->failure) {  /* avoid endless repetition of errors */
 				fprintf(stderr, "[%s] failed to connect() to %s:%u: %s\n",
 						fmtnow(nowbuf), self->ip, self->port, strerror(errno));
@@ -121,6 +119,8 @@ server_queuereader(void *d)
 								(int)ofiles.rlim_max, dispatch_get_connections());
 				}
 			}
+			if (fd >= 0)
+				close(fd);
 			self->failure = 1;
 			/* sleep a little to allow the server to catchup */
 			usleep(1500 * 1000);  /* 1.5s */
