@@ -79,16 +79,17 @@ server_queuereader(void *d)
 	self->ticks = 0;
 
 	while (1) {
-		/* terminate directly if this isn't going to fly */
-		if (self->failure && !keep_running)
-			break;
-		/* else, try to flush the queue before exiting */
-		if ((qlen = queue_len(self->queue)) == 0) {
+		/* If there was a failure, or the queue is empty, we better just
+		 * wait a bit, unless we are shutting down, of course.
+		 * Hence, we will try to flush the queue before shutting down */
+		if ((qlen = queue_len(self->queue)) == 0 || self->failure) {
+			/* however, terminate directly if this isn't going to fly */
 			if (!keep_running)
 				break;  /* terminate gracefully */
 			usleep(250 * 1000);  /* 250ms */
-			/* skip this run */
-			continue;
+			/* skip this run if pointless */
+			if (qlen == 0)
+				continue;
 		}
 
 		/* send up to BATCH_SIZE */
@@ -122,8 +123,6 @@ server_queuereader(void *d)
 			if (fd >= 0)
 				close(fd);
 			self->failure = 1;
-			/* sleep a little to allow the server to catchup */
-			usleep(1500 * 1000);  /* 1.5s */
 			continue;
 		}
 
