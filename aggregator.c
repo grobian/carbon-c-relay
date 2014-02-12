@@ -238,6 +238,23 @@ aggregator_numaggregators(void)
 }
 
 /**
+ * Returns the total number of computations defined.
+ */
+size_t
+aggregator_numcomputes(void)
+{
+	size_t totcomputes = 0;
+	aggregator *a;
+	struct _aggr_computes *c;
+
+	for (a = aggregators; a != NULL; a = a->next)
+		for (c = a->computes; c != NULL; c = c->next)
+			totcomputes++;
+
+	return totcomputes;
+}
+
+/**
  * Initialises and starts the aggregator.  Returns false when starting
  * failed, true otherwise.
  */

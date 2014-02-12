@@ -50,6 +50,7 @@ void aggregator_putmetric(aggregator *s, const char *metric);
 int aggregator_start(server *submission);
 void aggregator_stop(void);
 size_t aggregator_numaggregators(void);
+size_t aggregator_numcomputes(void);
 size_t aggregator_get_received(void);
 size_t aggregator_get_sent(void);
 size_t aggregator_get_dropped(void);
