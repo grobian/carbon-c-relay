@@ -51,17 +51,22 @@ collector_runner(void *s)
 	size_t dispatchers_busy;
 	time_t now;
 	time_t nextcycle;
-	char *hostname = strdup(relay_hostname);
 	char ipbuf[32];
 	char *p;
 	size_t numaggregators = aggregator_numaggregators();
 	server *submission = (server *)s;
 	char metric[8096];
+	char *m;
+	size_t sizem = 0;
 
 	/* prepare hostname for graphite metrics */
-	for (p = hostname; *p != '\0'; p++)
-		if (*p == '.')
-			*p = '_';
+	snprintf(metric, sizeof(metric), "carbon.relays.%s", relay_hostname);
+	for (m = metric + strlen("carbon.relays."); *m != '\0'; m++)
+		if (*m == '.')
+			*m = '_';
+	*m++ = '.';
+	*m = '\0';
+	sizem = sizeof(metric) - (m - metric);
 
 #define send(metric) \
 	if (debug) \
@@ -88,24 +93,24 @@ collector_runner(void *s)
 			}
 			totticks += ticks = dispatch_get_ticks(dispatchers[i]);
 			totmetrics += metrics = dispatch_get_metrics(dispatchers[i]);
-			snprintf(metric, sizeof(metric), "carbon.relays.%s.dispatcher%d.metricsReceived %zd %zd\n",
-					hostname, i + 1, metrics, (size_t)now);
+			snprintf(m, sizem, "dispatcher%d.metricsReceived %zd %zd\n",
+					i + 1, metrics, (size_t)now);
 			send(metric);
-			snprintf(metric, sizeof(metric), "carbon.relays.%s.dispatcher%d.wallTime_ns %zd %zd\n",
-					hostname, i + 1, ticks, (size_t)now);
+			snprintf(m, sizem, "dispatcher%d.wallTime_ns %zd %zd\n",
+					i + 1, ticks, (size_t)now);
 			send(metric);
 		}
-		snprintf(metric, sizeof(metric), "carbon.relays.%s.metricsReceived %zd %zd\n",
-				hostname, totmetrics, (size_t)now);
+		snprintf(m, sizem, "metricsReceived %zd %zd\n",
+				totmetrics, (size_t)now);
 		send(metric);
-		snprintf(metric, sizeof(metric), "carbon.relays.%s.dispatch_wallTime_ns %zd %zd\n",
-				hostname, totticks, (size_t)now);
+		snprintf(m, sizem, "dispatch_wallTime_ns %zd %zd\n",
+				totticks, (size_t)now);
 		send(metric);
-		snprintf(metric, sizeof(metric), "carbon.relays.%s.dispatch_busy %zd %zd\n",
-				hostname, dispatchers_busy, (size_t)now);
+		snprintf(m, sizem, "dispatch_busy %zd %zd\n",
+				dispatchers_busy, (size_t)now);
 		send(metric);
-		snprintf(metric, sizeof(metric), "carbon.relays.%s.dispatch_idle %zd %zd\n",
-				hostname, dispatchers_idle, (size_t)now);
+		snprintf(m, sizem, "dispatch_idle %zd %zd\n",
+				dispatchers_idle, (size_t)now);
 		send(metric);
 
 		totticks = 0;
@@ -121,57 +126,57 @@ collector_runner(void *s)
 			for (p = ipbuf; *p != '\0'; p++)
 				if (*p == '.')
 					*p = '_';
-			snprintf(metric, sizeof(metric), "carbon.relays.%s.destinations.%s:%u.sent %zd %zd\n",
-					hostname, ipbuf, server_port(servers[i]), metrics, (size_t)now);
+			snprintf(m, sizem, "destinations.%s:%u.sent %zd %zd\n",
+					ipbuf, server_port(servers[i]), metrics, (size_t)now);
 			send(metric);
-			snprintf(metric, sizeof(metric), "carbon.relays.%s.destinations.%s:%u.queued %zd %zd\n",
-					hostname, ipbuf, server_port(servers[i]), queued, (size_t)now);
+			snprintf(m, sizem, "destinations.%s:%u.queued %zd %zd\n",
+					ipbuf, server_port(servers[i]), queued, (size_t)now);
 			send(metric);
-			snprintf(metric, sizeof(metric), "carbon.relays.%s.destinations.%s:%u.dropped %zd %zd\n",
-					hostname, ipbuf, server_port(servers[i]), dropped, (size_t)now);
+			snprintf(m, sizem, "destinations.%s:%u.dropped %zd %zd\n",
+					ipbuf, server_port(servers[i]), dropped, (size_t)now);
 			send(metric);
-			snprintf(metric, sizeof(metric), "carbon.relays.%s.destinations.%s:%u.wallTime_ns %zd %zd\n",
-					hostname, ipbuf, server_port(servers[i]), ticks, (size_t)now);
+			snprintf(m, sizem, "destinations.%s:%u.wallTime_ns %zd %zd\n",
+					ipbuf, server_port(servers[i]), ticks, (size_t)now);
 			send(metric);
 		}
-		snprintf(metric, sizeof(metric), "carbon.relays.%s.destinations.internal.sent %zd %zd\n",
-				hostname, server_get_metrics(submission), (size_t)now);
+		snprintf(m, sizem, "destinations.internal.sent %zd %zd\n",
+				server_get_metrics(submission), (size_t)now);
 		send(metric);
-		snprintf(metric, sizeof(metric), "carbon.relays.%s.destinations.internal.queued %zd %zd\n",
-				hostname, server_get_queue_len(submission), (size_t)now);
+		snprintf(m, sizem, "destinations.internal.queued %zd %zd\n",
+				server_get_queue_len(submission), (size_t)now);
 		send(metric);
-		snprintf(metric, sizeof(metric), "carbon.relays.%s.destinations.internal.dropped %zd %zd\n",
-				hostname, server_get_dropped(submission), (size_t)now);
+		snprintf(m, sizem, "destinations.internal.dropped %zd %zd\n",
+				server_get_dropped(submission), (size_t)now);
 		send(metric);
-		snprintf(metric, sizeof(metric), "carbon.relays.%s.destinations.internal.wallTime_ns %zd %zd\n",
-				hostname, server_get_ticks(submission), (size_t)now);
+		snprintf(m, sizem, "destinations.internal.wallTime_ns %zd %zd\n",
+				server_get_ticks(submission), (size_t)now);
 		send(metric);
 
-		snprintf(metric, sizeof(metric), "carbon.relays.%s.metricsSent %zd %zd\n",
-				hostname, totmetrics, (size_t)now);
+		snprintf(m, sizem, "metricsSent %zd %zd\n",
+				totmetrics, (size_t)now);
 		send(metric);
-		snprintf(metric, sizeof(metric), "carbon.relays.%s.metricsQueued %zd %zd\n",
-				hostname, totqueued, (size_t)now);
+		snprintf(m, sizem, "metricsQueued %zd %zd\n",
+				totqueued, (size_t)now);
 		send(metric);
-		snprintf(metric, sizeof(metric), "carbon.relays.%s.metricsDropped %zd %zd\n",
-				hostname, totdropped, (size_t)now);
+		snprintf(m, sizem, "metricsDropped %zd %zd\n",
+				totdropped, (size_t)now);
 		send(metric);
-		snprintf(metric, sizeof(metric), "carbon.relays.%s.server_wallTime_ns %zd %zd\n",
-				hostname, totticks, (size_t)now);
+		snprintf(m, sizem, "server_wallTime_ns %zd %zd\n",
+				totticks, (size_t)now);
 		send(metric);
-		snprintf(metric, sizeof(metric), "carbon.relays.%s.connections %zd %zd\n",
-				hostname, dispatch_get_connections(), (size_t)now);
+		snprintf(m, sizem, "connections %zd %zd\n",
+				dispatch_get_connections(), (size_t)now);
 		send(metric);
 
 		if (numaggregators > 0) {
-			snprintf(metric, sizeof(metric), "carbon.relays.%s.aggregators.metricsReceived %zd %zd\n",
-					hostname, aggregator_get_received(), (size_t)now);
+			snprintf(m, sizem, "aggregators.metricsReceived %zd %zd\n",
+					aggregator_get_received(), (size_t)now);
 			send(metric);
-			snprintf(metric, sizeof(metric), "carbon.relays.%s.aggregators.metricsSent %zd %zd\n",
-					hostname, aggregator_get_sent(), (size_t)now);
+			snprintf(m, sizem, "aggregators.metricsSent %zd %zd\n",
+					aggregator_get_sent(), (size_t)now);
 			send(metric);
-			snprintf(metric, sizeof(metric), "carbon.relays.%s.aggregators.metricsDropped %zd %zd\n",
-					hostname, aggregator_get_dropped(), (size_t)now);
+			snprintf(m, sizem, "aggregators.metricsDropped %zd %zd\n",
+					aggregator_get_dropped(), (size_t)now);
 			send(metric);
 		}
 
@@ -181,7 +186,6 @@ collector_runner(void *s)
 			fflush(stdout);
 	}
 
-	free(hostname);
 	return NULL;
 }
 
