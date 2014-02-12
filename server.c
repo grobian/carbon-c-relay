@@ -167,7 +167,11 @@ server_queuereader(void *d)
  * Allocates a new server and starts the thread.
  */
 static server *
-server_new_intern(const char *ip, unsigned short port, queue *queue)
+server_new_intern(
+		const char *ip,
+		unsigned short port,
+		queue *queue,
+		size_t qsize)
 {
 	server *ret = servers;
 
@@ -200,7 +204,7 @@ server_new_intern(const char *ip, unsigned short port, queue *queue)
 		return NULL;
 	}
 	if (queue == NULL) {
-		ret->queue = queue_new(QUEUE_SIZE);
+		ret->queue = queue_new(qsize);
 		if (ret->queue == NULL) {
 			free((char *)ret->ip);
 			free(ret);
@@ -234,7 +238,7 @@ server_new_intern(const char *ip, unsigned short port, queue *queue)
 server *
 server_new(const char *ip, unsigned short port)
 {
-	return server_new_intern(ip, port, NULL);
+	return server_new_intern(ip, port, NULL, QUEUE_SIZE);
 }
 
 /**
@@ -249,7 +253,17 @@ server_new(const char *ip, unsigned short port)
 server *
 server_backup(const char *ip, unsigned short port, server *original)
 {
-	return server_new_intern(ip, port, original->queue);
+	return server_new_intern(ip, port, original->queue, QUEUE_SIZE);
+}
+
+/**
+ * Allocate a new server with a queue size.  This is the same as
+ * server_new() but with a configurable queue size.
+ */
+server *
+server_new_qsize(const char *ip, unsigned short port, size_t qsize)
+{
+	return server_new_intern(ip, port, NULL, qsize);
 }
 
 /**
