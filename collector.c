@@ -134,6 +134,19 @@ collector_runner(void *s)
 					hostname, ipbuf, server_port(servers[i]), ticks, (size_t)now);
 			send(metric);
 		}
+		snprintf(metric, sizeof(metric), "carbon.relays.%s.destinations.internal.sent %zd %zd\n",
+				hostname, server_get_metrics(submission), (size_t)now);
+		send(metric);
+		snprintf(metric, sizeof(metric), "carbon.relays.%s.destinations.internal.queued %zd %zd\n",
+				hostname, server_get_queue_len(submission), (size_t)now);
+		send(metric);
+		snprintf(metric, sizeof(metric), "carbon.relays.%s.destinations.internal.dropped %zd %zd\n",
+				hostname, server_get_dropped(submission), (size_t)now);
+		send(metric);
+		snprintf(metric, sizeof(metric), "carbon.relays.%s.destinations.internal.wallTime_ns %zd %zd\n",
+				hostname, server_get_ticks(submission), (size_t)now);
+		send(metric);
+
 		snprintf(metric, sizeof(metric), "carbon.relays.%s.metricsSent %zd %zd\n",
 				hostname, totmetrics, (size_t)now);
 		send(metric);
