@@ -84,8 +84,12 @@ server_queuereader(void *d)
 		 * Hence, we will try to flush the queue before shutting down */
 		if ((qlen = queue_len(self->queue)) == 0 || self->failure) {
 			/* however, terminate directly if this isn't going to fly */
-			if (!keep_running)
-				break;  /* terminate gracefully */
+			if (!keep_running) {
+				if (qlen > 0 && self->type == ORIGIN)
+					fprintf(stderr, "dropping %zd metrics for %s:%u\n",
+							qlen, self->ip, self->port);
+				break;
+			}
 			usleep(250 * 1000);  /* 250ms */
 			/* skip this run if pointless */
 			if (qlen == 0)
