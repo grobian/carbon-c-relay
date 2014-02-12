@@ -37,5 +37,12 @@ OBJS = \
 relay: $(OBJS)
 	$(CC) -o $@ $(LDFLAGS) $^ $(LIBS)
 
+VERSION = $(shell sed -n '/VERSION/s/^.*"\([0-9.]\+\)".*$$/\1/p' relay.h)
+dist:
+	git archive \
+		--format=tar.gz \
+		--prefix=carbon-c-relay-$(VERSION)/ v$(VERSION) \
+		> carbon-c-relay-$(VERSION).tar.gz
+
 clean:
 	rm -f *.o relay
