@@ -44,7 +44,8 @@ typedef struct _server {
 	queue *queue;
 	enum servertype type;
 	pthread_t tid;
-	char failure;
+	char failure:1;
+	char blocked:1;
 	size_t metrics;
 	size_t dropped;
 	size_t ticks;
@@ -217,6 +218,7 @@ server_new_intern(
 	}
 
 	ret->failure = 0;
+	ret->blocked = 0;
 	ret->metrics = 0;
 	ret->dropped = 0;
 	ret->ticks = 0;
@@ -273,17 +275,19 @@ inline void
 server_send(server *s, const char *d)
 {
 	if (queue_free(s->queue) == 0) {
-		if (s->failure) {
+		if (s->failure || s->blocked) {
 			s->dropped++;
 			/* event will be dropped by the enqueue below */
 		} else {
 			char i;
-			/* wait a little bit */
+			/* wait a little bit, but only one worker at a time */
+			s->blocked = 1;
 			for (i = 0; i < 3; i++) {
 				usleep(100 * 1000);  /* 100ms */
 				if (queue_free(s->queue) > 0)
 					break;
 			}
+			s->blocked = 0;
 			if (i == 3)
 				s->dropped++;
 		}
