@@ -108,6 +108,7 @@ main(int argc, char * const argv[])
 	int ch;
 	char nowbuf[24];
 	size_t numaggregators;
+	size_t numcomputes;
 	server *internal_submission;
 
 	while ((ch = getopt(argc, argv, ":hvdstf:p:w:")) != -1) {
@@ -182,9 +183,11 @@ main(int argc, char * const argv[])
 	}
 	router_optimise();
 	numaggregators = aggregator_numaggregators();
+	numcomputes = aggregator_numcomputes();
 	if (numaggregators > 10) {
-		fprintf(stdout, "parsed configuration follows "
-				"(%zd aggregations omitted for brevity):\n", numaggregators);
+		fprintf(stdout, "parsed configuration follows:\n"
+				"(%zd aggregations with %zd computations omitted "
+				"for brevity)\n", numaggregators, numcomputes);
 		router_printconfig(stdout, 0);
 	} else {
 		fprintf(stdout, "parsed configuration follows:\n");
@@ -267,7 +270,9 @@ main(int argc, char * const argv[])
 
 	/* server used for delivering metrics produced inside the relay,
 	 * that is collector (statistics) and aggregator (aggregations) */
-	if ((internal_submission = server_new("127.0.0.1", listenport)) == NULL) {
+	if ((internal_submission = server_new_qsize("127.0.0.1", listenport,
+					3000 + (numcomputes * 3))) == NULL)
+	{
 		fprintf(stderr, "failed to create internal submission queue, shutting down\n");
 		keep_running = 0;
 	}
