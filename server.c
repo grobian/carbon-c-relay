@@ -62,8 +62,9 @@ static server *servers = NULL;
  * Reads from the queue and sends items to the remote server.  This
  * function is designed to be a thread.  Data sending is attempted to be
  * batched, but sent one by one to reduce loss on sending failure.
- * Reconnecting is done for each batch to allow the remote server to
- * find a good balance between efficiency and load balancing.
+ * A connection with the server is maintained for as long as there is
+ * data to be written.  As soon as there is none, the connection is
+ * dropped.
  */
 static void *
 server_queuereader(void *d)
