@@ -30,6 +30,7 @@
 
 #include "relay.h"
 #include "router.h"
+#include "server.h"
 #include "collector.h"
 
 enum conntype {
@@ -42,6 +43,10 @@ typedef struct _connection {
 	char takenby;
 	char buf[8096];
 	int buflen;
+	char metric[8096];
+	server **dests;
+	size_t destlen;
+	size_t destsize;
 } connection;
 
 typedef struct _dispatcher {
@@ -90,6 +95,8 @@ dispatch_addlistener(int sock)
 	return 0;
 }
 
+#define DESTSZ  32
+
 /**
  * Adds a connection socket to the chain of connections.
  * Connection sockets are those which need to be read from.
@@ -107,6 +114,9 @@ dispatch_addconnection(int sock)
 	newconn->sock = sock;
 	newconn->takenby = 0;
 	newconn->buflen = 0;
+	newconn->dests = (server **)malloc(sizeof(server *) * DESTSZ);
+	newconn->destlen = 0;
+	newconn->destsize = DESTSZ;
 	for (c = 0; c < sizeof(connections) / sizeof(connection *); c++)
 		if (__sync_bool_compare_and_swap(&(connections[c]), NULL, newconn))
 			break;
@@ -122,6 +132,34 @@ dispatch_addconnection(int sock)
 	return 0;
 }
 
+inline static char
+dispatch_process_dests(connection *conn, dispatcher *self)
+{
+	int i;
+
+	fprintf(stdout, "destlen: %zd\n", conn->destlen);
+	if (conn->destlen > 0) {
+		for (i = 0; i < conn->destlen; i++) {
+			fprintf(stdout, "server_send\n");
+			if (server_send(conn->dests[i], conn->metric) == 0)
+				break;
+			fprintf(stdout, "succeed\n");
+		}
+		if (i != conn->destlen) {
+			conn->destlen -= i;
+			memmove(conn->dests, &conn->dests[i],
+					(sizeof(server *) * conn->destlen));
+			return 0;
+		} else {
+			/* finally "complete" this metric */
+			conn->destlen = 0;
+			self->metrics++;
+		}
+	}
+
+	return 1;
+}
+
 /**
  * Look at conn and see if works needs to be done.  If so, do it.
  */
@@ -129,12 +167,18 @@ static int
 dispatch_connection(connection *conn, dispatcher *self)
 {
 	char *p, *q, *firstspace, *lastnl;
-	char metric[sizeof(conn->buf)];
 	char metric_path[sizeof(conn->buf)];
 	int len;
 	struct timeval start, stop;
 
 	gettimeofday(&start, NULL);
+
+	/* first try to resume any work being blocked */
+	if (dispatch_process_dests(conn, self) == 0) {
+		conn->takenby = 0;
+		return 0;
+	}
+
 	if ((len = read(conn->sock,
 					conn->buf + conn->buflen, 
 					sizeof(conn->buf) - conn->buflen)) > 0)
@@ -146,7 +190,7 @@ dispatch_connection(connection *conn, dispatcher *self)
 		 * metrics_path here, to ensure we can calculate the metric
 		 * name off the filesystem path (and actually retrieve it in
 		 * the web interface). */
-		q = metric;
+		q = conn->metric;
 		firstspace = NULL;
 		lastnl = NULL;
 		for (p = conn->buf; p - conn->buf < conn->buflen; p++) {
@@ -160,7 +204,7 @@ dispatch_connection(connection *conn, dispatcher *self)
 			} else if (*p == ' ') {
 				/* separator */
 				if (firstspace == NULL) {
-					if (q == metric)
+					if (q == conn->metric)
 						continue;
 					if (*(q - 1) == '.')
 						q--;  /* strip trailing separator */
@@ -173,29 +217,35 @@ dispatch_connection(connection *conn, dispatcher *self)
 				/* metric_path separator,
 				 * - duplicate elimination
 				 * - don't start with separator */
-				if (q != metric && *(q - 1) != '.')
+				if (q != conn->metric && *(q - 1) != '.')
 					*q++ = *p;
 			} else if (*p == '\n') {
 				/* end of metric */
 				lastnl = p;
 
 				/* just a newline on it's own? some random garbage? skip */
-				if (q == metric || firstspace == NULL)
+				if (q == conn->metric || firstspace == NULL)
 					continue;
 
 				*q++ = *p;
 				*q = '\0';
 
 				/* copy metric_path alone (up to firstspace) */
-				memcpy(metric_path, metric, firstspace + 1 - metric);
+				memcpy(metric_path, conn->metric,
+						firstspace + 1 - conn->metric);
 				*firstspace = ' ';
-				/* perform routing of this metric */
-				router_route(metric_path, metric);
 
-				self->metrics++;
+				/* perform routing of this metric */
+				conn->destlen =
+					router_route(conn->dests, &conn->destsize,
+							metric_path, conn->metric);
+
+				/* send the metric to where it is supposed to go */
+				if (dispatch_process_dests(conn, self) == 0)
+					break;
 
 				/* restart building new one from the start */
-				q = metric;
+				q = conn->metric;
 				firstspace = NULL;
 			} else {
 				/* something barf, replace by underscore */
@@ -235,6 +285,7 @@ dispatch_connection(connection *conn, dispatcher *self)
 		 * will have moved on before freeing this object */
 		usleep(10 * 1000);  /* 10ms */
 		close(conn->sock);
+		free(conn->dests);
 		free(conn);
 		return 1;
 	}

@@ -987,6 +987,9 @@ router_printconfig(FILE *f, char all)
 
 static char
 router_route_intern(
+		server **ret,
+		size_t *retlen,
+		size_t *curlen,
 		const char *metric_path,
 		const char *metric,
 		const route *r)
@@ -996,6 +999,13 @@ router_route_intern(
 	const char *p;
 	const char *q = NULL;
 	const char *t;
+
+#define extendif(RET, RETLEN, WANTLEN) \
+	if (WANTLEN > RETLEN) \
+		if ((RET = realloc(RET, RETLEN + (WANTLEN - RETLEN < 24 ? 24 : (WANTLEN - RETLEN * 2)))) == NULL) { \
+			fprintf(stderr, "router_route: out of memory extending list\n"); \
+			return 1;  /* bail out: out of memory */ \
+		}
 
 	for (w = r; w != NULL && keep_running != 0; w = w->next) {
 		if (w->dest->type == GROUP) {
@@ -1015,6 +1025,9 @@ router_route_intern(
 			/* indirection */
 			if (*q == '\0')
 				stop = router_route_intern(
+						ret,
+						retlen,
+						curlen,
 						metric_path,
 						metric,
 						w->dest->members.routes);
@@ -1026,32 +1039,29 @@ router_route_intern(
 					/* simple case, no logic necessary */
 					servers *s;
 					for (s = w->dest->members.forward; s != NULL; s = s->next)
-						server_send(s->server, metric);
+					{
+						extendif(*ret, *retlen, *curlen + 1);
+						ret[(*curlen)++] = s->server;
+					}
 				}	break;
 				case ANYOF: {
 					/* only queue at the first, since all servers here
 					 * share the same queue */
-					if (w->dest->members.forward != NULL)
-						server_send(w->dest->members.forward->server, metric);
+					if (w->dest->members.forward != NULL) {
+						extendif(*ret, *retlen, *curlen + 1);
+						ret[(*curlen)++] = w->dest->members.forward->server;
+					}
 				}	break;
 				case CARBON_CH: {
 					/* let the ring(bearer) decide */
-					server *dests[4];
-					int i;
-					if (w->dest->members.carbon_ch.repl_factor > sizeof(dests)) {
-						/* need to increase size of dests, for
-						 * performance and ssp don't want to malloc and
-						 * can't alloca */
-						fprintf(stderr, "PANIC: increase dests array size!\n");
-						return 1;
-					}
+					extendif(*ret, *retlen, *curlen +
+							w->dest->members.carbon_ch.repl_factor);
 					carbon_get_nodes(
-							dests,
+							ret + *curlen,
 							w->dest->members.carbon_ch.ring,
 							w->dest->members.carbon_ch.repl_factor,
 							metric_path);
-					for (i = 0; i < w->dest->members.carbon_ch.repl_factor; i++)
-						server_send(dests[i], metric);
+					curlen += w->dest->members.carbon_ch.repl_factor;
 				}	break;
 				case AGGREGATION: {
 					/* aggregation rule */
@@ -1075,12 +1085,22 @@ router_route_intern(
 
 /**
  * Looks up the locations the given metric_path should be sent to, and
- * enqueues the metric for the matching destinations.
+ * returns the list of servers in ret, the number of servers is
+ * returned.
  */
-inline void
-router_route(const char *metric_path, const char *metric)
+inline size_t
+router_route(
+		server **ret,
+		size_t *retlen,
+		const char *metric_path,
+		const char *metric)
 {
-	(void)router_route_intern(metric_path, metric, routes);
+	size_t curlen = 0;
+
+	(void)router_route_intern(ret, retlen, &curlen,
+			metric_path, metric, routes);
+
+	return curlen;
 }
 
 /**

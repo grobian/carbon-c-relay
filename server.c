@@ -285,29 +285,24 @@ server_new_qsize(const char *ip, unsigned short port, size_t qsize)
 
 /**
  * Thin wrapper around the associated queue with the server object.
+ * Returns true if the metric could be queued for sending, or the metric
+ * was dropped because the associated server is down.  Returns false
+ * otherwise (when a retry seems like it could succeed shortly).
  */
-inline void
+inline char
 server_send(server *s, const char *d)
 {
 	if (queue_free(s->queue) == 0) {
-		if (s->failure || s->blocked) {
+		if (s->failure) {
 			s->dropped++;
 			/* event will be dropped by the enqueue below */
 		} else {
-			char i;
-			/* wait a little bit, but only one worker at a time */
-			s->blocked = 1;
-			for (i = 0; i < 3; i++) {
-				usleep(100 * 1000);  /* 100ms */
-				if (queue_free(s->queue) > 0)
-					break;
-			}
-			s->blocked = 0;
-			if (i == 3)
-				s->dropped++;
+			return 0;
 		}
 	}
 	queue_enqueue(s->queue, d);
+
+	return 1;
 }
 
 /**
