@@ -71,13 +71,14 @@ server_queuereader(void *d)
 {
 	server *self = (server *)d;
 	size_t qlen;
-	size_t i;
 	size_t len;
 	ssize_t slen;
-	const char *metric;
+	const char *metrics[BATCH_SIZE + 1];
+	const char **metric = metrics;
 	struct timeval start, stop;
 	char nowbuf[24];
 
+	*metric = NULL;
 	self->metrics = 0;
 	self->ticks = 0;
 
@@ -105,10 +106,6 @@ server_queuereader(void *d)
 			if (qlen == 0)
 				continue;
 		}
-
-		/* send up to BATCH_SIZE */
-		if (qlen > BATCH_SIZE)
-			qlen = BATCH_SIZE;
 
 		gettimeofday(&start, NULL);
 
@@ -145,12 +142,16 @@ server_queuereader(void *d)
 			continue;
 		}
 
-		for (i = 0; i < qlen; i++) {
-			metric = queue_dequeue(self->queue);
-			if (metric == NULL)
-				break;
-			len = strlen(metric);
-			if ((slen = send(self->fd, metric, len, 0)) != len) {
+		/* send up to BATCH_SIZE */
+		if (*metric == NULL) {
+			len = queue_dequeue_vector(metrics, self->queue, BATCH_SIZE);
+			metrics[len] = NULL;
+			metric = metrics;
+		}
+
+		for (; *metric != NULL; metric++) {
+			len = strlen(*metric);
+			if ((slen = send(self->fd, *metric, len, 0)) != len) {
 				/* not fully sent, or failure, close connection
 				 * regardless so we don't get synchonisation problems,
 				 * partially sent data is an error for us, since we use
@@ -159,21 +160,17 @@ server_queuereader(void *d)
 				fprintf(stderr, "[%s] failed to send() to %s:%u: %s\n",
 						fmtnow(nowbuf), self->ip, self->port,
 						(slen < 0 ? strerror(errno) : "uncomplete write"));
-				if (queue_putback(self->queue, metric) == 0) {
-					fprintf(stderr, "dropping metric: %s\n", metric);
-					self->dropped++;
-					free((char *)metric);
-				}
 				close(self->fd);
 				self->failure = 1;
 				self->fd = -1;
 				break;
 			}
-			free((char *)metric);
+			free((char *)*metric);
+			self->metrics++;
 		}
+
 		gettimeofday(&stop, NULL);
 		self->failure = 0;
-		self->metrics += i;
 		self->ticks += timediff(start, stop);
 	}
 
