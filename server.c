@@ -41,6 +41,7 @@ typedef struct _server {
 	const char *ip;
 	unsigned short port;
 	struct sockaddr_in serv_addr;
+	int fd;
 	queue *queue;
 	enum servertype type;
 	pthread_t tid;
@@ -68,10 +69,10 @@ static void *
 server_queuereader(void *d)
 {
 	server *self = (server *)d;
-	int fd;
 	size_t qlen;
 	size_t i;
 	size_t len;
+	ssize_t slen;
 	const char *metric;
 	struct timeval start, stop;
 	char nowbuf[24];
@@ -91,6 +92,13 @@ server_queuereader(void *d)
 							qlen, self->ip, self->port);
 				break;
 			}
+			/* if we're idling, close the connection, this allows us
+			 * to reduce connections, while keeping the connection alive
+			 * if we're writing a lot */
+			if (self->fd >= 0) {
+				close(self->fd);
+				self->fd = -1;
+			}
 			usleep(250 * 1000);  /* 250ms */
 			/* skip this run if pointless */
 			if (qlen == 0)
@@ -104,9 +112,10 @@ server_queuereader(void *d)
 		gettimeofday(&start, NULL);
 
 		/* try to connect */
-		if ((fd = socket(PF_INET, SOCK_STREAM, 0)) < 0 ||
-			connect(fd, (struct sockaddr *)&(self->serv_addr),
-				sizeof(self->serv_addr)) < 0)
+		if (self->fd < 0 &&
+				((self->fd = socket(PF_INET, SOCK_STREAM, 0)) < 0 ||
+				 connect(self->fd, (struct sockaddr *)&(self->serv_addr),
+					 sizeof(self->serv_addr)) < 0))
 		{
 			if (!self->failure) {  /* avoid endless repetition of errors */
 				fprintf(stderr, "[%s] failed to connect() to %s:%u: %s\n",
@@ -118,15 +127,19 @@ server_queuereader(void *d)
 					 * time, should only occur on errors anyway */
 					if (getrlimit(RLIMIT_NOFILE, &ofiles) < 0)
 						ofiles.rlim_max = 0;
-					if (ofiles.rlim_max != RLIM_INFINITY && ofiles.rlim_max > 0)
-						fprintf(stderr, "process configured maximum connections = %d, "
+					if (ofiles.rlim_max != RLIM_INFINITY &&
+							ofiles.rlim_max > 0)
+						fprintf(stderr, "process configured maximum "
+								"connections = %d, "
 								"current connections: %zd, "
 								"raise max open files/max descriptor limit\n",
-								(int)ofiles.rlim_max, dispatch_get_connections());
+								(int)ofiles.rlim_max,
+								dispatch_get_connections());
 				}
 			}
-			if (fd >= 0)
-				close(fd);
+			if (self->fd >= 0)
+				close(self->fd);
+			self->fd = -1;
 			self->failure = 1;
 			continue;
 		}
@@ -136,31 +149,34 @@ server_queuereader(void *d)
 			if (metric == NULL)
 				break;
 			len = strlen(metric);
-			if (send(fd, metric, len, 0) != len) {
+			if ((slen = send(self->fd, metric, len, 0)) != len) {
 				/* not fully sent, or failure, close connection
 				 * regardless so we don't get synchonisation problems,
 				 * partially sent data is an error for us, since we use
 				 * blocking sockets, and hence partial sent is
 				 * indication of a failure */
 				fprintf(stderr, "[%s] failed to send() to %s:%u: %s\n",
-						fmtnow(nowbuf), self->ip, self->port, strerror(errno));
+						fmtnow(nowbuf), self->ip, self->port,
+						(slen < 0 ? strerror(errno) : "uncomplete write"));
 				if (queue_putback(self->queue, metric) == 0) {
 					fprintf(stderr, "dropping metric: %s\n", metric);
 					self->dropped++;
 					free((char *)metric);
 				}
+				close(self->fd);
 				self->failure = 1;
+				self->fd = -1;
 				break;
 			}
 			free((char *)metric);
 		}
-		close(fd);
 		gettimeofday(&stop, NULL);
 		self->failure = 0;
 		self->metrics += i;
 		self->ticks += timediff(start, stop);
 	}
 
+	close(self->fd);
 	return NULL;
 }
 
@@ -197,6 +213,7 @@ server_new_intern(
 	ret->next = NULL;
 	ret->ip = strdup(ip);
 	ret->port = port;
+	ret->fd = -1;
 	ret->serv_addr.sin_family = AF_INET;
 	ret->serv_addr.sin_port = htons(port);
 	if (inet_pton(AF_INET, ip, &(ret->serv_addr.sin_addr)) <= 0) {
