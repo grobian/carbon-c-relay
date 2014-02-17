@@ -1061,7 +1061,7 @@ router_route_intern(
 							w->dest->members.carbon_ch.ring,
 							w->dest->members.carbon_ch.repl_factor,
 							metric_path);
-					curlen += w->dest->members.carbon_ch.repl_factor;
+					*curlen += w->dest->members.carbon_ch.repl_factor;
 				}	break;
 				case AGGREGATION: {
 					/* aggregation rule */
