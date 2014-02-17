@@ -137,13 +137,10 @@ dispatch_process_dests(connection *conn, dispatcher *self)
 {
 	int i;
 
-	fprintf(stdout, "destlen: %zd\n", conn->destlen);
 	if (conn->destlen > 0) {
 		for (i = 0; i < conn->destlen; i++) {
-			fprintf(stdout, "server_send\n");
 			if (server_send(conn->dests[i], conn->metric) == 0)
 				break;
-			fprintf(stdout, "succeed\n");
 		}
 		if (i != conn->destlen) {
 			conn->destlen -= i;
