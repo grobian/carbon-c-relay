@@ -46,7 +46,6 @@ typedef struct _server {
 	enum servertype type;
 	pthread_t tid;
 	char failure:1;
-	char blocked:1;
 	size_t metrics;
 	size_t dropped;
 	size_t ticks;
@@ -240,7 +239,6 @@ server_new_intern(
 	}
 
 	ret->failure = 0;
-	ret->blocked = 0;
 	ret->metrics = 0;
 	ret->dropped = 0;
 	ret->ticks = 0;
