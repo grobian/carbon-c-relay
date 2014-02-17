@@ -370,6 +370,17 @@ server_port(server *s)
 }
 
 /**
+ * Returns whether the last action on this server caused a failure.
+ */
+inline char
+server_failed(server *s)
+{
+	if (s == NULL)
+		return 0;
+	return s->failure;
+}
+
+/**
  * Returns the wall-clock time in milliseconds consumed sending metrics.
  */
 inline size_t
