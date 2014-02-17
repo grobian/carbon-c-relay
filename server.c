@@ -149,6 +149,7 @@ server_queuereader(void *d)
 			metric = metrics;
 		}
 
+		self->failure = 0;
 		for (; *metric != NULL; metric++) {
 			len = strlen(*metric);
 			if ((slen = send(self->fd, *metric, len, 0)) != len) {
@@ -170,7 +171,6 @@ server_queuereader(void *d)
 		}
 
 		gettimeofday(&stop, NULL);
-		self->failure = 0;
 		self->ticks += timediff(start, stop);
 	}
 
