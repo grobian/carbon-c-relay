@@ -164,6 +164,13 @@ server_queuereader(void *d)
 				close(self->fd);
 				self->failure = 1;
 				self->fd = -1;
+				/* put back stuff we couldn't process */
+				for (; *metric != NULL; metric++) {
+					if (!queue_putback(self->queue, *metric)) {
+						fprintf(stderr, "dropping metric: %s", *metric);
+						free((char *)*metric);
+					}
+				}
 				break;
 			}
 			free((char *)*metric);
