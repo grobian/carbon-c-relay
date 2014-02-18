@@ -58,8 +58,9 @@ members, it sends each incoming metric to one of defined members.  This
 is not much useful in itself, but since any of the members can receive
 each metric, this means that when one of the members is unreachable, the
 other members will receive all of the metrics.  This can be useful when
-the cluster points to other relays.  The `carbon_ch` cluster sends it to
-the member that is responsible according to the consistent hash
+the cluster points to other relays.  The `any_of` router tries to send
+the same metrics to the same destination.  The `carbon_ch` cluster sends
+it to the member that is responsible according to the consistent hash
 algorithm (as used in the original carbon), or multiple members if
 replication is set to more than 1.
 

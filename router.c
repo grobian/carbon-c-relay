@@ -42,16 +42,25 @@ typedef struct _servers {
 	struct _servers *next;
 } servers;
 
+typedef struct {
+	unsigned char repl_factor;
+	carbon_ring *ring;
+	servers *servers;
+} carbon_chring;
+
+typedef struct {
+	size_t count;
+	server **servers;
+	servers *list;
+} serverlist;
+
 typedef struct _cluster {
 	char *name;
 	enum clusttype type;
 	union {
-		struct {
-			unsigned char repl_factor;
-			carbon_ring *ring;
-			servers *servers;
-		} carbon_ch;
+		carbon_chring *carbon_ch;
 		servers *forward;
+		serverlist *anyof;
 		aggregator *aggregation;
 		struct _route *routes;
 	} members;
@@ -190,8 +199,9 @@ router_readconfig(const char *path)
 					return 0;
 				}
 				cl->type = CARBON_CH;
-				cl->members.carbon_ch.repl_factor = (unsigned char)replcnt;
-				cl->members.carbon_ch.ring = NULL;
+				cl->members.carbon_ch = malloc(sizeof(carbon_chring));
+				cl->members.carbon_ch->repl_factor = (unsigned char)replcnt;
+				cl->members.carbon_ch->ring = NULL;
 			} else if (strncmp(p, "forward", 7) == 0 && isspace(*(p + 7))) {
 				p += 8;
 
@@ -211,7 +221,7 @@ router_readconfig(const char *path)
 					return 0;
 				}
 				cl->type = ANYOF;
-				cl->members.forward = NULL;
+				cl->members.anyof = NULL;
 			} else {
 				char *type = p;
 				for (; *p != '\0' && !isspace(*p); p++)
@@ -253,7 +263,7 @@ router_readconfig(const char *path)
 
 					if (cl->type == CARBON_CH) {
 						if (w == NULL) {
-							cl->members.carbon_ch.servers = w =
+							cl->members.carbon_ch->servers = w =
 								malloc(sizeof(servers));
 						} else {
 							w = w->next = malloc(sizeof(servers));
@@ -275,10 +285,10 @@ router_readconfig(const char *path)
 							free(buf);
 							return 0;
 						}
-						cl->members.carbon_ch.ring = carbon_addnode(
-								cl->members.carbon_ch.ring,
+						cl->members.carbon_ch->ring = carbon_addnode(
+								cl->members.carbon_ch->ring,
 								w->server);
-						if (cl->members.carbon_ch.ring == NULL) {
+						if (cl->members.carbon_ch->ring == NULL) {
 							fprintf(stderr, "failed to add server %s:%d "
 									"to ring: out of memory\n", ipbuf, port);
 							free(cl);
@@ -299,14 +309,7 @@ router_readconfig(const char *path)
 							return 0;
 						}
 						w->next = NULL;
-						if (cl->type == ANYOF && cl->members.forward != NULL) {
-							w->server = server_backup(
-									ipbuf,
-									(unsigned short)port,
-									cl->members.forward->server);
-						} else {
-							w->server = server_new(ipbuf, (unsigned short)port);
-						}
+						w->server = server_new(ipbuf, (unsigned short)port);
 						if (w->server == NULL) {
 							fprintf(stderr, "failed to add server %s:%d "
 									"to forwarders: %s\n", ipbuf, port,
@@ -316,13 +319,28 @@ router_readconfig(const char *path)
 							free(buf);
 							return 0;
 						}
-						if (cl->members.forward == NULL)
+						if (cl->type == FORWARD && cl->members.forward == NULL)
 							cl->members.forward = w;
+						if (cl->type == ANYOF && cl->members.anyof == NULL) {
+							cl->members.anyof = malloc(sizeof(serverlist));
+							cl->members.anyof->count = 0;
+							cl->members.anyof->servers = NULL;
+							cl->members.anyof->list = w;
+						}
+						if (cl->type == ANYOF)
+							cl->members.anyof->count++;
 					}
 					for (; *p != '\0' && isspace(*p); p++)
 						;
 				} while (*p != ';');
 				p++; /* skip over ';' */
+				if (cl->type == ANYOF) {
+					size_t i = 0;
+					cl->members.anyof->servers =
+						malloc(sizeof(server *) * cl->members.anyof->count);
+					for (w = cl->members.anyof->list; w != NULL; w = w->next)
+						cl->members.anyof->servers[i++] = w->server;
+				}
 				cl->name = strdup(name);
 				cl->next = clusters;
 				clusters = cl;
@@ -921,15 +939,20 @@ router_printconfig(FILE *f, char all)
 
 	for (c = clusters; c != NULL; c = c->next) {
 		fprintf(f, "cluster %s\n", c->name);
-		if (c->type == FORWARD || c->type == ANYOF) {
-			fprintf(f, "    %s\n", c->type == FORWARD ? "forward" : "any_of");
+		if (c->type == FORWARD) {
+			fprintf(f, "    forward\n");
 			for (s = c->members.forward; s != NULL; s = s->next)
+				fprintf(f, "        %s:%d\n",
+						server_ip(s->server), server_port(s->server));
+		} else if (c->type == ANYOF) {
+			fprintf(f, "    any_of\n");
+			for (s = c->members.anyof->list; s != NULL; s = s->next)
 				fprintf(f, "        %s:%d\n",
 						server_ip(s->server), server_port(s->server));
 		} else if (c->type == CARBON_CH) {
 			fprintf(f, "    carbon_ch replication %d\n",
-					c->members.carbon_ch.repl_factor);
-			for (s = c->members.carbon_ch.servers; s != NULL; s = s->next)
+					c->members.carbon_ch->repl_factor);
+			for (s = c->members.carbon_ch->servers; s != NULL; s = s->next)
 				fprintf(f, "        %s:%d\n",
 						server_ip(s->server), server_port(s->server));
 		}
@@ -1045,23 +1068,32 @@ router_route_intern(
 					}
 				}	break;
 				case ANYOF: {
-					/* only queue at the first, since all servers here
-					 * share the same queue */
-					if (w->dest->members.forward != NULL) {
-						extendif(*ret, *retlen, *curlen + 1);
-						ret[(*curlen)++] = w->dest->members.forward->server;
-					}
+					/* we try to queue the same metrics at the same
+					 * server, but if they are currently not available,
+					 * we don't hesitate to queue at the next */
+					size_t hash = 2166136261;  /* FNV1a */
+					size_t c;
+					const char *p;
+					for (p = metric_path; *p != '\0'; p++)
+						hash = (hash ^ (size_t)*p) * 16777619;
+					c = w->dest->members.anyof->count;
+					hash %= c;
+					for (++c; c > 0; c--)
+						if (!server_failed(w->dest->members.anyof->servers[(hash + c) % w->dest->members.anyof->count]))
+							break;
+					extendif(*ret, *retlen, *curlen + 1);
+					ret[(*curlen)++] = w->dest->members.anyof->servers[(hash + c) % w->dest->members.anyof->count];
 				}	break;
 				case CARBON_CH: {
 					/* let the ring(bearer) decide */
 					extendif(*ret, *retlen, *curlen +
-							w->dest->members.carbon_ch.repl_factor);
+							w->dest->members.carbon_ch->repl_factor);
 					carbon_get_nodes(
 							ret + *curlen,
-							w->dest->members.carbon_ch.ring,
-							w->dest->members.carbon_ch.repl_factor,
+							w->dest->members.carbon_ch->ring,
+							w->dest->members.carbon_ch->repl_factor,
 							metric_path);
-					*curlen += w->dest->members.carbon_ch.repl_factor;
+					*curlen += w->dest->members.carbon_ch->repl_factor;
 				}	break;
 				case AGGREGATION: {
 					/* aggregation rule */
