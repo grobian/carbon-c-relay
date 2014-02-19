@@ -295,12 +295,12 @@ server_new_qsize(const char *ip, unsigned short port, size_t qsize)
  * otherwise (when a retry seems like it could succeed shortly).
  */
 inline char
-server_send(server *s, const char *d)
+server_send(server *s, const char *d, char force)
 {
 	if (queue_free(s->queue) == 0) {
-		if (s->failure) {
+		if (s->failure || force) {
 			s->dropped++;
-			/* event will be dropped by the enqueue below */
+			/* excess event will be dropped by the enqueue below */
 		} else {
 			return 0;
 		}

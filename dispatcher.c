@@ -47,6 +47,7 @@ typedef struct _connection {
 	server **dests;
 	size_t destlen;
 	size_t destsize;
+	time_t wait;
 } connection;
 
 typedef struct _dispatcher {
@@ -117,6 +118,7 @@ dispatch_addconnection(int sock)
 	newconn->dests = (server **)malloc(sizeof(server *) * DESTSZ);
 	newconn->destlen = 0;
 	newconn->destsize = DESTSZ;
+	newconn->wait = 0;
 	for (c = 0; c < sizeof(connections) / sizeof(connection *); c++)
 		if (__sync_bool_compare_and_swap(&(connections[c]), NULL, newconn))
 			break;
@@ -136,10 +138,11 @@ inline static char
 dispatch_process_dests(connection *conn, dispatcher *self)
 {
 	int i;
+	char force = time(NULL) - conn->wait > 2;
 
 	if (conn->destlen > 0) {
 		for (i = 0; i < conn->destlen; i++) {
-			if (server_send(conn->dests[i], conn->metric) == 0)
+			if (server_send(conn->dests[i], conn->metric, force) == 0)
 				break;
 		}
 		if (i != conn->destlen) {
@@ -169,13 +172,17 @@ dispatch_connection(connection *conn, dispatcher *self)
 	struct timeval start, stop;
 
 	gettimeofday(&start, NULL);
-
 	/* first try to resume any work being blocked */
 	if (dispatch_process_dests(conn, self) == 0) {
+		gettimeofday(&stop, NULL);
+		self->ticks += timediff(start, stop);
 		conn->takenby = 0;
 		return 0;
 	}
+	gettimeofday(&stop, NULL);
+	self->ticks += timediff(start, stop);
 
+	gettimeofday(&start, NULL);
 	if ((len = read(conn->sock,
 					conn->buf + conn->buflen, 
 					sizeof(conn->buf) - conn->buflen)) > 0)
@@ -237,6 +244,7 @@ dispatch_connection(connection *conn, dispatcher *self)
 					router_route(conn->dests, &conn->destsize,
 							metric_path, conn->metric);
 
+				conn->wait = time(NULL);
 				/* send the metric to where it is supposed to go */
 				if (dispatch_process_dests(conn, self) == 0)
 					break;

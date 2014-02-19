@@ -197,7 +197,7 @@ aggregator_expire(void *sub)
 										b->start + s->interval);
 								break;
 						}
-						server_send(submission, metric);
+						server_send(submission, metric, 1);
 					}
 				}
 				pthread_mutex_lock(&s->bucketlock);
