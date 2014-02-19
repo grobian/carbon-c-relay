@@ -337,8 +337,10 @@ dispatch_runner(void *arg)
 
 						if ((client = accept(conn->sock, &addr, &addrlen)) < 0)
 						{
-							fprintf(stderr, "dispatch: failed to accept() "
-									"new connection: %s\n", strerror(errno));
+							char nowbuf[24];
+							fprintf(stderr, "[%s] dispatch: failed to "
+									"accept() new connection: %s\n",
+									fmtnow(nowbuf), strerror(errno));
 							if (errno == EMFILE) {
 								struct rlimit ofiles;
 								/* rlimit can be changed for the running
