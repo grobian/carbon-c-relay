@@ -37,7 +37,7 @@ cluster <name>
         <ip[:port]> ...
     ;
 match <* | <expression>>
-    send to <cluster>
+    send to <cluster | blackhole>
     [stop]
     ;
 aggregate
@@ -71,7 +71,11 @@ match rules "fall through" unless the `stop` keyword is added to the
 match rule, the same match expression can be used to target multiple
 clusters.  This ability allows to replicate metrics, as well as send
 certain metrics to alternative clusters with careful ordering and usage
-of the `stop` keyword.
+of the `stop` keyword.  The special cluster `blackhole` discards any
+metrics sent to it.  This can be useful for weeding out unwanted metrics
+in certain cases.  Because throwing metrics away is pointless if other
+matches would accept the same data, a match with destination the
+blackhole cluster, has an implicit `stop`.
 
 The aggregations defined take one or more input metrics expressed by one
 or more regular expresions, similar to the match rules.  Incoming

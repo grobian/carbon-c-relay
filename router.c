@@ -30,6 +30,7 @@
 #include "relay.h"
 
 enum clusttype {
+	BLACKHOLE,  /* /dev/null-like destination */
 	GROUP,      /* pseudo type to create a matching tree */
 	FORWARD,
 	CARBON_CH,  /* room for a better/different hash definition */
@@ -89,7 +90,7 @@ static cluster *clusters = NULL;
  *         (ip:port[ ip:port ...])
  *     ;
  * match (* | regex)
- *     send to (cluster)
+ *     send to (cluster | blackhole)
  *     [stop]
  *     ;
  * aggregate
@@ -134,6 +135,14 @@ router_readconfig(const char *path)
 	buf[st.st_size] = '\0';
 	fclose(cnf);
 
+	/* create virtual blackhole cluster */
+	cl = malloc(sizeof(cluster));
+	cl->name = strdup("blackhole");
+	cl->type = BLACKHOLE;
+	cl->members.forward = NULL;
+	cl->next = NULL;
+	clusters = cl;
+
 	/* remove all comments to ease parsing below */
 	p = buf;
 	for (; *p != '\0'; p++)
@@ -164,7 +173,6 @@ router_readconfig(const char *path)
 				return 0;
 			}
 			*p++ = '\0';
-			cl = NULL;
 			for (; *p != '\0' && isspace(*p); p++)
 				;
 			if (strncmp(p, "carbon_ch", 9) == 0 && isspace(*(p + 9))) {
@@ -193,7 +201,7 @@ router_readconfig(const char *path)
 						replcnt = 1;
 				}
 
-				if ((cl = malloc(sizeof(cluster))) == NULL) {
+				if ((cl = cl->next = malloc(sizeof(cluster))) == NULL) {
 					fprintf(stderr, "malloc failed in cluster carbon_ch\n");
 					free(buf);
 					return 0;
@@ -205,7 +213,7 @@ router_readconfig(const char *path)
 			} else if (strncmp(p, "forward", 7) == 0 && isspace(*(p + 7))) {
 				p += 8;
 
-				if ((cl = malloc(sizeof(cluster))) == NULL) {
+				if ((cl = cl->next = malloc(sizeof(cluster))) == NULL) {
 					fprintf(stderr, "malloc failed in cluster forward\n");
 					free(buf);
 					return 0;
@@ -215,7 +223,7 @@ router_readconfig(const char *path)
 			} else if (strncmp(p, "any_of", 6) == 0 && isspace(*(p + 6))) {
 				p += 7;
 
-				if ((cl = malloc(sizeof(cluster))) == NULL) {
+				if ((cl = cl->next = malloc(sizeof(cluster))) == NULL) {
 					fprintf(stderr, "malloc failed in cluster any_of\n");
 					free(buf);
 					return 0;
@@ -233,118 +241,115 @@ router_readconfig(const char *path)
 				return 0;
 			}
 
-			if (cl != NULL) {
-				/* parse ips */
-				for (; *p != '\0' && isspace(*p); p++)
-					;
-				w = NULL;
-				do {
-					char ipbuf[64];  /* should be enough for everyone */
-					char *ip = ipbuf;
-					int port = 2003;
-					for (; *p != '\0' && !isspace(*p) && *p != ';'; p++) {
-						if (*p == ':') {
-							*p = '\0';
-							port = atoi(p + 1);
-						}
-						if (ip - ipbuf < sizeof(ipbuf) - 1)
-							*ip++ = *p;
+			/* parse ips */
+			for (; *p != '\0' && isspace(*p); p++)
+				;
+			w = NULL;
+			do {
+				char ipbuf[64];  /* should be enough for everyone */
+				char *ip = ipbuf;
+				int port = 2003;
+				for (; *p != '\0' && !isspace(*p) && *p != ';'; p++) {
+					if (*p == ':') {
+						*p = '\0';
+						port = atoi(p + 1);
 					}
-					*ip = '\0';
-					if (*p == '\0') {
-						fprintf(stderr, "unexpected end of file at '%s' "
-								"for cluster %s\n", ip, name);
+					if (ip - ipbuf < sizeof(ipbuf) - 1)
+						*ip++ = *p;
+				}
+				*ip = '\0';
+				if (*p == '\0') {
+					fprintf(stderr, "unexpected end of file at '%s' "
+							"for cluster %s\n", ip, name);
+					free(cl);
+					free(buf);
+					return 0;
+				} else if (*p != ';') {
+					*p++ = '\0';
+				}
+
+				if (cl->type == CARBON_CH) {
+					if (w == NULL) {
+						cl->members.carbon_ch->servers = w =
+							malloc(sizeof(servers));
+					} else {
+						w = w->next = malloc(sizeof(servers));
+					}
+					if (w == NULL) {
+						fprintf(stderr, "malloc failed in carbon_ch ip\n");
 						free(cl);
 						free(buf);
 						return 0;
-					} else if (*p != ';') {
-						*p++ = '\0';
 					}
-
-					if (cl->type == CARBON_CH) {
-						if (w == NULL) {
-							cl->members.carbon_ch->servers = w =
-								malloc(sizeof(servers));
-						} else {
-							w = w->next = malloc(sizeof(servers));
-						}
-						if (w == NULL) {
-							fprintf(stderr, "malloc failed in carbon_ch ip\n");
-							free(cl);
-							free(buf);
-							return 0;
-						}
-						w->next = NULL;
-						w->server = server_new(ipbuf, (unsigned short)port);
-						if (w->server == NULL) {
-							fprintf(stderr, "failed to add server %s:%d "
-									"to carbon_ch: %s\n", ipbuf, port,
-									strerror(errno));
-							free(w);
-							free(cl);
-							free(buf);
-							return 0;
-						}
-						cl->members.carbon_ch->ring = carbon_addnode(
-								cl->members.carbon_ch->ring,
-								w->server);
-						if (cl->members.carbon_ch->ring == NULL) {
-							fprintf(stderr, "failed to add server %s:%d "
-									"to ring: out of memory\n", ipbuf, port);
-							free(cl);
-							free(buf);
-							return 0;
-						}
-					} else if (cl->type == FORWARD || cl->type == ANYOF) {
-						if (w == NULL) {
-							w = malloc(sizeof(servers));
-						} else {
-							w = w->next = malloc(sizeof(servers));
-						}
-						if (w == NULL) {
-							fprintf(stderr, "malloc failed in cluster %s ip\n",
-									cl->type == FORWARD ? "forward" : "any_of");
-							free(cl);
-							free(buf);
-							return 0;
-						}
-						w->next = NULL;
-						w->server = server_new(ipbuf, (unsigned short)port);
-						if (w->server == NULL) {
-							fprintf(stderr, "failed to add server %s:%d "
-									"to forwarders: %s\n", ipbuf, port,
-									strerror(errno));
-							free(w);
-							free(cl);
-							free(buf);
-							return 0;
-						}
-						if (cl->type == FORWARD && cl->members.forward == NULL)
-							cl->members.forward = w;
-						if (cl->type == ANYOF && cl->members.anyof == NULL) {
-							cl->members.anyof = malloc(sizeof(serverlist));
-							cl->members.anyof->count = 0;
-							cl->members.anyof->servers = NULL;
-							cl->members.anyof->list = w;
-						}
-						if (cl->type == ANYOF)
-							cl->members.anyof->count++;
+					w->next = NULL;
+					w->server = server_new(ipbuf, (unsigned short)port);
+					if (w->server == NULL) {
+						fprintf(stderr, "failed to add server %s:%d "
+								"to carbon_ch: %s\n", ipbuf, port,
+								strerror(errno));
+						free(w);
+						free(cl);
+						free(buf);
+						return 0;
 					}
-					for (; *p != '\0' && isspace(*p); p++)
-						;
-				} while (*p != ';');
-				p++; /* skip over ';' */
-				if (cl->type == ANYOF) {
-					size_t i = 0;
-					cl->members.anyof->servers =
-						malloc(sizeof(server *) * cl->members.anyof->count);
-					for (w = cl->members.anyof->list; w != NULL; w = w->next)
-						cl->members.anyof->servers[i++] = w->server;
+					cl->members.carbon_ch->ring = carbon_addnode(
+							cl->members.carbon_ch->ring,
+							w->server);
+					if (cl->members.carbon_ch->ring == NULL) {
+						fprintf(stderr, "failed to add server %s:%d "
+								"to ring: out of memory\n", ipbuf, port);
+						free(cl);
+						free(buf);
+						return 0;
+					}
+				} else if (cl->type == FORWARD || cl->type == ANYOF) {
+					if (w == NULL) {
+						w = malloc(sizeof(servers));
+					} else {
+						w = w->next = malloc(sizeof(servers));
+					}
+					if (w == NULL) {
+						fprintf(stderr, "malloc failed in cluster %s ip\n",
+								cl->type == FORWARD ? "forward" : "any_of");
+						free(cl);
+						free(buf);
+						return 0;
+					}
+					w->next = NULL;
+					w->server = server_new(ipbuf, (unsigned short)port);
+					if (w->server == NULL) {
+						fprintf(stderr, "failed to add server %s:%d "
+								"to forwarders: %s\n", ipbuf, port,
+								strerror(errno));
+						free(w);
+						free(cl);
+						free(buf);
+						return 0;
+					}
+					if (cl->type == FORWARD && cl->members.forward == NULL)
+						cl->members.forward = w;
+					if (cl->type == ANYOF && cl->members.anyof == NULL) {
+						cl->members.anyof = malloc(sizeof(serverlist));
+						cl->members.anyof->count = 0;
+						cl->members.anyof->servers = NULL;
+						cl->members.anyof->list = w;
+					}
+					if (cl->type == ANYOF)
+						cl->members.anyof->count++;
 				}
-				cl->name = strdup(name);
-				cl->next = clusters;
-				clusters = cl;
+				for (; *p != '\0' && isspace(*p); p++)
+					;
+			} while (*p != ';');
+			p++; /* skip over ';' */
+			if (cl->type == ANYOF) {
+				size_t i = 0;
+				cl->members.anyof->servers =
+					malloc(sizeof(server *) * cl->members.anyof->count);
+				for (w = cl->members.anyof->list; w != NULL; w = w->next)
+					cl->members.anyof->servers[i++] = w->server;
 			}
+			cl->name = strdup(name);
+			cl->next = NULL;
 		} else if (strncmp(p, "match", 5) == 0 && isspace(*(p + 5))) {
 			/* match rule */
 			char *pat;
@@ -458,7 +463,7 @@ router_readconfig(const char *path)
 				r->pattern = strdup(pat);
 				r->matchall = 0;
 			}
-			r->stop = stop;
+			r->stop = w->type == BLACKHOLE ? 1 : stop;
 			r->next = NULL;
 		} else if (strncmp(p, "aggregate", 9) == 0 && isspace(*(p + 9))) {
 			/* aggregation rule */
@@ -938,6 +943,8 @@ router_printconfig(FILE *f, char all)
 	servers *s;
 
 	for (c = clusters; c != NULL; c = c->next) {
+		if (c->type == BLACKHOLE)
+			continue;
 		fprintf(f, "cluster %s\n", c->name);
 		if (c->type == FORWARD) {
 			fprintf(f, "    forward\n");
@@ -1058,6 +1065,9 @@ router_route_intern(
 			stop = w->stop;
 			/* rule matches, send to destination(s) */
 			switch (w->dest->type) {
+				case BLACKHOLE: {
+					/* maybe just record we're dropping this metric? */
+				}	break;
 				case FORWARD: {
 					/* simple case, no logic necessary */
 					servers *s;
