@@ -1081,7 +1081,7 @@ router_route_intern(
 					/* we try to queue the same metrics at the same
 					 * server, but if they are currently not available,
 					 * we don't hesitate to queue at the next */
-					size_t hash = 2166136261;  /* FNV1a */
+					size_t hash = 2166136261UL;  /* FNV1a */
 					size_t c;
 					const char *p;
 					for (p = metric_path; *p != '\0'; p++)
