@@ -172,7 +172,7 @@ queue_putback(queue *q, const char *p)
 		return 0;
 	}
 
-	if (q->read == 1)
+	if (q->read == 0)
 		q->read = q->end;
 	q->read--;
 	q->queue[q->read] = p;
