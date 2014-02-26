@@ -148,7 +148,6 @@ server_queuereader(void *d)
 			metric = metrics;
 		}
 
-		self->failure = 0;
 		for (; *metric != NULL; metric++) {
 			len = strlen(*metric);
 			if ((slen = send(self->fd, *metric, len, 0)) != len) {
@@ -171,6 +170,10 @@ server_queuereader(void *d)
 					}
 				}
 				break;
+			} else if (self->failure) {
+				fprintf(stderr, "[%s] server %s:%u: OK\n",
+						fmtnow(nowbuf), self->ip, self->port);
+				self->failure = 0;
 			}
 			free((char *)*metric);
 			self->metrics++;
