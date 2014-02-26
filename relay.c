@@ -301,10 +301,12 @@ main(int argc, char * const argv[])
 	collector_stop();
 	if (numaggregators > 0)
 		aggregator_stop();
-	router_shutdown();  /* stops internal_submission */
+	/* make sure we don't write to our servers any more */
 	for (id = 0; id < 1 + workercnt; id++)
 		dispatch_shutdown(workers[id + 0]);
 	fprintf(stdout, "[%s] %d workers stopped\n", fmtnow(nowbuf), workercnt);
+	router_shutdown();  /* stops internal_submission */
+	fprintf(stdout, "[%s] routing stopped\n", fmtnow(nowbuf));
 
 	fflush(NULL);  /* ensure our termination messages are out */
 
