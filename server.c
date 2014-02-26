@@ -71,12 +71,14 @@ server_queuereader(void *d)
 	server *self = (server *)d;
 	size_t qlen;
 	size_t len;
+	size_t lastlen;
 	ssize_t slen;
 	const char *metrics[BATCH_SIZE + 1];
 	const char **metric = metrics;
 	struct timeval start, stop;
 	char nowbuf[24];
 
+	lastlen = 0;
 	*metric = NULL;
 	self->metrics = 0;
 	self->ticks = 0;
@@ -104,7 +106,18 @@ server_queuereader(void *d)
 			/* skip this run if pointless */
 			if (qlen == 0)
 				continue;
+		} else if (!keep_running) {
+			/* be noisy during shutdown so we can track any slowing down
+			 * servers, possibly preventing us to shut down */
+			if (qlen == lastlen) {
+				fprintf(stderr, "server %s:%u stalled\n", self->ip, self->port);
+				self->failure = 1;
+				continue;
+			}
+			fprintf(stderr, "shutting down %s:%u: waiting for %zd metrics\n",
+					self->ip, self->port, qlen);
 		}
+		lastlen = qlen;
 
 		gettimeofday(&start, NULL);
 
