@@ -183,9 +183,13 @@ dispatch_connection(connection *conn, dispatcher *self)
 	self->ticks += timediff(start, stop);
 
 	gettimeofday(&start, NULL);
+	len = 0;
+	/* try to read more data, if that succeeds, or we still have data
+	 * left in the buffer, try to process the buffer */
 	if ((len = read(conn->sock,
 					conn->buf + conn->buflen, 
-					sizeof(conn->buf) - conn->buflen)) > 0)
+					sizeof(conn->buf) - conn->buflen)) > 0
+			|| conn->buflen > 0)
 	{
 		conn->buflen += len;
 
@@ -261,6 +265,7 @@ dispatch_connection(connection *conn, dispatcher *self)
 			/* move remaining stuff to the front */
 			conn->buflen -= lastnl + 1 - conn->buf;
 			memmove(conn->buf, lastnl + 1, conn->buflen);
+			len = 1;  /* trick code below so we keep on processing buf */
 		}
 	}
 	gettimeofday(&stop, NULL);
