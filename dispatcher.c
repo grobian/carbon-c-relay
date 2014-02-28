@@ -191,7 +191,7 @@ dispatch_connection(connection *conn, dispatcher *self)
 					sizeof(conn->buf) - conn->buflen)) > 0
 			|| conn->buflen > 0)
 	{
-		conn->buflen += len;
+		conn->buflen += len > 0 ? len : 0;
 
 		/* metrics look like this: metric_path value timestamp\n
 		 * due to various messups we need to sanitise the
