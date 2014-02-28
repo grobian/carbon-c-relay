@@ -138,7 +138,7 @@ inline static char
 dispatch_process_dests(connection *conn, dispatcher *self)
 {
 	int i;
-	char force = time(NULL) - conn->wait > 5;  /* 5 sec timeout */
+	char force = time(NULL) - conn->wait > 1;  /* 1 sec timeout */
 
 	if (conn->destlen > 0) {
 		for (i = 0; i < conn->destlen; i++) {
