@@ -1162,12 +1162,15 @@ router_test_intern(const char *metric_path, route *routes)
 			gotmatch |= router_test_intern(
 					metric_path,
 					w->dest->members.routes);
+			if (gotmatch & 2)
+				break;
 		} else if (w->matchall || regexec(&w->rule, metric_path, 0, NULL, 0) == 0) {
 			gotmatch = 1;
 			fprintf(stdout, "%s is matched by %s (%s)\n",
 					metric_path, w->matchall ? "*" : w->pattern,
 					w->dest->type == AGGREGATION ? "aggregation" : "match");
 			if (w->stop) {
+				gotmatch = 3;
 				fprintf(stdout, "stop\n");
 				break;
 			}
