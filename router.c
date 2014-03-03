@@ -1166,12 +1166,29 @@ router_test_intern(const char *metric_path, route *routes)
 				break;
 		} else if (w->matchall || regexec(&w->rule, metric_path, 0, NULL, 0) == 0) {
 			gotmatch = 1;
-			fprintf(stdout, "%s is matched by %s (%s)\n",
-					metric_path, w->matchall ? "*" : w->pattern,
-					w->dest->type == AGGREGATION ? "aggregation" : "match");
+			fprintf(stdout, "%s\n    %s -> %s\n",
+					w->dest->type == AGGREGATION ? "aggregation" : "match",
+					w->matchall ? "*" : w->pattern,
+					metric_path);
+			switch (w->dest->type) {
+				case AGGREGATION: {
+					struct _aggr_computes *ac;
+					for (ac = w->dest->members.aggregation->computes; ac != NULL; ac = ac->next)
+						fprintf(stdout, "    %s -> %s\n",
+								ac->type == SUM ? "sum" : ac->type == CNT ? "count" :
+								ac->type == MAX ? "max" : ac->type == MIN ? "min" :
+								ac->type == AVG ? "average" : "<unknown>", ac->metric);
+				}	break;
+				case BLACKHOLE: {
+					fprintf(stdout, "    blackholed\n");
+				}	break;
+				default: {
+					fprintf(stdout, "    cluster(%s)\n", w->dest->name);
+				}	break;
+			}
 			if (w->stop) {
 				gotmatch = 3;
-				fprintf(stdout, "stop\n");
+				fprintf(stdout, "    stop\n");
 				break;
 			}
 		}
