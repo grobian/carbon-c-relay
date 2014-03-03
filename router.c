@@ -1149,14 +1149,20 @@ router_route(
  * Prints for metric_path which rules and/or aggregations would be
  * triggered.  Useful for testing regular expressions.
  */
-void
-router_test(const char *metric_path)
+char
+router_test_intern(const char *metric_path, route *routes)
 {
 	route *w;
 	char gotmatch = 0;
 
 	for (w = routes; w != NULL; w = w->next) {
-		if (w->matchall || regexec(&w->rule, metric_path, 0, NULL, 0) == 0) {
+		if (w->dest->type == GROUP) {
+			/* just recurse, in test mode performance shouldn't be an
+			 * issue at all */
+			gotmatch |= router_test_intern(
+					metric_path,
+					w->dest->members.routes);
+		} else if (w->matchall || regexec(&w->rule, metric_path, 0, NULL, 0) == 0) {
 			gotmatch = 1;
 			fprintf(stdout, "%s is matched by %s (%s)\n",
 					metric_path, w->matchall ? "*" : w->pattern,
@@ -1167,7 +1173,14 @@ router_test(const char *metric_path)
 			}
 		}
 	}
-	if (!gotmatch)
+
+	return gotmatch;
+}
+
+void
+router_test(const char *metric_path)
+{
+	if (!router_test_intern(metric_path, routes))
 		fprintf(stdout, "nothing matched %s\n", metric_path);
 	fflush(stdout);
 }
