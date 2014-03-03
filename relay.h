@@ -18,7 +18,7 @@
 #ifndef HAVE_RELAY_H
 #define HAVE_RELAY_H 1
 
-#define VERSION "0.14"
+#define VERSION "0.15"
 
 enum rmode { NORMAL, DEBUG, SUBMISSION, TEST };
 
