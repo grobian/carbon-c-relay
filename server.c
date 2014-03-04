@@ -76,12 +76,16 @@ server_queuereader(void *d)
 	const char *metrics[BATCH_SIZE + 1];
 	const char **metric = metrics;
 	struct timeval start, stop;
+	struct timeval timeout;
 	char nowbuf[24];
 
 	lastlen = 0;
 	*metric = NULL;
 	self->metrics = 0;
 	self->ticks = 0;
+
+	timeout.tv_sec = 0;
+	timeout.tv_usec = 650 * 1000;  /* less than 1s (dispatcher stall timeout) */
 
 	while (1) {
 		/* If there was a failure, or the queue is empty, we better just
@@ -153,6 +157,11 @@ server_queuereader(void *d)
 			self->failure = 1;
 			continue;
 		}
+
+		/* ensure we will break out of connections being stuck */
+		setsockopt(self->fd, SOL_SOCKET, SO_SNDTIMEO,
+				&timeout, sizeof(timeout));
+		setsockopt(self->fd, SOL_SOCKET, SO_NOSIGPIPE, NULL, 0);
 
 		/* send up to BATCH_SIZE */
 		if (*metric == NULL) {
