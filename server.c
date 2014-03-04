@@ -161,7 +161,9 @@ server_queuereader(void *d)
 		/* ensure we will break out of connections being stuck */
 		setsockopt(self->fd, SOL_SOCKET, SO_SNDTIMEO,
 				&timeout, sizeof(timeout));
+#ifdef SO_NOSIGPIPE
 		setsockopt(self->fd, SOL_SOCKET, SO_NOSIGPIPE, NULL, 0);
+#endif
 
 		/* send up to BATCH_SIZE */
 		if (*metric == NULL) {
