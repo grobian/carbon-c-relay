@@ -312,7 +312,7 @@ main(int argc, char * const argv[])
 	fprintf(stdout, "[%s] routing stopped\n", fmtnow(nowbuf));
 	fflush(stdout);
 
-	fflush(NULL);  /* ensure our termination messages are out */
+	fflush(stderr);  /* ensure all of our termination messages are out */
 
 	free(workers);
 	free(servers);
