@@ -53,6 +53,7 @@ exit_handler(int sig)
 			break;
 	}
 	fprintf(stdout, "caught %s, terminating...\n", signal);
+	fflush(stdout);
 	keep_running = 0;
 }
 
