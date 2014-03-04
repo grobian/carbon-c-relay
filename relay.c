@@ -297,6 +297,7 @@ main(int argc, char * const argv[])
 		sleep(1);
 
 	fprintf(stdout, "[%s] shutting down...\n", fmtnow(nowbuf));
+	fflush(stdout);
 	close(sock); /* make sure we don't accept anything more */
 	/* since workers will be freed, stop querying the structures */
 	collector_stop();
@@ -306,8 +307,10 @@ main(int argc, char * const argv[])
 	for (id = 0; id < 1 + workercnt; id++)
 		dispatch_shutdown(workers[id + 0]);
 	fprintf(stdout, "[%s] %d workers stopped\n", fmtnow(nowbuf), workercnt);
+	fflush(stdout);
 	router_shutdown();  /* stops internal_submission */
 	fprintf(stdout, "[%s] routing stopped\n", fmtnow(nowbuf));
+	fflush(stdout);
 
 	fflush(NULL);  /* ensure our termination messages are out */
 
