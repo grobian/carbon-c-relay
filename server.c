@@ -45,7 +45,10 @@ typedef struct _server {
 	queue *queue;
 	enum servertype type;
 	pthread_t tid;
+	struct _server **secondaries;
+	size_t secondariescnt;
 	char failure:1;
+	char running:1;
 	size_t metrics;
 	size_t dropped;
 	size_t ticks;
@@ -71,15 +74,15 @@ server_queuereader(void *d)
 	server *self = (server *)d;
 	size_t qlen;
 	size_t len;
-	size_t lastlen;
+	size_t lastmetrics;
 	ssize_t slen;
 	const char *metrics[BATCH_SIZE + 1];
 	const char **metric = metrics;
 	struct timeval start, stop;
 	struct timeval timeout;
 	char nowbuf[24];
+	queue *queue;
 
-	lastlen = 0;
 	*metric = NULL;
 	self->metrics = 0;
 	self->ticks = 0;
@@ -87,41 +90,67 @@ server_queuereader(void *d)
 	timeout.tv_sec = 0;
 	timeout.tv_usec = 650 * 1000;  /* less than 1s (dispatcher stall timeout) */
 
+	self->running = 1;
 	while (1) {
-		/* If there was a failure, or the queue is empty, we better just
-		 * wait a bit, unless we are shutting down, of course.
-		 * Hence, we will try to flush the queue before shutting down */
-		if ((qlen = queue_len(self->queue)) == 0 || self->failure) {
-			/* however, terminate directly if this isn't going to fly */
+		if (self->failure) {
 			if (!keep_running) {
-				if (qlen > 0 && self->type == ORIGIN)
+				qlen = self->type == ORIGIN ? queue_len(self->queue) : 0;
+				if (qlen > 0)
 					fprintf(stderr, "dropping %zd metrics for %s:%u\n",
 							qlen, self->ip, self->port);
 				break;
 			}
-			/* if we're idling, close the connection, this allows us
-			 * to reduce connections, while keeping the connection alive
-			 * if we're writing a lot */
-			if (self->fd >= 0) {
-				close(self->fd);
-				self->fd = -1;
-			}
+			/* if there was a failure last round, wait a bit for the server
+			 * to recover */
 			usleep(250 * 1000);  /* 250ms */
-			/* skip this run if pointless */
-			if (qlen == 0)
+		}
+
+		/* if we have work to do, try to do it */
+		queue = self->queue;
+		if ((qlen = queue_len(queue)) == 0) {
+			/* if there are secondaries, check if they are in a
+			 * condition where they could use some help */
+			queue = NULL;
+			for (len = 0; len < self->secondariescnt; len++) {
+				if (self->secondaries[len] == self)
+					continue;
+				/* need help condition:
+				 * - server is in failure mode, or
+				 * - the queue is filled for > 3/4th (remember, our
+				 *   queue is empty) */
+				if (self->secondaries[len]->failure | /* ensure qlen */
+						queue_free(self->secondaries[len]->queue) <
+						(qlen = queue_len(self->secondaries[len]->queue)) / 4)
+				{
+					queue = self->secondaries[len]->queue;
+					break;
+				}
+			}
+			if (qlen == 0) {
+				/* if we're idling, close the connection, this allows us
+				 * to reduce connections, while keeping the connection alive
+				 * if we're writing a lot */
+				if (self->fd >= 0) {
+					close(self->fd);
+					self->fd = -1;
+				}
+				if (!keep_running)
+					break;
+				usleep(250 * 1000);  /* 250ms */
+				/* it makes no sense to try and do something, so skip */
 				continue;
-		} else if (!keep_running) {
+			}
+		}
+
+		/* at this point we've got work to do, if we're instructed to
+		 * shut down, however, try to get everything out of the door
+		 * (until we fail, see top of this loop) */
+		if (!keep_running) {
 			/* be noisy during shutdown so we can track any slowing down
 			 * servers, possibly preventing us to shut down */
-			if (qlen == lastlen) {
-				fprintf(stderr, "server %s:%u stalled\n", self->ip, self->port);
-				self->failure = 1;
-				continue;
-			}
 			fprintf(stderr, "shutting down %s:%u: waiting for %zd metrics\n",
 					self->ip, self->port, qlen);
 		}
-		lastlen = qlen;
 
 		gettimeofday(&start, NULL);
 
@@ -166,11 +195,9 @@ server_queuereader(void *d)
 #endif
 
 		/* send up to BATCH_SIZE */
-		if (*metric == NULL) {
-			len = queue_dequeue_vector(metrics, self->queue, BATCH_SIZE);
-			metrics[len] = NULL;
-			metric = metrics;
-		}
+		len = queue_dequeue_vector(metrics, queue, BATCH_SIZE);
+		metrics[len] = NULL;
+		metric = metrics;
 
 		for (; *metric != NULL; metric++) {
 			len = strlen(*metric);
@@ -188,7 +215,7 @@ server_queuereader(void *d)
 				self->fd = -1;
 				/* put back stuff we couldn't process */
 				for (; *metric != NULL; metric++) {
-					if (!queue_putback(self->queue, *metric)) {
+					if (!queue_putback(queue, *metric)) {
 						fprintf(stderr, "dropping metric: %s", *metric);
 						free((char *)*metric);
 					}
@@ -206,6 +233,7 @@ server_queuereader(void *d)
 		gettimeofday(&stop, NULL);
 		self->ticks += timediff(start, stop);
 	}
+	self->running = 0;
 
 	close(self->fd);
 	return NULL;
@@ -242,6 +270,8 @@ server_new_intern(
 		return NULL;
 
 	ret->next = NULL;
+	ret->secondaries = NULL;
+	ret->secondariescnt = 0;
 	ret->ip = strdup(ip);
 	ret->port = port;
 	ret->fd = -1;
@@ -266,6 +296,7 @@ server_new_intern(
 	}
 
 	ret->failure = 0;
+	ret->running = 0;
 	ret->metrics = 0;
 	ret->dropped = 0;
 	ret->ticks = 0;
@@ -313,6 +344,19 @@ server *
 server_new_qsize(const char *ip, unsigned short port, size_t qsize)
 {
 	return server_new_intern(ip, port, NULL, qsize);
+}
+
+/**
+ * Adds a list of secondary servers to this server.  A secondary server
+ * is a server which' queue will be checked when this server has nothing
+ * to do.  This is different from a backup server in that all servers
+ * involved have their own queue which they are supposed to deal with.
+ */
+void
+server_add_secondaries(server *self, server **secondaries, size_t count)
+{
+	self->secondaries = secondaries;
+	self->secondariescnt = count;
 }
 
 /**
@@ -367,7 +411,18 @@ server_get_servers(void)
 void
 server_shutdown(server *s)
 {
+	int i;
 	pthread_join(s->tid, NULL);
+	/* wait for secondaries to have finished, they may need our queue */
+	for (i = 0; i < s->secondariescnt; i++) {
+		if (s->secondaries[i]->running) {
+			fprintf(stderr, "%s:%u: waiting for %s:%u\n",
+					s->ip, s->port,
+					s->secondaries[i]->ip, s->secondaries[i]->port);
+			usleep(250 * 1000);  /* 250ms */
+			i = -1;
+		}
+	}
 	if (s->type == ORIGIN)
 		queue_destroy(s->queue);
 	free((char *)s->ip);

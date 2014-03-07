@@ -347,6 +347,10 @@ router_readconfig(const char *path)
 					malloc(sizeof(server *) * cl->members.anyof->count);
 				for (w = cl->members.anyof->list; w != NULL; w = w->next)
 					cl->members.anyof->servers[i++] = w->server;
+				for (w = cl->members.anyof->list; w != NULL; w = w->next)
+					server_add_secondaries(w->server,
+							cl->members.anyof->servers,
+							cl->members.anyof->count);
 			}
 			cl->name = strdup(name);
 			cl->next = NULL;
