@@ -52,8 +52,15 @@ exit_handler(int sig)
 			signal = "SIGQUIT";
 			break;
 	}
-	fprintf(stdout, "caught %s, terminating...\n", signal);
-	fflush(stdout);
+	if (keep_running) {
+		fprintf(stdout, "caught %s, terminating...\n", signal);
+		fflush(stdout);
+	} else {
+		fprintf(stderr, "caught %s while already shutting down, "
+				"forcing exit...\n", signal);
+		fflush(NULL);
+		exit(1);
+	}
 	keep_running = 0;
 }
 
