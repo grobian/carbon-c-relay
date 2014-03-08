@@ -31,6 +31,7 @@ static dispatcher **dispatchers;
 static server **servers;
 static char debug = 0;
 static pthread_t collectorid;
+static char keep_running = 1;
 
 /**
  * Collects metrics from dispatchers and servers and emits them.
@@ -272,5 +273,6 @@ collector_start(dispatcher **d, server **s, enum rmode mode, server *submission)
 void
 collector_stop(void)
 {
+	keep_running = 0;
 	pthread_join(collectorid, NULL);
 }
