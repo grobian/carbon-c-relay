@@ -120,8 +120,8 @@ server_queuereader(void *d)
 				 * - the queue is filled for > 3/4th (remember, our
 				 *   queue is empty) */
 				if (self->secondaries[len]->failure | /* ensure qlen */
-						queue_free(self->secondaries[len]->queue) <
-						(qlen = queue_len(self->secondaries[len]->queue)) / 4)
+						(queue_free(self->secondaries[len]->queue) <
+						 (qlen = queue_len(self->secondaries[len]->queue)) / 4))
 				{
 					queue = self->secondaries[len]->queue;
 					break;
