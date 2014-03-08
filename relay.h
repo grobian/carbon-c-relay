@@ -22,7 +22,6 @@
 
 enum rmode { NORMAL, DEBUG, SUBMISSION, TEST };
 
-extern int keep_running;
 extern char relay_hostname[];
 
 char *fmtnow(char nowbuf[24]);
