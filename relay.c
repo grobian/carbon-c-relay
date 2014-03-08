@@ -305,7 +305,8 @@ main(int argc, char * const argv[])
 
 	fprintf(stdout, "[%s] shutting down...\n", fmtnow(nowbuf));
 	fflush(stdout);
-	close(sock); /* make sure we don't accept anything more */
+	/* make sure we don't accept anything new anymore */
+	dispatch_removelistener(sock);
 	/* since workers will be freed, stop querying the structures */
 	collector_stop();
 	if (numaggregators > 0)
