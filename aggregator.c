@@ -30,6 +30,7 @@
 static pthread_t aggregatorid;
 static aggregator *aggregators = NULL;
 static aggregator *lastaggr = NULL;
+static char keep_running = 1;
 
 
 /**
@@ -275,6 +276,7 @@ aggregator_start(server *submission)
 void
 aggregator_stop(void)
 {
+	keep_running = 0;
 	pthread_join(aggregatorid, NULL);
 }
 
