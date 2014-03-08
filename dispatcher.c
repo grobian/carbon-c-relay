@@ -57,6 +57,7 @@ typedef struct _dispatcher {
 	size_t metrics;
 	size_t ticks;
 	enum { RUNNING, SLEEPING } state;
+	char keep_running:1;
 } dispatcher;
 
 static connection *listeners[32];       /* hopefully enough */
@@ -351,7 +352,7 @@ dispatch_runner(void *arg)
 		fd_set fds;
 		int maxfd = -1;
 		struct timeval tv;
-		while (keep_running) {
+		while (self->keep_running) {
 			FD_ZERO(&fds);
 			tv.tv_sec = 0;
 			tv.tv_usec = 250 * 1000;  /* 250 ms */
@@ -408,7 +409,7 @@ dispatch_runner(void *arg)
 			}
 		}
 	} else if (self->type == CONNECTION) {
-		while (keep_running) {
+		while (self->keep_running) {
 			work = 0;
 			for (c = 0; c < sizeof(connections) / sizeof(connection *); c++) {
 				conn = connections[c];
@@ -446,6 +447,7 @@ dispatch_new(char id, enum conntype type)
 
 	ret->id = id;
 	ret->type = type;
+	ret->keep_running = 1;
 	if (pthread_create(&ret->tid, NULL, dispatch_runner, ret) != 0) {
 		free(ret);
 		return NULL;
@@ -484,6 +486,7 @@ dispatch_new_connection(void)
 void
 dispatch_shutdown(dispatcher *d)
 {
+	d->keep_running = 0;
 	pthread_join(d->tid, NULL);
 	free(d);
 }
