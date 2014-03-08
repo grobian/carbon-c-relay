@@ -34,7 +34,8 @@
 
 enum servertype {
 	ORIGIN,
-	BACKUP
+	BACKUP,
+	INTERNAL
 };
 
 typedef struct _server {
@@ -156,7 +157,17 @@ server_queuereader(void *d)
 		gettimeofday(&start, NULL);
 
 		/* try to connect */
-		if (self->fd < 0 &&
+		if (self->type == INTERNAL && self->fd < 0) {
+			int intconn[2];
+			if (pipe(intconn) < 0 && !self->failure) {
+				fprintf(stderr, "[%s] failed to create pipe: %s\n",
+						fmtnow(nowbuf), strerror(errno));
+				self->failure = 1;
+				continue;
+			}
+			dispatch_addconnection(intconn[0]);
+			self->fd = intconn[1];
+		} else if (self->type != INTERNAL && self->fd < 0 &&
 				((self->fd = socket(PF_INET, SOCK_STREAM, 0)) < 0 ||
 				 connect(self->fd, (struct sockaddr *)&(self->serv_addr),
 					 sizeof(self->serv_addr)) < 0))
@@ -270,18 +281,24 @@ server_new_intern(
 	if (ret == NULL)
 		return NULL;
 
+	ret->type = ORIGIN;
+	ret->tid = 0;
 	ret->next = NULL;
 	ret->secondaries = NULL;
 	ret->secondariescnt = 0;
 	ret->ip = strdup(ip);
 	ret->port = port;
 	ret->fd = -1;
-	ret->serv_addr.sin_family = AF_INET;
-	ret->serv_addr.sin_port = htons(port);
-	if (inet_pton(AF_INET, ip, &(ret->serv_addr.sin_addr)) <= 0) {
-		free((char *)ret->ip);
-		free(ret);
-		return NULL;
+	if (strcmp(ip, "internal") == 0) {
+		ret->type = INTERNAL;
+	} else {
+		ret->serv_addr.sin_family = AF_INET;
+		ret->serv_addr.sin_port = htons(port);
+		if (inet_pton(AF_INET, ip, &(ret->serv_addr.sin_addr)) <= 0) {
+			free((char *)ret->ip);
+			free(ret);
+			return NULL;
+		}
 	}
 	if (queue == NULL) {
 		ret->queue = queue_new(qsize);
@@ -290,7 +307,6 @@ server_new_intern(
 			free(ret);
 			return NULL;
 		}
-		ret->type = ORIGIN;
 	} else {
 		ret->queue = queue;
 		ret->type = BACKUP;
