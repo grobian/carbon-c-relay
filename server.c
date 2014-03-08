@@ -436,6 +436,10 @@ server_shutdown(server *s)
 	pthread_join(s->tid, NULL);
 	s->tid = 0;
 	/* wait for secondaries to have finished, they may need our queue */
+	for (i = 0; i < s->secondariescnt; i++)
+		s->secondaries[i]->keep_running = 0;
+	if (s->secondariescnt)
+		usleep(250 * 1000);  /* 250ms */
 	for (i = 0; i < s->secondariescnt; i++) {
 		if (s->secondaries[i]->running) {
 			fprintf(stderr, "%s:%u: waiting for %s:%u\n",
