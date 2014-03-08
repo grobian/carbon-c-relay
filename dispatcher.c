@@ -96,6 +96,31 @@ dispatch_addlistener(int sock)
 	return 0;
 }
 
+void
+dispatch_removelistener(int sock)
+{
+	int c;
+	connection *conn;
+
+	/* find connection */
+	for (c = 0; c < sizeof(listeners) / sizeof(connection *); c++)
+		if (listeners[c] != NULL && listeners[c]->sock == sock)
+			break;
+	if (c == sizeof(listeners) / sizeof(connection *)) {
+		/* not found?!? */
+		fprintf(stderr, "dispatch: cannot find listener!\n");
+		return;
+	}
+	/* make this connection no longer visible */
+	conn = listeners[c];
+	listeners[c] = NULL;
+	/* if some other thread was looking at conn, make sure it
+	 * will have moved on before freeing this object */
+	usleep(10 * 1000);  /* 10ms */
+	close(conn->sock);
+	free(conn);
+}
+
 #define DESTSZ  32
 
 /**
