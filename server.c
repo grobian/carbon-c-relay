@@ -76,7 +76,6 @@ server_queuereader(void *d)
 	server *self = (server *)d;
 	size_t qlen;
 	size_t len;
-	size_t lastmetrics;
 	ssize_t slen;
 	const char *metrics[BATCH_SIZE + 1];
 	const char **metric = metrics;
