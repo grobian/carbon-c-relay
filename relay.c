@@ -307,18 +307,31 @@ main(int argc, char * const argv[])
 	fflush(stdout);
 	/* make sure we don't accept anything new anymore */
 	dispatch_removelistener(sock);
+	fprintf(stdout, "[%s] listener for port %u closed\n",
+			fmtnow(nowbuf), listenport);
+	fflush(stdout);
 	/* since workers will be freed, stop querying the structures */
 	collector_stop();
-	if (numaggregators > 0)
+	fprintf(stdout, "[%s] collector stopped\n", fmtnow(nowbuf));
+	fflush(stdout);
+	if (numaggregators > 0) {
 		aggregator_stop();
+		fprintf(stdout, "[%s] aggregator stopped\n", fmtnow(nowbuf));
+		fflush(stdout);
+	}
 	server_shutdown(internal_submission);
 	/* give a little time for whatever the collector/aggregator wrote,
 	 * to be delivered by the dispatchers */
 	usleep(500 * 1000);  /* 500ms */
 	/* make sure we don't write to our servers any more */
-	for (id = 0; id < 1 + workercnt; id++)
+	fprintf(stdout, "[%s] stopped worker", fmtnow(nowbuf));
+	fflush(stdout);
+	for (id = 0; id < 1 + workercnt; id++) {
 		dispatch_shutdown(workers[id + 0]);
-	fprintf(stdout, "[%s] %d workers stopped\n", fmtnow(nowbuf), workercnt);
+		fprintf(stdout, " %d", id + 1);
+		fflush(stdout);
+	}
+	fprintf(stdout, " (%s)\n", fmtnow(nowbuf));
 	fflush(stdout);
 	router_shutdown();  /* stops internal_submission */
 	fprintf(stdout, "[%s] routing stopped\n", fmtnow(nowbuf));
