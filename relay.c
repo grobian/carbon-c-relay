@@ -278,7 +278,7 @@ main(int argc, char * const argv[])
 
 	/* server used for delivering metrics produced inside the relay,
 	 * that is collector (statistics) and aggregator (aggregations) */
-	if ((internal_submission = server_new_qsize("127.0.0.1", listenport,
+	if ((internal_submission = server_new_qsize("internal", listenport,
 					3000 + (numcomputes * 3))) == NULL)
 	{
 		fprintf(stderr, "failed to create internal submission queue, shutting down\n");
@@ -310,6 +310,10 @@ main(int argc, char * const argv[])
 	collector_stop();
 	if (numaggregators > 0)
 		aggregator_stop();
+	server_shutdown(internal_submission);
+	/* give a little time for whatever the collector/aggregator wrote,
+	 * to be delivered by the dispatchers */
+	usleep(500 * 1000);  /* 500ms */
 	/* make sure we don't write to our servers any more */
 	for (id = 0; id < 1 + workercnt; id++)
 		dispatch_shutdown(workers[id + 0]);
