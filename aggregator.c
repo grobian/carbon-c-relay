@@ -119,8 +119,9 @@ aggregator_putmetric(
 
 	slot = epoch / s->interval;
 	if (slot >= s->bucketcnt) {
-		fprintf(stderr, "aggregator: dropping metric too far in the future: %s",
-				metric);
+		fprintf(stderr, "aggregator: dropping metric too far in the "
+				"future (%lld > %lld): %s", epoch + s->buckets[0]->start,
+				s->buckets[s->bucketcnt - 1]->start, metric);
 		s->dropped++;
 		return;
 	}
