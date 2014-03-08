@@ -79,6 +79,7 @@ typedef struct _route {
 
 static route *routes = NULL;
 static cluster *clusters = NULL;
+static char keep_running = 1;
 
 /**
  * Populates the routing tables by reading the config file.
@@ -1041,7 +1042,7 @@ router_route_intern(
 			return 1;  /* bail out: out of memory */ \
 		}
 
-	for (w = r; w != NULL && keep_running != 0; w = w->next) {
+	for (w = r; w != NULL && keep_running; w = w->next) {
 		if (w->dest->type == GROUP) {
 			/* strrstr doesn't exist, grrr
 			 * therefore the pattern in the group is stored in reverse,
@@ -1215,6 +1216,7 @@ router_shutdown(void)
 	server **s = server_get_servers();
 	server **w;
 
+	keep_running = 0;
 	for (w = s; *w != NULL; w++)
 		server_shutdown(*w);
 
