@@ -428,9 +428,13 @@ void
 server_shutdown(server *s)
 {
 	int i;
+	
+	if (s->tid == 0)
+		return;
 
 	s->keep_running = 0;
 	pthread_join(s->tid, NULL);
+	s->tid = 0;
 	/* wait for secondaries to have finished, they may need our queue */
 	for (i = 0; i < s->secondariescnt; i++) {
 		if (s->secondaries[i]->running) {
@@ -444,7 +448,7 @@ server_shutdown(server *s)
 	if (s->type == ORIGIN)
 		queue_destroy(s->queue);
 	free((char *)s->ip);
-	free(s);
+	s->ip = NULL;
 }
 
 /**
