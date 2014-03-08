@@ -49,6 +49,7 @@ typedef struct _server {
 	size_t secondariescnt;
 	char failure:1;
 	char running:1;
+	char keep_running:1;
 	size_t metrics;
 	size_t dropped;
 	size_t ticks;
@@ -93,7 +94,7 @@ server_queuereader(void *d)
 	self->running = 1;
 	while (1) {
 		if (self->failure) {
-			if (!keep_running) {
+			if (!self->keep_running) {
 				qlen = self->type == ORIGIN ? queue_len(self->queue) : 0;
 				if (qlen > 0)
 					fprintf(stderr, "dropping %zd metrics for %s:%u\n",
@@ -134,7 +135,7 @@ server_queuereader(void *d)
 					close(self->fd);
 					self->fd = -1;
 				}
-				if (!keep_running)
+				if (!self->keep_running)
 					break;
 				usleep(250 * 1000);  /* 250ms */
 				/* it makes no sense to try and do something, so skip */
@@ -145,7 +146,7 @@ server_queuereader(void *d)
 		/* at this point we've got work to do, if we're instructed to
 		 * shut down, however, try to get everything out of the door
 		 * (until we fail, see top of this loop) */
-		if (!keep_running) {
+		if (!self->keep_running) {
 			/* be noisy during shutdown so we can track any slowing down
 			 * servers, possibly preventing us to shut down */
 			fprintf(stderr, "shutting down %s:%u: waiting for %zd metrics\n",
@@ -297,6 +298,7 @@ server_new_intern(
 
 	ret->failure = 0;
 	ret->running = 0;
+	ret->keep_running = 1;
 	ret->metrics = 0;
 	ret->dropped = 0;
 	ret->ticks = 0;
@@ -405,13 +407,13 @@ server_get_servers(void)
 
 /**
  * Waits for this server to finish sending pending items from its queue.
- * This function assumes keep_running is set to 0, otherwise this
- * function will block indefenitely.
  */
 void
 server_shutdown(server *s)
 {
 	int i;
+
+	s->keep_running = 0;
 	pthread_join(s->tid, NULL);
 	/* wait for secondaries to have finished, they may need our queue */
 	for (i = 0; i < s->secondariescnt; i++) {
