@@ -162,11 +162,14 @@ aggregator_expire(void *sub)
 	server *submission = (server *)sub;
 	char metric[8096];
 
-	while (keep_running) {
+	while (1) {
 		work = 0;
 
 		for (s = aggregators; s != NULL; s = s->next) {
-			now = time(NULL);
+			/* send metrics for buckets that are completely past the
+			 * expiry time, unless we are shutting down, then send
+			 * metrics for all buckets that have completed */
+			now = time(NULL) + (keep_running ? 0 : s->expire);
 			while (s->buckets[0]->start + s->interval < now - s->expire) {
 				/* yay, let's produce something cool */
 				b = s->buckets[0];
@@ -217,8 +220,12 @@ aggregator_expire(void *sub)
 			}
 		}
 
-		if (work == 0)  /* nothing done, avoid spinlocking */
+		if (work == 0) {
+			if (!keep_running)
+				break;
+			/* nothing done, avoid spinlocking */
 			usleep(250 * 1000);  /* 250ms */
+		}
 	}
 
 	return NULL;
