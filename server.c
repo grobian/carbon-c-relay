@@ -94,13 +94,8 @@ server_queuereader(void *d)
 	self->running = 1;
 	while (1) {
 		if (self->failure) {
-			if (!self->keep_running) {
-				qlen = self->type == ORIGIN ? queue_len(self->queue) : 0;
-				if (qlen > 0)
-					fprintf(stderr, "dropping %zd metrics for %s:%u\n",
-							qlen, self->ip, self->port);
+			if (!self->keep_running)
 				break;
-			}
 			/* if there was a failure last round, wait a bit for the server
 			 * to recover */
 			usleep(250 * 1000);  /* 250ms */
@@ -448,8 +443,13 @@ server_shutdown(server *s)
 			i = -1;
 		}
 	}
-	if (s->type == ORIGIN)
+	if (s->type == ORIGIN) {
+		size_t qlen = queue_len(s->queue);
 		queue_destroy(s->queue);
+		if (qlen > 0)
+			fprintf(stderr, "dropping %zd metrics for %s:%u\n",
+					qlen, s->ip, s->port);
+	}
 	free((char *)s->ip);
 	s->ip = NULL;
 }
