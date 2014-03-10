@@ -19,6 +19,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
+#include <fcntl.h>
 #include <pthread.h>
 #include <errno.h>
 #include <sys/time.h>
@@ -89,7 +90,6 @@ server_queuereader(void *d)
 	self->ticks = 0;
 
 	timeout.tv_sec = 0;
-	timeout.tv_usec = 650 * 1000;  /* less than 1s (dispatcher stall timeout) */
 
 	self->running = 1;
 	while (1) {
@@ -151,54 +151,113 @@ server_queuereader(void *d)
 		gettimeofday(&start, NULL);
 
 		/* try to connect */
-		if (self->type == INTERNAL && self->fd < 0) {
-			int intconn[2];
-			if (pipe(intconn) < 0 && !self->failure) {
-				fprintf(stderr, "[%s] failed to create pipe: %s\n",
-						fmtnow(nowbuf), strerror(errno));
-				self->failure = 1;
-				continue;
-			}
-			dispatch_addconnection(intconn[0]);
-			self->fd = intconn[1];
-		} else if (self->type != INTERNAL && self->fd < 0 &&
-				((self->fd = socket(PF_INET, SOCK_STREAM, 0)) < 0 ||
-				 connect(self->fd, (struct sockaddr *)&(self->serv_addr),
-					 sizeof(self->serv_addr)) < 0))
-		{
-			if (!self->failure) {  /* avoid endless repetition of errors */
-				fprintf(stderr, "[%s] failed to connect() to %s:%u: %s\n",
-						fmtnow(nowbuf), self->ip, self->port, strerror(errno));
-				if (errno == EISCONN || errno == EMFILE) {
-					struct rlimit ofiles;
-					/* rlimit can be changed for the running process (at
-					 * least on Linux 2.6+) so refetch this value every
-					 * time, should only occur on errors anyway */
-					if (getrlimit(RLIMIT_NOFILE, &ofiles) < 0)
-						ofiles.rlim_max = 0;
-					if (ofiles.rlim_max != RLIM_INFINITY &&
-							ofiles.rlim_max > 0)
-						fprintf(stderr, "process configured maximum "
-								"connections = %d, "
-								"current connections: %zd, "
-								"raise max open files/max descriptor limit\n",
-								(int)ofiles.rlim_max,
-								dispatch_get_connections());
+		if (self->fd < 0) {
+			if (self->type == INTERNAL) {
+				int intconn[2];
+				if (pipe(intconn) < 0) {
+					if (!self->failure)
+						fprintf(stderr, "[%s] failed to create pipe: %s\n",
+								fmtnow(nowbuf), strerror(errno));
+					self->failure = 1;
+					continue;
 				}
-			}
-			if (self->fd >= 0)
-				close(self->fd);
-			self->fd = -1;
-			self->failure = 1;
-			continue;
-		}
+				dispatch_addconnection(intconn[0]);
+				self->fd = intconn[1];
+			} else {
+				int ret;
+				int args;
 
-		/* ensure we will break out of connections being stuck */
-		setsockopt(self->fd, SOL_SOCKET, SO_SNDTIMEO,
-				&timeout, sizeof(timeout));
+				if ((self->fd = socket(PF_INET, SOCK_STREAM, 0)) < 0) {
+					if (!self->failure)
+						fprintf(stderr, "[%s] failed to create a socket(): %s\n",
+								fmtnow(nowbuf), strerror(errno));
+					self->failure = 1;
+					continue;
+				}
+
+				/* put socket in non-blocking mode such that we can
+				 * select() (time-out) on the connect() call */
+				args = fcntl(self->fd, F_GETFL, NULL);
+				fcntl(self->fd, F_SETFL, args | O_NONBLOCK);
+				ret = connect(self->fd, (struct sockaddr *)&(self->serv_addr),
+					 sizeof(self->serv_addr));
+
+				if (ret < 0 && errno == EINPROGRESS) {
+					/* wait for connection to succeed if the OS thinks
+					 * it can succeed */
+					fd_set fds;
+					FD_ZERO(&fds);
+					FD_SET(self->fd, &fds);
+					timeout.tv_usec = 650 * 1000;
+					ret = select(self->fd + 1, NULL, &fds, NULL, &timeout);
+					if (ret == 0) {
+						/* time limit expired */
+						if (!self->failure)
+							fprintf(stderr, "[%s] failed to connect() to "
+									"%s:%u: Operation timed out\n",
+									fmtnow(nowbuf), self->ip, self->port);
+						close(self->fd);
+						self->fd = -1;
+						self->failure = 1;
+						continue;
+					} else if (ret < 0) {
+						/* some error occurred */
+						if (!self->failure)
+							fprintf(stderr, "[%s] failed to connect() to "
+									"%s:%u: %s\n",
+									fmtnow(nowbuf), self->ip, self->port,
+									strerror(errno));
+						close(self->fd);
+						self->fd = -1;
+						self->failure = 1;
+						continue;
+					} else {
+						int serr;
+						socklen_t serrlen = sizeof(serr);
+						if (getsockopt(self->fd, SOL_SOCKET, SO_ERROR,
+									(void *)(&serr), &serrlen) < 0)
+							serr = errno;
+						if (serr != 0) {
+							if (!self->failure)
+								fprintf(stderr, "[%s] failed to connect() to "
+										"%s:%u: %s\n",
+										fmtnow(nowbuf), self->ip, self->port,
+										strerror(serr));
+							close(self->fd);
+							self->fd = -1;
+							self->failure = 1;
+							continue;
+						}
+					}
+				}
+
+				if (ret < 0) {
+					if (!self->failure) {
+						fprintf(stderr, "[%s] failed to connect() to "
+								"%s:%u: %s\n",
+								fmtnow(nowbuf), self->ip, self->port,
+								strerror(errno));
+						dispatch_check_rlimit_and_warn();
+					}
+					if (self->fd >= 0)
+						close(self->fd);
+					self->fd = -1;
+					self->failure = 1;
+					continue;
+				}
+
+				/* make socket blocking again */
+				fcntl(self->fd, F_SETFL, args);
+			}
+
+			/* ensure we will break out of connections being stuck */
+			timeout.tv_usec = 650 * 1000;
+			setsockopt(self->fd, SOL_SOCKET, SO_SNDTIMEO,
+					&timeout, sizeof(timeout));
 #ifdef SO_NOSIGPIPE
-		setsockopt(self->fd, SOL_SOCKET, SO_NOSIGPIPE, NULL, 0);
+			setsockopt(self->fd, SOL_SOCKET, SO_NOSIGPIPE, NULL, 0);
 #endif
+		}
 
 		/* send up to BATCH_SIZE */
 		len = queue_dequeue_vector(metrics, queue, BATCH_SIZE);

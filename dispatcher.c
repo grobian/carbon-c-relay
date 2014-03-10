@@ -66,6 +66,30 @@ static connection *connections[32768];  /* 32K conns, enough? */
 size_t dispatch_get_connections(void);
 
 /**
+ * Helper function to try and be helpful to the user.  If errno
+ * indicates no new fds could be made, checks what the current max open
+ * files limit is, and if it's close to what we have in use now, write
+ * an informative message to stderr.
+ */
+void
+dispatch_check_rlimit_and_warn(void)
+{
+	if (errno == EISCONN || errno == EMFILE) {
+		struct rlimit ofiles;
+		/* rlimit can be changed for the running process (at least on
+		 * Linux 2.6+) so refetch this value every time, should only
+		 * occur on errors anyway */
+		if (getrlimit(RLIMIT_NOFILE, &ofiles) < 0)
+			ofiles.rlim_max = 0;
+		if (ofiles.rlim_max != RLIM_INFINITY && ofiles.rlim_max > 0)
+			fprintf(stderr, "process configured maximum connections = %d, "
+					"current connections: %zd, consider raising max "
+					"open files/max descriptor limit\n",
+					(int)ofiles.rlim_max, dispatch_get_connections());
+	}
+}
+
+/**
  * Adds an (initial) listener socket to the chain of connections.
  * Listener sockets are those which need to be accept()-ed on.
  */
@@ -380,24 +404,7 @@ dispatch_runner(void *arg)
 							fprintf(stderr, "[%s] dispatch: failed to "
 									"accept() new connection: %s\n",
 									fmtnow(nowbuf), strerror(errno));
-							if (errno == EMFILE) {
-								struct rlimit ofiles;
-								/* rlimit can be changed for the running
-								 * process (at least on Linux 2.6+) so
-								 * refetch this value every time, should
-								 * only occur on errors anyway */
-								if (getrlimit(RLIMIT_NOFILE, &ofiles) < 0)
-									ofiles.rlim_max = 0;
-								if (ofiles.rlim_max != RLIM_INFINITY &&
-										ofiles.rlim_max > 0)
-									fprintf(stderr, "process configured "
-											"maximum connections = %d, "
-											"current connections: %zd, "
-											"raise max open files/max "
-											"descriptor limit\n",
-											(int)ofiles.rlim_max,
-											dispatch_get_connections());
-							}
+							dispatch_check_rlimit_and_warn();
 							continue;
 						}
 						if (dispatch_addconnection(client) != 0) {
