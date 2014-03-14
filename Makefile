@@ -30,7 +30,7 @@ override LIBS += `pkg-config openssl --libs` $(SOCKET_LIBS) -pthread
 
 OBJS = \
 	relay.o \
-	carbon-hash.o \
+	consistent-hash.o \
 	receptor.o \
 	dispatcher.o \
 	router.o \

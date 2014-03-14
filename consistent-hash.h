@@ -15,21 +15,22 @@
  *  along with carbon-c-relay.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef CARBON_HASH_H
-#define CARBON_HASH_H 1
+#ifndef CONSISTENT_HASH_H
+#define CONSISTENT_HASH_H 1
 
 #include "server.h"
 
-typedef struct _ring_entry {
-	unsigned short pos;
-	server *server;
-	struct _ring_entry *next;
-} carbon_ring;
+#ifndef CH_RING
+#define CH_RING void
+#endif
+typedef CH_RING ch_ring;
+typedef enum { CARBON, FNV1a } ch_type;
 
-carbon_ring *carbon_addnode( carbon_ring *ring, server *s);
-void carbon_get_nodes(
+ch_ring *ch_new(ch_type type);
+ch_ring *ch_addnode(ch_ring *ring, server *s);
+void ch_get_nodes(
 		server *ret[],
-		carbon_ring *ring,
+		ch_ring *ring,
 		const char replcnt,
 		const char *metric);
 

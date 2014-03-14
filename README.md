@@ -18,7 +18,8 @@ are [carbon-relay-ng](https://github.com/rcrowley/carbon-relay-ng) and [graphite
 Compared to carbon-relay-ng, this project does provide carbon's
 consistent-hash routing.  graphite-relay, which does this, however
 doesn't do metric-based matches to direct the traffic, which this
-project does as well.
+project does as well.  To date, carbon-c-relay can do aggregations,
+failover targets and more.
 
 The relay is a simple program that reads its routing information from a
 file.  The command line arguments allow to set the location for this
@@ -27,13 +28,14 @@ reading the data from incoming connections and passing them onto the
 right destination(s).  The route file supports two main constructs:
 clusters and matches.  The first define groups of hosts data metrics can
 be sent to, the latter define which metrics should be sent to which
-cluster.  The syntax in this file is as follows:
+cluster.  Aggregation rules are seen as matches.  The syntax in this
+file is as follows:
 
 ```
 # comments are allowed in any place and start with a hash (#)
 
 cluster <name>
-    <forward | any_of | carbon_ch [replication <count>]>
+    <forward | any_of | <carbon_ch | fnv1a_ch> [replication <count>]>
         <ip[:port]> ...
     ;
 match <* | <expression>>
@@ -60,9 +62,14 @@ each metric, this means that when one of the members is unreachable, the
 other members will receive all of the metrics.  This can be useful when
 the cluster points to other relays.  The `any_of` router tries to send
 the same metrics to the same destination.  The `carbon_ch` cluster sends
-it to the member that is responsible according to the consistent hash
-algorithm (as used in the original carbon), or multiple members if
-replication is set to more than 1.
+the metrics to the member that is responsible according to the
+consistent hash algorithm (as used in the original carbon), or multiple
+members if replication is set to more than 1.  The `fnv1a_ch` cluster is
+a identical in behaviour to `carbon_ch`, but it uses a different hash
+technique (FNV1a) which is faster but more importantly defined to get by
+a limitation of `carbon_ch` to use both host and port from the members.
+This is useful when multiple targets live on the same IP just separated
+by port.
 
 Match rules are the way to direct incoming metrics to one or more
 clusters.  Match rules are processed top to bottom as they are defined

@@ -25,7 +25,7 @@
 #include <errno.h>
 
 #include "relay.h"
-#include "carbon-hash.h"
+#include "consistent-hash.h"
 #include "server.h"
 #include "router.h"
 #include "receptor.h"

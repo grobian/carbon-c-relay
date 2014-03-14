@@ -23,7 +23,7 @@
 #include <sys/stat.h>
 #include <errno.h>
 
-#include "carbon-hash.h"
+#include "consistent-hash.h"
 #include "server.h"
 #include "queue.h"
 #include "aggregator.h"
@@ -34,6 +34,7 @@ enum clusttype {
 	GROUP,      /* pseudo type to create a matching tree */
 	FORWARD,
 	CARBON_CH,  /* room for a better/different hash definition */
+	FNV1A_CH,   /* FNV1a-based consistent-hash */
 	ANYOF,
 	AGGREGATION
 };
@@ -45,9 +46,9 @@ typedef struct _servers {
 
 typedef struct {
 	unsigned char repl_factor;
-	carbon_ring *ring;
+	ch_ring *ring;
 	servers *servers;
-} carbon_chring;
+} chashring;
 
 typedef struct {
 	size_t count;
@@ -59,7 +60,7 @@ typedef struct _cluster {
 	char *name;
 	enum clusttype type;
 	union {
-		carbon_chring *carbon_ch;
+		chashring *ch;
 		servers *forward;
 		serverlist *anyof;
 		aggregator *aggregation;
@@ -176,9 +177,13 @@ router_readconfig(const char *path)
 			*p++ = '\0';
 			for (; *p != '\0' && isspace(*p); p++)
 				;
-			if (strncmp(p, "carbon_ch", 9) == 0 && isspace(*(p + 9))) {
+			if ((strncmp(p, "carbon_ch", 9) == 0 && isspace(*(p + 9))) ||
+					(strncmp(p, "fnv1a_ch", 8) == 0 && isspace(*(p + 8))))
+			{
 				int replcnt = 1;
-				p += 10;
+				enum clusttype chtype = *p == 'c' ? CARBON_CH : FNV1A_CH;
+
+				p += chtype == CARBON_CH ? 10 : 9;
 				for (; *p != '\0' && isspace(*p); p++)
 					;
 				if (strncmp(p, "replication", 11) == 0 && isspace(*(p + 11))) {
@@ -203,14 +208,15 @@ router_readconfig(const char *path)
 				}
 
 				if ((cl = cl->next = malloc(sizeof(cluster))) == NULL) {
-					fprintf(stderr, "malloc failed in cluster carbon_ch\n");
+					fprintf(stderr, "malloc failed in cluster %s\n", name);
 					free(buf);
 					return 0;
 				}
-				cl->type = CARBON_CH;
-				cl->members.carbon_ch = malloc(sizeof(carbon_chring));
-				cl->members.carbon_ch->repl_factor = (unsigned char)replcnt;
-				cl->members.carbon_ch->ring = NULL;
+				cl->type = chtype;
+				cl->members.ch = malloc(sizeof(chashring));
+				cl->members.ch->repl_factor = (unsigned char)replcnt;
+				cl->members.ch->ring =
+					ch_new(chtype == CARBON_CH ? CARBON : FNV1a);
 			} else if (strncmp(p, "forward", 7) == 0 && isspace(*(p + 7))) {
 				p += 8;
 
@@ -269,9 +275,9 @@ router_readconfig(const char *path)
 					*p++ = '\0';
 				}
 
-				if (cl->type == CARBON_CH) {
+				if (cl->type == CARBON_CH || cl->type == FNV1A_CH) {
 					if (w == NULL) {
-						cl->members.carbon_ch->servers = w =
+						cl->members.ch->servers = w =
 							malloc(sizeof(servers));
 					} else {
 						w = w->next = malloc(sizeof(servers));
@@ -286,19 +292,20 @@ router_readconfig(const char *path)
 					w->server = server_new(ipbuf, (unsigned short)port);
 					if (w->server == NULL) {
 						fprintf(stderr, "failed to add server %s:%d "
-								"to carbon_ch: %s\n", ipbuf, port,
-								strerror(errno));
+								"to cluster %s: %s\n", ipbuf, port,
+								name, strerror(errno));
 						free(w);
 						free(cl);
 						free(buf);
 						return 0;
 					}
-					cl->members.carbon_ch->ring = carbon_addnode(
-							cl->members.carbon_ch->ring,
+					cl->members.ch->ring = ch_addnode(
+							cl->members.ch->ring,
 							w->server);
-					if (cl->members.carbon_ch->ring == NULL) {
+					if (cl->members.ch->ring == NULL) {
 						fprintf(stderr, "failed to add server %s:%d "
-								"to ring: out of memory\n", ipbuf, port);
+								"to ring for cluster %s: out of memory\n",
+								ipbuf, port, name);
 						free(cl);
 						free(buf);
 						return 0;
@@ -581,7 +588,8 @@ router_readconfig(const char *path)
 				return 0;
 			}
 			*p++ = '\0';
-			w->members.aggregation = aggregator_new(atoi(interval), atoi(expire));
+			w->members.aggregation =
+				aggregator_new(atoi(interval), atoi(expire));
 			for (; *p != '\0' && isspace(*p); p++)
 				;
 			if (strncmp(p, "seconds", 7) != 0 || !isspace(*(p + 7))) {
@@ -611,7 +619,8 @@ router_readconfig(const char *path)
 				*p++ = '\0';
 
 				if (ac == NULL) {
-					ac = w->members.aggregation->computes = malloc(sizeof(struct _aggr_computes));
+					ac = w->members.aggregation->computes =
+						malloc(sizeof(struct _aggr_computes));
 				} else {
 					ac = ac->next = malloc(sizeof(struct _aggr_computes));
 				}
@@ -961,10 +970,11 @@ router_printconfig(FILE *f, char all)
 			for (s = c->members.anyof->list; s != NULL; s = s->next)
 				fprintf(f, "        %s:%d\n",
 						server_ip(s->server), server_port(s->server));
-		} else if (c->type == CARBON_CH) {
-			fprintf(f, "    carbon_ch replication %d\n",
-					c->members.carbon_ch->repl_factor);
-			for (s = c->members.carbon_ch->servers; s != NULL; s = s->next)
+		} else if (c->type == CARBON_CH || c->type == FNV1A_CH) {
+			fprintf(f, "    %s_ch replication %d\n",
+					c->type == CARBON_CH ? "carbon" : "fnv1a",
+					c->members.ch->repl_factor);
+			for (s = c->members.ch->servers; s != NULL; s = s->next)
 				fprintf(f, "        %s:%d\n",
 						server_ip(s->server), server_port(s->server));
 		}
@@ -1008,7 +1018,8 @@ router_printconfig(FILE *f, char all)
 			*b-- ='\0';
 			for (p = r->dest->name; *p != '\0' && b > blockname; p++)
 				*b-- = *p;
-			fprintf(f, "# group %s: contains %zd aggregations/matches\n",
+			fprintf(f, "# common pattern group '%s' "
+					"contains %zd aggregations/matches\n",
 					++b, cnt);
 		} else {
 			fprintf(f, "match %s\n    send to %s%s\n    ;\n",
@@ -1099,16 +1110,17 @@ router_route_intern(
 					extendif(*ret, *retlen, *curlen + 1);
 					ret[(*curlen)++] = w->dest->members.anyof->servers[(hash + c) % w->dest->members.anyof->count];
 				}	break;
-				case CARBON_CH: {
+				case CARBON_CH:
+				case FNV1A_CH: {
 					/* let the ring(bearer) decide */
 					extendif(*ret, *retlen, *curlen +
-							w->dest->members.carbon_ch->repl_factor);
-					carbon_get_nodes(
+							w->dest->members.ch->repl_factor);
+					ch_get_nodes(
 							ret + *curlen,
-							w->dest->members.carbon_ch->ring,
-							w->dest->members.carbon_ch->repl_factor,
+							w->dest->members.ch->ring,
+							w->dest->members.ch->repl_factor,
 							metric_path);
-					*curlen += w->dest->members.carbon_ch->repl_factor;
+					*curlen += w->dest->members.ch->repl_factor;
 				}	break;
 				case AGGREGATION: {
 					/* aggregation rule */
