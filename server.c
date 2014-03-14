@@ -122,7 +122,7 @@ server_queuereader(void *d)
 					break;
 				}
 			}
-			if (qlen == 0) {
+			if (qlen == 0 || queue == NULL) {
 				/* if we're idling, close the connection, this allows us
 				 * to reduce connections, while keeping the connection alive
 				 * if we're writing a lot */
