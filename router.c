@@ -1101,15 +1101,22 @@ router_route_intern(
 					unsigned short c;
 					unsigned short i;
 					const char *p;
+					server **s;
 					for (p = metric_path; *p != '\0'; p++)
 						hash = (hash ^ (unsigned int)*p) * 16777619;
 					c = w->dest->members.anyof->count;
-					hash %= c;
-					for (++c; c > 0; c--)
-						if (!server_failed(w->dest->members.anyof->servers[(hash + c) % w->dest->members.anyof->count]))
+					s = w->dest->members.anyof->servers;
+					/* we could use the retry approach here, but since
+					 * our c is very small compared to MAX_INT, the bias
+					 * we introduce for the last few of the range
+					 * (MAX_INT % c) can be considered neglicible given
+					 * the number of occurances of c in the range of
+					 * MAX_INT, therefore we stick with a simple mod */
+					for (i = 0; i < c; i++)
+						if (!server_failed(s[(hash + i) % c]))
 							break;
 					extendif(*ret, *retlen, *curlen + 1);
-					ret[(*curlen)++] = w->dest->members.anyof->servers[(hash + c) % w->dest->members.anyof->count];
+					ret[(*curlen)++] = s[(hash + i) % c];
 				}	break;
 				case CARBON_CH:
 				case FNV1A_CH: {
