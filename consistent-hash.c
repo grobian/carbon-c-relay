@@ -67,13 +67,12 @@ carbon_hashpos(const char *key)
 static unsigned short
 fnv1a_hashpos(const char *key)
 {
-	// TODO: lookup short start hash value and multiplication value */
-	size_t hash = 2166136261UL;  /* FNV1a */
+	unsigned int hash = 2166136261UL;  /* FNV1a */
 
 	for (; *key != '\0'; key++)
-		hash = (hash ^ (size_t)*key) * 16777619;
+		hash = (hash ^ (unsigned int)*key) * 16777619;
 
-	return (unsigned short)hash;
+	return (unsigned short)((hash >> 16) ^ (hash & (unsigned int)0xFFFF));
 }
 
 /**
