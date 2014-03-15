@@ -35,7 +35,7 @@ enum clusttype {
 	FORWARD,
 	CARBON_CH,  /* room for a better/different hash definition */
 	FNV1A_CH,   /* FNV1a-based consistent-hash */
-	ANYOF,
+	ANYOF,      /* FNV1a-based hash, but with backup by others */
 	AGGREGATION
 };
 
