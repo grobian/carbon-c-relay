@@ -51,7 +51,7 @@ typedef struct {
 } chashring;
 
 typedef struct {
-	size_t count;
+	unsigned short count;
 	server **servers;
 	servers *list;
 } serverlist;
@@ -1097,11 +1097,12 @@ router_route_intern(
 					/* we try to queue the same metrics at the same
 					 * server, but if they are currently not available,
 					 * we don't hesitate to queue at the next */
-					size_t hash = 2166136261UL;  /* FNV1a */
-					size_t c;
+					unsigned int hash = 2166136261UL;  /* FNV1a */
+					unsigned short c;
+					unsigned short i;
 					const char *p;
 					for (p = metric_path; *p != '\0'; p++)
-						hash = (hash ^ (size_t)*p) * 16777619;
+						hash = (hash ^ (unsigned int)*p) * 16777619;
 					c = w->dest->members.anyof->count;
 					hash %= c;
 					for (++c; c > 0; c--)
