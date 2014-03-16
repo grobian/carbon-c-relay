@@ -1094,29 +1094,21 @@ router_route_intern(
 					}
 				}	break;
 				case ANYOF: {
-					/* we try to queue the same metrics at the same
-					 * server, but if they are currently not available,
-					 * we don't hesitate to queue at the next */
+					/* we queue the same metrics at the same server */
 					unsigned int hash = 2166136261UL;  /* FNV1a */
-					unsigned short c;
-					unsigned short i;
 					const char *p;
-					server **s;
+
 					for (p = metric_path; *p != '\0'; p++)
 						hash = (hash ^ (unsigned int)*p) * 16777619;
-					c = w->dest->members.anyof->count;
-					s = w->dest->members.anyof->servers;
-					/* we could use the retry approach here, but since
+					/* We could use the retry approach here, but since
 					 * our c is very small compared to MAX_INT, the bias
 					 * we introduce for the last few of the range
 					 * (MAX_INT % c) can be considered neglicible given
 					 * the number of occurances of c in the range of
-					 * MAX_INT, therefore we stick with a simple mod */
-					for (i = 0; i < c; i++)
-						if (!server_failed(s[(hash + i) % c]))
-							break;
+					 * MAX_INT, therefore we stick with a simple mod. */
+					hash %= w->dest->members.anyof->count;
 					extendif(*ret, *retlen, *curlen + 1);
-					ret[(*curlen)++] = s[(hash + i) % c];
+					ret[(*curlen)++] = w->dest->members.anyof->servers[hash];
 				}	break;
 				case CARBON_CH:
 				case FNV1A_CH: {
