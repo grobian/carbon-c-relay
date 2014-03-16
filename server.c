@@ -132,7 +132,8 @@ server_queuereader(void *d)
 				}
 				if (!self->keep_running)
 					break;
-				usleep(250 * 1000);  /* 250ms */
+				if (!self->failure)
+					usleep(250 * 1000);  /* 250ms */
 				/* it makes no sense to try and do something, so skip */
 				continue;
 			}
