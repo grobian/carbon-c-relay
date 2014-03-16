@@ -25,6 +25,7 @@
 #include <sys/time.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <netdb.h>
 #include <arpa/inet.h>
 #include <sys/resource.h>
 
@@ -42,7 +43,7 @@ enum servertype {
 typedef struct _server {
 	const char *ip;
 	unsigned short port;
-	struct sockaddr_in serv_addr;
+	struct addrinfo *saddr;
 	int fd;
 	queue *queue;
 	enum servertype type;
@@ -168,9 +169,12 @@ server_queuereader(void *d)
 				int ret;
 				int args;
 
-				if ((self->fd = socket(PF_INET, SOCK_STREAM, 0)) < 0) {
+				if ((self->fd = socket(self->saddr->ai_family,
+								self->saddr->ai_socktype,
+								self->saddr->ai_protocol)) < 0)
+				{
 					if (!self->failure)
-						fprintf(stderr, "[%s] failed to create a socket(): %s\n",
+						fprintf(stderr, "[%s] failed to create socket: %s\n",
 								fmtnow(nowbuf), strerror(errno));
 					self->failure = 1;
 					continue;
@@ -180,8 +184,8 @@ server_queuereader(void *d)
 				 * select() (time-out) on the connect() call */
 				args = fcntl(self->fd, F_GETFL, NULL);
 				fcntl(self->fd, F_SETFL, args | O_NONBLOCK);
-				ret = connect(self->fd, (struct sockaddr *)&(self->serv_addr),
-					 sizeof(self->serv_addr));
+				ret = connect(self->fd,
+						self->saddr->ai_addr, self->saddr->ai_addrlen);
 
 				if (ret < 0 && errno == EINPROGRESS) {
 					/* wait for connection to succeed if the OS thinks
@@ -346,9 +350,16 @@ server_new_intern(
 	if (strcmp(ip, "internal") == 0) {
 		ret->type = INTERNAL;
 	} else {
-		ret->serv_addr.sin_family = AF_INET;
-		ret->serv_addr.sin_port = htons(port);
-		if (inet_pton(AF_INET, ip, &(ret->serv_addr.sin_addr)) <= 0) {
+		struct addrinfo hint;
+		char sport[8];
+
+		memset(&hint, 0, sizeof(hint));
+
+		hint.ai_family = PF_UNSPEC;
+		hint.ai_socktype = SOCK_STREAM;
+		snprintf(sport, sizeof(sport), "%u", port);
+
+		if (getaddrinfo(ip, sport, &hint, &(ret->saddr)) != 0) {
 			free((char *)ret->ip);
 			free(ret);
 			return NULL;

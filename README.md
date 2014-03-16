@@ -36,7 +36,7 @@ file is as follows:
 
 cluster <name>
     <forward | any_of | <carbon_ch | fnv1a_ch> [replication <count>]>
-        <ip[:port]> ...
+        <host[:port]> ...
     ;
 match <* | <expression>>
     send to <cluster | blackhole>
@@ -54,7 +54,7 @@ aggregate
 
 Multiple clusters can be defined, and need not to be referenced by a
 match rule.  A `forward` cluster simply sends everything it receives to
-all defined members (ip addresses).  The `any_of` cluster is a small
+all defined members (host addresses).  The `any_of` cluster is a small
 variant of the `forward` cluster, but instead of sending to all defined
 members, it sends each incoming metric to one of defined members.  This
 is not much useful in itself, but since any of the members can receive
@@ -68,7 +68,7 @@ members if replication is set to more than 1.  The `fnv1a_ch` cluster is
 a identical in behaviour to `carbon_ch`, but it uses a different hash
 technique (FNV1a) which is faster but more importantly defined to get by
 a limitation of `carbon_ch` to use both host and port from the members.
-This is useful when multiple targets live on the same IP just separated
+This is useful when multiple targets live on the same host just separated
 by port.
 
 Match rules are the way to direct incoming metrics to one or more
