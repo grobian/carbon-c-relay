@@ -1048,7 +1048,7 @@ router_route_intern(
 
 #define extendif(RET, RETLEN, WANTLEN) \
 	if (WANTLEN > RETLEN) \
-		if ((RET = realloc(RET, RETLEN + (WANTLEN - RETLEN < 24 ? 24 : (WANTLEN - RETLEN * 2)))) == NULL) { \
+		if ((RET = realloc(RET, RETLEN += (WANTLEN - RETLEN < 24 ? 24 : (WANTLEN - RETLEN * 2)))) == NULL) { \
 			fprintf(stderr, "router_route: out of memory extending list\n"); \
 			return 1;  /* bail out: out of memory */ \
 		}
