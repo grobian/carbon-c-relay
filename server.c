@@ -524,6 +524,7 @@ server_shutdown(server *s)
 			fprintf(stderr, "dropping %zd metrics for %s:%u\n",
 					qlen, s->ip, s->port);
 	}
+	freeaddrinfo(s->saddr);
 	free((char *)s->ip);
 	s->ip = NULL;
 }
