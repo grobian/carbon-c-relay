@@ -359,6 +359,8 @@ server_new_intern(
 
 		hint.ai_family = PF_UNSPEC;
 		hint.ai_socktype = SOCK_STREAM;
+		hint.ai_protocol = IPPROTO_TCP;
+		hint.ai_flags = AI_NUMERICSERV;
 		snprintf(sport, sizeof(sport), "%u", port);
 
 		if ((err = getaddrinfo(ip, sport, &hint, &(ret->saddr))) != 0) {
