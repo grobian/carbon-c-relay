@@ -349,6 +349,7 @@ server_new_intern(
 	ret->fd = -1;
 	if (strcmp(ip, "internal") == 0) {
 		ret->type = INTERNAL;
+		ret->saddr = NULL;
 	} else {
 		struct addrinfo hint;
 		char sport[8];
@@ -524,7 +525,8 @@ server_shutdown(server *s)
 			fprintf(stderr, "dropping %zd metrics for %s:%u\n",
 					qlen, s->ip, s->port);
 	}
-	freeaddrinfo(s->saddr);
+	if (s->saddr != NULL)
+		freeaddrinfo(s->saddr);
 	free((char *)s->ip);
 	s->ip = NULL;
 }
