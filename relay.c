@@ -105,7 +105,8 @@ do_usage(int exitcode)
 int
 main(int argc, char * const argv[])
 {
-	int sock;
+	int sock[] = {0, 0, 0};  /* IPv4, IPv6, UNIX */
+	int socklen = sizeof(sock) / sizeof(sock[0]);
 	char id;
 	server **servers;
 	dispatcher **workers;
@@ -245,16 +246,16 @@ main(int argc, char * const argv[])
 		return 1;
 	}
 
-	sock = bindlisten(listenport);
-	if (sock < 0) {
+	if (bindlisten(sock, &socklen, listenport) < 0) {
 		fprintf(stderr, "failed to bind on port %d: %s\n",
 				listenport, strerror(errno));
 		return -1;
 	}
-	if (dispatch_addlistener(sock) != 0) {
-		close(sock);
-		fprintf(stderr, "failed to add listener\n");
-		return -1;
+	for (ch = 0; ch < socklen; ch++) {
+		if (dispatch_addlistener(sock[ch]) != 0) {
+			fprintf(stderr, "failed to add listener\n");
+			return -1;
+		}
 	}
 	fprintf(stdout, "listening on port %u\n", listenport);
 	if ((workers[0] = dispatch_new_listener()) == NULL)
@@ -306,7 +307,9 @@ main(int argc, char * const argv[])
 	fprintf(stdout, "[%s] shutting down...\n", fmtnow(nowbuf));
 	fflush(stdout);
 	/* make sure we don't accept anything new anymore */
-	dispatch_removelistener(sock);
+	for (ch = 0; ch < socklen; ch++)
+		dispatch_removelistener(sock[ch]);
+	destroy_usock(listenport);
 	fprintf(stdout, "[%s] listener for port %u closed\n",
 			fmtnow(nowbuf), listenport);
 	fflush(stdout);

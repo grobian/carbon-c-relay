@@ -19,6 +19,7 @@
 #ifndef RECEPTOR_H
 #define RECEPTOR_H 1
 
-int bindlisten(unsigned short port);
+int bindlisten(int ret[], int *retlen, unsigned short port);
+void destroy_usock(unsigned short port);
 
 #endif
