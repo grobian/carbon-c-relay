@@ -53,8 +53,14 @@ aggregate
 ```
 
 Multiple clusters can be defined, and need not to be referenced by a
-match rule.  A `forward` cluster simply sends everything it receives to
-all defined members (host addresses).  The `any_of` cluster is a small
+match rule.   All clusters point to one or more hosts.  `host` may be an
+IPv4 or IPv6 address, or a hostname.  Since host is followed by an
+optional `:` and port, for IPv6 addresses not to be interpreted wrongly,
+either a port must be given, or the IPv6 address surrounded by brackets,
+e.g. `[::1]`.
+
+A `forward` cluster simply sends everything it receives to all defined
+members (host addresses).  The `any_of` cluster is a small
 variant of the `forward` cluster, but instead of sending to all defined
 members, it sends each incoming metric to one of defined members.  This
 is not much useful in itself, but since any of the members can receive

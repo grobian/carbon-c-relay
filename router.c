@@ -253,26 +253,45 @@ router_readconfig(const char *path)
 				;
 			w = NULL;
 			do {
-				char ipbuf[64];  /* should be enough for everyone */
-				char *ip = ipbuf;
+				char termchr;
+				char *lastcolon = NULL;
+				char *ip = p;
 				int port = 2003;
-				for (; *p != '\0' && !isspace(*p) && *p != ';'; p++) {
-					if (*p == ':') {
-						*p = '\0';
-						port = atoi(p + 1);
-					}
-					if (ip - ipbuf < sizeof(ipbuf) - 1)
-						*ip++ = *p;
-				}
-				*ip = '\0';
+
+				for (; *p != '\0' && !isspace(*p) && *p != ';'; p++)
+					if (*p == ':')
+						lastcolon = p;
+
 				if (*p == '\0') {
 					fprintf(stderr, "unexpected end of file at '%s' "
 							"for cluster %s\n", ip, name);
 					free(cl);
 					free(buf);
 					return 0;
-				} else if (*p != ';') {
-					*p++ = '\0';
+				}
+
+				termchr = *p;
+				*p = '\0';
+
+				if (*(p - 1) == ']')
+					lastcolon = NULL;
+				if (lastcolon != NULL) {
+					*lastcolon = '\0';
+					port = atoi(lastcolon + 1);
+				}
+				if (*ip == '[') {
+					ip++;
+					if (lastcolon != NULL && *(lastcolon - 1) == ']') {
+						*(lastcolon - 1) = '\0';
+					} else if (lastcolon == NULL && *(p - 1) == ']') {
+						*(p - 1) = '\0';
+					} else {
+						fprintf(stderr, "expected ']' at '%s' "
+								"for cluster %s\n", ip, name);
+						free(cl);
+						free(buf);
+						return 0;
+					}
 				}
 
 				if (cl->type == CARBON_CH || cl->type == FNV1A_CH) {
@@ -289,10 +308,10 @@ router_readconfig(const char *path)
 						return 0;
 					}
 					w->next = NULL;
-					w->server = server_new(ipbuf, (unsigned short)port);
+					w->server = server_new(ip, (unsigned short)port);
 					if (w->server == NULL) {
 						fprintf(stderr, "failed to add server %s:%d "
-								"to cluster %s: %s\n", ipbuf, port,
+								"to cluster %s: %s\n", ip, port,
 								name, strerror(errno));
 						free(w);
 						free(cl);
@@ -305,7 +324,7 @@ router_readconfig(const char *path)
 					if (cl->members.ch->ring == NULL) {
 						fprintf(stderr, "failed to add server %s:%d "
 								"to ring for cluster %s: out of memory\n",
-								ipbuf, port, name);
+								ip, port, name);
 						free(cl);
 						free(buf);
 						return 0;
@@ -324,10 +343,10 @@ router_readconfig(const char *path)
 						return 0;
 					}
 					w->next = NULL;
-					w->server = server_new(ipbuf, (unsigned short)port);
+					w->server = server_new(ip, (unsigned short)port);
 					if (w->server == NULL) {
 						fprintf(stderr, "failed to add server %s:%d "
-								"to forwarders: %s\n", ipbuf, port,
+								"to forwarders: %s\n", ip, port,
 								strerror(errno));
 						free(w);
 						free(cl);
@@ -345,6 +364,7 @@ router_readconfig(const char *path)
 					if (cl->type == ANYOF)
 						cl->members.anyof->count++;
 				}
+				*p = termchr;
 				for (; *p != '\0' && isspace(*p); p++)
 					;
 			} while (*p != ';');
