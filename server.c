@@ -352,6 +352,7 @@ server_new_intern(
 	} else {
 		struct addrinfo hint;
 		char sport[8];
+		int err;
 
 		memset(&hint, 0, sizeof(hint));
 
@@ -359,7 +360,9 @@ server_new_intern(
 		hint.ai_socktype = SOCK_STREAM;
 		snprintf(sport, sizeof(sport), "%u", port);
 
-		if (getaddrinfo(ip, sport, &hint, &(ret->saddr)) != 0) {
+		if ((err = getaddrinfo(ip, sport, &hint, &(ret->saddr))) != 0) {
+			fprintf(stderr, "%s:%s: invalid host: %s\n",
+					ip, sport, gai_strerror(err));
 			free((char *)ret->ip);
 			free(ret);
 			return NULL;
