@@ -61,7 +61,9 @@ typedef struct _dispatcher {
 } dispatcher;
 
 static connection *listeners[32];       /* hopefully enough */
-static connection *connections[32768];  /* 32K conns, enough? */
+static connection **connections = NULL;
+static size_t connectionslen = 0;
+pthread_mutex_t connectionslock = PTHREAD_MUTEX_INITIALIZER;
 
 size_t dispatch_get_connections(void);
 
@@ -169,15 +171,42 @@ dispatch_addconnection(int sock)
 	newconn->destlen = 0;
 	newconn->destsize = DESTSZ;
 	newconn->wait = 0;
-	for (c = 0; c < sizeof(connections) / sizeof(connection *); c++)
+	for (c = 0; c < connectionslen; c++)
 		if (__sync_bool_compare_and_swap(&(connections[c]), NULL, newconn))
 			break;
-	if (c == sizeof(connections) / sizeof(connection *)) {
+	if (c == connectionslen) {
 		char nowbuf[24];
-		free(newconn);
-		fprintf(stderr, "[%s] cannot add new connection: "
-				"no more free connection slots (max = %zd)\n",
-				fmtnow(nowbuf), sizeof(connections) / sizeof(connection *));
+		connection **newlst;
+
+		pthread_mutex_lock(&connectionslock);
+		if (connectionslen > c) {
+			/* another dispatcher just extended the list */
+			pthread_mutex_unlock(&connectionslock);
+			free(newconn->dests);
+			free(newconn);
+			return dispatch_addconnection(sock);
+		}
+		if (connections == NULL) {
+			newlst = malloc(sizeof(connection *) * (connectionslen + 1024));
+		} else {
+			newlst = realloc(connections,
+					sizeof(connection *) * (connectionslen + 1024));
+		}
+		if (newlst == NULL) {
+			fprintf(stderr, "[%s] cannot add new connection: "
+					"out of memory allocating more slots (max = %zd)\n",
+					fmtnow(nowbuf), connectionslen);
+			free(newconn->dests);
+			free(newconn);
+		} else {
+			memset(newlst + (sizeof(connection *) * connectionslen),
+					'\0', sizeof(connection *) * 1024);
+			connections = newlst;
+			connections[connectionslen] = newconn;
+			connectionslen += 1024;
+		}
+		pthread_mutex_unlock(&connectionslock);
+
 		return 1;
 	}
 
@@ -331,10 +360,10 @@ dispatch_connection(connection *conn, dispatcher *self)
 		int c;
 
 		/* find connection */
-		for (c = 0; c < sizeof(connections) / sizeof(connection *); c++)
+		for (c = 0; c < connectionslen; c++)
 			if (connections[c] == conn)
 				break;
-		if (c == sizeof(connections) / sizeof(connection *)) {
+		if (c == connectionslen) {
 			/* not found?!? */
 			fprintf(stderr, "PANIC: can't find my own connection!\n");
 			return 1;
@@ -418,7 +447,7 @@ dispatch_runner(void *arg)
 	} else if (self->type == CONNECTION) {
 		while (self->keep_running) {
 			work = 0;
-			for (c = 0; c < sizeof(connections) / sizeof(connection *); c++) {
+			for (c = 0; c < connectionslen; c++) {
 				conn = connections[c];
 				if (conn == NULL)
 					continue;
@@ -537,7 +566,7 @@ dispatch_get_connections(void)
 	int c;
 	size_t ret = 0;
 
-	for (c = 0; c < sizeof(connections) / sizeof(connection *); c++)
+	for (c = 0; c < connectionslen; c++)
 		if (connections[c] != NULL)
 			ret++;
 
