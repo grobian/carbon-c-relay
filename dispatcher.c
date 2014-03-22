@@ -168,6 +168,10 @@ dispatch_addconnection(int sock)
 	newconn->takenby = 0;
 	newconn->buflen = 0;
 	newconn->dests = (server **)malloc(sizeof(server *) * DESTSZ);
+	if (newconn->dests == NULL) {
+		free(newconn);
+		return 1;
+	}
 	newconn->destlen = 0;
 	newconn->destsize = DESTSZ;
 	newconn->wait = 0;
