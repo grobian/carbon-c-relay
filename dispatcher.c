@@ -322,8 +322,11 @@ dispatch_connection(connection *conn, dispatcher *self)
 				lastnl = p;
 
 				/* just a newline on it's own? some random garbage? skip */
-				if (q == conn->metric || firstspace == NULL)
+				if (q == conn->metric || firstspace == NULL) {
+					q = conn->metric;
+					firstspace = NULL;
 					continue;
+				}
 
 				*q++ = '\n';
 				*q = '\0';
