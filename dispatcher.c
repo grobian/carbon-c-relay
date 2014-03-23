@@ -43,6 +43,7 @@ typedef struct _connection {
 	char takenby;
 	char buf[8096];
 	int buflen;
+	char needmore:1;
 	char metric[8096];
 	server **dests;
 	size_t destlen;
@@ -167,6 +168,7 @@ dispatch_addconnection(int sock)
 	newconn->sock = sock;
 	newconn->takenby = 0;
 	newconn->buflen = 0;
+	newconn->needmore = 0;
 	newconn->dests = (server **)malloc(sizeof(server *) * DESTSZ);
 	if (newconn->dests == NULL) {
 		free(newconn);
@@ -271,17 +273,18 @@ dispatch_connection(connection *conn, dispatcher *self)
 	self->ticks += timediff(start, stop);
 
 	gettimeofday(&start, NULL);
-	len = 0;
+	len = -2;
 	/* try to read more data, if that succeeds, or we still have data
 	 * left in the buffer, try to process the buffer */
-	if ((len = read(conn->sock,
-					conn->buf + conn->buflen, 
-					sizeof(conn->buf) - conn->buflen)) > 0
-			|| conn->buflen > 0)
+	if (
+			(!conn->needmore && conn->buflen > 0) || 
+			(len = read(conn->sock,
+						conn->buf + conn->buflen, 
+						sizeof(conn->buf) - conn->buflen)) > 0
+	   )
 	{
-		if (len < 0)
-			len = 0;  /* hide errors so we keep reading from buf */
-		conn->buflen += len;
+		if (len > 0)
+			conn->buflen += len;
 
 		/* metrics look like this: metric_path value timestamp\n
 		 * due to various messups we need to sanitise the
@@ -341,19 +344,20 @@ dispatch_connection(connection *conn, dispatcher *self)
 					router_route(conn->dests, &conn->destsize,
 							metric_path, conn->metric);
 
+				/* restart building new one from the start */
+				q = conn->metric;
+				firstspace = NULL;
+
 				conn->wait = time(NULL);
 				/* send the metric to where it is supposed to go */
 				if (dispatch_process_dests(conn, self) == 0)
 					break;
-
-				/* restart building new one from the start */
-				q = conn->metric;
-				firstspace = NULL;
 			} else {
 				/* something barf, replace by underscore */
 				*q++ = '_';
 			}
 		}
+		conn->needmore = q != conn->metric;
 		if (lastnl != NULL) {
 			/* move remaining stuff to the front */
 			conn->buflen -= lastnl + 1 - conn->buf;
@@ -362,15 +366,20 @@ dispatch_connection(connection *conn, dispatcher *self)
 	}
 	gettimeofday(&stop, NULL);
 	self->ticks += timediff(start, stop);
-	if (len < 0 && (errno == EINTR ||
+	if (len == -1 && (errno == EINTR ||
 				errno == EAGAIN ||
 				errno == EWOULDBLOCK))
 	{
 		/* nothing available/no work done */
 		conn->takenby = 0;
 		return 0;
-	} else if (len < 0 || (len == 0 && conn->buflen == 0)) {  /* error + EOF */
+	} else if (len == -1 || len == 0) {  /* error + EOF */
 		int c;
+
+		/* we also disconnect the client in this case if our reading
+		 * buffer is full, but we still need more (read returns 0 if the
+		 * size argument is 0) -> this is good, because we can't do much
+		 * with such client */
 
 		/* find connection */
 		pthread_rwlock_rdlock(&connectionslock);
