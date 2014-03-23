@@ -63,7 +63,7 @@ typedef struct _dispatcher {
 static connection *listeners[32];       /* hopefully enough */
 static connection **connections = NULL;
 static size_t connectionslen = 0;
-pthread_mutex_t connectionslock = PTHREAD_MUTEX_INITIALIZER;
+pthread_rwlock_t connectionslock = PTHREAD_RWLOCK_INITIALIZER;
 
 size_t dispatch_get_connections(void);
 
@@ -175,17 +175,19 @@ dispatch_addconnection(int sock)
 	newconn->destlen = 0;
 	newconn->destsize = DESTSZ;
 	newconn->wait = 0;
+	pthread_rwlock_rdlock(&connectionslock);
 	for (c = 0; c < connectionslen; c++)
 		if (__sync_bool_compare_and_swap(&(connections[c]), NULL, newconn))
 			break;
+	pthread_rwlock_unlock(&connectionslock);
 	if (c == connectionslen) {
 		char nowbuf[24];
 		connection **newlst;
 
-		pthread_mutex_lock(&connectionslock);
+		pthread_rwlock_wrlock(&connectionslock);
 		if (connectionslen > c) {
 			/* another dispatcher just extended the list */
-			pthread_mutex_unlock(&connectionslock);
+			pthread_rwlock_unlock(&connectionslock);
 			free(newconn->dests);
 			free(newconn);
 			return dispatch_addconnection(sock);
@@ -209,10 +211,10 @@ dispatch_addconnection(int sock)
 			connections[connectionslen] = newconn;
 			connectionslen += 1024;
 
-			pthread_mutex_unlock(&connectionslock);
+			pthread_rwlock_unlock(&connectionslock);
 			return 0;
 		}
-		pthread_mutex_unlock(&connectionslock);
+		pthread_rwlock_unlock(&connectionslock);
 
 		return 1;
 	}
@@ -277,7 +279,9 @@ dispatch_connection(connection *conn, dispatcher *self)
 					sizeof(conn->buf) - conn->buflen)) > 0
 			|| conn->buflen > 0)
 	{
-		conn->buflen += len > 0 ? len : 0;
+		if (len < 0)
+			len = 0;  /* hide errors so we keep reading from buf */
+		conn->buflen += len;
 
 		/* metrics look like this: metric_path value timestamp\n
 		 * due to various messups we need to sanitise the
@@ -351,7 +355,6 @@ dispatch_connection(connection *conn, dispatcher *self)
 			/* move remaining stuff to the front */
 			conn->buflen -= lastnl + 1 - conn->buf;
 			memmove(conn->buf, lastnl + 1, conn->buflen);
-			len = 1;  /* trick code below so we keep on processing buf */
 		}
 	}
 	gettimeofday(&stop, NULL);
@@ -363,26 +366,29 @@ dispatch_connection(connection *conn, dispatcher *self)
 		/* nothing available/no work done */
 		conn->takenby = 0;
 		return 0;
-	} else if (len <= 0) {  /* EOF + error */
+	} else if (len < 0 || (len == 0 && conn->buflen == 0)) {  /* error + EOF */
 		int c;
 
 		/* find connection */
+		pthread_rwlock_rdlock(&connectionslock);
 		for (c = 0; c < connectionslen; c++)
 			if (connections[c] == conn)
 				break;
 		if (c == connectionslen) {
 			/* not found?!? */
 			fprintf(stderr, "PANIC: can't find my own connection!\n");
+			pthread_rwlock_unlock(&connectionslock);
 			return 1;
 		}
+		pthread_rwlock_unlock(&connectionslock);
+
 		/* make this connection no longer visible */
+		pthread_rwlock_wrlock(&connectionslock);
 		connections[c] = NULL;
-		/* if some other thread was looking at conn, make sure it
-		 * will have moved on before freeing this object */
-		usleep(10 * 1000);  /* 10ms */
 		close(conn->sock);
 		free(conn->dests);
 		free(conn);
+		pthread_rwlock_unlock(&connectionslock);
 		return 1;
 	}
 
@@ -454,6 +460,7 @@ dispatch_runner(void *arg)
 	} else if (self->type == CONNECTION) {
 		while (self->keep_running) {
 			work = 0;
+			pthread_rwlock_rdlock(&connectionslock);
 			for (c = 0; c < connectionslen; c++) {
 				conn = connections[c];
 				if (conn == NULL)
@@ -461,9 +468,12 @@ dispatch_runner(void *arg)
 				/* atomically try to "claim" this connection */
 				if (!__sync_bool_compare_and_swap(&(conn->takenby), 0, self->id))
 					continue;
+				pthread_rwlock_unlock(&connectionslock);
 				self->state = RUNNING;
 				work += dispatch_connection(conn, self);
+				pthread_rwlock_rdlock(&connectionslock);
 			}
+			pthread_rwlock_unlock(&connectionslock);
 
 			self->state = SLEEPING;
 			if (work == 0)  /* nothing done, avoid spinlocking */
@@ -573,9 +583,11 @@ dispatch_get_connections(void)
 	int c;
 	size_t ret = 0;
 
+	pthread_rwlock_rdlock(&connectionslock);
 	for (c = 0; c < connectionslen; c++)
 		if (connections[c] != NULL)
 			ret++;
+	pthread_rwlock_unlock(&connectionslock);
 
 	return ret;
 }
