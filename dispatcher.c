@@ -325,7 +325,7 @@ dispatch_connection(connection *conn, dispatcher *self)
 				if (q == conn->metric || firstspace == NULL)
 					continue;
 
-				*q++ = *p;
+				*q++ = '\n';
 				*q = '\0';
 
 				/* copy metric_path alone (up to firstspace) */
