@@ -208,6 +208,9 @@ dispatch_addconnection(int sock)
 			connections = newlst;
 			connections[connectionslen] = newconn;
 			connectionslen += 1024;
+
+			pthread_mutex_unlock(&connectionslock);
+			return 0;
 		}
 		pthread_mutex_unlock(&connectionslock);
 
