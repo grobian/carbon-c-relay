@@ -319,24 +319,9 @@ server_new_intern(
 		queue *queue,
 		size_t qsize)
 {
-	server *ret = servers;
+	server *ret;
 
-	/* first try and see if this server already exists, if so, return it */
-	if (ret != NULL) {
-		while (1) {
-			if (strcmp(ret->ip, ip) == 0 && ret->port == port)
-				return ret;
-			if (ret->next == NULL) {
-				ret = ret->next = malloc(sizeof(server));
-				break;
-			}
-			ret = ret->next;
-		}
-	} else {
-		ret = servers = malloc(sizeof(server));
-	}
-
-	if (ret == NULL)
+	if ((ret = malloc(sizeof(server))) == NULL)
 		return NULL;
 
 	ret->type = ORIGIN;
@@ -396,6 +381,8 @@ server_new_intern(
 		return NULL;
 	}
 
+	ret->next = servers;
+	servers = ret;
 	return ret;
 }
 
