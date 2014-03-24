@@ -38,13 +38,14 @@ enum conntype {
 	CONNECTION
 };
 
+#define CONN_READBUF_SIZE  8096
 typedef struct _connection {
 	int sock;
 	char takenby;
-	char buf[8096];
+	char buf[CONN_READBUF_SIZE];
 	int buflen;
 	char needmore:1;
-	char metric[8096];
+	char metric[CONN_READBUF_SIZE];
 	server **dests;
 	size_t destlen;
 	size_t destsize;
@@ -280,7 +281,7 @@ dispatch_connection(connection *conn, dispatcher *self)
 			(!conn->needmore && conn->buflen > 0) || 
 			(len = read(conn->sock,
 						conn->buf + conn->buflen, 
-						sizeof(conn->buf) - conn->buflen)) > 0
+						(sizeof(conn->buf) - 1) - conn->buflen)) > 0
 	   )
 	{
 		if (len > 0)
@@ -332,7 +333,7 @@ dispatch_connection(connection *conn, dispatcher *self)
 				}
 
 				*q++ = '\n';
-				*q = '\0';
+				*q = '\0';  /* can do this because we substract one from buf */
 
 				/* copy metric_path alone (up to firstspace) */
 				memcpy(metric_path, conn->metric,
