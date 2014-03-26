@@ -482,7 +482,19 @@ inline char
 server_send(server *s, const char *d, char force)
 {
 	if (queue_free(s->queue) == 0) {
-		if (s->failure || force) {
+		char failure = s->failure;
+		if (!force && s->secondariescnt > 0) {
+			size_t i;
+			/* don't immediately drop if we know there are others that
+			 * back us up */
+			for (i = 0; i < s->secondariescnt; i++) {
+				if (!s->secondaries[i]->failure) {
+					failure = 0;
+					break;
+				}
+			}
+		}
+		if (failure || force) {
 			s->dropped++;
 			/* excess event will be dropped by the enqueue below */
 		} else {
