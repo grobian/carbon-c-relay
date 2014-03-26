@@ -112,8 +112,8 @@ server_queuereader(void *d)
 			if (!self->failure)
 				/* it makes no sense to try and do something, so skip */
 				continue;
-		} else if (self->failure >= FAIL_WAIT_TIME ||
-				LEN_CRITICAL(self->queue))
+		} else if (self->secondariescnt > 0 &&
+				(self->failure >= FAIL_WAIT_TIME || LEN_CRITICAL(self->queue)))
 		{
 			/* offload data from our queue to our secondaries
 			 * when doing so, observe the following:
@@ -156,7 +156,8 @@ server_queuereader(void *d)
 			}
 			if (queue == NULL) {
 				/* we couldn't do anything, take it easy for a bit */
-				self->failure = 1;
+				if (self->failure)
+					self->failure = 1;
 				if (!self->keep_running)
 					break;
 				usleep(250 * 1000);  /* 250ms */
@@ -296,7 +297,7 @@ server_queuereader(void *d)
 		if (len == 0 && self->failure) {
 			/* if we don't have anything to send, we have at least a
 			 * connection succeed, so assume the server is up again,
-			 * this is in particularly important for recovering this
+			 * this is in particular important for recovering this
 			 * node by probes, done every FAIL_WAIT_TIME, to avoid
 			 * starvation of this server since its queue is being
 			 * offloaded to secondaries */
@@ -552,11 +553,11 @@ server_shutdown(server *s)
 					"(with %zd failed nodes)\n", inqueue, failures) >= -1 &&
 				usleep(250 * 1000) <= 0);
 		/* shut down entire cluster */
-		for (i = 0; i < s->secondariescnt; i++) {
-			/* to pretend to be dead for above loop (just in case) */
-			s->secondaries[i]->failure = 1;
+		for (i = 0; i < s->secondariescnt; i++)
 			s->secondaries[i]->keep_running = 0;
-		}
+		/* to pretend to be dead for above loop (just in case) */
+		for (i = 0; i < s->secondariescnt; i++)
+			s->secondaries[i]->failure = 1;
 	}
 
 	s->keep_running = 0;
