@@ -155,7 +155,8 @@ server_queuereader(void *d)
 				free((char *)*metric);
 			}
 			if (queue == NULL) {
-				/* we couldn't do anything */
+				/* we couldn't do anything, take it easy for a bit */
+				self->failure = 1;
 				if (!self->keep_running)
 					break;
 				usleep(250 * 1000);  /* 250ms */
