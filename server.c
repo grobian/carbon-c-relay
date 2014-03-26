@@ -568,8 +568,9 @@ server_shutdown(server *s)
 		for (i = 0; i < s->secondariescnt; i++)
 			s->secondaries[i]->keep_running = 0;
 		/* to pretend to be dead for above loop (just in case) */
-		for (i = 0; i < s->secondariescnt; i++)
-			s->secondaries[i]->failure = 1;
+		if (inqueue != 0)
+			for (i = 0; i < s->secondariescnt; i++)
+				s->secondaries[i]->failure = 1;
 	}
 
 	s->keep_running = 0;
