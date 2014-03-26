@@ -547,12 +547,22 @@ dispatch_new_connection(void)
 }
 
 /**
- * Shuts down and frees up dispatcher d.
+ * Signals this dispatcher to stop whatever it's doing.
+ */
+void
+dispatch_stop(dispatcher *d)
+{
+	d->keep_running = 0;
+}
+
+/**
+ * Shuts down and frees up dispatcher d.  Returns when the dispatcher
+ * has terminated.
  */
 void
 dispatch_shutdown(dispatcher *d)
 {
-	d->keep_running = 0;
+	dispatch_stop(d);
 	pthread_join(d->tid, NULL);
 	free(d);
 }

@@ -28,6 +28,7 @@ void dispatch_removelistener(int sock);
 int dispatch_addconnection(int sock);
 dispatcher *dispatch_new_listener(void);
 dispatcher *dispatch_new_connection(void);
+void dispatch_stop(dispatcher *d);
 void dispatch_shutdown(dispatcher *d);
 size_t dispatch_get_ticks(dispatcher *self);
 size_t dispatch_get_metrics(dispatcher *self);

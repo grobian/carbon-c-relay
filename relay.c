@@ -329,6 +329,8 @@ main(int argc, char * const argv[])
 	/* make sure we don't write to our servers any more */
 	fprintf(stdout, "[%s] stopped worker", fmtnow(nowbuf));
 	fflush(stdout);
+	for (id = 0; id < 1 + workercnt; id++)
+		dispatch_stop(workers[id + 0]);
 	for (id = 0; id < 1 + workercnt; id++) {
 		dispatch_shutdown(workers[id + 0]);
 		fprintf(stdout, " %d", id + 1);
