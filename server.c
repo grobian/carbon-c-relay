@@ -165,12 +165,6 @@ server_queuereader(void *d)
 		/* at this point we've got work to do, if we're instructed to
 		 * shut down, however, try to get everything out of the door
 		 * (until we fail, see top of this loop) */
-		if (!self->keep_running) {
-			/* be noisy during shutdown so we can track any slowing down
-			 * servers, possibly preventing us to shut down */
-			fprintf(stderr, "shutting down %s:%u: waiting for %zd metrics\n",
-					self->ip, self->port, queue_len(self->queue));
-		}
 
 		gettimeofday(&start, NULL);
 
@@ -290,6 +284,13 @@ server_queuereader(void *d)
 		len = queue_dequeue_vector(metrics, self->queue, BATCH_SIZE);
 		metrics[len] = NULL;
 		metric = metrics;
+
+		if (len != 0 && !self->keep_running) {
+			/* be noisy during shutdown so we can track any slowing down
+			 * servers, possibly preventing us to shut down */
+			fprintf(stderr, "shutting down %s:%u: waiting for %zd metrics\n",
+					self->ip, self->port, queue_len(self->queue));
+		}
 
 		if (len == 0 && self->failure) {
 			/* if we don't have anything to send, we have at least a
