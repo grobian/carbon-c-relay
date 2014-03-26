@@ -26,6 +26,7 @@ server *server_new_qsize(const char *ip, unsigned short port, size_t qsize);
 void server_add_secondaries(server *d, server **sec, size_t cnt);
 char server_send(server *s, const char *d, char force);
 void server_shutdown(server *s);
+void server_shutdown_all(void);
 const char *server_ip(server *s);
 unsigned short server_port(server *s);
 char server_failed(server *s);

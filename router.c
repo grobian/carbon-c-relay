@@ -1245,12 +1245,5 @@ router_test(const char *metric_path)
 void
 router_shutdown(void)
 {
-	server **s = server_get_servers();
-	server **w;
-
 	keep_running = 0;
-	for (w = s; *w != NULL; w++)
-		server_shutdown(*w);
-
-	free(s);
 }

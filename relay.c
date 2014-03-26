@@ -336,7 +336,8 @@ main(int argc, char * const argv[])
 	}
 	fprintf(stdout, " (%s)\n", fmtnow(nowbuf));
 	fflush(stdout);
-	router_shutdown();  /* stops internal_submission */
+	router_shutdown();
+	server_shutdown_all();
 	fprintf(stdout, "[%s] routing stopped\n", fmtnow(nowbuf));
 	fflush(stdout);
 

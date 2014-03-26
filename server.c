@@ -551,13 +551,18 @@ server_shutdown(server *s)
 				fprintf(stderr, "any_of cluster pending %zd metrics "
 					"(with %zd failed nodes)\n", inqueue, failures) >= -1 &&
 				usleep(250 * 1000) <= 0);
+		/* shut down entire cluster */
+		for (i = 0; i < s->secondariescnt; i++) {
+			/* to pretend to be dead for above loop (just in case) */
+			s->secondaries[i]->failure = 1;
+			s->secondaries[i]->keep_running = 0;
+		}
 	}
 
 	s->keep_running = 0;
 	if ((err = pthread_join(tid, NULL)) != 0)
 		fprintf(stderr, "%s:%u: failed to join server thread: %s\n",
 				s->ip, s->port, strerror(err));
-	s->failure = 1;  /* to pretend to be dead for above loop (just in case) */
 
 	if (s->type == ORIGIN) {
 		size_t qlen = queue_len(s->queue);
@@ -570,6 +575,24 @@ server_shutdown(server *s)
 		freeaddrinfo(s->saddr);
 	free((char *)s->ip);
 	s->ip = NULL;
+}
+
+/**
+ * Waits for all servers to be shut down.  This is a small optimisation
+ * over looping over server_shutdown for it tries to speed up the
+ * waiting time by shutting down in parallel as many servers as
+ * possible.
+ */
+void
+server_shutdown_all(void)
+{
+	server *walk;
+
+	for (walk = servers; walk != NULL; walk = walk->next)
+		if (walk->secondariescnt == 0)
+			walk->keep_running = 0;
+	for (walk = servers; walk != NULL; walk = walk->next)
+		server_shutdown(walk);
 }
 
 /**
