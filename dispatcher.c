@@ -205,8 +205,8 @@ dispatch_addconnection(int sock)
 			free(newconn->dests);
 			free(newconn);
 		} else {
-			memset(newlst + (sizeof(connection *) * connectionslen),
-					'\0', sizeof(connection *) * CONNGROWSZ);
+			memset(&newlst[connectionslen], '\0',
+					sizeof(connection *) * CONNGROWSZ);
 			connections = newlst;
 			connections[connectionslen] = newconn;
 			connectionslen += CONNGROWSZ;
