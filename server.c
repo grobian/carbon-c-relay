@@ -557,7 +557,8 @@ server_shutdown(server *s)
 			for (i = 0; i < s->secondariescnt; i++) {
 				if (s->secondaries[i]->failure)
 					failures++;
-				inqueue += queue_len(s->secondaries[i]->queue);
+				if (s->secondaries[i]->running)
+					inqueue += queue_len(s->secondaries[i]->queue);
 			}
 			/* loop until we all failed, or nothing is in the queues */
 		} while (failures != s->secondariescnt &&
