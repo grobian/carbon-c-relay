@@ -151,6 +151,7 @@ dispatch_removelistener(int sock)
 }
 
 #define DESTSZ  32
+#define CONNGROWSZ  1024
 
 /**
  * Adds a connection socket to the chain of connections.
@@ -196,10 +197,11 @@ dispatch_addconnection(int sock)
 			return dispatch_addconnection(sock);
 		}
 		if (connections == NULL) {
-			newlst = malloc(sizeof(connection *) * (connectionslen + 1024));
+			newlst =
+				malloc(sizeof(connection *) * (connectionslen + CONNGROWSZ));
 		} else {
 			newlst = realloc(connections,
-					sizeof(connection *) * (connectionslen + 1024));
+					sizeof(connection *) * (connectionslen + CONNGROWSZ));
 		}
 		if (newlst == NULL) {
 			fprintf(stderr, "[%s] cannot add new connection: "
@@ -209,10 +211,10 @@ dispatch_addconnection(int sock)
 			free(newconn);
 		} else {
 			memset(newlst + (sizeof(connection *) * connectionslen),
-					'\0', sizeof(connection *) * 1024);
+					'\0', sizeof(connection *) * CONNGROWSZ);
 			connections = newlst;
 			connections[connectionslen] = newconn;
-			connectionslen += 1024;
+			connectionslen += CONNGROWSZ;
 
 			pthread_rwlock_unlock(&connectionslock);
 			return 0;
