@@ -196,13 +196,8 @@ dispatch_addconnection(int sock)
 			free(newconn);
 			return dispatch_addconnection(sock);
 		}
-		if (connections == NULL) {
-			newlst =
-				malloc(sizeof(connection *) * (connectionslen + CONNGROWSZ));
-		} else {
-			newlst = realloc(connections,
-					sizeof(connection *) * (connectionslen + CONNGROWSZ));
-		}
+		newlst = realloc(connections,
+				sizeof(connection *) * (connectionslen + CONNGROWSZ));
 		if (newlst == NULL) {
 			fprintf(stderr, "[%s] cannot add new connection: "
 					"out of memory allocating more slots (max = %zd)\n",
