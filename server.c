@@ -115,6 +115,7 @@ server_queuereader(void *d)
 		} else if (self->secondariescnt > 0 &&
 				(self->failure >= FAIL_WAIT_TIME || LEN_CRITICAL(self->queue)))
 		{
+			size_t i;
 			/* offload data from our queue to our secondaries
 			 * when doing so, observe the following:
 			 * - avoid nodes that are in failure mode
@@ -126,11 +127,11 @@ server_queuereader(void *d)
 			 *   anywhere) */
 			*metric = NULL;
 			queue = NULL;
-			for (len = 0; len < self->secondariescnt; len++) {
-				/* both conditions below make sure we skip ourself too */
-				if (self->secondaries[len]->failure)
+			for (i = 0; i < self->secondariescnt; i++) {
+				/* both conditions below make sure we skip ourself */
+				if (self->secondaries[i]->failure)
 					continue;
-				queue = self->secondaries[len]->queue;
+				queue = self->secondaries[i]->queue;
 				if (LEN_CRITICAL(queue)) {
 					queue = NULL;
 					continue;
