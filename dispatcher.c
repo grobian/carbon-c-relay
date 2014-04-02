@@ -66,6 +66,7 @@ static connection *listeners[32];       /* hopefully enough */
 static connection **connections = NULL;
 static size_t connectionslen = 0;
 pthread_rwlock_t connectionslock = PTHREAD_RWLOCK_INITIALIZER;
+static size_t acceptedconnections = 0;
 
 size_t dispatch_get_connections(void);
 
@@ -465,6 +466,7 @@ dispatch_runner(void *arg)
 							dispatch_check_rlimit_and_warn();
 							continue;
 						}
+						acceptedconnections++;
 						if (dispatch_addconnection(client) != 0) {
 							close(client);
 							continue;
@@ -601,19 +603,10 @@ dispatch_busy(dispatcher *self)
 }
 
 /**
- * Returns approximate number of connections in use
+ * Returns the number of accepted connections thusfar.
  */
 size_t
 dispatch_get_connections(void)
 {
-	int c;
-	size_t ret = 0;
-
-	pthread_rwlock_rdlock(&connectionslock);
-	for (c = 0; c < connectionslen; c++)
-		if (connections[c] != NULL)
-			ret++;
-	pthread_rwlock_unlock(&connectionslock);
-
-	return ret;
+	return acceptedconnections;
 }
