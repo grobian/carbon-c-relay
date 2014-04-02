@@ -106,7 +106,7 @@ server_queuereader(void *d)
 			if (!self->keep_running)
 				break;
 			/* nothing to do, so slow down for a bit */
-			usleep(250 * 1000);  /* 250ms */
+			usleep((200 + (rand() % 100)) * 1000);  /* 200ms - 300ms */
 			/* if we are in failure mode, keep checking if we can
 			 * connect, this avoids unnecessary queue moves */
 			if (!self->failure)
@@ -161,7 +161,7 @@ server_queuereader(void *d)
 					self->failure = 1;
 				if (!self->keep_running)
 					break;
-				usleep(250 * 1000);  /* 250ms */
+				usleep((200 + (rand() % 100)) * 1000);  /* 200ms - 300ms */
 			}
 		}
 
@@ -212,7 +212,7 @@ server_queuereader(void *d)
 					fd_set fds;
 					FD_ZERO(&fds);
 					FD_SET(self->fd, &fds);
-					timeout.tv_usec = 650 * 1000;
+					timeout.tv_usec = (600 + (rand() % 100)) * 1000;
 					ret = select(self->fd + 1, NULL, &fds, NULL, &timeout);
 					if (ret == 0) {
 						/* time limit expired */
@@ -275,7 +275,7 @@ server_queuereader(void *d)
 			}
 
 			/* ensure we will break out of connections being stuck */
-			timeout.tv_usec = 650 * 1000;
+			timeout.tv_usec = (600 + (rand() % 100)) * 1000;
 			setsockopt(self->fd, SOL_SOCKET, SO_SNDTIMEO,
 					&timeout, sizeof(timeout));
 #ifdef SO_NOSIGPIPE
@@ -565,7 +565,7 @@ server_shutdown(server *s)
 				inqueue != 0 &&
 				fprintf(stderr, "any_of cluster pending %zd metrics "
 					"(with %zd failed nodes)\n", inqueue, failures) >= -1 &&
-				usleep(250 * 1000) <= 0);
+				usleep((200 + (rand() % 100)) * 1000) <= 0);
 		/* shut down entire cluster */
 		for (i = 0; i < s->secondariescnt; i++)
 			s->secondaries[i]->keep_running = 0;
