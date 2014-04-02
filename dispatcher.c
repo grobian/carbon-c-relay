@@ -300,9 +300,9 @@ dispatch_connection(connection *conn, dispatcher *self)
 			{
 				/* copy char */
 				*q++ = *p;
-			} else if (*p == ' ') {
+			} else if (*p == ' ' || *p == '.') {
 				/* separator */
-				if (firstspace == NULL) {
+				if (*p == ' ' && firstspace == NULL) {
 					if (q == conn->metric)
 						continue;
 					if (*(q - 1) == '.')
@@ -310,14 +310,15 @@ dispatch_connection(connection *conn, dispatcher *self)
 					firstspace = q;
 					*q++ = '\0';
 				} else {
-					*q++ = *p;
+					/* metric_path separator or space,
+					 * - duplicate elimination
+					 * - don't start with separator/space */
+					if (
+							q != conn->metric &&
+							*(q - 1) != *p &&
+							(q - 1) != firstspace)
+						*q++ = *p;
 				}
-			} else if (*p == '.') {
-				/* metric_path separator,
-				 * - duplicate elimination
-				 * - don't start with separator */
-				if (q != conn->metric && *(q - 1) != '.')
-					*q++ = *p;
 			} else if (*p == '\n') {
 				/* end of metric */
 				lastnl = p;
