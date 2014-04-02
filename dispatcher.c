@@ -394,12 +394,17 @@ dispatch_connection(connection *conn, dispatcher *self)
 		pthread_rwlock_unlock(&connectionslock);
 
 		/* make this connection no longer visible */
-		pthread_rwlock_wrlock(&connectionslock);
 		connections[c] = NULL;
 		close(conn->sock);
 		free(conn->dests);
+
+		/* at this point, dispatchers cannot get the pointer to conn,
+		 * but a dispatcher that just looked at it before we set it to
+		 * NULL will check as next thing if it's taken, so keep conn
+		 * around for a small bit, such that we don't get an invalid
+		 * read -> yes would like to have a less random way to fix this */
+		usleep(50 * 1000);  /* 50ms */
 		free(conn);
-		pthread_rwlock_unlock(&connectionslock);
 		return 1;
 	}
 
