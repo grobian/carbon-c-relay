@@ -404,7 +404,7 @@ dispatch_connection(connection *conn, dispatcher *self)
 		 * NULL will check as next thing if it's taken, so keep conn
 		 * around for a small bit, such that we don't get an invalid
 		 * read -> yes would like to have a less random way to fix this */
-		usleep(50 * 1000);  /* 50ms */
+		usleep(1 * 1000);  /* 1ms */
 		free(conn);
 		return 1;
 	}
