@@ -494,7 +494,8 @@ dispatch_runner(void *arg)
 			pthread_rwlock_unlock(&connectionslock);
 
 			self->state = SLEEPING;
-			if (work == 0)  /* nothing done, avoid spinlocking */
+			/* nothing done, avoid spinlocking */
+			if (self->keep_running && work == 0)
 				usleep((100 + (rand() % 200)) * 1000);  /* 100ms - 300ms */
 		}
 	} else {
