@@ -84,6 +84,7 @@ server_queuereader(void *d)
 	struct timeval timeout;
 	char nowbuf[24];
 	queue *queue;
+	char idle = 0;
 
 	*metric = NULL;
 	self->metrics = 0;
@@ -92,6 +93,7 @@ server_queuereader(void *d)
 	timeout.tv_sec = 0;
 
 #define FAIL_WAIT_TIME   6  /* 6 * 250ms = 1.5s */
+#define DISCONNECT_WAIT_TIME   12  /* 8 * 250ms = 3s */
 #define LEN_CRITICAL(Q)  (queue_free(Q) < BATCH_SIZE)
 	self->running = 1;
 	while (1) {
@@ -99,7 +101,7 @@ server_queuereader(void *d)
 			/* if we're idling, close the connection, this allows us
 			 * to reduce connections, while keeping the connection alive
 			 * if we're writing a lot */
-			if (self->fd >= 0) {
+			if (self->fd >= 0 && idle++ > DISCONNECT_WAIT_TIME) {
 				close(self->fd);
 				self->fd = -1;
 			}
@@ -340,6 +342,8 @@ server_queuereader(void *d)
 
 		gettimeofday(&stop, NULL);
 		self->ticks += timediff(start, stop);
+
+		idle = 0;
 	}
 	self->running = 0;
 
