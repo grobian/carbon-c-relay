@@ -160,7 +160,6 @@ dispatch_removelistener(int sock)
 int
 dispatch_addconnection(int sock)
 {
-	connection *newconn;
 	size_t c;
 
 	pthread_rwlock_rdlock(&connectionslock);
