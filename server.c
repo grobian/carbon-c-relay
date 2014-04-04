@@ -36,7 +36,6 @@
 
 enum servertype {
 	ORIGIN,
-	BACKUP,
 	INTERNAL
 };
 
@@ -358,7 +357,6 @@ static server *
 server_new_intern(
 		const char *ip,
 		unsigned short port,
-		queue *queue,
 		size_t qsize)
 {
 	server *ret;
@@ -398,16 +396,11 @@ server_new_intern(
 			return NULL;
 		}
 	}
-	if (queue == NULL) {
-		ret->queue = queue_new(qsize);
-		if (ret->queue == NULL) {
-			free((char *)ret->ip);
-			free(ret);
-			return NULL;
-		}
-	} else {
-		ret->queue = queue;
-		ret->type = BACKUP;
+	ret->queue = queue_new(qsize);
+	if (ret->queue == NULL) {
+		free((char *)ret->ip);
+		free(ret);
+		return NULL;
 	}
 
 	ret->failure = 0;
@@ -436,22 +429,7 @@ server_new_intern(
 server *
 server_new(const char *ip, unsigned short port)
 {
-	return server_new_intern(ip, port, NULL, QUEUE_SIZE);
-}
-
-/**
- * Allocate a new backup server.  Effectively this means a thread that
- * reads from the same queue as the original server.  Due to
- * multi-thread handling, it is expected that in the long run, both the
- * original and backup server get roughly the same amount of data
- * (assuming both are up).  A backup server really is, just because when
- * one of them can't be sent to, everything will go to the other.  This
- * is e.g. ok when using an upstream relay pair as target.
- */
-server *
-server_backup(const char *ip, unsigned short port, server *original)
-{
-	return server_new_intern(ip, port, original->queue, QUEUE_SIZE);
+	return server_new_intern(ip, port, QUEUE_SIZE);
 }
 
 /**
@@ -461,7 +439,7 @@ server_backup(const char *ip, unsigned short port, server *original)
 server *
 server_new_qsize(const char *ip, unsigned short port, size_t qsize)
 {
-	return server_new_intern(ip, port, NULL, qsize);
+	return server_new_intern(ip, port, qsize);
 }
 
 /**
@@ -688,8 +666,6 @@ inline size_t
 server_get_queue_len(server *s)
 {
 	if (s == NULL)
-		return 0;
-	if (s->type == BACKUP)
 		return 0;
 	return queue_len(s->queue);
 }
