@@ -39,16 +39,16 @@ enum conntype {
 };
 
 #define CONN_READBUF_SIZE  8096
+#define CONN_DESTS_SIZE    32
 typedef struct _connection {
 	int sock;
-	char takenby;
+	char takenby;   /* -2: being setup, -1: free, 0: not taken, >0: tid */
 	char buf[CONN_READBUF_SIZE];
 	int buflen;
 	char needmore:1;
 	char metric[CONN_READBUF_SIZE];
-	server **dests;
+	server *dests[CONN_DESTS_SIZE];
 	size_t destlen;
-	size_t destsize;
 	time_t wait;
 } connection;
 
@@ -63,7 +63,7 @@ typedef struct _dispatcher {
 } dispatcher;
 
 static connection *listeners[32];       /* hopefully enough */
-static connection **connections = NULL;
+static connection *connections = NULL;
 static size_t connectionslen = 0;
 pthread_rwlock_t connectionslock = PTHREAD_RWLOCK_INITIALIZER;
 static size_t acceptedconnections = 0;
@@ -151,7 +151,6 @@ dispatch_removelistener(int sock)
 	free(conn);
 }
 
-#define DESTSZ  32
 #define CONNGROWSZ  1024
 
 /**
@@ -162,63 +161,53 @@ int
 dispatch_addconnection(int sock)
 {
 	connection *newconn;
-	int c;
+	size_t c;
 
-	newconn = malloc(sizeof(connection));
-	if (newconn == NULL)
-		return 1;
-	fcntl(sock, F_SETFL, O_NONBLOCK);
-	newconn->sock = sock;
-	newconn->takenby = 0;
-	newconn->buflen = 0;
-	newconn->needmore = 0;
-	newconn->dests = (server **)malloc(sizeof(server *) * DESTSZ);
-	if (newconn->dests == NULL) {
-		free(newconn);
-		return 1;
-	}
-	newconn->destlen = 0;
-	newconn->destsize = DESTSZ;
-	newconn->wait = 0;
 	pthread_rwlock_rdlock(&connectionslock);
 	for (c = 0; c < connectionslen; c++)
-		if (__sync_bool_compare_and_swap(&(connections[c]), NULL, newconn))
+		if (__sync_bool_compare_and_swap(&(connections[c].takenby), -1, -2))
 			break;
 	pthread_rwlock_unlock(&connectionslock);
+
 	if (c == connectionslen) {
 		char nowbuf[24];
-		connection **newlst;
+		connection *newlst;
 
 		pthread_rwlock_wrlock(&connectionslock);
 		if (connectionslen > c) {
 			/* another dispatcher just extended the list */
 			pthread_rwlock_unlock(&connectionslock);
-			free(newconn->dests);
-			free(newconn);
 			return dispatch_addconnection(sock);
 		}
 		newlst = realloc(connections,
-				sizeof(connection *) * (connectionslen + CONNGROWSZ));
+				sizeof(connection) * (connectionslen + CONNGROWSZ));
 		if (newlst == NULL) {
 			fprintf(stderr, "[%s] cannot add new connection: "
 					"out of memory allocating more slots (max = %zd)\n",
 					fmtnow(nowbuf), connectionslen);
-			free(newconn->dests);
-			free(newconn);
 		} else {
 			memset(&newlst[connectionslen], '\0',
-					sizeof(connection *) * CONNGROWSZ);
+					sizeof(connection) * CONNGROWSZ);
+			for (c = connectionslen; c < connectionslen + CONNGROWSZ; c++)
+				newlst[c].takenby = -1;  /* free */
 			connections = newlst;
-			connections[connectionslen] = newconn;
 			connectionslen += CONNGROWSZ;
 
 			pthread_rwlock_unlock(&connectionslock);
-			return 0;
+			return dispatch_addconnection(sock);
 		}
 		pthread_rwlock_unlock(&connectionslock);
 
 		return 1;
 	}
+
+	fcntl(sock, F_SETFL, O_NONBLOCK);
+	connections[c].sock = sock;
+	connections[c].buflen = 0;
+	connections[c].needmore = 0;
+	connections[c].destlen = 0;
+	connections[c].wait = 0;
+	connections[c].takenby = 0;  /* now dispatchers will pick this one up */
 
 	return 0;
 }
@@ -236,7 +225,7 @@ dispatch_process_dests(connection *conn, dispatcher *self)
 		}
 		if (i != conn->destlen) {
 			conn->destlen -= i;
-			memmove(conn->dests, &conn->dests[i],
+			memmove(&conn->dests[0], &conn->dests[i],
 					(sizeof(server *) * conn->destlen));
 			return 0;
 		} else {
@@ -341,7 +330,7 @@ dispatch_connection(connection *conn, dispatcher *self)
 
 				/* perform routing of this metric */
 				conn->destlen =
-					router_route(conn->dests, &conn->destsize,
+					router_route(conn->dests, sizeof(conn->dests),
 							metric_path, conn->metric);
 
 				/* restart building new one from the start */
@@ -384,7 +373,7 @@ dispatch_connection(connection *conn, dispatcher *self)
 		/* find connection */
 		pthread_rwlock_rdlock(&connectionslock);
 		for (c = 0; c < connectionslen; c++)
-			if (connections[c] == conn)
+			if (&(connections[c]) == conn)
 				break;
 		if (c == connectionslen) {
 			/* not found?!? */
@@ -393,19 +382,11 @@ dispatch_connection(connection *conn, dispatcher *self)
 			return 1;
 		}
 		pthread_rwlock_unlock(&connectionslock);
-
-		/* make this connection no longer visible */
-		connections[c] = NULL;
 		close(conn->sock);
-		free(conn->dests);
 
-		/* at this point, dispatchers cannot get the pointer to conn,
-		 * but a dispatcher that just looked at it before we set it to
-		 * NULL will check as next thing if it's taken, so keep conn
-		 * around for a small bit, such that we don't get an invalid
-		 * read -> yes would like to have a less random way to fix this */
-		usleep(1 * 1000);  /* 1ms */
-		free(conn);
+		/* flag this connection as no longer in use */
+		connections[c].takenby = -1;
+
 		return 1;
 	}
 
@@ -480,9 +461,7 @@ dispatch_runner(void *arg)
 			work = 0;
 			pthread_rwlock_rdlock(&connectionslock);
 			for (c = 0; c < connectionslen; c++) {
-				conn = connections[c];
-				if (conn == NULL)
-					continue;
+				conn = &(connections[c]);
 				/* atomically try to "claim" this connection */
 				if (!__sync_bool_compare_and_swap(&(conn->takenby), 0, self->id))
 					continue;

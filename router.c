@@ -1054,8 +1054,8 @@ router_printconfig(FILE *f, char all)
 static char
 router_route_intern(
 		server **ret,
-		size_t *retlen,
 		size_t *curlen,
+		size_t retsize,
 		const char *metric_path,
 		const char *metric,
 		const route *r)
@@ -1066,12 +1066,13 @@ router_route_intern(
 	const char *q = NULL;
 	const char *t;
 
-#define extendif(RET, RETLEN, WANTLEN) \
-	if (WANTLEN > RETLEN) \
-		if ((RET = realloc(RET, RETLEN += (WANTLEN - RETLEN < 24 ? 24 : (WANTLEN - RETLEN * 2)))) == NULL) { \
-			fprintf(stderr, "router_route: out of memory extending list\n"); \
-			return 1;  /* bail out: out of memory */ \
-		}
+#define failif(RETLEN, WANTLEN) \
+	if (WANTLEN > RETLEN) { \
+		fprintf(stderr, "router_route: out of destination slots, " \
+				"increase CONN_DESTS_SIZE in dispatcher.c\n"); \
+		return 1; \
+	}
+
 
 	for (w = r; w != NULL && keep_running; w = w->next) {
 		if (w->dest->type == GROUP) {
@@ -1092,8 +1093,8 @@ router_route_intern(
 			if (*q == '\0')
 				stop = router_route_intern(
 						ret,
-						retlen,
 						curlen,
+						retsize,
 						metric_path,
 						metric,
 						w->dest->members.routes);
@@ -1109,7 +1110,7 @@ router_route_intern(
 					servers *s;
 					for (s = w->dest->members.forward; s != NULL; s = s->next)
 					{
-						extendif(*ret, *retlen, *curlen + 1);
+						failif(retsize, *curlen + 1);
 						ret[(*curlen)++] = s->server;
 					}
 				}	break;
@@ -1127,16 +1128,15 @@ router_route_intern(
 					 * the number of occurances of c in the range of
 					 * MAX_INT, therefore we stick with a simple mod. */
 					hash %= w->dest->members.anyof->count;
-					extendif(*ret, *retlen, *curlen + 1);
+					failif(retsize, *curlen + 1);
 					ret[(*curlen)++] = w->dest->members.anyof->servers[hash];
 				}	break;
 				case CARBON_CH:
 				case FNV1A_CH: {
 					/* let the ring(bearer) decide */
-					extendif(*ret, *retlen, *curlen +
-							w->dest->members.ch->repl_factor);
+					failif(retsize, *curlen + w->dest->members.ch->repl_factor);
 					ch_get_nodes(
-							ret + *curlen,
+							&ret[*curlen],
 							w->dest->members.ch->ring,
 							w->dest->members.ch->repl_factor,
 							metric_path);
@@ -1170,13 +1170,13 @@ router_route_intern(
 inline size_t
 router_route(
 		server **ret,
-		size_t *retlen,
+		size_t retsize,
 		const char *metric_path,
 		const char *metric)
 {
 	size_t curlen = 0;
 
-	(void)router_route_intern(ret, retlen, &curlen,
+	(void)router_route_intern(ret, &curlen, retsize,
 			metric_path, metric, routes);
 
 	return curlen;
