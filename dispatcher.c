@@ -184,20 +184,21 @@ dispatch_addconnection(int sock)
 			fprintf(stderr, "[%s] cannot add new connection: "
 					"out of memory allocating more slots (max = %zd)\n",
 					fmtnow(nowbuf), connectionslen);
-		} else {
-			memset(&newlst[connectionslen], '\0',
-					sizeof(connection) * CONNGROWSZ);
-			for (c = connectionslen; c < connectionslen + CONNGROWSZ; c++)
-				newlst[c].takenby = -1;  /* free */
-			connections = newlst;
-			connectionslen += CONNGROWSZ;
 
 			pthread_rwlock_unlock(&connectionslock);
-			return dispatch_addconnection(sock);
+			return 1;
 		}
-		pthread_rwlock_unlock(&connectionslock);
 
-		return 1;
+		memset(&newlst[connectionslen], '\0',
+				sizeof(connection) * CONNGROWSZ);
+		for (c = connectionslen; c < connectionslen + CONNGROWSZ; c++)
+			newlst[c].takenby = -1;  /* free */
+		connections = newlst;
+		c = connectionslen;  /* for the setup code below */
+		newlst[c].takenby = -2;
+		connectionslen += CONNGROWSZ;
+
+		pthread_rwlock_unlock(&connectionslock);
 	}
 
 	fcntl(sock, F_SETFL, O_NONBLOCK);
@@ -370,17 +371,14 @@ dispatch_connection(connection *conn, dispatcher *self)
 		 * with such client */
 
 		/* find connection */
-		pthread_rwlock_rdlock(&connectionslock);
 		for (c = 0; c < connectionslen; c++)
 			if (&(connections[c]) == conn)
 				break;
 		if (c == connectionslen) {
 			/* not found?!? */
 			fprintf(stderr, "PANIC: can't find my own connection!\n");
-			pthread_rwlock_unlock(&connectionslock);
 			return 1;
 		}
-		pthread_rwlock_unlock(&connectionslock);
 		close(conn->sock);
 
 		/* flag this connection as no longer in use */
@@ -464,10 +462,8 @@ dispatch_runner(void *arg)
 				/* atomically try to "claim" this connection */
 				if (!__sync_bool_compare_and_swap(&(conn->takenby), 0, self->id))
 					continue;
-				pthread_rwlock_unlock(&connectionslock);
 				self->state = RUNNING;
 				work += dispatch_connection(conn, self);
-				pthread_rwlock_rdlock(&connectionslock);
 			}
 			pthread_rwlock_unlock(&connectionslock);
 
