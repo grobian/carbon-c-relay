@@ -293,7 +293,7 @@ server_queuereader(void *d)
 			/* be noisy during shutdown so we can track any slowing down
 			 * servers, possibly preventing us to shut down */
 			fprintf(stderr, "shutting down %s:%u: waiting for %zd metrics\n",
-					self->ip, self->port, queue_len(self->queue));
+					self->ip, self->port, len + queue_len(self->queue));
 		}
 
 		if (len == 0 && self->failure) {
