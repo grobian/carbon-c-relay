@@ -349,7 +349,8 @@ server_queuereader(void *d)
 	}
 	self->running = 0;
 
-	close(self->fd);
+	if (self->fd >= 0)
+		close(self->fd);
 	return NULL;
 }
 
