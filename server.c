@@ -267,8 +267,7 @@ server_queuereader(void *d)
 								strerror(errno));
 						dispatch_check_rlimit_and_warn();
 					}
-					if (self->fd >= 0)
-						close(self->fd);
+					close(self->fd);
 					self->fd = -1;
 					self->failure += self->failure >= FAIL_WAIT_TIME ? 0 : 1;
 					continue;
