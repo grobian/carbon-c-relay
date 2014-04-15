@@ -66,6 +66,7 @@ static connection *connections = NULL;
 static size_t connectionslen = 0;
 pthread_rwlock_t connectionslock = PTHREAD_RWLOCK_INITIALIZER;
 static size_t acceptedconnections = 0;
+static size_t closedconnections = 0;
 
 
 /**
@@ -387,6 +388,7 @@ dispatch_connection(connection *conn, dispatcher *self)
 			fprintf(stderr, "PANIC: can't find my own connection!\n");
 			return 1;
 		}
+		closedconnections++;
 		close(conn->sock);
 
 		/* flag this connection as no longer in use */
@@ -589,7 +591,16 @@ dispatch_busy(dispatcher *self)
  * Returns the number of accepted connections thusfar.
  */
 size_t
-dispatch_get_connections(void)
+dispatch_get_accepted_connections(void)
 {
 	return acceptedconnections;
+}
+
+/**
+ * Returns the number of closed connections thusfar.
+ */
+size_t
+dispatch_get_closed_connections(void)
+{
+	return closedconnections;
 }

@@ -166,7 +166,10 @@ collector_runner(void *s)
 				totticks, (size_t)now);
 		send(metric);
 		snprintf(m, sizem, "connections %zd %zd\n",
-				dispatch_get_connections(), (size_t)now);
+				dispatch_get_accepted_connections(), (size_t)now);
+		send(metric);
+		snprintf(m, sizem, "disconnects %zd %zd\n",
+				dispatch_get_closed_connections(), (size_t)now);
 		send(metric);
 
 		if (numaggregators > 0) {
