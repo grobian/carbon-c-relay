@@ -259,9 +259,7 @@ server_queuereader(void *d)
 							continue;
 						}
 					}
-				}
-
-				if (ret < 0) {
+				} else if (ret < 0) {
 					if (!self->failure) {
 						fprintf(stderr, "[%s] failed to connect() to "
 								"%s:%u: %s\n",
