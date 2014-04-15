@@ -303,9 +303,9 @@ server_queuereader(void *d)
 			 * connection succeed, so assume the server is up again,
 			 * this is in particular important for recovering this
 			 * node by probes, done every FAIL_WAIT_TIME, to avoid
-			 * starvation of this server since its queue is being
-			 * offloaded to secondaries */
-			fprintf(stderr, "[%s] server %s:%u: OK\n",
+			 * starvation of this server since its queue is possibly
+			 * being offloaded to secondaries */
+			fprintf(stderr, "[%s] server %s:%u: OK after probe\n",
 					fmtnow(nowbuf), self->ip, self->port);
 			self->failure = 0;
 		}
