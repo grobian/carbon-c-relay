@@ -67,8 +67,6 @@ static size_t connectionslen = 0;
 pthread_rwlock_t connectionslock = PTHREAD_RWLOCK_INITIALIZER;
 static size_t acceptedconnections = 0;
 
-size_t dispatch_get_connections(void);
-
 
 /**
  * Helper function to try and be helpful to the user.  If errno
@@ -88,9 +86,8 @@ dispatch_check_rlimit_and_warn(void)
 			ofiles.rlim_max = 0;
 		if (ofiles.rlim_max != RLIM_INFINITY && ofiles.rlim_max > 0)
 			fprintf(stderr, "process configured maximum connections = %d, "
-					"current connections: %zd, consider raising max "
-					"open files/max descriptor limit\n",
-					(int)ofiles.rlim_max, dispatch_get_connections());
+					"consider raising max open files/max descriptor limit\n",
+					(int)ofiles.rlim_max);
 	}
 }
 
