@@ -155,6 +155,7 @@ server_queuereader(void *d)
 			for (; *metric != NULL; metric++) {
 				fprintf(stderr, "dropping metric: %s", *metric);
 				free((char *)*metric);
+				self->dropped++;
 			}
 			if (queue == NULL) {
 				/* we couldn't do anything, take it easy for a bit */
@@ -329,6 +330,7 @@ server_queuereader(void *d)
 					if (!queue_putback(self->queue, *metric)) {
 						fprintf(stderr, "dropping metric: %s", *metric);
 						free((char *)*metric);
+						self->dropped++;
 					}
 				}
 				break;
