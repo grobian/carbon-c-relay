@@ -165,8 +165,10 @@ server_queuereader(void *d)
 					break;
 				usleep((200 + (rand() % 100)) * 1000);  /* 200ms - 300ms */
 			}
-		} else if (self->failure && !self->keep_running) {
-			break;
+		} else if (self->failure) {
+			if (!self->keep_running)
+				break;
+			usleep((200 + (rand() % 100)) * 1000);  /* 200ms - 300ms */
 		}
 
 		/* at this point we've got work to do, if we're instructed to
