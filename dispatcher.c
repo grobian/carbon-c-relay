@@ -231,6 +231,7 @@ dispatch_process_dests(connection *conn, dispatcher *self)
 		} else {
 			/* finally "complete" this metric */
 			conn->destlen = 0;
+			conn->wait = 0;
 			self->metrics++;
 		}
 	}
@@ -238,6 +239,7 @@ dispatch_process_dests(connection *conn, dispatcher *self)
 	return 1;
 }
 
+#define IDLE_DISCONNECT_TIME  10  /* seconds */
 /**
  * Look at conn and see if works needs to be done.  If so, do it.
  */
@@ -360,9 +362,18 @@ dispatch_connection(connection *conn, dispatcher *self)
 				errno == EWOULDBLOCK))
 	{
 		/* nothing available/no work done */
-		conn->takenby = 0;
-		return 0;
-	} else if (len == -1 || len == 0) {  /* error + EOF */
+		len = -3;  /* hack to skip case below */
+		if (conn->wait == 0) {
+			conn->wait = time(NULL);
+		} else if (time(NULL) - conn->wait > IDLE_DISCONNECT_TIME) {
+			/* force close connection below */
+			len = 0;
+		} else {
+			conn->takenby = 0;
+			return 0;
+		}
+	}
+	if (len == -1 || len == 0) {  /* error + EOF */
 		int c;
 
 		/* we also disconnect the client in this case if our reading
