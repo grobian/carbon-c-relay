@@ -242,7 +242,7 @@ server_queuereader(void *d)
 						self->failure += self->failure >= FAIL_WAIT_TIME ? 0 : 1;
 						continue;
 					} else {
-						int serr;
+						int serr = 0;
 						socklen_t serrlen = sizeof(serr);
 						if (getsockopt(self->fd, SOL_SOCKET, SO_ERROR,
 									(void *)(&serr), &serrlen) < 0)
