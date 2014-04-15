@@ -322,8 +322,8 @@ server_queuereader(void *d)
 						fmtnow(nowbuf), self->ip, self->port,
 						(slen < 0 ? strerror(errno) : "uncomplete write"));
 				close(self->fd);
-				self->failure += self->failure >= FAIL_WAIT_TIME ? 0 : 1;
 				self->fd = -1;
+				self->failure += self->failure >= FAIL_WAIT_TIME ? 0 : 1;
 				/* put back stuff we couldn't process */
 				for (; *metric != NULL; metric++) {
 					if (!queue_putback(self->queue, *metric)) {
