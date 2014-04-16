@@ -206,6 +206,7 @@ dispatch_addconnection(int sock)
 	connections[c].destlen = 0;
 	connections[c].wait = 0;
 	connections[c].takenby = 0;  /* now dispatchers will pick this one up */
+	acceptedconnections++;
 
 	return 0;
 }
@@ -454,7 +455,6 @@ dispatch_runner(void *arg)
 							dispatch_check_rlimit_and_warn();
 							continue;
 						}
-						acceptedconnections++;
 						if (dispatch_addconnection(client) != 0) {
 							close(client);
 							continue;
