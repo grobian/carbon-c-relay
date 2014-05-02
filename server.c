@@ -327,7 +327,8 @@ server_queuereader(void *d)
 				/* put back stuff we couldn't process */
 				for (; *metric != NULL; metric++) {
 					if (!queue_putback(self->queue, *metric)) {
-						fprintf(stderr, "dropping metric: %s", *metric);
+						fprintf(stderr, "server %s:%u: dropping metric: %s",
+								self->ip, self->port, *metric);
 						free((char *)*metric);
 						self->dropped++;
 					}
