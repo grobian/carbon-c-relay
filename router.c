@@ -71,10 +71,18 @@ typedef struct _cluster {
 
 typedef struct _route {
 	char *pattern;    /* original regex input, used for printing only */
-	regex_t rule;     /* regex on metric, only if !matchall */
+	regex_t rule;     /* regex on metric, only if type == REGEX */
+	char *strmatch;   /* string to search for if type not REGEX or MATCHALL */
 	cluster *dest;    /* where matches should go */
 	char stop:1;      /* whether to continue matching rules after this one */
-	char matchall:1;  /* whether we should use the regex when matching */
+	enum {
+		MATCHALL,     /* the '*', don't do anything, just match everything */
+		REGEX,        /* a regex match */
+		CONTAINS,     /* find string occurrence */
+		STARTS_WITH,  /* metric must start with string */
+		ENDS_WITH,    /* metric must end with string */ 
+		MATCHES       /* metric matches string exactly */
+	} matchtype;      /* how to interpret the pattern */
 	struct _route *next;
 } route;
 
@@ -82,6 +90,79 @@ static route *routes = NULL;
 static cluster *clusters = NULL;
 static char keep_running = 1;
 
+
+/**
+ * Examines pattern and sets matchtype and rule or strmatch in route.
+ */
+static void
+determine_if_regex(route *r, char *pat)
+{
+	/* try and see if we can avoid using a regex match, for
+	 * it is simply very slow/expensive to do so: most of
+	 * the time, people don't need fancy matching rules */
+	char patbuf[8096];
+	char *e = pat;
+	char *pb = patbuf;
+	char escape = 0;
+	r->matchtype = CONTAINS;
+
+	if (*e == '^') {
+		e++;
+		r->matchtype = STARTS_WITH;
+	}
+	for (; *e != '\0'; e++) {
+		switch (*e) {
+			case '\\':
+				if (escape)
+					*pb++ = *e;
+				escape = !escape;
+				break;
+			case '.':
+			case '^':
+			case '*':
+			case '+':
+				if (!escape)
+					r->matchtype = REGEX;
+				*pb++ = *e;
+				escape = 0;
+				break;
+			case '$':
+				if (!escape && e[1] == '\0') {
+					if (r->matchtype == STARTS_WITH) {
+						r->matchtype = MATCHES;
+					} else {
+						r->matchtype = ENDS_WITH;
+					}
+				} else {
+					r->matchtype = REGEX;
+				}
+				break;
+			default:
+				if (
+						!escape && (
+							(*e == '_') || (*e == '-') ||
+							(*e >= '0' && *e <= '9') ||
+							(*e >= 'a' && *e <= 'z') ||
+							(*e >= 'A' && *e <= 'Z')
+						)
+				   )
+				{
+					*pb++ = *e;
+				} else {
+					r->matchtype = REGEX;
+				}
+				break;
+		}
+		if (pb - patbuf == sizeof(patbuf))
+			r->matchtype = REGEX;
+		if (r->matchtype == REGEX)
+			break;
+	}
+	if (r->matchtype != REGEX) {
+		*pb = '\0';
+		r->strmatch = strdup(patbuf);
+	}
+}
 
 /**
  * Populates the routing tables by reading the config file.
@@ -483,18 +564,22 @@ router_readconfig(const char *path)
 			}
 			r->dest = w;
 			if (strcmp(pat, "*") == 0) {
-				r->matchall = 1;
 				r->pattern = NULL;
+				r->strmatch = NULL;
+				r->matchtype = MATCHALL;
 			} else {
-				if (regcomp(&r->rule, pat, REG_EXTENDED | REG_NOSUB) != 0) {
-					fprintf(stderr, "invalid expression '%s' for match\n",
-							pat);
-					free(r);
-					free(buf);
-					return 0;
+				determine_if_regex(r, pat);
+				if (r->matchtype == REGEX) {
+					if (regcomp(&r->rule, pat, REG_EXTENDED | REG_NOSUB) != 0) {
+						fprintf(stderr, "invalid expression '%s' for match\n",
+								pat);
+						free(r);
+						free(buf);
+						return 0;
+					}
+					r->strmatch = NULL;
 				}
 				r->pattern = strdup(pat);
-				r->matchall = 0;
 			}
 			r->stop = w->type == BLACKHOLE ? 1 : stop;
 			r->next = NULL;
@@ -533,17 +618,20 @@ router_readconfig(const char *path)
 				} else {
 					r = r->next = malloc(sizeof(route));
 				}
-				if (regcomp(&r->rule, pat, REG_EXTENDED | REG_NOSUB) != 0) {
-					fprintf(stderr, "invalid expression '%s' for aggregation\n",
-							pat);
-					free(r);
-					free(buf);
-					return 0;
+				determine_if_regex(r, pat);
+				if (r->matchtype == REGEX) {
+					if (regcomp(&r->rule, pat, REG_EXTENDED | REG_NOSUB) != 0) {
+						fprintf(stderr, "invalid expression '%s' for aggregation\n",
+								pat);
+						free(r);
+						free(buf);
+						return 0;
+					}
+					r->strmatch = NULL;
 				}
 				r->pattern = strdup(pat);
 				r->dest = w;
 				r->stop = 0;
-				r->matchall = 0;
 				r->next = NULL;
 			} while (strncmp(p, "every", 5) != 0 || !isspace(*(p + 5)));
 			p += 6;
@@ -768,7 +856,7 @@ router_optimise(void)
 	blocks->next = NULL;
 	for (rwalk = routes; rwalk != NULL; rwalk = rnext) {
 		/* matchall rules cannot be in a group */
-		if (rwalk->matchall) {
+		if (rwalk->matchtype == MATCHALL) {
 			blast->next = malloc(sizeof(block));
 			blast->next->prev = blast;
 			blast = blast->next;
@@ -949,7 +1037,7 @@ router_optimise(void)
 			}
 			rwalk->pattern = NULL;
 			rwalk->stop = 0;
-			rwalk->matchall = 0;
+			rwalk->matchtype = REGEX;
 			rwalk->dest = malloc(sizeof(cluster));
 			rwalk->dest->name = bwalk->pattern;
 			rwalk->dest->type = GROUP;
@@ -1044,12 +1132,35 @@ router_printconfig(FILE *f, char all)
 					++b, cnt);
 		} else {
 			fprintf(f, "match %s\n    send to %s%s\n    ;\n",
-					r->matchall ? "*" : r->pattern,
+					r->matchtype == MATCHALL ? "*" : r->pattern,
 					r->dest->name,
 					r->stop ? "\n    stop" : "");
 		}
 	}
 	fflush(f);
+}
+
+inline static char
+router_metric_matches(const route *r, const char *metric)
+{
+	switch (r->matchtype) {
+		case MATCHALL:
+			return 1;
+		case REGEX:
+			return regexec(&r->rule, metric, 0, NULL, 0) == 0;
+		case CONTAINS:
+			return strstr(metric, r->strmatch) != NULL;
+		case STARTS_WITH:
+			return strncmp(metric, r->strmatch, strlen(r->strmatch)) == 0;
+		case ENDS_WITH:
+			return strcmp(
+					metric + strlen(metric) - strlen(r->strmatch),
+					r->strmatch) == 0;
+		case MATCHES:
+			return strcmp(metric, r->strmatch) == 0;
+		default:
+			return 0;
+	}
 }
 
 static char
@@ -1099,7 +1210,7 @@ router_route_intern(
 						metric_path,
 						metric,
 						w->dest->members.routes);
-		} else if (w->matchall || regexec(&w->rule, metric_path, 0, NULL, 0) == 0) {
+		} else if (router_metric_matches(w, metric_path)) {
 			stop = w->stop;
 			/* rule matches, send to destination(s) */
 			switch (w->dest->type) {
@@ -1202,12 +1313,41 @@ router_test_intern(const char *metric_path, route *routes)
 					w->dest->members.routes);
 			if (gotmatch & 2)
 				break;
-		} else if (w->matchall || regexec(&w->rule, metric_path, 0, NULL, 0) == 0) {
+		} else if (router_metric_matches(w, metric_path)) {
 			gotmatch = 1;
-			fprintf(stdout, "%s\n    %s -> %s\n",
-					w->dest->type == AGGREGATION ? "aggregation" : "match",
-					w->matchall ? "*" : w->pattern,
-					metric_path);
+			fprintf(stdout, "%s\n",
+					w->dest->type == AGGREGATION ? "aggregation" : "match");
+			switch (w->matchtype) {
+				case MATCHALL:
+					fprintf(stdout, "    * -> %s\n", metric_path);
+					break;
+				case REGEX:
+					fprintf(stdout, "    %s (regex) -> %s\n",
+							w->pattern, metric_path);
+					break;
+				default: {
+					char *x;
+					switch (w->matchtype) {
+						case CONTAINS:
+							x = "strstr";
+							break;
+						case STARTS_WITH:
+							x = "strncmp";
+							break;
+						case ENDS_WITH:
+							x = "tailcmp";
+							break;
+						case MATCHES:
+							x = "strcmp";
+							break;
+						default:
+							x = "!impossible?";
+							break;
+					}
+					fprintf(stdout, "    %s [%s: %s]\n    -> %s\n",
+							w->pattern, x, w->strmatch, metric_path);
+				}	break;
+			}
 			switch (w->dest->type) {
 				case AGGREGATION: {
 					struct _aggr_computes *ac;
