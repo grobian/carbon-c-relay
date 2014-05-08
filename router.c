@@ -846,8 +846,8 @@ router_optimise(void)
 	 * any characters not matched by the previous expression.  Then from
 	 * these last parts we create groups, that -- if having enough
 	 * members -- is used to reduce the amount of comparisons done
-	 * before determining that an input metric cannot match any regex we
-	 * have defined. */
+	 * before determining that an input metric cannot match any
+	 * expression we have defined. */
 	seq = 0;
 	blast = bstart = blocks = malloc(sizeof(block));
 	blocks->refcnt = 0;
@@ -1037,7 +1037,7 @@ router_optimise(void)
 			}
 			rwalk->pattern = NULL;
 			rwalk->stop = 0;
-			rwalk->matchtype = REGEX;
+			rwalk->matchtype = CONTAINS;
 			rwalk->dest = malloc(sizeof(cluster));
 			rwalk->dest->name = bwalk->pattern;
 			rwalk->dest->type = GROUP;
