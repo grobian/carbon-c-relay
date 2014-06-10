@@ -105,7 +105,7 @@ dispatch_addlistener(int sock)
 	newconn = malloc(sizeof(connection));
 	if (newconn == NULL)
 		return 1;
-	fcntl(sock, F_SETFL, O_NONBLOCK);
+	(void) fcntl(sock, F_SETFL, O_NONBLOCK);
 	newconn->sock = sock;
 	newconn->takenby = 0;
 	newconn->buflen = 0;
@@ -199,7 +199,7 @@ dispatch_addconnection(int sock)
 		pthread_rwlock_unlock(&connectionslock);
 	}
 
-	fcntl(sock, F_SETFL, O_NONBLOCK);
+	(void) fcntl(sock, F_SETFL, O_NONBLOCK);
 	connections[c].sock = sock;
 	connections[c].buflen = 0;
 	connections[c].needmore = 0;
