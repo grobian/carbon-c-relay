@@ -109,15 +109,15 @@ ch_addnode(ch_ring *ring, server *s)
 {
 	int i;
 	char buf[256];
-	ch_ring_entry *entries =
-		(ch_ring_entry *)malloc(sizeof(ch_ring_entry) * ring->hash_replicas);
+	ch_ring_entry *entries;
 
+	if (ring == NULL)
+		return NULL;
+
+	entries =
+		(ch_ring_entry *)malloc(sizeof(ch_ring_entry) * ring->hash_replicas);
 	if (entries == NULL)
 		return NULL;
-	if (ring == NULL) {
-		free(entries);
-		return NULL;
-	}
 
 	switch (ring->type) {
 		case CARBON:
