@@ -208,7 +208,7 @@ server_queuereader(void *d)
 				/* put socket in non-blocking mode such that we can
 				 * select() (time-out) on the connect() call */
 				args = fcntl(self->fd, F_GETFL, NULL);
-				fcntl(self->fd, F_SETFL, args | O_NONBLOCK);
+				(void) fcntl(self->fd, F_SETFL, args | O_NONBLOCK);
 				ret = connect(self->fd,
 						self->saddr->ai_addr, self->saddr->ai_addrlen);
 
@@ -274,7 +274,7 @@ server_queuereader(void *d)
 				}
 
 				/* make socket blocking again */
-				fcntl(self->fd, F_SETFL, args);
+				(void) fcntl(self->fd, F_SETFL, args);
 			}
 
 			/* ensure we will break out of connections being stuck */
