@@ -46,6 +46,8 @@ aggregator_new(unsigned int interval, unsigned int expire)
 
 	if (ret == NULL)
 		return ret;
+	if (interval == 0 || expire == 0)
+		return NULL;
 
 	if (aggregators == NULL) {
 		aggregators = lastaggr = ret;

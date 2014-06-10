@@ -699,6 +699,12 @@ router_readconfig(const char *path)
 			*p++ = '\0';
 			w->members.aggregation =
 				aggregator_new(atoi(interval), atoi(expire));
+			if (w->members.aggregation == NULL) {
+				fprintf(stderr, "invalid interval (%s) or expire (%s)\n",
+						interval, expire);
+				free(buf);
+				return 0;
+			}
 			for (; *p != '\0' && isspace(*p); p++)
 				;
 			if (strncmp(p, "seconds", 7) != 0 || !isspace(*(p + 7))) {
