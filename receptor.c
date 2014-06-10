@@ -68,9 +68,9 @@ bindlisten(int ret[], int *retlen, unsigned short port)
 		if ((sock = socket(resw->ai_family, resw->ai_socktype, resw->ai_protocol)) < 0)
 			continue;
 
-		setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+		(void) setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
 		optval = 1;  /* allow takeover */
-		setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval));
+		(void) setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval));
 
 		if (bind(sock, resw->ai_addr, resw->ai_addrlen) < 0) {
 			close(sock);
