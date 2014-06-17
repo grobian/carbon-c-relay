@@ -201,7 +201,7 @@ determine_if_regex(route *r, char *pat)
  *    stop;
  */
 int
-router_readconfig(const char *path)
+router_readconfig(const char *path, size_t queuesize, size_t batchsize)
 {
 	FILE *cnf;
 	char *buf;
@@ -390,7 +390,8 @@ router_readconfig(const char *path)
 						return 0;
 					}
 					w->next = NULL;
-					w->server = server_new(ip, (unsigned short)port);
+					w->server = server_new(ip, (unsigned short)port,
+							queuesize, batchsize);
 					if (w->server == NULL) {
 						fprintf(stderr, "failed to add server %s:%d "
 								"to cluster %s: %s\n", ip, port,
@@ -425,7 +426,8 @@ router_readconfig(const char *path)
 						return 0;
 					}
 					w->next = NULL;
-					w->server = server_new(ip, (unsigned short)port);
+					w->server = server_new(ip, (unsigned short)port,
+							queuesize, batchsize);
 					if (w->server == NULL) {
 						fprintf(stderr, "failed to add server %s:%d "
 								"to forwarders: %s\n", ip, port,

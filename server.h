@@ -20,8 +20,7 @@
 
 typedef struct _server server;
 
-server *server_new(const char *ip, unsigned short port);
-server *server_new_qsize(const char *ip, unsigned short port, size_t qsize);
+server *server_new(const char *ip, unsigned short port, size_t queuesize, size_t batchsize);
 void server_add_secondaries(server *d, server **sec, size_t cnt);
 char server_send(server *s, const char *d, char force);
 void server_shutdown(server *s);

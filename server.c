@@ -44,6 +44,8 @@ typedef struct _server {
 	struct addrinfo *saddr;
 	int fd;
 	queue *queue;
+	size_t bsize;
+	const char **batch;
 	enum servertype type;
 	pthread_t tid;
 	struct _server **secondaries;
@@ -56,9 +58,6 @@ typedef struct _server {
 	size_t ticks;
 	struct _server *next;
 } server;
-
-#define BATCH_SIZE   2500
-#define QUEUE_SIZE  25000
 
 static server *servers = NULL;
 
@@ -77,8 +76,7 @@ server_queuereader(void *d)
 	server *self = (server *)d;
 	size_t len;
 	ssize_t slen;
-	const char *metrics[BATCH_SIZE + 1];
-	const char **metric = metrics;
+	const char **metric = self->batch;
 	struct timeval start, stop;
 	struct timeval timeout;
 	char nowbuf[24];
@@ -93,7 +91,7 @@ server_queuereader(void *d)
 
 #define FAIL_WAIT_TIME   6  /* 6 * 250ms = 1.5s */
 #define DISCONNECT_WAIT_TIME   12  /* 8 * 250ms = 3s */
-#define LEN_CRITICAL(Q)  (queue_free(Q) < BATCH_SIZE)
+#define LEN_CRITICAL(Q)  (queue_free(Q) < self->bsize)
 	self->running = 1;
 	while (1) {
 		if (queue_len(self->queue) == 0) {
@@ -138,10 +136,11 @@ server_queuereader(void *d)
 					continue;
 				}
 				if (*metric == NULL) {
-					/* send up to BATCH_SIZE of our queue to this queue */
-					len = queue_dequeue_vector(metrics, self->queue, BATCH_SIZE);
-					metrics[len] = NULL;
-					metric = metrics;
+					/* send up to batch size of our queue to this queue */
+					len = queue_dequeue_vector(
+							self->batch, self->queue, self->bsize);
+					self->batch[len] = NULL;
+					metric = self->batch;
 				}
 
 				for (; *metric != NULL; metric++)
@@ -286,10 +285,10 @@ server_queuereader(void *d)
 #endif
 		}
 
-		/* send up to BATCH_SIZE */
-		len = queue_dequeue_vector(metrics, self->queue, BATCH_SIZE);
-		metrics[len] = NULL;
-		metric = metrics;
+		/* send up to batch size */
+		len = queue_dequeue_vector(self->batch, self->queue, self->bsize);
+		self->batch[len] = NULL;
+		metric = self->batch;
 
 		if (len != 0 && !self->keep_running) {
 			/* be noisy during shutdown so we can track any slowing down
@@ -356,13 +355,16 @@ server_queuereader(void *d)
 }
 
 /**
- * Allocates a new server and starts the thread.
+ * Allocate a new (outbound) server.  Effectively this means a thread
+ * that reads from the queue and sends this as good as it can to the ip
+ * address and port associated.
  */
-static server *
-server_new_intern(
+server *
+server_new(
 		const char *ip,
 		unsigned short port,
-		size_t qsize)
+		size_t qsize,
+		size_t bsize)
 {
 	server *ret;
 
@@ -376,6 +378,11 @@ server_new_intern(
 	ret->secondariescnt = 0;
 	ret->ip = strdup(ip);
 	ret->port = port;
+	ret->bsize = bsize;
+	if ((ret->batch = malloc(sizeof(char *) * (bsize + 1))) == NULL) {
+		free(ret);
+		return NULL;
+	}
 	ret->fd = -1;
 	if (strcmp(ip, "internal") == 0) {
 		ret->type = INTERNAL;
@@ -424,27 +431,6 @@ server_new_intern(
 	ret->next = servers;
 	servers = ret;
 	return ret;
-}
-
-/**
- * Allocate a new (outbound) server.  Effectively this means a thread
- * that reads from the queue and sends this as good as it can to the ip
- * address and port associated.
- */
-server *
-server_new(const char *ip, unsigned short port)
-{
-	return server_new_intern(ip, port, QUEUE_SIZE);
-}
-
-/**
- * Allocate a new server with a queue size.  This is the same as
- * server_new() but with a configurable queue size.
- */
-server *
-server_new_qsize(const char *ip, unsigned short port, size_t qsize)
-{
-	return server_new_intern(ip, port, qsize);
 }
 
 /**
@@ -574,6 +560,7 @@ server_shutdown(server *s)
 			fprintf(stderr, "dropping %zd metrics for %s:%u\n",
 					qlen, s->ip, s->port);
 	}
+	free(s->batch);
 	if (s->saddr != NULL)
 		freeaddrinfo(s->saddr);
 	free((char *)s->ip);
