@@ -310,7 +310,7 @@ dispatch_connection(connection *conn, dispatcher *self)
 							(q - 1) != firstspace)
 						*q++ = *p;
 				}
-			} else if (*p == '\n') {
+			} else if (*p == '\n' || *p == '\r') {
 				/* end of metric */
 				lastnl = p;
 
