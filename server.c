@@ -90,7 +90,7 @@ server_queuereader(void *d)
 	timeout.tv_sec = 0;
 
 #define FAIL_WAIT_TIME   6  /* 6 * 250ms = 1.5s */
-#define DISCONNECT_WAIT_TIME   12  /* 8 * 250ms = 3s */
+#define DISCONNECT_WAIT_TIME   12  /* 12 * 250ms = 3s */
 #define LEN_CRITICAL(Q)  (queue_free(Q) < self->bsize)
 	self->running = 1;
 	while (1) {
