@@ -291,8 +291,10 @@ dispatch_connection(connection *conn, dispatcher *self)
 			{
 				/* copy char */
 				*q++ = *p;
-			} else if (*p == ' ' || *p == '.') {
+			} else if (*p == ' ' || *p == '\t' || *p == '.') {
 				/* separator */
+				if (*p == '\t')
+					*p = ' ';
 				if (*p == ' ' && firstspace == NULL) {
 					if (q == conn->metric)
 						continue;
