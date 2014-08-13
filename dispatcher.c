@@ -238,7 +238,7 @@ dispatch_process_dests(connection *conn, dispatcher *self)
 	return 1;
 }
 
-#define IDLE_DISCONNECT_TIME  (10 * 60)  /* seconds */
+#define IDLE_DISCONNECT_TIME  (10 * 60)  /* 10 minutes */
 /**
  * Look at conn and see if works needs to be done.  If so, do it.
  */
