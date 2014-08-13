@@ -375,27 +375,16 @@ dispatch_connection(connection *conn, dispatcher *self)
 		}
 	}
 	if (len == -1 || len == 0) {  /* error + EOF */
-		int c;
-
 		/* we also disconnect the client in this case if our reading
 		 * buffer is full, but we still need more (read returns 0 if the
 		 * size argument is 0) -> this is good, because we can't do much
 		 * with such client */
 
-		/* find connection */
-		for (c = 0; c < connectionslen; c++)
-			if (&(connections[c]) == conn)
-				break;
-		if (c == connectionslen) {
-			/* not found?!? */
-			fprintf(stderr, "PANIC: can't find my own connection!\n");
-			return 1;
-		}
 		closedconnections++;
 		close(conn->sock);
 
 		/* flag this connection as no longer in use */
-		connections[c].takenby = -1;
+		conn->takenby = -1;
 
 		return 1;
 	}
