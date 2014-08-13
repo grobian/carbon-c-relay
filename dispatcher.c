@@ -363,9 +363,10 @@ dispatch_connection(connection *conn, dispatcher *self)
 				errno == EWOULDBLOCK))
 	{
 		/* nothing available/no work done */
-		len = -3;  /* hack to skip case below */
 		if (conn->wait == 0) {
 			conn->wait = time(NULL);
+			conn->takenby = 0;
+			return 0;
 		} else if (time(NULL) - conn->wait > IDLE_DISCONNECT_TIME) {
 			/* force close connection below */
 			len = 0;
@@ -386,7 +387,7 @@ dispatch_connection(connection *conn, dispatcher *self)
 		/* flag this connection as no longer in use */
 		conn->takenby = -1;
 
-		return 1;
+		return 0;
 	}
 
 	/* "release" this connection again */
