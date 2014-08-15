@@ -296,8 +296,12 @@ dispatch_connection(connection *conn, dispatcher *self)
 				if (*p == '\t')
 					*p = ' ';
 				if (*p == ' ' && firstspace == NULL) {
-					if (q == conn->metric)
+					if (q == conn->metric) {
+						/* make sure we skip this on next iteration to
+						 * avoid an infinite loop */
+						lastnl = p;
 						continue;
+					}
 					if (*(q - 1) == '.')
 						q--;  /* strip trailing separator */
 					firstspace = q;
