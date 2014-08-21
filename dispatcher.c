@@ -37,7 +37,7 @@ enum conntype {
 	CONNECTION
 };
 
-#define CONN_READBUF_SIZE  8096
+#define CONN_READBUF_SIZE  8192
 #define CONN_DESTS_SIZE    32
 typedef struct _connection {
 	int sock;

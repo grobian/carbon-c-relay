@@ -56,7 +56,7 @@ collector_runner(void *s)
 	char *p;
 	size_t numaggregators = aggregator_numaggregators();
 	server *submission = (server *)s;
-	char metric[8096];
+	char metric[8192];
 	char *m;
 	size_t sizem = 0;
 

@@ -226,7 +226,7 @@ main(int argc, char * const argv[])
 
 	/* shortcut for rule testing mode */
 	if (mode == TEST) {
-		char metricbuf[8096];
+		char metricbuf[8192];
 		char *p;
 
 		fflush(stdout);

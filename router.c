@@ -100,7 +100,7 @@ determine_if_regex(route *r, char *pat)
 	/* try and see if we can avoid using a regex match, for
 	 * it is simply very slow/expensive to do so: most of
 	 * the time, people don't need fancy matching rules */
-	char patbuf[8096];
+	char patbuf[8192];
 	char *e = pat;
 	char *pb = patbuf;
 	char escape = 0;

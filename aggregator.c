@@ -162,7 +162,7 @@ aggregator_expire(void *sub)
 	struct _aggr_computes *c;
 	int work;
 	server *submission = (server *)sub;
-	char metric[8096];
+	char metric[8192];
 
 	while (1) {
 		work = 0;
