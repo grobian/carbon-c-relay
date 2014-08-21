@@ -619,7 +619,7 @@ server_failed(server *s)
 }
 
 /**
- * Returns the wall-clock time in milliseconds consumed sending metrics.
+ * Returns the wall-clock time in microseconds (us) consumed sending metrics.
  */
 inline size_t
 server_get_ticks(server *s)

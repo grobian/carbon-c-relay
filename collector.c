@@ -97,14 +97,14 @@ collector_runner(void *s)
 			snprintf(m, sizem, "dispatcher%d.metricsReceived %zd %zd\n",
 					i + 1, metrics, (size_t)now);
 			send(metric);
-			snprintf(m, sizem, "dispatcher%d.wallTime_ns %zd %zd\n",
+			snprintf(m, sizem, "dispatcher%d.wallTime_us %zd %zd\n",
 					i + 1, ticks, (size_t)now);
 			send(metric);
 		}
 		snprintf(m, sizem, "metricsReceived %zd %zd\n",
 				totmetrics, (size_t)now);
 		send(metric);
-		snprintf(m, sizem, "dispatch_wallTime_ns %zd %zd\n",
+		snprintf(m, sizem, "dispatch_wallTime_us %zd %zd\n",
 				totticks, (size_t)now);
 		send(metric);
 		snprintf(m, sizem, "dispatch_busy %zd %zd\n",
@@ -136,7 +136,7 @@ collector_runner(void *s)
 			snprintf(m, sizem, "destinations.%s:%u.dropped %zd %zd\n",
 					ipbuf, server_port(servers[i]), dropped, (size_t)now);
 			send(metric);
-			snprintf(m, sizem, "destinations.%s:%u.wallTime_ns %zd %zd\n",
+			snprintf(m, sizem, "destinations.%s:%u.wallTime_us %zd %zd\n",
 					ipbuf, server_port(servers[i]), ticks, (size_t)now);
 			send(metric);
 		}
@@ -149,7 +149,7 @@ collector_runner(void *s)
 		snprintf(m, sizem, "destinations.internal.dropped %zd %zd\n",
 				server_get_dropped(submission), (size_t)now);
 		send(metric);
-		snprintf(m, sizem, "destinations.internal.wallTime_ns %zd %zd\n",
+		snprintf(m, sizem, "destinations.internal.wallTime_us %zd %zd\n",
 				server_get_ticks(submission), (size_t)now);
 		send(metric);
 
@@ -162,7 +162,7 @@ collector_runner(void *s)
 		snprintf(m, sizem, "metricsDropped %zd %zd\n",
 				totdropped, (size_t)now);
 		send(metric);
-		snprintf(m, sizem, "server_wallTime_ns %zd %zd\n",
+		snprintf(m, sizem, "server_wallTime_us %zd %zd\n",
 				totticks, (size_t)now);
 		send(metric);
 		snprintf(m, sizem, "connections %zd %zd\n",
