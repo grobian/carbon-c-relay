@@ -25,7 +25,7 @@
 int router_readconfig(const char *path, size_t queuesize, size_t batchsize);
 void router_optimise(void);
 void router_printconfig(FILE *f, char all);
-size_t router_route(server **ret, size_t retsize, const char *metric_path, const char *metric);
+size_t router_route(server **ret, size_t retsize, char *metric, const char *firstspace);
 void router_test(const char *metric_path);
 void router_shutdown(void);
 

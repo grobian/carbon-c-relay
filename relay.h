@@ -20,6 +20,8 @@
 
 #define VERSION "0.30"
 
+#define METRIC_BUFSIZ 8192
+
 enum rmode { NORMAL, DEBUG, SUBMISSION, TEST };
 
 extern char relay_hostname[];

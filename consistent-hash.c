@@ -50,11 +50,11 @@ struct _ch_ring {
  * bytes of the MD5 sum of key.
  */
 static unsigned short
-carbon_hashpos(const char *key)
+carbon_hashpos(const char *key, const char *end)
 {
 	unsigned char md5[MD5_DIGEST_LENGTH];
 
-	MD5((unsigned char *)key, strlen(key), md5);
+	MD5((unsigned char *)key, end - key, md5);
 
 	return ((md5[0] << 8) + md5[1]);
 }
@@ -65,11 +65,11 @@ carbon_hashpos(const char *key)
  * algorithm.
  */
 static unsigned short
-fnv1a_hashpos(const char *key)
+fnv1a_hashpos(const char *key, const char *end)
 {
 	unsigned int hash = 2166136261UL;  /* FNV1a */
 
-	for (; *key != '\0'; key++)
+	for (; key < end; key++)
 		hash = (hash ^ (unsigned int)*key) * 16777619;
 
 	return (unsigned short)((hash >> 16) ^ (hash & (unsigned int)0xFFFF));
@@ -129,7 +129,7 @@ ch_addnode(ch_ring *ring, server *s)
 				 * https://github.com/graphite-project/carbon/commit/024f9e67ca47619438951c59154c0dec0b0518c7
 				 * Question is how harmful the collision is -- it will probably
 				 * change the location of some metrics */
-				entries[i].pos = carbon_hashpos(buf);
+				entries[i].pos = carbon_hashpos(buf, buf + strlen(buf));
 				entries[i].server = s;
 				entries[i].next = NULL;
 			}
@@ -141,7 +141,7 @@ ch_addnode(ch_ring *ring, server *s)
 				 * (unlike CARBON) */
 				snprintf(buf, sizeof(buf), "%d-%s:%u",
 						i, server_ip(s), server_port(s));
-				entries[i].pos = fnv1a_hashpos(buf);
+				entries[i].pos = fnv1a_hashpos(buf, buf + strlen(buf));
 				entries[i].server = s;
 				entries[i].next = NULL;
 			}
@@ -199,7 +199,8 @@ ch_get_nodes(
 		server *ret[],
 		ch_ring *ring,
 		const char replcnt,
-		const char *metric)
+		const char *metric,
+		const char *firstspace)
 {
 	ch_ring_entry *w;
 	unsigned short pos = 0;
@@ -207,10 +208,10 @@ ch_get_nodes(
 
 	switch (ring->type) {
 		case CARBON:
-			pos = carbon_hashpos(metric);
+			pos = carbon_hashpos(metric, firstspace);
 			break;
 		case FNV1a:
-			pos = fnv1a_hashpos(metric);
+			pos = fnv1a_hashpos(metric, firstspace);
 			break;
 	}
 

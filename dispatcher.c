@@ -37,15 +37,14 @@ enum conntype {
 	CONNECTION
 };
 
-#define CONN_READBUF_SIZE  8192
 #define CONN_DESTS_SIZE    32
 typedef struct _connection {
 	int sock;
 	char takenby;   /* -2: being setup, -1: free, 0: not taken, >0: tid */
-	char buf[CONN_READBUF_SIZE];
+	char buf[METRIC_BUFSIZ];
 	int buflen;
 	char needmore:1;
-	char metric[CONN_READBUF_SIZE];
+	char metric[METRIC_BUFSIZ];
 	server *dests[CONN_DESTS_SIZE];
 	size_t destlen;
 	time_t wait;
@@ -246,7 +245,6 @@ static int
 dispatch_connection(connection *conn, dispatcher *self)
 {
 	char *p, *q, *firstspace, *lastnl;
-	char metric_path[sizeof(conn->buf)];
 	int len;
 	struct timeval start, stop;
 
@@ -305,7 +303,7 @@ dispatch_connection(connection *conn, dispatcher *self)
 					if (*(q - 1) == '.')
 						q--;  /* strip trailing separator */
 					firstspace = q;
-					*q++ = '\0';
+					*q++ = ' ';
 				} else {
 					/* metric_path separator or space,
 					 * - duplicate elimination
@@ -330,15 +328,10 @@ dispatch_connection(connection *conn, dispatcher *self)
 				*q++ = '\n';
 				*q = '\0';  /* can do this because we substract one from buf */
 
-				/* copy metric_path alone (up to firstspace) */
-				memcpy(metric_path, conn->metric,
-						firstspace + 1 - conn->metric);
-				*firstspace = ' ';
-
 				/* perform routing of this metric */
 				conn->destlen =
 					router_route(conn->dests, sizeof(conn->dests),
-							metric_path, conn->metric);
+							conn->metric, firstspace);
 
 				/* restart building new one from the start */
 				q = conn->metric;

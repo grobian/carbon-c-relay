@@ -36,7 +36,8 @@ enum clusttype {
 	CARBON_CH,  /* room for a better/different hash definition */
 	FNV1A_CH,   /* FNV1a-based consistent-hash */
 	ANYOF,      /* FNV1a-based hash, but with backup by others */
-	AGGREGATION
+	AGGREGATION,
+	REWRITE
 };
 
 typedef struct _servers {
@@ -65,6 +66,7 @@ typedef struct _cluster {
 		serverlist *anyof;
 		aggregator *aggregation;
 		struct _route *routes;
+		char *replacement;
 	} members;
 	struct _cluster *next;
 } cluster;
@@ -72,6 +74,8 @@ typedef struct _cluster {
 typedef struct _route {
 	char *pattern;    /* original regex input, used for printing only */
 	regex_t rule;     /* regex on metric, only if type == REGEX */
+	size_t nmatch;    /* number of match groups */
+	regmatch_t *pmatch; /* start/end of match groups */
 	char *strmatch;   /* string to search for if type not REGEX or MATCHALL */
 	cluster *dest;    /* where matches should go */
 	char stop:1;      /* whether to continue matching rules after this one */
@@ -94,8 +98,8 @@ static char keep_running = 1;
 /**
  * Examines pattern and sets matchtype and rule or strmatch in route.
  */
-static void
-determine_if_regex(route *r, char *pat)
+static int
+determine_if_regex(route *r, char *pat, int flags)
 {
 	/* try and see if we can avoid using a regex match, for
 	 * it is simply very slow/expensive to do so: most of
@@ -105,6 +109,8 @@ determine_if_regex(route *r, char *pat)
 	char *pb = patbuf;
 	char escape = 0;
 	r->matchtype = CONTAINS;
+	r->nmatch = 0;
+	r->pmatch = NULL;
 
 	if (*e == '^') {
 		e++;
@@ -136,6 +142,7 @@ determine_if_regex(route *r, char *pat)
 				} else {
 					r->matchtype = REGEX;
 				}
+				escape = 0;
 				break;
 			default:
 				if (
@@ -151,6 +158,7 @@ determine_if_regex(route *r, char *pat)
 				} else {
 					r->matchtype = REGEX;
 				}
+				escape = 0;
 				break;
 		}
 		if (pb - patbuf == sizeof(patbuf))
@@ -161,7 +169,22 @@ determine_if_regex(route *r, char *pat)
 	if (r->matchtype != REGEX) {
 		*pb = '\0';
 		r->strmatch = strdup(patbuf);
+		r->pattern = NULL;
+	} else {
+		int ret = regcomp(&r->rule, pat, flags);
+		if (ret != 0)
+			return ret;  /* allow use of regerror */
+		r->strmatch = NULL;
+		r->pattern = strdup(pat);
+		if ((flags & REG_NOSUB) == 0) {
+			/* we need +1 because position 0 contains the entire
+			 * expression */
+			r->nmatch = r->rule.re_nsub + 1;
+			r->pmatch = malloc(sizeof(regmatch_t) * r->nmatch);
+		}
 	}
+
+	return 0;
 }
 
 /**
@@ -176,6 +199,9 @@ determine_if_regex(route *r, char *pat)
  * match (* | regex)
  *     send to (cluster | blackhole)
  *     [stop]
+ *     ;
+ * rewrite (regex)
+ *     into (replacement)
  *     ;
  * aggregate
  *         (regex[ regex ...])
@@ -570,18 +596,16 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize)
 				r->strmatch = NULL;
 				r->matchtype = MATCHALL;
 			} else {
-				determine_if_regex(r, pat);
-				if (r->matchtype == REGEX) {
-					if (regcomp(&r->rule, pat, REG_EXTENDED | REG_NOSUB) != 0) {
-						fprintf(stderr, "invalid expression '%s' for match\n",
-								pat);
-						free(r);
-						free(buf);
-						return 0;
-					}
-					r->strmatch = NULL;
+				int err = determine_if_regex(r, pat, REG_EXTENDED | REG_NOSUB);
+				if (err != 0) {
+					char ebuf[512];
+					regerror(err, &r->rule, ebuf, sizeof(ebuf));
+					fprintf(stderr, "invalid expression '%s' for match: %s\n",
+							pat, ebuf);
+					free(r);
+					free(buf);
+					return 0;
 				}
-				r->pattern = strdup(pat);
 			}
 			r->stop = w->type == BLACKHOLE ? 1 : stop;
 			r->next = NULL;
@@ -592,6 +616,7 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize)
 			char *expire;
 			cluster *w;
 			struct _aggr_computes *ac = NULL;
+			int err;
 
 			p += 10;
 			for (; *p != '\0' && isspace(*p); p++)
@@ -620,18 +645,16 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize)
 				} else {
 					r = r->next = malloc(sizeof(route));
 				}
-				determine_if_regex(r, pat);
-				if (r->matchtype == REGEX) {
-					if (regcomp(&r->rule, pat, REG_EXTENDED | REG_NOSUB) != 0) {
-						fprintf(stderr, "invalid expression '%s' for aggregation\n",
-								pat);
-						free(r);
-						free(buf);
-						return 0;
-					}
-					r->strmatch = NULL;
+				err = determine_if_regex(r, pat, REG_EXTENDED | REG_NOSUB);
+				if (err != 0) {
+					char ebuf[512];
+					regerror(err, &r->rule, ebuf, sizeof(ebuf));
+					fprintf(stderr, "invalid expression '%s' "
+							"for aggregation: %s\n", pat, ebuf);
+					free(r);
+					free(buf);
+					return 0;
 				}
-				r->pattern = strdup(pat);
 				r->dest = w;
 				r->stop = 0;
 				r->next = NULL;
@@ -790,6 +813,84 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize)
 					;
 			} while (*p != ';');
 			p++;
+		} else if (strncmp(p, "rewrite", 7) == 0 && isspace(*(p + 7))) {
+			/* rewrite rule */
+			char *pat;
+			char *replacement;
+			int err;
+
+			p += 8;
+			for (; *p != '\0' && isspace(*p); p++)
+				;
+			pat = p;
+			for (; *p != '\0' && !isspace(*p); p++)
+				;
+			if (*p == '\0') {
+				fprintf(stderr, "unexpected end of file after 'rewrite'\n");
+				free(buf);
+				return 0;
+			}
+			*p++ = '\0';
+			for (; *p != '\0' && isspace(*p); p++)
+				;
+			if (strncmp(p, "into", 4) != 0 || !isspace(*(p + 4))) {
+				fprintf(stderr, "expected 'into' after rewrite %s\n", pat);
+				free(buf);
+				return 0;
+			}
+			p += 5;
+			for (; *p != '\0' && isspace(*p); p++)
+				;
+			replacement = p;
+			for (; *p != '\0' && !isspace(*p) && *p != ';'; p++)
+				;
+			if (*p == '\0') {
+				fprintf(stderr, "unexpected end of file after 'into %s'\n",
+						replacement);
+				free(buf);
+				return 0;
+			} else if (*p == ';') {
+				*p++ = '\0';
+			} else {
+				*p++ = '\0';
+				for (; *p != '\0' && isspace(*p) && *p != ';'; p++)
+					;
+				if (*p != ';') {
+					fprintf(stderr, "expected ';' after %s\n", replacement);
+					free(buf);
+					return 0;
+				}
+				p++;
+			}
+
+			if (r == NULL) {
+				routes = r = malloc(sizeof(route));
+			} else {
+				r = r->next = malloc(sizeof(route));
+			}
+			err = determine_if_regex(r, pat, REG_EXTENDED);
+			if (err != 0) {
+				char ebuf[512];
+				regerror(err, &r->rule, ebuf, sizeof(ebuf));
+				fprintf(stderr, "invalid expression '%s' for rewrite: %s\n",
+						pat, ebuf);
+				free(r);
+				free(buf);
+				return 0;
+			}
+
+			if ((cl = cl->next = malloc(sizeof(cluster))) == NULL) {
+				fprintf(stderr, "malloc failed for rewrite destination\n");
+				free(r);
+				free(buf);
+				return 0;
+			}
+			cl->type = REWRITE;
+			cl->members.replacement = strdup(replacement);
+
+			r->dest = cl;
+			r->stop = 0;
+			r->next = NULL;
 		} else {
 			/* garbage? */
 			fprintf(stderr, "garbage in config: %s\n", p);
@@ -1074,7 +1175,7 @@ router_printconfig(FILE *f, char all)
 	servers *s;
 
 	for (c = clusters; c != NULL; c = c->next) {
-		if (c->type == BLACKHOLE)
+		if (c->type == BLACKHOLE || c->type == REWRITE)
 			continue;
 		fprintf(f, "cluster %s\n", c->name);
 		if (c->type == FORWARD) {
@@ -1122,6 +1223,9 @@ router_printconfig(FILE *f, char all)
 						ac->type == MAX ? "max" : ac->type == MIN ? "min" :
 						ac->type == AVG ? "average" : "<unknown>", ac->metric);
 			fprintf(f, "    ;\n");
+		} else if (r->dest->type == REWRITE) {
+			fprintf(f, "rewrite %s\n    into %s\n    ;\n",
+					r->pattern, r->dest->members.replacement);
 		} else if (r->dest->type == GROUP) {
 			size_t cnt = 0;
 			route *rwalk;
@@ -1149,25 +1253,131 @@ router_printconfig(FILE *f, char all)
 }
 
 inline static char
-router_metric_matches(const route *r, const char *metric)
+router_metric_matches(const route *r, char *metric, char *firstspace)
 {
+	char ret = 0;
+
 	switch (r->matchtype) {
 		case MATCHALL:
-			return 1;
+			ret = 1;
+			break;
 		case REGEX:
-			return regexec(&r->rule, metric, 0, NULL, 0) == 0;
+			*firstspace = '\0';
+			ret = regexec(&r->rule, metric, r->nmatch, r->pmatch, 0) == 0;
+			*firstspace = ' ';
+			break;
 		case CONTAINS:
-			return strstr(metric, r->strmatch) != NULL;
+			*firstspace = '\0';
+			ret = strstr(metric, r->strmatch) != NULL;
+			*firstspace = ' ';
+			break;
 		case STARTS_WITH:
-			return strncmp(metric, r->strmatch, strlen(r->strmatch)) == 0;
+			ret = strncmp(metric, r->strmatch, strlen(r->strmatch)) == 0;
+			break;
 		case ENDS_WITH:
-			return strcmp(
-					metric + strlen(metric) - strlen(r->strmatch),
+			*firstspace = '\0';
+			ret = strcmp(
+					firstspace - strlen(r->strmatch),
 					r->strmatch) == 0;
+			*firstspace = ' ';
+			break;
 		case MATCHES:
-			return strcmp(metric, r->strmatch) == 0;
+			*firstspace = '\0';
+			ret = strcmp(metric, r->strmatch) == 0;
+			*firstspace = ' ';
+			break;
 		default:
-			return 0;
+			ret = 0;
+			break;
+	}
+
+	return ret;
+}
+
+static inline void
+router_rewrite_metric(const route *w, char **metric, char **firstspace)
+{
+	char escape = 0;
+	int ref = 0;
+	char newmetric[METRIC_BUFSIZ];
+	char *s = newmetric;
+	char *p;
+	char *q;
+	char *t;
+
+	/* insert leading part */
+	q = *metric;
+	t = *metric + w->pmatch[0].rm_so;
+	if (s - newmetric + t - q < sizeof(newmetric)) {
+		while (q < t)
+			*s++ = *q++;
+	} else {
+		return;  /* won't fit, don't try further */
+	}
+
+	for (p = w->dest->members.replacement; ; p++) {
+		switch (*p) {
+			case '\\':
+				if (!escape) {
+					escape = 1;
+					break;
+				}
+				/* fall through so we handle \1\2 */
+			default:
+				if (escape && *p >= '0' && *p <= '9') {
+					ref *= 10;
+					ref += *p - '0';
+				} else {
+					if (escape) {
+						if (ref > 0 && ref <= w->nmatch
+								&& w->pmatch[ref].rm_so >= 0)
+						{
+							/* insert match part */
+							q = *metric + w->pmatch[ref].rm_so;
+							t = *metric + w->pmatch[ref].rm_eo;
+							if (s - newmetric + t - q < sizeof(newmetric))
+								while (q < t)
+									*s++ = *q++;
+						}
+						ref = 0;
+					}
+					if (*p != '\\') { /* \1\2 case */
+						escape = 0;
+						if (s - newmetric + 1 < sizeof(newmetric))
+							*s++ = *p;
+					}
+				}
+				break;
+		}
+		if (*p == '\0')
+			break;
+	}
+	/* undo trailing \0 */
+	s--;
+
+	/* insert remaining part */
+	q = *metric + w->pmatch[0].rm_eo;
+	t = *firstspace;
+	if (s - newmetric + t - q < sizeof(newmetric)) {
+		while (q < t)
+			*s++ = *q++;
+	} else {
+		return;  /* won't fit, don't try further */
+	}
+
+	/* record new position of firstspace */
+	t = s;
+
+	/* copy data part */
+	if (s - newmetric + strlen(*firstspace) < sizeof(newmetric))
+	{
+		for (p = *firstspace; *p != '\0'; p++)
+			*s++ = *p;
+		*s++ = '\0';
+
+		/* scary! write back the rewritten metric */
+		memcpy(*metric, newmetric, s - newmetric);
+		*firstspace = t;
 	}
 }
 
@@ -1176,14 +1386,14 @@ router_route_intern(
 		server **ret,
 		size_t *curlen,
 		size_t retsize,
-		const char *metric_path,
-		const char *metric,
+		char *metric,
+		char *firstspace,
 		const route *r)
 {
 	const route *w;
 	char stop = 0;
 	const char *p;
-	const char *q = NULL;
+	const char *q = NULL;  /* pacify compiler, won't happen in reality */
 	const char *t;
 
 #define failif(RETLEN, WANTLEN) \
@@ -1201,8 +1411,8 @@ router_route_intern(
 			 * such that we can start matching the tail easily without
 			 * having to calculate the end of the pattern string all the
 			 * time */
-			for (p = metric_path + strlen(metric_path) - 1; p >= metric_path; p--) {
-				for (q = w->dest->name, t = p; *q != '\0' && t >= metric_path; q++, t--) {
+			for (p = firstspace - 1; p >= metric; p--) {
+				for (q = w->dest->name, t = p; *q != '\0' && t >= metric; q++, t--) {
 					if (*q != *t)
 						break;
 				}
@@ -1215,10 +1425,10 @@ router_route_intern(
 						ret,
 						curlen,
 						retsize,
-						metric_path,
 						metric,
+						firstspace,
 						w->dest->members.routes);
-		} else if (router_metric_matches(w, metric_path)) {
+		} else if (router_metric_matches(w, metric, firstspace)) {
 			stop = w->stop;
 			/* rule matches, send to destination(s) */
 			switch (w->dest->type) {
@@ -1237,9 +1447,8 @@ router_route_intern(
 				case ANYOF: {
 					/* we queue the same metrics at the same server */
 					unsigned int hash = 2166136261UL;  /* FNV1a */
-					const char *p;
 
-					for (p = metric_path; *p != '\0'; p++)
+					for (p = metric; p < firstspace; p++)
 						hash = (hash ^ (unsigned int)*p) * 16777619;
 					/* We could use the retry approach here, but since
 					 * our c is very small compared to MAX_INT, the bias
@@ -1254,12 +1463,14 @@ router_route_intern(
 				case CARBON_CH:
 				case FNV1A_CH: {
 					/* let the ring(bearer) decide */
-					failif(retsize, *curlen + w->dest->members.ch->repl_factor);
+					failif(retsize,
+							*curlen + w->dest->members.ch->repl_factor);
 					ch_get_nodes(
 							&ret[*curlen],
 							w->dest->members.ch->ring,
 							w->dest->members.ch->repl_factor,
-							metric_path);
+							metric,
+							firstspace);
 					*curlen += w->dest->members.ch->repl_factor;
 				}	break;
 				case AGGREGATION: {
@@ -1267,6 +1478,10 @@ router_route_intern(
 					aggregator_putmetric(
 							w->dest->members.aggregation,
 							metric);
+				}	break;
+				case REWRITE: {
+					/* rewrite metric name */
+					router_rewrite_metric(w, &metric, &firstspace);
 				}	break;
 				case GROUP: {
 					/* this should not happen */
@@ -1291,13 +1506,13 @@ inline size_t
 router_route(
 		server **ret,
 		size_t retsize,
-		const char *metric_path,
-		const char *metric)
+		char *metric,
+		char *firstspace)
 {
 	size_t curlen = 0;
 
 	(void)router_route_intern(ret, &curlen, retsize,
-			metric_path, metric, routes);
+			metric, firstspace, routes);
 
 	return curlen;
 }
@@ -1307,7 +1522,7 @@ router_route(
  * triggered.  Useful for testing regular expressions.
  */
 char
-router_test_intern(const char *metric_path, route *routes)
+router_test_intern(char *metric, char *firstspace, route *routes)
 {
 	route *w;
 	char gotmatch = 0;
@@ -1317,21 +1532,32 @@ router_test_intern(const char *metric_path, route *routes)
 			/* just recurse, in test mode performance shouldn't be an
 			 * issue at all */
 			gotmatch |= router_test_intern(
-					metric_path,
+					metric,
+					firstspace,
 					w->dest->members.routes);
 			if (gotmatch & 2)
 				break;
-		} else if (router_metric_matches(w, metric_path)) {
+		} else if (router_metric_matches(w, metric, firstspace)) {
 			gotmatch = 1;
-			fprintf(stdout, "%s\n",
-					w->dest->type == AGGREGATION ? "aggregation" : "match");
+			switch (w->dest->type) {
+				case AGGREGATION:
+					fprintf(stdout, "aggregation\n");
+					break;
+				case REWRITE:
+					fprintf(stdout, "rewrite\n");
+					break;
+				default:
+					fprintf(stdout, "match\n");
+					break;
+			}
+			*firstspace = '\0';
 			switch (w->matchtype) {
 				case MATCHALL:
-					fprintf(stdout, "    * -> %s\n", metric_path);
+					fprintf(stdout, "    * -> %s\n", metric);
 					break;
 				case REGEX:
 					fprintf(stdout, "    %s (regex) -> %s\n",
-							w->pattern, metric_path);
+							w->pattern, metric);
 					break;
 				default: {
 					char *x;
@@ -1353,9 +1579,10 @@ router_test_intern(const char *metric_path, route *routes)
 							break;
 					}
 					fprintf(stdout, "    %s [%s: %s]\n    -> %s\n",
-							w->pattern, x, w->strmatch, metric_path);
+							w->pattern, x, w->strmatch, metric);
 				}	break;
 			}
+			*firstspace = ' ';
 			switch (w->dest->type) {
 				case AGGREGATION: {
 					struct _aggr_computes *ac;
@@ -1367,6 +1594,13 @@ router_test_intern(const char *metric_path, route *routes)
 				}	break;
 				case BLACKHOLE: {
 					fprintf(stdout, "    blackholed\n");
+				}	break;
+				case REWRITE: {
+					router_rewrite_metric(w, &metric, &firstspace);
+					*firstspace = '\0';
+					fprintf(stdout, "    into(%s) -> %s\n",
+							w->dest->members.replacement, metric);
+					*firstspace = ' ';
 				}	break;
 				default: {
 					fprintf(stdout, "    cluster(%s)\n", w->dest->name);
@@ -1384,10 +1618,17 @@ router_test_intern(const char *metric_path, route *routes)
 }
 
 void
-router_test(const char *metric_path)
+router_test(char *metric)
 {
-	if (!router_test_intern(metric_path, routes))
-		fprintf(stdout, "nothing matched %s\n", metric_path);
+	char *firstspace;
+
+	for (firstspace = metric; *firstspace != '\0'; firstspace++)
+		if (*firstspace == ' ')
+			break;
+	if (!router_test_intern(metric, firstspace, routes)) {
+		*firstspace = '\0';
+		fprintf(stdout, "nothing matched %s\n", metric);
+	}
 	fflush(stdout);
 }
 

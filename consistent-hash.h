@@ -32,6 +32,7 @@ void ch_get_nodes(
 		server *ret[],
 		ch_ring *ring,
 		const char replcnt,
-		const char *metric);
+		const char *metric,
+		const char *firstspace);
 
 #endif

@@ -42,6 +42,9 @@ match <* | <expression>>
     send to <cluster | blackhole>
     [stop]
     ;
+rewrite <expression>
+    into <replacement>
+    ;
 aggregate
         <expression> ...
     every <interval> seconds
@@ -89,6 +92,27 @@ metrics sent to it.  This can be useful for weeding out unwanted metrics
 in certain cases.  Because throwing metrics away is pointless if other
 matches would accept the same data, a match with destination the
 blackhole cluster, has an implicit `stop`.
+
+Rewrite rules take a regular input to match incoming metrics, and
+transform them into the desired new metric name.  In the replacement,
+backreferences are allowed to match capture groups defined in the input
+regular expression.  A match of `server\.(x|y|z)\.` allows to use e.g.
+`role.\1.` in the substitution.  A few caveats apply to the current
+implementation of rewrite rules.  First, their location in the config
+file determines when the rewrite is performed.  The rewrite is done
+in-place, as such a match rule before the rewrite would match the
+original name, a match rule after the rewrite no longer matches the
+original name.  Care should be taken with the ordering, as multiple
+rewrite rules in succession can take place, e.g. `a` gets replaced by
+`b` and `b` gets replaced by `c` in a succeeding rewrite rule.  The
+second caveat with the current implementation, is that the rewritten
+metric names are not cleansed, like newly incoming metrics are.  Thus,
+double dots and potential dangerous characters can appear if the
+replacement string is crafted to produce them.  It is the responsibility
+of the writer to make sure the metrics are clean.  If this is an issue
+for routing, one can consider to have a rewrite-only instance that
+forwards all metrics to another instance that will do the routing.
+Obviously the second instance will cleanse the metrics as they come in.
 
 The aggregations defined take one or more input metrics expressed by one
 or more regular expresions, similar to the match rules.  Incoming
