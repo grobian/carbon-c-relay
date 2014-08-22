@@ -129,6 +129,226 @@ aggregations appear as matches without `stop` keyword, their positioning
 matters in the same way ordering of match statements.
 
 
+Examples
+--------
+Carbon-c-relay evolved over time, growing features on demand as the tool
+proved to be stable and fitting the job well.  Below follow some
+annotated examples of constructs that can be used with the relay.
+
+Clusters are defined as much as are necessary.  They receive data from
+match rules, then their type defines which members of the cluster get
+the metric data.  The simplest cluster form is a `forward` cluster:
+
+    cluster send-through
+        forward
+            10.1.0.1
+        ;
+
+Any metric send the `send-through` cluster would simply be forwarded to
+the server at IPv4 address `10.1.0.1`.  If we define multiple servers,
+all of those servers would get the same metric, thus:
+
+    cluster send-through
+        forward
+            10.1.0.1
+            10.2.0.1
+        ;
+
+The above results in a duplication of metrics send to both machines.
+This can be useful, but most of the time it is not.  The `any_of`
+cluster type is like `forward`, but it sends each incoming metric to any
+of the members.  The same example with such cluster would be:
+
+    cluster send-to-any-one
+        any_of 10.1.0.1:2010 10.1.0.1:2011;
+
+This would implement a fail-over scenario, where two servers are used,
+the load between them is spreaded, but should any of them fail, all
+metrics are send to the remaining one.  This typically works well for
+upstream relays, or for balancing carbon-cache processes running on the
+same machine.  Should any member become unavailable, for instance due to
+rolling restart, the other members receive the traffic.  This is
+different from the two consistent hash cluster types:
+
+    cluster graphite
+        carbon_ch
+            10.1.0.1
+            10.1.0.2
+            10.1.0.3
+        ;
+
+If a member in this example fails, all metrics that would go to that
+members are kept in the queue, waiting for the member to return.  This
+is useful for carbon-cache machines where it is desirable that the same
+metric ends up on the same server always.  The `carbon_ch` cluster type
+is compatible with carbon-relay consistent hash, and can be used for
+existing clusters populated by carbon-relay.  For new clusters, however,
+it is better to use the `fnv1a_ch` cluster type, for it is faster, and
+allows to balance over the same address but different ports, unlike
+`carbon_ch`.
+
+Because we can use multiple clusters, we can also replicate without the
+use of the `forward` cluster type, in a more intelligent way:
+
+    cluster dc-old
+        carbon_ch replication 2
+            10.1.0.1
+            10.1.0.2
+            10.1.0.3
+        ;
+    cluster dc-new1
+        fnv1a_ch replication 2
+            10.2.0.1
+            10.2.0.2
+            10.2.0.3
+        ;
+    cluster dc-new2
+        fnv1a_ch replication 2
+            10.3.0.1
+            10.3.0.2
+            10.3.0.3
+        ;
+
+    match *
+        send to dc-old
+        ;
+    match *
+        send to dc-new1
+        ;
+    match *
+        send to dc-new2
+        stop
+        ;
+
+In this example all incoming metrics are first sent to `dc-old`, then
+`dc-new1` and finally to `dc-new2`.  Note that the cluster type of
+`dc-old` is different.  Each incoming metric will be send to 2 members
+of all three clusters, thus replicating to in total 6 destinations.  For
+each cluster the destination members are computed independently.
+Failure of clusters or members does not affect the others, since all
+have individual queues.  The `stop` rule in `dc-new2` match rule is not
+strictly necessary in this example, because there are no more following
+match rules.  However, if the match would target a specific subset, e.g.
+`^sys\.`, and more clusters would be defined, this could be necessary,
+as for instance in the following abbreviated example:
+
+    cluster dc1-sys ... ;
+    cluster dc2-sys ... ;
+
+    cluster dc1-misc ... ;
+    cluster dc2-misc ... ;
+
+    match ^sys\. send to dc1-sys;
+    match ^sys\. send to dc2-sys stop;
+
+    match * send to dc1-misc;
+    match * send to dc2-misc stop;
+
+As can be seen, without the `stop` in dc2-sys' match rule, all metrics
+starting with `sys.` would also be send to dc1-misc and dc2-misc.  It
+can be that this is desired, of course, but in this example there is a
+dedicated cluster for the `sys` metrics.
+
+Suppose there would be some unwanted metric that unfortunately is
+generated, let's assume some bad/old software.  We don't want to store
+this metric.  The `blackhole` cluster is suitable for that, when it is
+harder to actually whitelist all wanted metrics.  Consider the
+following:
+
+    match some_legacy$
+        send to blackhole
+        stop;
+
+This would throw away all metrics that end with `some_legacy`, that
+would otherwise be hard to filter out.  Since the order matters, it
+can be used in a construct like this:
+
+    cluster old ... ;
+    cluster new ... ;
+
+    match * send to old;
+
+    match unwanted send to blackhole stop;
+
+    match * send to new;
+
+In this example the old cluster would receive the metric that's unwanted
+for the new cluster.  So, the order in which the rules occur does
+matter for the execution.
+
+The relay is capable of rewriting incoming metrics on the fly.  This
+process is done based on regular expressions with capture groups that
+allow to substitute parts in a replacement string.  Rewrite rules allow
+to cleanup metrics from applications, or provide a migration path.  In
+it's simplest form a rewrite rule looks like this:
+
+    rewrite ^server\.(.+)\.(.+)\.([a-zA-Z]+)([0-9]+)
+        into server.\1.\2.\3.\3\4
+        ;
+
+In this example a metric like `server.dc.role.name123` would be
+transformed into `server.dc.role.name.name123`.
+For rewrite rules hold the same as for matches, that their order
+matters.  Hence to build on top of the old/new cluster example done
+earlier, the following would store the original metric name in the old
+cluster, and the new metric name in the new cluster:
+
+    match * send to old;
+
+    rewrite ... ;
+
+    match * send to new;
+
+Note that after the rewrite, the original metric name is no longer
+available, as the rewrite happens in-place.
+
+Aggregations are probably the most complex part of carbon-c-relay.
+Compared to carbon-aggregator, the capabilities of carbon-c-relay are
+limited.  Yet for certain scenarios, the aggregate functionalities can
+be very useful.  Aggregations are performed on a static set of
+aggregates, defined in the configuration.  That is, at the time of this
+writing, it is not possible to have dynamically generated aggregates,
+e.g. for each hostname encountered.  A typical aggregation looks like:
+
+    aggregate
+            sys.dc1.somehost-[0-9]+.somecluster.mysql.replication_delay
+            sys.dc2.somehost-[0-9]+.somecluster.mysql.replication_delay
+        every 10 seconds
+        expire after 35 seconds
+        compute sum write to
+            mysql.somecluster.total_replication_delay
+        compute average write to
+            mysql.somecluster.average_replication_delay
+        compute max write to
+            mysql.somecluster.max_replication_delay
+        compute count write to
+            mysql.somecluster.replication_delay_metric_count
+        ;
+
+In this example, four aggregations are produced from the incoming
+matching metrics.  In this example we could have written the two matches
+as one, but for demonstration purposes we did not.  Obviously they can
+refer to different metrics, if that makes sense.  The `every 10 seconds`
+clause specifies in what interval the aggregator can expect new metrics
+to arrive.  This interval is used to produce the aggregations, thus each
+10 seconds 4 new metrics are generated from the data received sofar.
+Because data may be in transit for some reason, or generation stalled,
+the `expire after` clause specifies how long the data should be kept
+before considering a data bucket (which is aggregated) to be complete.
+In the example, 35 was used, which means after 35 + 10 seconds the first
+four aggregate metrics are produced.  It also means that metrics can
+arrive 35 seconds late, and still be taken into account.
+The `compute` clauses demonstrate a single aggregation rule can produce
+multiple aggregates, as often is the case.  Internally, this comes for
+free, since all possible aggregates are always calculated, whether or
+not they are used.  The produced new metrics are resubmitted to the
+relay, hence matches defined before in the configuration can match
+output of the aggregator.  It is important to avoid loops, that can be
+generated this way.  In general, splitting aggregations to their own
+carbon-c-relay instance, such that it is easy to forward the produced
+metrics to another relay instance is a good practice.
+
+
 Author
 ------
 Fabian Groffen
