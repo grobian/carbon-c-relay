@@ -100,6 +100,7 @@ do_usage(int exitcode)
 	printf("  -d  debug mode: currently writes statistics to stdout\n");
 	printf("  -s  submission mode: write info about errors to stdout\n");
 	printf("  -t  config test mode: prints rule matches from input on stdin\n");
+	printf("  -H  hostname: override hostname (used in statistics)\n");
 
 	exit(exitcode);
 }
@@ -124,7 +125,10 @@ main(int argc, char * const argv[])
 	size_t numcomputes;
 	server *internal_submission;
 
-	while ((ch = getopt(argc, argv, ":hvdstf:p:w:b:q:")) != -1) {
+	if (gethostname(relay_hostname, sizeof(relay_hostname)) < 0)
+		snprintf(relay_hostname, sizeof(relay_hostname), "127.0.0.1");
+
+	while ((ch = getopt(argc, argv, ":hvdstf:p:w:b:q:H:")) != -1) {
 		switch (ch) {
 			case 'v':
 				do_version();
@@ -169,6 +173,9 @@ main(int argc, char * const argv[])
 					do_usage(1);
 				}
 				break;
+			case 'H':
+				snprintf(relay_hostname, sizeof(relay_hostname), "%s", optarg);
+				break;
 			case '?':
 			case ':':
 				do_usage(1);
@@ -182,9 +189,6 @@ main(int argc, char * const argv[])
 	if (optind == 1 || routes == NULL)
 		do_usage(1);
 
-
-	if (gethostname(relay_hostname, sizeof(relay_hostname)) < 0)
-		snprintf(relay_hostname, sizeof(relay_hostname), "127.0.0.1");
 
 	/* seed randomiser for dispatcher and aggregator "splay" */
 	srand(time(NULL));
