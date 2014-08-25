@@ -33,10 +33,6 @@
 #include "dispatcher.h"
 #include "collector.h"
 
-enum servertype {
-	ORIGIN,
-	INTERNAL
-};
 
 typedef struct _server {
 	const char *ip;
@@ -46,7 +42,7 @@ typedef struct _server {
 	queue *queue;
 	size_t bsize;
 	const char **batch;
-	enum servertype type;
+	serv_ctype ctype;
 	pthread_t tid;
 	struct _server **secondaries;
 	size_t secondariescnt;
@@ -178,7 +174,7 @@ server_queuereader(void *d)
 
 		/* try to connect */
 		if (self->fd < 0) {
-			if (self->type == INTERNAL) {
+			if (self->ctype == CON_PIPE) {
 				int intconn[2];
 				if (pipe(intconn) < 0) {
 					if (!self->failure)
@@ -189,6 +185,39 @@ server_queuereader(void *d)
 				}
 				dispatch_addconnection(intconn[0]);
 				self->fd = intconn[1];
+			} else if (self->ctype == CON_UDP) {
+				if ((self->fd = socket(self->saddr->ai_family,
+								self->saddr->ai_socktype,
+								self->saddr->ai_protocol)) < 0)
+				{
+					if (!self->failure)
+						fprintf(stderr, "[%s] failed to create udp socket: "
+								"%s\n", fmtnow(nowbuf), strerror(errno));
+					self->failure += self->failure >= FAIL_WAIT_TIME ? 0 : 1;
+					continue;
+				}
+				/* Some tools, like nc, "stick" to the src and port of
+				 * the first incoming packet, probably to avoid the
+				 * influence of garbage floating around.  Since we
+				 * disconnect when idle, we end up using a different
+				 * source port all the time, thus getting ignored.  To
+				 * avoid this, we would have to find a free port and
+				 * bind to it, such that we always use the same port in
+				 * subsequent connects.  This also means we'd have to
+				 * deal with when this port becomes unavailable, and the
+				 * actual finding of the free port.  Therefore, this is
+				 * left as a todo for when this actually becomes an
+				 * issue. */
+				if (connect(self->fd,
+						self->saddr->ai_addr, self->saddr->ai_addrlen) < 0)
+				{
+					if (!self->failure)
+						fprintf(stderr, "[%s] failed to connect udp socket: "
+								"%s\n", fmtnow(nowbuf), strerror(errno));
+					self->failure += self->failure >= FAIL_WAIT_TIME ? 0 : 1;
+					close(self->fd);
+					continue;
+				}
 			} else {
 				int ret;
 				int args;
@@ -311,13 +340,13 @@ server_queuereader(void *d)
 
 		for (; *metric != NULL; metric++) {
 			len = strlen(*metric);
-			if ((slen = write(self->fd, *metric, len)) != len) {
+			if ((slen = send(self->fd, *metric, len, 0)) != len) {
 				/* not fully sent, or failure, close connection
 				 * regardless so we don't get synchonisation problems,
 				 * partially sent data is an error for us, since we use
 				 * blocking sockets, and hence partial sent is
 				 * indication of a failure */
-				fprintf(stderr, "[%s] failed to write() to %s:%u: %s\n",
+				fprintf(stderr, "[%s] failed to send() to %s:%u: %s\n",
 						fmtnow(nowbuf), self->ip, self->port,
 						(slen < 0 ? strerror(errno) : "uncomplete write"));
 				close(self->fd);
@@ -363,6 +392,7 @@ server *
 server_new(
 		const char *ip,
 		unsigned short port,
+		serv_ctype ctype,
 		size_t qsize,
 		size_t bsize)
 {
@@ -371,7 +401,7 @@ server_new(
 	if ((ret = malloc(sizeof(server))) == NULL)
 		return NULL;
 
-	ret->type = ORIGIN;
+	ret->ctype = ctype;
 	ret->tid = 0;
 	ret->next = NULL;
 	ret->secondaries = NULL;
@@ -384,8 +414,7 @@ server_new(
 		return NULL;
 	}
 	ret->fd = -1;
-	if (strcmp(ip, "internal") == 0) {
-		ret->type = INTERNAL;
+	if (ctype == CON_PIPE) {
 		ret->saddr = NULL;
 	} else {
 		struct addrinfo hint;
@@ -395,8 +424,8 @@ server_new(
 		memset(&hint, 0, sizeof(hint));
 
 		hint.ai_family = PF_UNSPEC;
-		hint.ai_socktype = SOCK_STREAM;
-		hint.ai_protocol = IPPROTO_TCP;
+		hint.ai_socktype = ctype == CON_UDP ? SOCK_DGRAM : SOCK_STREAM;
+		hint.ai_protocol = ctype == CON_UDP ? IPPROTO_UDP : IPPROTO_TCP;
 		hint.ai_flags = AI_NUMERICSERV;
 		snprintf(sport, sizeof(sport), "%u", port);
 
@@ -553,7 +582,7 @@ server_shutdown(server *s)
 		fprintf(stderr, "%s:%u: failed to join server thread: %s\n",
 				s->ip, s->port, strerror(err));
 
-	if (s->type == ORIGIN) {
+	if (s->ctype == CON_TCP) {
 		size_t qlen = queue_len(s->queue);
 		queue_destroy(s->queue);
 		if (qlen > 0)
@@ -605,6 +634,17 @@ server_port(server *s)
 	if (s == NULL)
 		return 0;
 	return s->port;
+}
+
+/**
+ * Returns the connection type of this server.
+ */
+inline serv_ctype
+server_ctype(server *s)
+{
+	if (s == NULL)
+		return CON_PIPE;
+	return s->ctype;
 }
 
 /**

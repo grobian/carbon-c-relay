@@ -194,7 +194,7 @@ determine_if_regex(route *r, char *pat, int flags)
  *
  * cluster (name)
  *     (forward | any_of | carbon_ch [replication (count)])
- *         (ip:port[ ip:port ...])
+ *         (ip:port [proto (tcp | udp)] ...)
  *     ;
  * match (* | regex)
  *     send to (cluster | blackhole)
@@ -364,7 +364,9 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize)
 				char termchr;
 				char *lastcolon = NULL;
 				char *ip = p;
+				char *proto = "tcp";
 				int port = 2003;
+				server *newserver = NULL;
 
 				for (; *p != '\0' && !isspace(*p) && *p != ';'; p++)
 					if (*p == ':')
@@ -402,6 +404,48 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize)
 					}
 				}
 
+				if (isspace(termchr)) {
+					p++;
+					for (; *p != '\0' && isspace(*p); p++)
+						;
+					if (strncmp(p, "proto", 5) == 0 && isspace(*(p + 5))) {
+						p += 6;
+
+						for (; *p != '\0' && isspace(*p); p++)
+							;
+						proto = p;
+						for (; *p != '\0' && !isspace(*p); p++)
+							;
+						termchr = *p;
+						*p = '\0';
+
+						if (strcmp(proto, "tcp") != 0
+								&& strcmp(proto, "udp") != 0)
+						{
+							fprintf(stderr, "expected 'udp' or 'tcp' after "
+									"'proto' at '%s' for cluster %s\n",
+									ip, name);
+							free(cl);
+							free(buf);
+							return 0;
+						}
+					} else {
+						termchr = *p;
+					}
+				}
+
+				newserver = server_new(ip, (unsigned short)port,
+						*proto == 'u' ? CON_UDP : CON_TCP,
+						queuesize, batchsize);
+				if (newserver == NULL) {
+					fprintf(stderr, "failed to add server %s:%d (%s) "
+							"to cluster %s: %s\n", ip, port, proto,
+							name, strerror(errno));
+					free(cl);
+					free(buf);
+					return 0;
+				}
+
 				if (cl->type == CARBON_CH || cl->type == FNV1A_CH) {
 					if (w == NULL) {
 						cl->members.ch->servers = w =
@@ -410,23 +454,14 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize)
 						w = w->next = malloc(sizeof(servers));
 					}
 					if (w == NULL) {
-						fprintf(stderr, "malloc failed in carbon_ch ip\n");
+						fprintf(stderr, "malloc failed for %s_ch %s\n",
+								cl->type == CARBON_CH ? "carbon" : "fnv1a", ip);
 						free(cl);
 						free(buf);
 						return 0;
 					}
 					w->next = NULL;
-					w->server = server_new(ip, (unsigned short)port,
-							queuesize, batchsize);
-					if (w->server == NULL) {
-						fprintf(stderr, "failed to add server %s:%d "
-								"to cluster %s: %s\n", ip, port,
-								name, strerror(errno));
-						free(w);
-						free(cl);
-						free(buf);
-						return 0;
-					}
+					w->server = newserver;
 					cl->members.ch->ring = ch_addnode(
 							cl->members.ch->ring,
 							w->server);
@@ -445,24 +480,14 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize)
 						w = w->next = malloc(sizeof(servers));
 					}
 					if (w == NULL) {
-						fprintf(stderr, "malloc failed in cluster %s ip\n",
-								cl->type == FORWARD ? "forward" : "any_of");
+						fprintf(stderr, "malloc failed for %s %s\n",
+								cl->type == FORWARD ? "forward" : "any_of", ip);
 						free(cl);
 						free(buf);
 						return 0;
 					}
 					w->next = NULL;
-					w->server = server_new(ip, (unsigned short)port,
-							queuesize, batchsize);
-					if (w->server == NULL) {
-						fprintf(stderr, "failed to add server %s:%d "
-								"to forwarders: %s\n", ip, port,
-								strerror(errno));
-						free(w);
-						free(cl);
-						free(buf);
-						return 0;
-					}
+					w->server = newserver;
 					if (cl->type == FORWARD && cl->members.forward == NULL)
 						cl->members.forward = w;
 					if (cl->type == ANYOF && cl->members.anyof == NULL) {
@@ -474,6 +499,7 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize)
 					if (cl->type == ANYOF)
 						cl->members.anyof->count++;
 				}
+
 				*p = termchr;
 				for (; *p != '\0' && isspace(*p); p++)
 					;
@@ -887,6 +913,7 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize)
 			}
 			cl->type = REWRITE;
 			cl->members.replacement = strdup(replacement);
+			cl->next = NULL;
 
 			r->dest = cl;
 			r->stop = 0;
@@ -1174,6 +1201,9 @@ router_printconfig(FILE *f, char all)
 	route *r;
 	servers *s;
 
+#define PPROTO \
+	server_ctype(s->server) == CON_UDP ? " proto udp" : ""
+
 	for (c = clusters; c != NULL; c = c->next) {
 		if (c->type == BLACKHOLE || c->type == REWRITE)
 			continue;
@@ -1181,20 +1211,20 @@ router_printconfig(FILE *f, char all)
 		if (c->type == FORWARD) {
 			fprintf(f, "    forward\n");
 			for (s = c->members.forward; s != NULL; s = s->next)
-				fprintf(f, "        %s:%d\n",
-						server_ip(s->server), server_port(s->server));
+				fprintf(f, "        %s:%d%s\n",
+						server_ip(s->server), server_port(s->server), PPROTO);
 		} else if (c->type == ANYOF) {
 			fprintf(f, "    any_of\n");
 			for (s = c->members.anyof->list; s != NULL; s = s->next)
-				fprintf(f, "        %s:%d\n",
-						server_ip(s->server), server_port(s->server));
+				fprintf(f, "        %s:%d%s\n",
+						server_ip(s->server), server_port(s->server), PPROTO);
 		} else if (c->type == CARBON_CH || c->type == FNV1A_CH) {
 			fprintf(f, "    %s_ch replication %d\n",
 					c->type == CARBON_CH ? "carbon" : "fnv1a",
 					c->members.ch->repl_factor);
 			for (s = c->members.ch->servers; s != NULL; s = s->next)
-				fprintf(f, "        %s:%d\n",
-						server_ip(s->server), server_port(s->server));
+				fprintf(f, "        %s:%d%s\n",
+						server_ip(s->server), server_port(s->server), PPROTO);
 		}
 		fprintf(f, "    ;\n");
 	}

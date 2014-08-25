@@ -36,7 +36,7 @@ file is as follows:
 
 cluster <name>
     <forward | any_of | <carbon_ch | fnv1a_ch> [replication <count>]>
-        <host[:port]> ...
+        <host[:port] [proto <udp | tcp>]> ...
     ;
 match <* | <expression>>
     send to <cluster | blackhole>
@@ -60,7 +60,9 @@ match rule.   All clusters point to one or more hosts.  `host` may be an
 IPv4 or IPv6 address, or a hostname.  Since host is followed by an
 optional `:` and port, for IPv6 addresses not to be interpreted wrongly,
 either a port must be given, or the IPv6 address surrounded by brackets,
-e.g. `[::1]`.
+e.g. `[::1]`.  An optional `proto udp` or `proto tcp` may be added to
+specify the use of UDP or TCP to connect to the remote server.  When
+omitted this defaults to a TCP connection.
 
 A `forward` cluster simply sends everything it receives to all defined
 members (host addresses).  The `any_of` cluster is a small

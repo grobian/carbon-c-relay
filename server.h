@@ -18,15 +18,23 @@
 #ifndef SERVER_H
 #define SERVER_H 1
 
+#include "relay.h"
+
 typedef struct _server server;
 
-server *server_new(const char *ip, unsigned short port, size_t queuesize, size_t batchsize);
+server *server_new(
+		const char *ip,
+		unsigned short port,
+		serv_ctype ctype,
+		size_t queuesize,
+		size_t batchsize);
 void server_add_secondaries(server *d, server **sec, size_t cnt);
 char server_send(server *s, const char *d, char force);
 void server_shutdown(server *s);
 void server_shutdown_all(void);
 const char *server_ip(server *s);
 unsigned short server_port(server *s);
+inline serv_ctype server_ctype(server *s);
 char server_failed(server *s);
 size_t server_get_ticks(server *s);
 size_t server_get_metrics(server *s);

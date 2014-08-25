@@ -108,7 +108,7 @@ do_usage(int exitcode)
 int
 main(int argc, char * const argv[])
 {
-	int sock[] = {0, 0, 0};  /* IPv4, IPv6, UNIX */
+	int sock[] = {0, 0, 0, 0, 0};  /* tcp4, udp4, tcp6, udp6, UNIX */
 	int socklen = sizeof(sock) / sizeof(sock[0]);
 	char id;
 	server **servers;
@@ -281,7 +281,6 @@ main(int argc, char * const argv[])
 			return -1;
 		}
 	}
-	fprintf(stdout, "listening on port %u\n", listenport);
 	if ((workers[0] = dispatch_new_listener()) == NULL)
 		fprintf(stderr, "failed to add listener\n");
 
@@ -303,7 +302,7 @@ main(int argc, char * const argv[])
 
 	/* server used for delivering metrics produced inside the relay,
 	 * that is collector (statistics) and aggregator (aggregations) */
-	if ((internal_submission = server_new("internal", listenport,
+	if ((internal_submission = server_new("internal", listenport, CON_PIPE,
 					3000 + (numcomputes * 3), batchsize)) == NULL)
 	{
 		fprintf(stderr, "failed to create internal submission queue, shutting down\n");

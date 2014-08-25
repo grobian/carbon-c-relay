@@ -22,6 +22,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/un.h>
+#include <arpa/inet.h>
 #include <netdb.h>
 #include <netinet/in.h>
 #include <errno.h>
@@ -48,6 +49,7 @@ bindlisten(int ret[], int *retlen, unsigned short port)
 	struct addrinfo hint;
 	struct addrinfo *res, *resw;
 	char buf[128];
+	char saddr[INET6_ADDRSTRLEN];
 	int err;
 	int curlen = 0;
 
@@ -56,8 +58,8 @@ bindlisten(int ret[], int *retlen, unsigned short port)
 
 	memset(&hint, 0, sizeof(hint));
 	hint.ai_family = PF_UNSPEC;
-	hint.ai_socktype = SOCK_STREAM;
-	hint.ai_protocol = IPPROTO_TCP;
+	hint.ai_socktype = 0;
+	hint.ai_protocol = IPPROTO_TCP;  /* 0 for UDP as well */
 	hint.ai_flags = AI_NUMERICSERV | AI_PASSIVE;
 	snprintf(buf, sizeof(buf), "%u", port);
 
@@ -65,6 +67,10 @@ bindlisten(int ret[], int *retlen, unsigned short port)
 		return -1;
 
 	for (resw = res; resw != NULL && curlen < *retlen; resw = resw->ai_next) {
+		if (resw->ai_family != PF_INET && resw->ai_family != PF_INET6)
+			continue;
+		if (resw->ai_protocol != IPPROTO_TCP && resw->ai_protocol != IPPROTO_UDP)
+			continue;
 		if ((sock = socket(resw->ai_family, resw->ai_socktype, resw->ai_protocol)) < 0)
 			continue;
 
@@ -77,9 +83,21 @@ bindlisten(int ret[], int *retlen, unsigned short port)
 			continue;
 		}
 
-		if (listen(sock, 3) < 0) {  /* backlog of 3, enough? */
-			close(sock);
-			continue;
+		if (inet_ntop(resw->ai_family,
+					&((struct sockaddr_in *)resw->ai_addr)->sin_addr,
+					saddr, sizeof(saddr)) == NULL)
+			snprintf(saddr, sizeof(saddr), "(unknown)");
+
+		if (resw->ai_protocol == IPPROTO_TCP) {
+			if (listen(sock, 3) < 0) {  /* backlog of 3, enough? */
+				close(sock);
+				continue;
+			}
+			printf("listening on tcp%d %s port %s\n",
+					resw->ai_family == PF_INET6 ? 6 : 4, saddr, buf);
+		} else {
+			printf("listening on udp%d %s port %s\n",
+					resw->ai_family == PF_INET6 ? 6 : 4, saddr, buf);
 		}
 
 		ret[curlen++] = sock;
@@ -116,6 +134,8 @@ bindlisten(int ret[], int *retlen, unsigned short port)
 			close(sock);
 			break;
 		}
+
+		printf("listening on UNIX socket %s\n", buf);
 
 		ret[curlen++] = sock;
 		break;

@@ -24,6 +24,8 @@
 
 enum rmode { NORMAL, DEBUG, SUBMISSION, TEST };
 
+typedef enum { CON_TCP, CON_UDP, CON_PIPE } serv_ctype;
+
 extern char relay_hostname[];
 
 char *fmtnow(char nowbuf[24]);
