@@ -92,16 +92,17 @@ aggregator_new(unsigned int interval, unsigned int expire)
 void
 aggregator_putmetric(
 		aggregator *s,
-		const char *metric)
+		const char *metric,
+		const char *firstspace)
 {
-	char *v, *t;
+	char *v;
 	double val;
 	long long int epoch;
 	int slot;
 	struct _bucket *bucket;
 
 	/* get value */
-	if ((v = strchr(metric, ' ')) == NULL || (t = strchr(v + 1, ' ')) == NULL) {
+	if ((v = strchr(firstspace, ' ')) == NULL) {
 		/* metric includes \n */
 		fprintf(stderr, "aggregator: dropping incorrect metric: %s", metric);
 		return;
@@ -109,8 +110,8 @@ aggregator_putmetric(
 
 	s->received++;
 
-	val = atof(v + 1);
-	epoch = atoll(t + 1);
+	val = atof(firstspace + 1);
+	epoch = atoll(v + 1);
 
 	epoch -= s->buckets[0]->start;
 	if (epoch < 0) {

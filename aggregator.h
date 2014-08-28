@@ -46,7 +46,7 @@ typedef struct _aggregator {
 } aggregator;
 
 aggregator *aggregator_new(unsigned int interval, unsigned int expire);
-void aggregator_putmetric(aggregator *s, const char *metric);
+void aggregator_putmetric(aggregator *s, const char *metric, const char *firstspace);
 int aggregator_start(server *submission);
 void aggregator_stop(void);
 size_t aggregator_numaggregators(void);

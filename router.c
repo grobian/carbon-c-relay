@@ -1507,7 +1507,8 @@ router_route_intern(
 					/* aggregation rule */
 					aggregator_putmetric(
 							w->dest->members.aggregation,
-							metric);
+							metric,
+							firstspace);
 				}	break;
 				case REWRITE: {
 					/* rewrite metric name */
