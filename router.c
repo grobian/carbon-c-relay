@@ -1324,28 +1324,34 @@ router_metric_matches(const route *r, char *metric, char *firstspace)
 	return ret;
 }
 
-static inline void
-router_rewrite_metric(const route *w, char **metric, char **firstspace)
+static inline size_t
+router_rewrite_metric(
+		char (*newmetric)[METRIC_BUFSIZ],
+		char **newfirstspace,
+		const char *metric,
+		const char *firstspace,
+		const char *replacement,
+		const size_t nmatch,
+		const regmatch_t *pmatch)
 {
 	char escape = 0;
 	int ref = 0;
-	char newmetric[METRIC_BUFSIZ];
-	char *s = newmetric;
-	char *p;
-	char *q;
-	char *t;
+	char *s = *newmetric;
+	const char *p;
+	const char *q;
+	const char *t;
 
 	/* insert leading part */
-	q = *metric;
-	t = *metric + w->pmatch[0].rm_so;
-	if (s - newmetric + t - q < sizeof(newmetric)) {
+	q = metric;
+	t = metric + pmatch[0].rm_so;
+	if (s - *newmetric + t - q < sizeof(*newmetric)) {
 		while (q < t)
 			*s++ = *q++;
 	} else {
-		return;  /* won't fit, don't try further */
+		return 0;  /* won't fit, don't try further */
 	}
 
-	for (p = w->dest->members.replacement; ; p++) {
+	for (p = replacement; ; p++) {
 		switch (*p) {
 			case '\\':
 				if (!escape) {
@@ -1359,13 +1365,13 @@ router_rewrite_metric(const route *w, char **metric, char **firstspace)
 					ref += *p - '0';
 				} else {
 					if (escape) {
-						if (ref > 0 && ref <= w->nmatch
-								&& w->pmatch[ref].rm_so >= 0)
+						if (ref > 0 && ref <= nmatch
+								&& pmatch[ref].rm_so >= 0)
 						{
 							/* insert match part */
-							q = *metric + w->pmatch[ref].rm_so;
-							t = *metric + w->pmatch[ref].rm_eo;
-							if (s - newmetric + t - q < sizeof(newmetric))
+							q = metric + pmatch[ref].rm_so;
+							t = metric + pmatch[ref].rm_eo;
+							if (s - *newmetric + t - q < sizeof(*newmetric))
 								while (q < t)
 									*s++ = *q++;
 						}
@@ -1373,7 +1379,7 @@ router_rewrite_metric(const route *w, char **metric, char **firstspace)
 					}
 					if (*p != '\\') { /* \1\2 case */
 						escape = 0;
-						if (s - newmetric + 1 < sizeof(newmetric))
+						if (s - *newmetric + 1 < sizeof(*newmetric))
 							*s++ = *p;
 					}
 				}
@@ -1386,29 +1392,29 @@ router_rewrite_metric(const route *w, char **metric, char **firstspace)
 	s--;
 
 	/* insert remaining part */
-	q = *metric + w->pmatch[0].rm_eo;
-	t = *firstspace;
-	if (s - newmetric + t - q < sizeof(newmetric)) {
+	q = metric + pmatch[0].rm_eo;
+	t = firstspace;
+	if (s - *newmetric + t - q < sizeof(*newmetric)) {
 		while (q < t)
 			*s++ = *q++;
 	} else {
-		return;  /* won't fit, don't try further */
+		return 0;  /* won't fit, don't try further */
 	}
 
 	/* record new position of firstspace */
-	t = s;
+	*newfirstspace = s;
 
 	/* copy data part */
-	if (s - newmetric + strlen(*firstspace) < sizeof(newmetric))
+	if (s - *newmetric + strlen(firstspace) < sizeof(*newmetric))
 	{
-		for (p = *firstspace; *p != '\0'; p++)
+		for (p = firstspace; *p != '\0'; p++)
 			*s++ = *p;
 		*s++ = '\0';
 
-		/* scary! write back the rewritten metric */
-		memcpy(*metric, newmetric, s - newmetric);
-		*firstspace = t;
+		return s - *newmetric;
 	}
+
+	return 0;  /* we couldn't copy everything */
 }
 
 static char
@@ -1425,6 +1431,9 @@ router_route_intern(
 	const char *p;
 	const char *q = NULL;  /* pacify compiler, won't happen in reality */
 	const char *t;
+	char newmetric[METRIC_BUFSIZ];
+	char *newfirstspace = NULL;
+	size_t len;
 
 #define failif(RETLEN, WANTLEN) \
 	if (WANTLEN > RETLEN) { \
@@ -1512,7 +1521,22 @@ router_route_intern(
 				}	break;
 				case REWRITE: {
 					/* rewrite metric name */
-					router_rewrite_metric(w, &metric, &firstspace);
+					if ((len = router_rewrite_metric(
+								&newmetric, &newfirstspace,
+								metric, firstspace,
+								w->dest->members.replacement,
+								w->nmatch, w->pmatch)) == 0)
+					{
+						fprintf(stderr, "router_route: failed to rewrite "
+								"metric: newmetric size too small to hold "
+								"replacement (%s -> %s)\n",
+								metric, w->dest->members.replacement);
+						break;
+					};
+
+					/* scary! write back the rewritten metric */
+					memcpy(metric, newmetric, len);
+					firstspace = metric + (newfirstspace - newmetric);
 				}	break;
 				case GROUP: {
 					/* this should not happen */
@@ -1557,6 +1581,9 @@ router_test_intern(char *metric, char *firstspace, route *routes)
 {
 	route *w;
 	char gotmatch = 0;
+	char newmetric[METRIC_BUFSIZ];
+	char *newfirstspace = NULL;
+	size_t len;
 
 	for (w = routes; w != NULL; w = w->next) {
 		if (w->dest->type == GROUP) {
@@ -1627,7 +1654,23 @@ router_test_intern(char *metric, char *firstspace, route *routes)
 					fprintf(stdout, "    blackholed\n");
 				}	break;
 				case REWRITE: {
-					router_rewrite_metric(w, &metric, &firstspace);
+					/* rewrite metric name */
+					if ((len = router_rewrite_metric(
+								&newmetric, &newfirstspace,
+								metric, firstspace,
+								w->dest->members.replacement,
+								w->nmatch, w->pmatch)) == 0)
+					{
+						fprintf(stderr, "router_test: failed to rewrite "
+								"metric: newmetric size too small to hold "
+								"replacement (%s -> %s)\n",
+								metric, w->dest->members.replacement);
+						break;
+					};
+
+					/* scary! write back the rewritten metric */
+					memcpy(metric, newmetric, len);
+					firstspace = metric + (newfirstspace - newmetric);
 					*firstspace = '\0';
 					fprintf(stdout, "    into(%s) -> %s\n",
 							w->dest->members.replacement, metric);
