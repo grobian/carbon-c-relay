@@ -340,13 +340,13 @@ server_queuereader(void *d)
 
 		for (; *metric != NULL; metric++) {
 			len = strlen(*metric);
-			if ((slen = send(self->fd, *metric, len, 0)) != len) {
+			if ((slen = write(self->fd, *metric, len)) != len) {
 				/* not fully sent, or failure, close connection
 				 * regardless so we don't get synchonisation problems,
 				 * partially sent data is an error for us, since we use
 				 * blocking sockets, and hence partial sent is
 				 * indication of a failure */
-				fprintf(stderr, "[%s] failed to send() to %s:%u: %s\n",
+				fprintf(stderr, "[%s] failed to write() to %s:%u: %s\n",
 						fmtnow(nowbuf), self->ip, self->port,
 						(slen < 0 ? strerror(errno) : "uncomplete write"));
 				close(self->fd);
