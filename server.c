@@ -91,10 +91,12 @@ server_queuereader(void *d)
 	self->running = 1;
 	while (1) {
 		if (queue_len(self->queue) == 0) {
-			/* if we're idling, close the connection, this allows us
+			/* if we're idling, close the TCP connection, this allows us
 			 * to reduce connections, while keeping the connection alive
 			 * if we're writing a lot */
-			if (self->fd >= 0 && idle++ > DISCONNECT_WAIT_TIME) {
+			if (self->ctype == CON_TCP && self->fd >= 0 &&
+					idle++ > DISCONNECT_WAIT_TIME)
+			{
 				close(self->fd);
 				self->fd = -1;
 			}
@@ -196,18 +198,6 @@ server_queuereader(void *d)
 					self->failure += self->failure >= FAIL_WAIT_TIME ? 0 : 1;
 					continue;
 				}
-				/* Some tools, like nc, "stick" to the src and port of
-				 * the first incoming packet, probably to avoid the
-				 * influence of garbage floating around.  Since we
-				 * disconnect when idle, we end up using a different
-				 * source port all the time, thus getting ignored.  To
-				 * avoid this, we would have to find a free port and
-				 * bind to it, such that we always use the same port in
-				 * subsequent connects.  This also means we'd have to
-				 * deal with when this port becomes unavailable, and the
-				 * actual finding of the free port.  Therefore, this is
-				 * left as a todo for when this actually becomes an
-				 * issue. */
 				if (connect(self->fd,
 						self->saddr->ai_addr, self->saddr->ai_addrlen) < 0)
 				{
