@@ -322,8 +322,9 @@ server_queuereader(void *d)
 			 * this is in particular important for recovering this
 			 * node by probes, to avoid starvation of this server since
 			 * its queue is possibly being offloaded to secondaries */
-			fprintf(stderr, "[%s] server %s:%u: OK after probe\n",
-					fmtnow(nowbuf), self->ip, self->port);
+			if (self->ctype != CON_UDP)
+				fprintf(stderr, "[%s] server %s:%u: OK after probe\n",
+						fmtnow(nowbuf), self->ip, self->port);
 			self->failure = 0;
 		}
 
@@ -335,9 +336,10 @@ server_queuereader(void *d)
 				 * partially sent data is an error for us, since we use
 				 * blocking sockets, and hence partial sent is
 				 * indication of a failure */
-				fprintf(stderr, "[%s] failed to write() to %s:%u: %s\n",
-						fmtnow(nowbuf), self->ip, self->port,
-						(slen < 0 ? strerror(errno) : "uncomplete write"));
+				if (self->ctype != CON_UDP)
+					fprintf(stderr, "[%s] failed to write() to %s:%u: %s\n",
+							fmtnow(nowbuf), self->ip, self->port,
+							(slen < 0 ? strerror(errno) : "uncomplete write"));
 				close(self->fd);
 				self->fd = -1;
 				self->failure += self->failure >= FAIL_WAIT_TIME ? 0 : 1;
@@ -352,8 +354,9 @@ server_queuereader(void *d)
 				}
 				break;
 			} else if (self->failure) {
-				fprintf(stderr, "[%s] server %s:%u: OK\n",
-						fmtnow(nowbuf), self->ip, self->port);
+				if (self->ctype != CON_UDP)
+					fprintf(stderr, "[%s] server %s:%u: OK\n",
+							fmtnow(nowbuf), self->ip, self->port);
 				self->failure = 0;
 			}
 			free((char *)*metric);
