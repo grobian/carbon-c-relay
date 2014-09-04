@@ -169,7 +169,7 @@ determine_if_regex(route *r, char *pat, int flags)
 	if (r->matchtype != REGEX) {
 		*pb = '\0';
 		r->strmatch = strdup(patbuf);
-		r->pattern = NULL;
+		r->pattern = strdup(pat);
 	} else {
 		int ret = regcomp(&r->rule, pat, flags);
 		if (ret != 0)
