@@ -176,7 +176,7 @@ determine_if_regex(route *r, char *pat, int flags)
 			return ret;  /* allow use of regerror */
 		r->strmatch = NULL;
 		r->pattern = strdup(pat);
-		if ((flags & REG_NOSUB) == 0) {
+		if ((flags & REG_NOSUB) == 0 && r->rule.re_nsub > 0) {
 			/* we need +1 because position 0 contains the entire
 			 * expression */
 			r->nmatch = r->rule.re_nsub + 1;
@@ -637,11 +637,11 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize)
 			r->next = NULL;
 		} else if (strncmp(p, "aggregate", 9) == 0 && isspace(*(p + 9))) {
 			/* aggregation rule */
+			char *type;
 			char *pat;
 			char *interval;
 			char *expire;
 			cluster *w;
-			struct _aggr_computes *ac = NULL;
 			int err;
 
 			p += 10;
@@ -671,7 +671,7 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize)
 				} else {
 					r = r->next = malloc(sizeof(route));
 				}
-				err = determine_if_regex(r, pat, REG_EXTENDED | REG_NOSUB);
+				err = determine_if_regex(r, pat, REG_EXTENDED);
 				if (err != 0) {
 					char ebuf[512];
 					regerror(err, &r->rule, ebuf, sizeof(ebuf));
@@ -748,14 +748,6 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize)
 				return 0;
 			}
 			*p++ = '\0';
-			w->members.aggregation =
-				aggregator_new(atoi(interval), atoi(expire));
-			if (w->members.aggregation == NULL) {
-				fprintf(stderr, "invalid interval (%s) or expire (%s)\n",
-						interval, expire);
-				free(buf);
-				return 0;
-			}
 			for (; *p != '\0' && isspace(*p); p++)
 				;
 			if (strncmp(p, "seconds", 7) != 0 || !isspace(*(p + 7))) {
@@ -767,6 +759,15 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize)
 			p += 8;
 			for (; *p != '\0' && isspace(*p); p++)
 				;
+
+			w->members.aggregation =
+				aggregator_new(atoi(interval), atoi(expire));
+			if (w->members.aggregation == NULL) {
+				fprintf(stderr, "invalid interval (%s) or expire (%s)\n",
+						interval, expire);
+				free(buf);
+				return 0;
+			}
 			do {
 				if (strncmp(p, "compute", 7) != 0 || !isspace(*(p + 7))) {
 					fprintf(stderr, "expected 'compute' at %s'\n", p);
@@ -783,29 +784,7 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize)
 					return 0;
 				}
 				*p++ = '\0';
-
-				if (ac == NULL) {
-					ac = w->members.aggregation->computes =
-						malloc(sizeof(struct _aggr_computes));
-				} else {
-					ac = ac->next = malloc(sizeof(struct _aggr_computes));
-				}
-				if (strcmp(pat, "sum") == 0) {
-					ac->type = SUM;
-				} else if (strcmp(pat, "count") == 0) {
-					ac->type = CNT;
-				} else if (strcmp(pat, "max") == 0) {
-					ac->type = MAX;
-				} else if (strcmp(pat, "min") == 0) {
-					ac->type = MIN;
-				} else if (strcmp(pat, "average") == 0) {
-					ac->type = AVG;
-				} else {
-					fprintf(stderr, "expected sum, count, max, min or average "
-							"after 'compute', got '%s'\n", pat);
-					free(buf);
-					return 0;
-				}
+				type = pat;
 				for (; *p != '\0' && isspace(*p); p++)
 					;
 				if (strncmp(p, "write", 5) != 0 || !isspace(*(p + 5))) {
@@ -833,8 +812,14 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize)
 					return 0;
 				}
 				*p++ = '\0';
-				ac->metric = strdup(pat);
-				ac->next = NULL;
+
+				if (aggregator_add_compute(w->members.aggregation, pat, type) != 0) {
+					fprintf(stderr, "expected sum, count, max, min or average "
+							"after 'compute', got '%s'\n", type);
+					free(buf);
+					return 0;
+				}
+
 				for (; *p != '\0' && isspace(*p); p++)
 					;
 			} while (*p != ';');
@@ -1324,7 +1309,7 @@ router_metric_matches(const route *r, char *metric, char *firstspace)
 	return ret;
 }
 
-static inline size_t
+inline size_t
 router_rewrite_metric(
 		char (*newmetric)[METRIC_BUFSIZ],
 		char **newfirstspace,
@@ -1517,7 +1502,8 @@ router_route_intern(
 					aggregator_putmetric(
 							w->dest->members.aggregation,
 							metric,
-							firstspace);
+							firstspace,
+							w->nmatch, w->pmatch);
 				}	break;
 				case REWRITE: {
 					/* rewrite metric name */

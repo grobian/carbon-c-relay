@@ -20,11 +20,13 @@
 #include <unistd.h>
 #include <string.h>
 #include <time.h>
+#include <regex.h>
 #include <pthread.h>
 
 #include "relay.h"
 #include "dispatcher.h"
 #include "server.h"
+#include "router.h"
 #include "aggregator.h"
 
 static pthread_t aggregatorid;
@@ -40,14 +42,14 @@ static char keep_running = 1;
 aggregator *
 aggregator_new(unsigned int interval, unsigned int expire)
 {
-	int i;
-	time_t now;
 	aggregator *ret = malloc(sizeof(aggregator));
 
 	if (ret == NULL)
 		return ret;
-	if (interval == 0 || expire == 0)
+	if (interval == 0 || expire == 0) {
+		free(ret);
 		return NULL;
+	}
 
 	if (aggregators == NULL) {
 		aggregators = lastaggr = ret;
@@ -57,30 +59,59 @@ aggregator_new(unsigned int interval, unsigned int expire)
 
 	ret->interval = interval;
 	ret->expire = expire;
+	ret->bucketcnt = (expire / interval) * 2 + 1 ;
 	ret->received = 0;
 	ret->sent = 0;
 	ret->dropped = 0;
+	ret->computes = NULL;
 	ret->next = NULL;
 
 	pthread_mutex_init(&ret->bucketlock, NULL);
 
-	/* start buckets in the past with a splay, but before expiry
-	 * the splay is necessary to avoid a thundering herd of expirations
-	 * when the config lists many aggregations which then all get the
-	 * same start time */
-	time(&now);
-	now -= expire + 1 + (rand() % interval);
+	return ret;
+}
 
-	/* allocate enough buckets to hold the past + future */
-	ret->bucketcnt = (expire / interval) * 2 + 1 ;
-	ret->buckets = malloc(sizeof(struct _bucket *) * ret->bucketcnt);
-	for (i = 0; i < ret->bucketcnt; i++) {
-		ret->buckets[i] = malloc(sizeof(struct _bucket));
-		ret->buckets[i]->start = now + (i * interval);
-		ret->buckets[i]->cnt = 0;
+/**
+ * Adds a new compute part to this aggregator.  Returns -1 if type is
+ * not a recognised aggregation type.
+ */
+char
+aggregator_add_compute(
+		aggregator *s,
+		const char *metric,
+		const char *type)
+{
+	struct _aggr_computes *ac = s->computes;
+	enum _aggr_compute_type act;
+
+	if (strcmp(type, "sum") == 0) {
+		act = SUM;
+	} else if (strcmp(type, "count") == 0) {
+		act = CNT;
+	} else if (strcmp(type, "max") == 0) {
+		act = MAX;
+	} else if (strcmp(type, "min") == 0) {
+		act = MIN;
+	} else if (strcmp(type, "average") == 0) {
+		act = AVG;
+	} else {
+		return -1;
 	}
 
-	return ret;
+	if (ac == NULL) {
+		ac = s->computes = malloc(sizeof(*ac));
+	} else {
+		while (ac->next != NULL)
+			ac = ac->next;
+		ac = ac->next = malloc(sizeof(*ac));
+	}
+
+	ac->type = act;
+	ac->metric = strdup(metric);
+	ac->invocations = NULL;
+	ac->next = NULL;
+
+	return 0;
 }
 
 /**
@@ -93,16 +124,25 @@ void
 aggregator_putmetric(
 		aggregator *s,
 		const char *metric,
-		const char *firstspace)
+		const char *firstspace,
+		size_t nmatch,
+		regmatch_t *pmatch)
 {
 	char *v;
 	double val;
 	long long int epoch;
+	long long int itime;
 	int slot;
 	struct _bucket *bucket;
+	char newmetric[METRIC_BUFSIZ];
+	char *newfirstspace = NULL;
+	size_t len;
+	const char *ometric;
+	struct _aggr_computes *compute;
+	struct _aggr_invocations *invocation;
 
 	/* get value */
-	if ((v = strchr(firstspace, ' ')) == NULL) {
+	if ((v = strchr(firstspace + 1, ' ')) == NULL) {
 		/* metric includes \n */
 		fprintf(stderr, "aggregator: dropping incorrect metric: %s", metric);
 		return;
@@ -113,36 +153,102 @@ aggregator_putmetric(
 	val = atof(firstspace + 1);
 	epoch = atoll(v + 1);
 
-	epoch -= s->buckets[0]->start;
-	if (epoch < 0) {
-		/* drop too old metric */
-		s->dropped++;
-		return;
-	}
-
-	slot = epoch / s->interval;
-	if (slot >= s->bucketcnt) {
-		fprintf(stderr, "aggregator: dropping metric too far in the "
-				"future (%lld > %lld): %s", epoch + s->buckets[0]->start,
-				s->buckets[s->bucketcnt - 1]->start, metric);
-		s->dropped++;
-		return;
-	}
-
 	pthread_mutex_lock(&s->bucketlock);
-	bucket = s->buckets[slot];
-	if (bucket->cnt == 0) {
-		bucket->cnt = 1;
-		bucket->sum = val;
-		bucket->max = val;
-		bucket->min = val;
-	} else {
-		bucket->cnt++;
-		bucket->sum += val;
-		if (bucket->max < val)
+	for (compute = s->computes; compute != NULL; compute = compute->next) {
+		if (nmatch == 0) {
+			ometric = compute->metric;
+		} else if ((len = router_rewrite_metric(
+						&newmetric, &newfirstspace,
+						metric, firstspace,
+						compute->metric,
+						nmatch, pmatch)) == 0)
+		{
+			/* fail, skip */
+			continue;
+		} else {
+			*newfirstspace = '\0';
+			ometric = newmetric;
+		}
+
+		for (invocation = compute->invocations; invocation != NULL; invocation = invocation->next)
+			if (strcmp(ometric, invocation->metric) == 0)  /* match */
+				break;
+		if (invocation == NULL) {  /* no match, add */
+			int i;
+			time_t now;
+
+			if ((invocation = malloc(sizeof(*invocation))) == NULL) {
+				fprintf(stderr, "aggregator: out of memory creating %s from %s",
+						ometric, metric);
+				continue;
+			}
+			if ((invocation->metric = strdup(ometric)) == NULL) {
+				fprintf(stderr, "aggregator: out of memory creating %s from %s",
+						ometric, metric);
+				free(invocation);
+				continue;
+			}
+
+			/* Start buckets in the past with a splay, but before expiry
+			 * the splay is necessary to avoid a thundering herd of
+			 * expirations when the aggregator is spammed with metrics,
+			 * e.g. right after startup when other relays flush their
+			 * queues. */
+			time(&now);
+			now -= s->expire + 1 + (rand() % s->interval);
+
+			/* allocate enough buckets to hold the past + future */
+			invocation->buckets =
+				malloc(sizeof(struct _bucket) * s->bucketcnt);
+			if (invocation->buckets == NULL) {
+				fprintf(stderr, "aggregator: out of memory creating %s from %s",
+						ometric, metric);
+				free(invocation->metric);
+				free(invocation);
+				continue;
+			}
+			for (i = 0; i < s->bucketcnt; i++) {
+				invocation->buckets[i].start = now + (i * s->interval);
+				invocation->buckets[i].cnt = 0;
+			}
+
+			invocation->next = compute->invocations;
+			compute->invocations = invocation;
+		}
+
+		/* finally, try to do the maths */
+
+		itime = epoch - invocation->buckets[0].start;
+		if (itime < 0) {
+			/* drop too old metric */
+			s->dropped++;
+			continue;
+		}
+
+		slot = itime / s->interval;
+		if (slot >= s->bucketcnt) {
+			fprintf(stderr, "aggregator: dropping metric too far in the "
+					"future (%lld > %lld): %s from %s", epoch,
+					invocation->buckets[s->bucketcnt - 1].start,
+					ometric, metric);
+			s->dropped++;
+			continue;
+		}
+
+		bucket = &invocation->buckets[slot];
+		if (bucket->cnt == 0) {
+			bucket->cnt = 1;
+			bucket->sum = val;
 			bucket->max = val;
-		if (bucket->min > val)
 			bucket->min = val;
+		} else {
+			bucket->cnt++;
+			bucket->sum += val;
+			if (bucket->max < val)
+				bucket->max = val;
+			if (bucket->min > val)
+				bucket->min = val;
+		}
 	}
 	pthread_mutex_unlock(&s->bucketlock);
 
@@ -161,6 +267,7 @@ aggregator_expire(void *sub)
 	aggregator *s;
 	struct _bucket *b;
 	struct _aggr_computes *c;
+	struct _aggr_invocations *i;
 	int work;
 	server *submission = (server *)sub;
 	char metric[METRIC_BUFSIZ];
@@ -173,53 +280,61 @@ aggregator_expire(void *sub)
 			 * expiry time, unless we are shutting down, then send
 			 * metrics for all buckets that have completed */
 			now = time(NULL) + (keep_running ? 0 : s->expire);
-			while (s->buckets[0]->start + s->interval < now - s->expire) {
-				/* yay, let's produce something cool */
-				b = s->buckets[0];
-				if (b->cnt > 0) {  /* avoid emitting empty/unitialised data */
-					for (c = s->computes; c != NULL; c = c->next) {
-						switch (c->type) {
-							case SUM:
-								snprintf(metric, sizeof(metric), "%s %f %lld\n",
-										c->metric, b->sum,
-										b->start + s->interval);
-								break;
-							case CNT:
-								snprintf(metric, sizeof(metric), "%s %zd %lld\n",
-										c->metric, b->cnt,
-										b->start + s->interval);
-								break;
-							case MAX:
-								snprintf(metric, sizeof(metric), "%s %f %lld\n",
-										c->metric, b->max,
-										b->start + s->interval);
-								break;
-							case MIN:
-								snprintf(metric, sizeof(metric), "%s %f %lld\n",
-										c->metric, b->min,
-										b->start + s->interval);
-								break;
-							case AVG:
-								snprintf(metric, sizeof(metric), "%s %f %lld\n",
-										c->metric, b->sum / (double)b->cnt,
-										b->start + s->interval);
-								break;
+			for (c = s->computes; c != NULL; c = c->next) {
+				for (i = c->invocations; i != NULL; i = i->next) {
+					while (i->buckets[0].start + s->interval < now - s->expire) {
+						/* yay, let's produce something cool */
+						b = &i->buckets[0];
+						if (b->cnt > 0) {  /* avoid emitting empty/unitialised data */
+							switch (c->type) {
+								case SUM:
+									snprintf(metric, sizeof(metric),
+											"%s %f %lld\n",
+											i->metric, b->sum,
+											b->start + s->interval);
+									break;
+								case CNT:
+									snprintf(metric, sizeof(metric),
+											"%s %zd %lld\n",
+											i->metric, b->cnt,
+											b->start + s->interval);
+									break;
+								case MAX:
+									snprintf(metric, sizeof(metric),
+											"%s %f %lld\n",
+											i->metric, b->max,
+											b->start + s->interval);
+									break;
+								case MIN:
+									snprintf(metric, sizeof(metric),
+											"%s %f %lld\n",
+											i->metric, b->min,
+											b->start + s->interval);
+									break;
+								case AVG:
+									snprintf(metric, sizeof(metric),
+											"%s %f %lld\n",
+											i->metric,
+											b->sum / (double)b->cnt,
+											b->start + s->interval);
+									break;
+							}
+							server_send(submission, metric, 1);
 						}
-						server_send(submission, metric, 1);
+						pthread_mutex_lock(&s->bucketlock);
+						if (b->cnt > 0)
+							s->sent++;
+						/* move the bucket to the end, to make room for new ones */
+						memmove(&i->buckets[0], &i->buckets[1],
+								sizeof(*b) * (s->bucketcnt - 1));
+						b = &i->buckets[s->bucketcnt - 1];
+						b->cnt = 0;
+						b->start = i->buckets[s->bucketcnt - 2].start + s->interval;
+						pthread_mutex_unlock(&s->bucketlock);
+
+						work++;
 					}
 				}
-				pthread_mutex_lock(&s->bucketlock);
-				if (b->cnt > 0)
-					s->sent++;
-				/* move the bucket to the end, to make room for new ones */
-				memmove(&s->buckets[0], &s->buckets[1],
-						sizeof(b) * (s->bucketcnt - 1));
-				b->cnt = 0;
-				b->start = s->buckets[s->bucketcnt - 2]->start + s->interval;
-				s->buckets[s->bucketcnt - 1] = b;
-				pthread_mutex_unlock(&s->bucketlock);
-
-				work++;
 			}
 		}
 
