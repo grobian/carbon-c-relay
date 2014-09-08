@@ -15,24 +15,24 @@
 #relay which can address multiple targets and clusters for each and every\n
 #metric based on pattern matches.\n
 #
-# chkconfig: 2345 20 80
+# chkconfig: 2345 80 80
 #
 # config: /etc/relay.conf
-# pidfile: /var/run/relay/relay.pid
+# pidfile: /var/run/carbon/relay.pid
 
 # Source function library.
 . /etc/init.d/functions
 
 
 RETVAL=0
-PROG="cc_relay"
+PROG="relay"
 DAEMON_CONFIG=/etc/${PROG}.conf
 DAEMON_SYSCONFIG=/etc/sysconfig/${PROG}
 DAEMON=/usr/bin/${PROG}
-PID_FILE=/var/run/${PROG}/${PROG}.pid
+PID_FILE=/var/run/carbon/${PROG}.pid
 LOCK_FILE=/var/lock/subsys/${PROG}
-LOG_FILE=/var/log/${PROG}/relay.log
-DAEMON_USER="cc_relay"
+LOG_FILE=/var/log/carbon/relay.log
+DAEMON_USER="relay"
 FQDN=$(hostname --long)
 
 . ${DAEMON_SYSCONFIG}

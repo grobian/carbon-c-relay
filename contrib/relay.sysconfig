@@ -11,5 +11,7 @@
 #  -s  submission mode: write info about errors to stdout
 #  -t  config test mode: prints rule matches from input on stdin
 #  -H  hostname: override hostname (used in statistics)
+#
+#  Note: The hostname is set dynamically in the init script.
 
-ARGS="-p 2103 -w 2 -b 2500 -q 25000"
+ARGS="-p 2003 -w 4 -b 2500 -q 25000"
