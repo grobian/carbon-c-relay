@@ -37,7 +37,6 @@ enum conntype {
 	CONNECTION
 };
 
-#define CONN_DESTS_SIZE    32
 typedef struct _connection {
 	int sock;
 	char takenby;   /* -2: being setup, -1: free, 0: not taken, >0: tid */
@@ -45,7 +44,7 @@ typedef struct _connection {
 	int buflen;
 	char needmore:1;
 	char metric[METRIC_BUFSIZ];
-	server *dests[CONN_DESTS_SIZE];
+	destination dests[CONN_DESTS_SIZE];
 	size_t destlen;
 	time_t wait;
 } connection;
@@ -218,13 +217,13 @@ dispatch_process_dests(connection *conn, dispatcher *self)
 
 	if (conn->destlen > 0) {
 		for (i = 0; i < conn->destlen; i++) {
-			if (server_send(conn->dests[i], conn->metric, force) == 0)
+			if (server_send(conn->dests[i].dest, conn->dests[i].metric, force) == 0)
 				break;
 		}
 		if (i != conn->destlen) {
 			conn->destlen -= i;
 			memmove(&conn->dests[0], &conn->dests[i],
-					(sizeof(server *) * conn->destlen));
+					(sizeof(destination) * conn->destlen));
 			return 0;
 		} else {
 			/* finally "complete" this metric */
