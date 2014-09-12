@@ -1404,7 +1404,7 @@ router_rewrite_metric(
 
 static char
 router_route_intern(
-		server **ret,
+		destination ret[],
 		size_t *curlen,
 		size_t retsize,
 		char *metric,
@@ -1465,7 +1465,8 @@ router_route_intern(
 					for (s = w->dest->members.forward; s != NULL; s = s->next)
 					{
 						failif(retsize, *curlen + 1);
-						ret[(*curlen)++] = s->server;
+						ret[*curlen].dest = s->server;
+						ret[(*curlen)++].metric = strdup(metric);
 					}
 				}	break;
 				case ANYOF: {
@@ -1482,7 +1483,9 @@ router_route_intern(
 					 * MAX_INT, therefore we stick with a simple mod. */
 					hash %= w->dest->members.anyof->count;
 					failif(retsize, *curlen + 1);
-					ret[(*curlen)++] = w->dest->members.anyof->servers[hash];
+					ret[*curlen].dest =
+						w->dest->members.anyof->servers[hash];
+					ret[(*curlen)++].metric = strdup(metric);
 				}	break;
 				case CARBON_CH:
 				case FNV1A_CH: {
@@ -1545,7 +1548,7 @@ router_route_intern(
  */
 inline size_t
 router_route(
-		server **ret,
+		destination ret[],
 		size_t retsize,
 		char *metric,
 		char *firstspace)

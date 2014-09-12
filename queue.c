@@ -72,7 +72,8 @@ queue_destroy(queue *q)
 /**
  * Enqueues the string pointed to by p at queue q.  If the queue is
  * full, the oldest entry is dropped.  For this reason, enqueuing will
- * never fail.
+ * never fail.  This function assumes the pointer p is a private copy
+ * for this queue, and hence will be freed once processed.
  */
 void
 queue_enqueue(queue *q, const char *p)
@@ -100,7 +101,7 @@ queue_enqueue(queue *q, const char *p)
 	}
 	if (q->write == q->end)
 		q->write = 0;
-	q->queue[q->write] = strdup(p);
+	q->queue[q->write] = p;
 	q->write++;
 	q->len++;
 	pthread_mutex_unlock(&q->lock);
@@ -160,9 +161,9 @@ queue_dequeue_vector(const char **ret, queue *q, size_t len)
 /**
  * Puts the entry p at the front of the queue, instead of the end, if
  * there is space available in the queue.  Returns 0 when no space is
- * available, non-zero otherwise.  Compared to queue_enqueue,
- * queue_putback does not strdup p, because it assumes that putback is
- * used after a dequeue, and putback is hence used as revert.
+ * available, non-zero otherwise.  Like queue_enqueue,
+ * queue_putback assumes pointer p points to a private copy for the
+ * queue.
  */
 char
 queue_putback(queue *q, const char *p)

@@ -73,7 +73,7 @@ collector_runner(void *s)
 	if (debug) \
 		fprintf(stdout, "%s", metric); \
 	else \
-		server_send(submission, metric, 1);
+		server_send(submission, strdup(metric), 1);
 
 	nextcycle = time(NULL) + 60;
 	while (keep_running) {

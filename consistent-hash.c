@@ -196,7 +196,7 @@ ch_addnode(ch_ring *ring, server *s)
  */
 void
 ch_get_nodes(
-		server *ret[],
+		destination ret[],
 		ch_ring *ring,
 		const char replcnt,
 		const char *metric,
@@ -226,7 +226,7 @@ ch_get_nodes(
 		if (w == NULL)
 			w = ring->entries;
 		for (j = i - 1; j >= 0; j--) {
-			if (ret[j] == w->server) {
+			if (ret[j].dest == w->server) {
 				j = i;
 				break;
 			}
@@ -235,6 +235,7 @@ ch_get_nodes(
 			i--;
 			continue;
 		}
-		ret[i] = w->server;
+		ret[i].dest = w->server;
+		ret[i].metric = strdup(metric);
 	}
 }

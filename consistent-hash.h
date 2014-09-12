@@ -19,6 +19,7 @@
 #define CONSISTENT_HASH_H 1
 
 #include "server.h"
+#include "router.h"
 
 #ifndef CH_RING
 #define CH_RING void
@@ -29,7 +30,7 @@ typedef enum { CARBON, FNV1a } ch_type;
 ch_ring *ch_new(ch_type type);
 ch_ring *ch_addnode(ch_ring *ring, server *s);
 void ch_get_nodes(
-		server *ret[],
+		destination ret[],
 		ch_ring *ring,
 		const char replcnt,
 		const char *metric,
