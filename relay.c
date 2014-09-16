@@ -196,6 +196,12 @@ main(int argc, char * const argv[])
 	if (workercnt == 0)
 		workercnt = mode == SUBMISSION ? 2 : 16;
 
+	/* any_of failover maths need batchsize to be smaller than queuesize */
+	if (batchsize > queuesize) {
+		fprintf(stderr, "error: batchsize must be smaller than queuesize\n");
+		exit(-1);
+	}
+
 	fprintf(stdout, "[%s] starting carbon-c-relay v%s (%s)\n",
 		fmtnow(nowbuf), VERSION, GIT_VERSION);
 	fprintf(stdout, "configuration:\n");
