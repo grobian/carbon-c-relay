@@ -210,7 +210,7 @@ main(int argc, char * const argv[])
 		fprintf(stdout, "    submission = true\n");
 	fprintf(stdout, "    routes configuration = %s\n", routes);
 	fprintf(stdout, "\n");
-	if (router_readconfig(routes, batchsize, queuesize) == 0) {
+	if (router_readconfig(routes, queuesize, batchsize) == 0) {
 		fprintf(stderr, "failed to read configuration '%s'\n", routes);
 		return 1;
 	}
