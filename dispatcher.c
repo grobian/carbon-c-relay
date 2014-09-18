@@ -342,8 +342,12 @@ dispatch_connection(connection *conn, dispatcher *self)
 					break;
 			} else {
                 if (firstspace == NULL) {
-                    /* something barf, replace by underscore if it's in the metric-path */
+                    /* something barf, replace by underscore if it's in the metric_path */
                     *q++ = '_';
+                }
+                else if (*p == '+') {
+                    /* we're after the metric_path, copy if allowed char */
+                    *q++ = *p;
                 }
 			}
 		}
