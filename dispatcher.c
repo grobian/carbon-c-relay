@@ -341,8 +341,10 @@ dispatch_connection(connection *conn, dispatcher *self)
 				if (dispatch_process_dests(conn, self) == 0)
 					break;
 			} else {
-				/* something barf, replace by underscore */
-				*q++ = '_';
+                if (firstspace == NULL) {
+                    /* something barf, replace by underscore if it's in the metric-path */
+                    *q++ = '_';
+                }
 			}
 		}
 		conn->needmore = q != conn->metric;
