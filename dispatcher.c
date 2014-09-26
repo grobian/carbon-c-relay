@@ -281,39 +281,7 @@ dispatch_connection(connection *conn, dispatcher *self)
 		firstspace = NULL;
 		lastnl = NULL;
 		for (p = conn->buf; p - conn->buf < conn->buflen; p++) {
-			if ((*p >= 'a' && *p <= 'z') ||
-					(*p >= 'A' && *p <= 'Z') ||
-					(*p >= '0' && *p <= '9') ||
-					*p == '-' || *p == '_' || *p == ':')
-			{
-				/* copy char */
-				*q++ = *p;
-			} else if (*p == ' ' || *p == '\t' || *p == '.') {
-				/* separator */
-				if (*p == '\t')
-					*p = ' ';
-				if (*p == ' ' && firstspace == NULL) {
-					if (q == conn->metric) {
-						/* make sure we skip this on next iteration to
-						 * avoid an infinite loop */
-						lastnl = p;
-						continue;
-					}
-					if (*(q - 1) == '.')
-						q--;  /* strip trailing separator */
-					firstspace = q;
-					*q++ = ' ';
-				} else {
-					/* metric_path separator or space,
-					 * - duplicate elimination
-					 * - don't start with separator/space */
-					if (
-							q != conn->metric &&
-							*(q - 1) != *p &&
-							(q - 1) != firstspace)
-						*q++ = *p;
-				}
-			} else if (*p == '\n' || *p == '\r') {
+			if (*p == '\n' || *p == '\r') {
 				/* end of metric */
 				lastnl = p;
 
@@ -340,6 +308,39 @@ dispatch_connection(connection *conn, dispatcher *self)
 				/* send the metric to where it is supposed to go */
 				if (dispatch_process_dests(conn, self) == 0)
 					break;
+			} else if (*p == ' ' || *p == '\t' || *p == '.') {
+				/* separator */
+				if (*p == '\t')
+					*p = ' ';
+				if (*p == ' ' && firstspace == NULL) {
+					if (q == conn->metric) {
+						/* make sure we skip this on next iteration to
+						 * avoid an infinite loop */
+						lastnl = p;
+						continue;
+					}
+					if (*(q - 1) == '.')
+						q--;  /* strip trailing separator */
+					firstspace = q;
+					*q++ = ' ';
+				} else {
+					/* metric_path separator or space,
+					 * - duplicate elimination
+					 * - don't start with separator/space */
+					if (
+							q != conn->metric &&
+							*(q - 1) != *p &&
+							(q - 1) != firstspace)
+						*q++ = *p;
+				}
+			} else if (firstspace != NULL ||
+					(*p >= 'a' && *p <= 'z') ||
+					(*p >= 'A' && *p <= 'Z') ||
+					(*p >= '0' && *p <= '9') ||
+					*p == '-' || *p == '_' || *p == ':')
+			{
+				/* copy char */
+				*q++ = *p;
 			} else {
 				/* something barf, replace by underscore */
 				*q++ = '_';
