@@ -414,7 +414,7 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize)
 						for (; *p != '\0' && isspace(*p); p++)
 							;
 						proto = p;
-						for (; *p != '\0' && !isspace(*p); p++)
+						for (; *p != '\0' && !isspace(*p) && *p != ';'; p++)
 							;
 						termchr = *p;
 						*p = '\0';
@@ -424,7 +424,7 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize)
 						{
 							fprintf(stderr, "expected 'udp' or 'tcp' after "
 									"'proto' at '%s' for cluster %s\n",
-									ip, name);
+									proto, name);
 							free(cl);
 							free(buf);
 							return 0;
