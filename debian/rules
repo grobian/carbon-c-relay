@@ -1,0 +1,32 @@
+#!/usr/bin/make -f
+# -*- makefile -*-
+
+# Uncomment this to turn on verbose mode.
+export DH_VERBOSE=1
+EXCLUDE = --exclude-vcs --exclude=debian
+
+override_dh_auto_build:
+	# do nothing
+
+override_dh_auto_install:
+	# do nothing
+
+override_dh_install:
+	# build all supported versions
+	$(MAKE) install DESTDIR=$(CURDIR)/carbon
+
+override_dh_installdocs:
+	dh_installdocs --all README.md TESTS.md
+
+
+clean: debian/control
+
+orig: debian/control clean
+	cd .. && tar czf prefix_$(PKGVERS).orig.tar.gz $(EXCLUDE) prefix
+
+%:
+	dh $@
+
+
+.PHONY: debian/control
+
