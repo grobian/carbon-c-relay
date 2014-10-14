@@ -1,2 +1,8 @@
 *.o
-/relay
+sbin
+obj
+debian/carbon-c-relay.substvars
+debian/carbon-c-relay.*.debhelper
+debian/carbon-c-relay/
+debian/*.debhelper.log
+debian/files
