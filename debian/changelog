@@ -1,5 +1,5 @@
-carbon-c-relay (0.35) unstable; urgency=low
+carbon-c-relay (0.35) unstable; urgency=high
 
   * Initial Release.
 
- -- Jose Riguera <jriguera@gmail.com>  Mon, 13 Oct 2014 00:07:24 +0200
+ -- Jose Riguera <jriguera@gmail.com>  Wed, 15 Oct 2014 00:38:38 +0200

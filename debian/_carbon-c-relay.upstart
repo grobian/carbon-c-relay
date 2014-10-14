@@ -12,7 +12,7 @@ reload signal 0
 env DAEMON=/usr/sbin/carbon-c-relay
 env CONFIG=/etc/carbon/carbon-c-relay.conf
 env PARAMETERS=/etc/default/carbon-c-relay.conf
-env RUNPATH=/run/carbon-c-relay
+env RUNPATH=/run/carbon
 env USER=carbon
 
 pre-start script

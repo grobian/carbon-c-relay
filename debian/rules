@@ -3,8 +3,7 @@
 
 # Uncomment this to turn on verbose mode.
 export DH_VERBOSE=1
-EXCLUDE = --exclude-vcs --exclude=debian
-
+export DH_ALWAYS_EXCLUDE=.git:.gitignore
 
 override_dh_auto_configure:
 	# do nothing, no ./configure
@@ -12,22 +11,10 @@ override_dh_auto_configure:
 override_dh_auto_test:
 	# do nothing, no make test
 
-override_dh_install:
-	# build all supported versions
-	$(MAKE) install PREFIX=$(CURDIR)/debian/carbon-c-relay
-
-override_dh_installdocs:
-	dh_installdocs --all README.md
-
-
-clean: debian/control
-
-orig: debian/control clean
-	cd .. && tar czf prefix_$(PKGVERS).orig.tar.gz $(EXCLUDE) prefix
+override_dh_auto_install:
+	$(MAKE) install PREFIX=$(CURDIR)/debian/carbon-c-relay/usr
+	dh_install conf/* etc/carbon
 
 %:
 	dh $@
-
-
-.PHONY: debian/control
 

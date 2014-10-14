@@ -5,6 +5,16 @@
 # Date  : 2014-10-12
 #
 # ------------------------------------------------
+# creation of initial debian folder:
+# dh_make --native -c apache -s -p carbon-c-relay_0.35
+
+CC       = gcc
+LINKER   = gcc -o
+RM       = rm -f
+MD       = mkdir -p
+GIT      = git
+DEBUILD  = debuild
+DEBCLEAN = debclean
 
 # project name (generate executable with this name)
 PREFIX           = /usr/local
@@ -12,12 +22,15 @@ TARGET           = carbon-c-relay
 GIT_VERSION     := $(shell git describe --abbrev=6 --dirty --always || date +%F)
 GVCFLAGS        += -DGIT_VERSION=\"$(GIT_VERSION)\"
 
-CC               = gcc
+# change these to set the proper directories where each files shoould be
+SRCDIR   = src
+OBJDIR   = obj
+BINDIR   = sbin
+
 # compiling flags here
 CFLAGS          ?= -O2 -Wall
 override CFLAGS += $(GVCFLAGS) `pkg-config openssl --cflags` -pthread
 
-LINKER           = gcc -o
 # linking flags here
 override LIBS   += `pkg-config openssl --libs` -pthread
 ifeq ($(shell uname), SunOS)
@@ -25,20 +38,10 @@ override LIBS   += -lsocket  -lnsl
 endif
 LFLAGS           = -O2 -Wall -lm $(LIBS)
 
-
-# change these to set the proper directories where each files shoould be
-SRCDIR   = src
-OBJDIR   = obj
-BINDIR   = sbin
-
 SOURCES  := $(wildcard $(SRCDIR)/*.c)
 INCLUDES := $(wildcard $(SRCDIR)/*.h)
 OBJECTS  := $(SOURCES:$(SRCDIR)/%.c=$(OBJDIR)/%.o)
-RM       = rm -f
-MD       = mkdir -p
-GIT      = git
-# Debian
-# dh_make --native -c apache -s -p carbon-c-relay_0.35
+
 
 all: folders $(BINDIR)/$(TARGET)
 
@@ -92,10 +95,12 @@ endif
 # creates the .deb package and other related files
 # all files are placed in ../
 .PHONY: builddeb
-builddeb: checkenv dist
-	#dpkg-buildpackage -i '-Itmp' -I.git -I$(TARGET)-$(VERSION).tar.gz -rfakeroot
-	dpkg-buildpackage -I.git -I$(TARGET)-$(VERSION).tar.gz -rfakeroot
-
+debuild: checkenv dist
+	# dpkg-buildpackage + lintian
+	# -sa    Forces the inclusion of the original source.
+	# -us    Do not sign the source package.
+	# -uc    Do not sign the .changes file.
+	$(DEBUILD) -us -uc -sa -b -rfakeroot -i -I.git -I.gitignore -I$(BINDIR) -I$(OBJDIR) -I$(TARGET)-$(VERSION).tar.gz
 
 # create a new release based on PW_VERSION variable
 .PHONY: newrelease
@@ -120,6 +125,7 @@ clean:
 
 .PHONY: dist-clean
 distclean: clean
-	@$(RM) $(BINDIR)/$(TARGET)
+	@$(RM) -r $(BINDIR)
+	@$(RM) -r $(OBJDIR)
+	@$(RM) $(TARGET)-$(VERSION).tar.gz
 	@echo "Executable removed!"
-
