@@ -8,7 +8,7 @@ Homepage: https://github.com/grobian/carbon-c-relay
 
 Package: carbon-c-relay
 Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}
+Depends: adduser, ${shlibs:Depends}, ${misc:Depends}
 Description: Enhanced C implementation of Carbon relay, aggregator and rewriter
  The relay is a simple program that reads its routing information from a file. 
  The command line arguments allow to set the location for this file, as well 

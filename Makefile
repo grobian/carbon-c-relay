@@ -74,7 +74,7 @@ dist:
 		--format=tar.gz \
 		--prefix=$(TARGET)-$(VERSION)/ v$(VERSION) \
 		> $(TARGET)-$(VERSION).tar.gz
-	@echo "Created "$(TARGET)-$(VERSION).tar.gz" successfully!"
+	@echo "Created $(TARGET)-$(VERSION).tar.gz successfully!"
 
 
 # check if the local environment is suitable to generate a package
@@ -90,7 +90,7 @@ ifndef DEBFULLNAME
 	echo "Missing environment variable DEBFULLNAME"
 	@exit 1
 endif
-	#gpg --list-secret-keys "$(DEBFULLNAME) <$(DEBEMAIL)>" >/dev/null
+#	#gpg --list-secret-keys "$(DEBFULLNAME) <$(DEBEMAIL)>" >/dev/null
 
 # creates the .deb package and other related files
 # all files are placed in ../
