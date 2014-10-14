@@ -5,18 +5,19 @@
 export DH_VERBOSE=1
 EXCLUDE = --exclude-vcs --exclude=debian
 
-override_dh_auto_build:
-	# do nothing
 
-override_dh_auto_install:
-	# do nothing
+override_dh_auto_configure:
+	# do nothing, no ./configure
+
+override_dh_auto_test:
+	# do nothing, no make test
 
 override_dh_install:
 	# build all supported versions
-	$(MAKE) install DESTDIR=$(CURDIR)/carbon
+	$(MAKE) install PREFIX=$(CURDIR)/debian/carbon-c-relay
 
 override_dh_installdocs:
-	dh_installdocs --all README.md TESTS.md
+	dh_installdocs --all README.md
 
 
 clean: debian/control

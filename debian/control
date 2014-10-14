@@ -4,9 +4,7 @@ Priority: optional
 Maintainer: Jose Riguera <jriguera@gmail.com>
 Build-Depends: debhelper (>= 8.0.0)
 Standards-Version: 3.9.4
-Homepage: <insert the upstream URL, if relevant>
-#Vcs-Git: git://git.debian.org/collab-maint/carbon-c-relay.git
-#Vcs-Browser: http://git.debian.org/?p=collab-maint/carbon-c-relay.git;a=summary
+Homepage: https://github.com/grobian/carbon-c-relay
 
 Package: carbon-c-relay
 Architecture: any

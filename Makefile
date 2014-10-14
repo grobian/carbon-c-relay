@@ -29,7 +29,7 @@ LFLAGS           = -O2 -Wall -lm $(LIBS)
 # change these to set the proper directories where each files shoould be
 SRCDIR   = src
 OBJDIR   = obj
-BINDIR   = bin
+BINDIR   = sbin
 
 SOURCES  := $(wildcard $(SRCDIR)/*.c)
 INCLUDES := $(wildcard $(SRCDIR)/*.h)
@@ -57,7 +57,7 @@ folders:
 
 .PHONY: install
 install: $(BINDIR)/$(TARGET)
-	install -m 0755 $@ $(PREFIX)/$(BINDIR)/$(TARGET)
+	install -m 0755 $< $(PREFIX)/$(BINDIR)/$(TARGET)
 
 .PHONY: install
 uninstall:
@@ -87,13 +87,14 @@ ifndef DEBFULLNAME
 	echo "Missing environment variable DEBFULLNAME"
 	@exit 1
 endif
-	gpg --list-secret-keys "$(DEBFULLNAME) <$(DEBEMAIL)>" >/dev/null
+	#gpg --list-secret-keys "$(DEBFULLNAME) <$(DEBEMAIL)>" >/dev/null
 
 # creates the .deb package and other related files
 # all files are placed in ../
 .PHONY: builddeb
-builddeb: checkenv
-	dpkg-buildpackage -i '-Itmp' -I.git -I$(TARGET)-$(VERSION).tar.gz -rfakeroot
+builddeb: checkenv dist
+	#dpkg-buildpackage -i '-Itmp' -I.git -I$(TARGET)-$(VERSION).tar.gz -rfakeroot
+	dpkg-buildpackage -I.git -I$(TARGET)-$(VERSION).tar.gz -rfakeroot
 
 
 # create a new release based on PW_VERSION variable
@@ -118,7 +119,7 @@ clean:
 	@echo "Cleanup complete!"
 
 .PHONY: dist-clean
-dist-clean: clean
+distclean: clean
 	@$(RM) $(BINDIR)/$(TARGET)
 	@echo "Executable removed!"
 
