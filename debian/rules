@@ -1,0 +1,19 @@
+#!/usr/bin/make -f
+# -*- makefile -*-
+
+# Uncomment this to turn on verbose mode.
+export DH_VERBOSE=1
+export DH_ALWAYS_EXCLUDE=.git:.gitignore
+
+override_dh_auto_configure:
+	# do nothing, no ./configure
+
+override_dh_auto_test:
+	# do nothing, no make test
+
+override_dh_auto_install:
+	$(MAKE) install PREFIX=$(CURDIR)/debian/carbon-c-relay/usr DESTDIR=$(CURDIR)/debian/carbon-c-relay/etc/carbon
+
+%:
+	dh $@
+

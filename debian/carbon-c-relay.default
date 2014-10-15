@@ -1,0 +1,27 @@
+# Defaults for carbon-c-relay initscript
+# sourced by /etc/init.d/carbon-c-relay
+# installed at /etc/default/carbon-c-relay by the maintainer scripts
+# Set to 0 to start daemon
+DISABLE=1
+
+# Pid file for this process
+PIDFILE=/var/run/carbon-c-relay.pid
+
+# Configuration file
+CONFIG=/etc/carbon/carbon-c-relay.conf
+
+# Additional options that are passed to the Daemon.
+# -v print version and exit
+# -f read <config> for clusters and routes
+# -p listen on <port> for connections, defaults to 2003
+# -i  listen on <interface> for connections, defaults to 0.0.0.0
+# -w user <workers> worker threads, defaults to 16
+# -b server send batch size, defaults to 2500
+# -q server queue size, defaults to 25000
+# -d debug mode: currently writes statistics to stdout
+# -s submission mode: write info about errors to stdout
+# -t config test mode: prints rule matches from input on stdin
+# -H hostname: override hostname (used in statistics)
+#
+# Note: The hostname is set dynamically in the init script.
+OPTS="-f $CONFIG"
