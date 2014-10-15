@@ -1,0 +1,11 @@
+carbon-c-relay (0.36) unstable; urgency=high
+
+  * Added -i parameter to define the listen interface
+
+ -- Jose Riguera <jose.riguera@springer.com>  Wed, 15 Oct 2014 09:51:22 +0200
+
+carbon-c-relay (0.35) unstable; urgency=high
+
+  * Initial Release.
+
+ -- Jose Riguera <jriguera@gmail.com>  Wed, 15 Oct 2014 00:38:38 +0200

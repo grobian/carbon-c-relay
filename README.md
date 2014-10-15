@@ -130,6 +130,14 @@ those.  Care should be taken that loops are avoided.  Also, since
 aggregations appear as matches without `stop` keyword, their positioning
 matters in the same way ordering of match statements.
 
+Building
+--------
+Just type `make`. If you want to build a debian package, just run 
+`make debuild` (you will need to define DEBEMAIL and DEBFULLNAME
+as environment variables). Other targets are 'make distclean' to
+delete all binary files and `make install` to install the program
+in `/usr/local` (conf and binary files)
+
 
 Examples
 --------

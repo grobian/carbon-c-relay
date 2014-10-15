@@ -15,10 +15,19 @@
  */
 
 
-#ifndef RECEPTOR_H
-#define RECEPTOR_H 1
+#ifndef HAVE_RELAY_H
+#define HAVE_RELAY_H 1
 
-int bindlisten(int ret[], int *retlen, unsigned short port);
-void destroy_usock(unsigned short port);
+#define VERSION "0.36"
+
+#define METRIC_BUFSIZ 8192
+
+enum rmode { NORMAL, DEBUG, SUBMISSION, TEST };
+
+typedef enum { CON_TCP, CON_UDP, CON_PIPE } serv_ctype;
+
+extern char relay_hostname[];
+
+char *fmtnow(char nowbuf[24]);
 
 #endif

@@ -1,0 +1,29 @@
+description "carbon-c-relay - manage the graphite metrics gw daemon"
+
+start on filesystem and static-network-up
+stop on runlevel [016] or deconfiguring-networking or unmounting-filesystem
+
+expect fork
+respawn
+
+# Daemon cannot reload
+reload signal 0
+
+env DAEMON=/usr/sbin/carbon-c-relay
+env CONFIG=/etc/carbon/carbon-c-relay.conf
+env PARAMETERS=/etc/default/carbon-c-relay.conf
+env RUNPATH=/run/carbon
+env USER=carbon
+
+pre-start script
+    [ -x $DAEMON ] || { stop; exit 0; }
+    [ -s $PARAMETERS ] && . $PARAMETERS
+    [ "$DISABLE" = "0" ] || { stop; exit 0; }
+    # Choke if config file is invalid or non-existent
+    [ -s $CONFIG ] || { stop; exit 0; }
+    exec install -o carbon -g carbon -m 755 -d $RUNPATH
+end script
+
+script
+	exec start-stop-daemon -S -q -c $USER -x $DAEMON -- $OPTS
+end script
