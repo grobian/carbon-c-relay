@@ -95,7 +95,7 @@ endif
 # creates the .deb package and other related files
 # all files are placed in ../
 .PHONY: builddeb
-debuild: checkenv dist
+debuild: checkenv
 	# dpkg-buildpackage + lintian
 	# -sa    Forces the inclusion of the original source.
 	# -us    Do not sign the source package.
