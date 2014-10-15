@@ -1,10 +1,10 @@
-# ------------------------------------------------
-# Generic Makefile
+# -----------------------------------------------------------------------------
+# Makefile for carbon-c-relay
 #
-# Author: jriguera@gmail.com
+# Author: Jose Riguera <jriguera@gmail.com> based on the work of Fabian Groffen
 # Date  : 2014-10-12
 #
-# ------------------------------------------------
+# -----------------------------------------------------------------------------
 # creation of initial debian folder:
 # dh_make --native -c apache -s -p carbon-c-relay_0.35
 
