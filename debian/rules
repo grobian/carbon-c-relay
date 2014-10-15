@@ -12,8 +12,7 @@ override_dh_auto_test:
 	# do nothing, no make test
 
 override_dh_auto_install:
-	$(MAKE) install PREFIX=$(CURDIR)/debian/carbon-c-relay/usr
-	dh_install conf/* etc/carbon
+	$(MAKE) install PREFIX=$(CURDIR)/debian/carbon-c-relay/usr DESTDIR=$(CURDIR)/debian/carbon-c-relay/etc/carbon
 
 %:
 	dh $@

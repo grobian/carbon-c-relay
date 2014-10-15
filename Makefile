@@ -13,10 +13,12 @@ LINKER   = gcc -o
 RM       = rm -f
 MD       = mkdir -p
 GIT      = git
+INSTALL  = install
 DEBUILD  = debuild
 DEBCLEAN = debclean
 
 # project name (generate executable with this name)
+DESTDIR		 = /usr/local/etc/carbon
 PREFIX           = /usr/local
 TARGET           = carbon-c-relay
 GIT_VERSION     := $(shell git describe --abbrev=6 --dirty --always || date +%F)
@@ -60,11 +62,14 @@ folders:
 
 .PHONY: install
 install: $(BINDIR)/$(TARGET)
-	install -m 0755 $< $(PREFIX)/$(BINDIR)/$(TARGET)
+	$(INSTALL) -m 0755 $< $(PREFIX)/$(BINDIR)/$(TARGET)
+	$(INSTALL) -d $(DESTDIR)
+	$(INSTALL) -m 0644 conf/* $(DESTDIR) 
 
-.PHONY: install
+.PHONY: uninstall
 uninstall:
 	$(RM) $(PREFIX)/$(BINDIR)/$(TARGET)
+	$(RM) -rf $(DESTDIR)/etc/$(TARGET) 
 
 
 VERSION = $(shell sed -n '/VERSION/s/^.*"\([0-9.]\+\)".*$$/\1/p' $(SRCDIR)/relay.h)
@@ -90,7 +95,7 @@ ifndef DEBFULLNAME
 	echo "Missing environment variable DEBFULLNAME"
 	@exit 1
 endif
-#	#gpg --list-secret-keys "$(DEBFULLNAME) <$(DEBEMAIL)>" >/dev/null
+	#gpg --list-secret-keys "$(DEBFULLNAME) <$(DEBEMAIL)>" >/dev/null
 
 # creates the .deb package and other related files
 # all files are placed in ../
