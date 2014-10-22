@@ -1633,11 +1633,34 @@ router_test_intern(char *metric, char *firstspace, route *routes)
 			switch (w->dest->type) {
 				case AGGREGATION: {
 					struct _aggr_computes *ac;
+					char newmetric[METRIC_BUFSIZ];
+					char *newfirstspace = NULL;
+
 					for (ac = w->dest->members.aggregation->computes; ac != NULL; ac = ac->next)
+					{
+						if (w->nmatch == 0 || (len = router_rewrite_metric(
+										&newmetric, &newfirstspace,
+										metric, firstspace,
+										ac->metric,
+										w->nmatch, w->pmatch)) == 0)
+						{
+							if (w->nmatch > 0) {
+								fprintf(stderr, "router_test: failed to "
+										"rewrite metric: newmetric size too "
+										"small to hold replacement "
+										"(%s -> %s)\n",
+										metric, ac->metric);
+								break;
+							}
+							snprintf(newmetric, sizeof(newmetric),
+									"%s", ac->metric);
+						}
+
 						fprintf(stdout, "    %s -> %s\n",
 								ac->type == SUM ? "sum" : ac->type == CNT ? "count" :
 								ac->type == MAX ? "max" : ac->type == MIN ? "min" :
-								ac->type == AVG ? "average" : "<unknown>", ac->metric);
+								ac->type == AVG ? "average" : "<unknown>", newmetric);
+					}
 				}	break;
 				case BLACKHOLE: {
 					fprintf(stdout, "    blackholed\n");
