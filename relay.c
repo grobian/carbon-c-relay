@@ -94,6 +94,7 @@ do_usage(int exitcode)
 	printf("  -v  print version and exit\n");
 	printf("  -f  read <config> for clusters and routes\n");
 	printf("  -p  listen on <port> for connections, defaults to 2003\n");
+	printf("  -i  listen on <interface> for connections, defaults to all\n");
 	printf("  -w  user <workers> worker threads, defaults to 16\n");
 	printf("  -b  server send batch size, defaults to 2500\n");
 	printf("  -q  server queue size, defaults to 25000\n");
@@ -124,11 +125,12 @@ main(int argc, char * const argv[])
 	size_t numaggregators;
 	size_t numcomputes;
 	server *internal_submission;
+	char *listeninterface = NULL;
 
 	if (gethostname(relay_hostname, sizeof(relay_hostname)) < 0)
 		snprintf(relay_hostname, sizeof(relay_hostname), "127.0.0.1");
 
-	while ((ch = getopt(argc, argv, ":hvdstf:p:w:b:q:H:")) != -1) {
+	while ((ch = getopt(argc, argv, ":hvdstf:i:p:w:b:q:H:")) != -1) {
 		switch (ch) {
 			case 'v':
 				do_version();
@@ -144,6 +146,9 @@ main(int argc, char * const argv[])
 				break;
 			case 'f':
 				routes = optarg;
+				break;
+			case 'i':
+				listeninterface = optarg;
 				break;
 			case 'p':
 				listenport = (unsigned short)atoi(optarg);
@@ -207,6 +212,8 @@ main(int argc, char * const argv[])
 	fprintf(stdout, "configuration:\n");
 	fprintf(stdout, "    relay hostname = %s\n", relay_hostname);
 	fprintf(stdout, "    listen port = %u\n", listenport);
+	if (listeninterface != NULL)
+		fprintf(stdout, "    listen interface = %s\n", listeninterface);
 	fprintf(stdout, "    workers = %d\n", workercnt);
 	fprintf(stdout, "    send batch size = %d\n", batchsize);
 	fprintf(stdout, "    server queue size = %d\n", queuesize);
@@ -276,9 +283,9 @@ main(int argc, char * const argv[])
 		return 1;
 	}
 
-	if (bindlisten(sock, &socklen, listenport) < 0) {
-		fprintf(stderr, "failed to bind on port %d: %s\n",
-				listenport, strerror(errno));
+	if (bindlisten(sock, &socklen, listeninterface, listenport) < 0) {
+		fprintf(stderr, "failed to bind on port %s:%d: %s\n",
+				listeninterface, listenport, strerror(errno));
 		return -1;
 	}
 	for (ch = 0; ch < socklen; ch++) {

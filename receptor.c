@@ -41,7 +41,7 @@
  * large enough to old it.
  */
 int
-bindlisten(int ret[], int *retlen, unsigned short port)
+bindlisten(int ret[], int *retlen, const char *interface, unsigned short port)
 {
 	int sock;
 	int optval;
@@ -63,7 +63,7 @@ bindlisten(int ret[], int *retlen, unsigned short port)
 	hint.ai_flags = AI_NUMERICSERV | AI_PASSIVE;
 	snprintf(buf, sizeof(buf), "%u", port);
 
-	if ((err = getaddrinfo(NULL, buf, &hint, &res)) != 0)
+	if ((err = getaddrinfo(interface, buf, &hint, &res)) != 0)
 		return -1;
 
 	for (resw = res; resw != NULL && curlen < *retlen; resw = resw->ai_next) {
