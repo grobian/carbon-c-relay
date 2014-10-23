@@ -95,9 +95,10 @@ do_usage(int exitcode)
 	printf("  -f  read <config> for clusters and routes\n");
 	printf("  -p  listen on <port> for connections, defaults to 2003\n");
 	printf("  -i  listen on <interface> for connections, defaults to all\n");
-	printf("  -w  user <workers> worker threads, defaults to 16\n");
+	printf("  -w  use <workers> worker threads, defaults to 16\n");
 	printf("  -b  server send batch size, defaults to 2500\n");
 	printf("  -q  server queue size, defaults to 25000\n");
+	printf("  -S  statistics sending interval in seconds, defaults to 60\n");
 	printf("  -d  debug mode: currently writes statistics to stdout\n");
 	printf("  -s  submission mode: write info about errors to stdout\n");
 	printf("  -t  config test mode: prints rule matches from input on stdin\n");
@@ -130,7 +131,7 @@ main(int argc, char * const argv[])
 	if (gethostname(relay_hostname, sizeof(relay_hostname)) < 0)
 		snprintf(relay_hostname, sizeof(relay_hostname), "127.0.0.1");
 
-	while ((ch = getopt(argc, argv, ":hvdstf:i:p:w:b:q:H:")) != -1) {
+	while ((ch = getopt(argc, argv, ":hvdstf:i:p:w:b:q:S:H:")) != -1) {
 		switch (ch) {
 			case 'v':
 				do_version();
@@ -178,6 +179,14 @@ main(int argc, char * const argv[])
 					do_usage(1);
 				}
 				break;
+			case 'S':
+				collector_interval = atoi(optarg);
+				if (collector_interval <= 0) {
+					fprintf(stderr, "error: sending interval needs to be "
+							"a number >0\n");
+					do_usage(1);
+				}
+				break;
 			case 'H':
 				snprintf(relay_hostname, sizeof(relay_hostname), "%s", optarg);
 				break;
@@ -217,6 +226,8 @@ main(int argc, char * const argv[])
 	fprintf(stdout, "    workers = %d\n", workercnt);
 	fprintf(stdout, "    send batch size = %d\n", batchsize);
 	fprintf(stdout, "    server queue size = %d\n", queuesize);
+	fprintf(stdout, "    statistics submission interval = %ds\n",
+			collector_interval);
 	if (mode == DEBUG)
 		fprintf(stdout, "    debug = true\n");
 	else if (mode == SUBMISSION)

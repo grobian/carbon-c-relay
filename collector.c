@@ -31,7 +31,7 @@ static server **servers;
 static char debug = 0;
 static pthread_t collectorid;
 static char keep_running = 1;
-
+int collector_interval = 60;
 
 /**
  * Collects metrics from dispatchers and servers and emits them.
@@ -75,13 +75,13 @@ collector_runner(void *s)
 	else \
 		server_send(submission, strdup(metric), 1);
 
-	nextcycle = time(NULL) + 60;
+	nextcycle = time(NULL) + collector_interval;
 	while (keep_running) {
 		sleep(1);
 		now = time(NULL);
 		if (nextcycle > now)
 			continue;
-		nextcycle += 60;
+		nextcycle += collector_interval;
 		totticks = 0;
 		totmetrics = 0;
 		dispatchers_idle = 0;
@@ -210,7 +210,7 @@ collector_writer(void *unused)
 	while (keep_running) {
 		sleep(1);
 		i++;
-		if (i < 60)
+		if (i < collector_interval)
 			continue;
 		totdropped = 0;
 		for (i = 0; servers[i] != NULL; i++) {
