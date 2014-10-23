@@ -75,7 +75,6 @@ typedef struct _route {
 	char *pattern;    /* original regex input, used for printing only */
 	regex_t rule;     /* regex on metric, only if type == REGEX */
 	size_t nmatch;    /* number of match groups */
-	regmatch_t *pmatch; /* start/end of match groups */
 	char *strmatch;   /* string to search for if type not REGEX or MATCHALL */
 	cluster *dest;    /* where matches should go */
 	char stop:1;      /* whether to continue matching rules after this one */
@@ -110,7 +109,6 @@ determine_if_regex(route *r, char *pat, int flags)
 	char escape = 0;
 	r->matchtype = CONTAINS;
 	r->nmatch = 0;
-	r->pmatch = NULL;
 
 	if (*e == '^') {
 		e++;
@@ -180,7 +178,12 @@ determine_if_regex(route *r, char *pat, int flags)
 			/* we need +1 because position 0 contains the entire
 			 * expression */
 			r->nmatch = r->rule.re_nsub + 1;
-			r->pmatch = malloc(sizeof(regmatch_t) * r->nmatch);
+			if (r->nmatch > RE_MAX_MATCHES) {
+				fprintf(stderr, "determine_if_regex: too many match groups, "
+						"please increase RE_MAX_MATCHES in router.h\n");
+				free(r->pattern);
+				return REG_ESPACE;  /* lie closest to the truth */
+			}
 		}
 	}
 
@@ -1268,7 +1271,11 @@ router_printconfig(FILE *f, char all)
 }
 
 inline static char
-router_metric_matches(const route *r, char *metric, char *firstspace)
+router_metric_matches(
+		const route *r,
+		char *metric,
+		char *firstspace,
+		regmatch_t *pmatch)
 {
 	char ret = 0;
 
@@ -1278,7 +1285,7 @@ router_metric_matches(const route *r, char *metric, char *firstspace)
 			break;
 		case REGEX:
 			*firstspace = '\0';
-			ret = regexec(&r->rule, metric, r->nmatch, r->pmatch, 0) == 0;
+			ret = regexec(&r->rule, metric, r->nmatch, pmatch, 0) == 0;
 			*firstspace = ' ';
 			break;
 		case CONTAINS:
@@ -1419,6 +1426,7 @@ router_route_intern(
 	char newmetric[METRIC_BUFSIZ];
 	char *newfirstspace = NULL;
 	size_t len;
+	regmatch_t pmatch[RE_MAX_MATCHES];
 
 #define failif(RETLEN, WANTLEN) \
 	if (WANTLEN > RETLEN) { \
@@ -1452,7 +1460,7 @@ router_route_intern(
 						metric,
 						firstspace,
 						w->dest->members.routes);
-		} else if (router_metric_matches(w, metric, firstspace)) {
+		} else if (router_metric_matches(w, metric, firstspace, pmatch)) {
 			stop = w->stop;
 			/* rule matches, send to destination(s) */
 			switch (w->dest->type) {
@@ -1506,7 +1514,7 @@ router_route_intern(
 							w->dest->members.aggregation,
 							metric,
 							firstspace,
-							w->nmatch, w->pmatch);
+							w->nmatch, pmatch);
 				}	break;
 				case REWRITE: {
 					/* rewrite metric name */
@@ -1514,7 +1522,7 @@ router_route_intern(
 								&newmetric, &newfirstspace,
 								metric, firstspace,
 								w->dest->members.replacement,
-								w->nmatch, w->pmatch)) == 0)
+								w->nmatch, pmatch)) == 0)
 					{
 						fprintf(stderr, "router_route: failed to rewrite "
 								"metric: newmetric size too small to hold "
@@ -1547,11 +1555,7 @@ router_route_intern(
  * returned.
  */
 inline size_t
-router_route(
-		destination ret[],
-		size_t retsize,
-		char *metric,
-		char *firstspace)
+router_route(destination ret[], size_t retsize, char *metric, char *firstspace)
 {
 	size_t curlen = 0;
 
@@ -1573,6 +1577,7 @@ router_test_intern(char *metric, char *firstspace, route *routes)
 	char newmetric[METRIC_BUFSIZ];
 	char *newfirstspace = NULL;
 	size_t len;
+	regmatch_t pmatch[RE_MAX_MATCHES];
 
 	for (w = routes; w != NULL; w = w->next) {
 		if (w->dest->type == GROUP) {
@@ -1584,7 +1589,7 @@ router_test_intern(char *metric, char *firstspace, route *routes)
 					w->dest->members.routes);
 			if (gotmatch & 2)
 				break;
-		} else if (router_metric_matches(w, metric, firstspace)) {
+		} else if (router_metric_matches(w, metric, firstspace, pmatch)) {
 			gotmatch = 1;
 			switch (w->dest->type) {
 				case AGGREGATION:
@@ -1642,7 +1647,7 @@ router_test_intern(char *metric, char *firstspace, route *routes)
 										&newmetric, &newfirstspace,
 										metric, firstspace,
 										ac->metric,
-										w->nmatch, w->pmatch)) == 0)
+										w->nmatch, pmatch)) == 0)
 						{
 							if (w->nmatch > 0) {
 								fprintf(stderr, "router_test: failed to "
@@ -1671,7 +1676,7 @@ router_test_intern(char *metric, char *firstspace, route *routes)
 								&newmetric, &newfirstspace,
 								metric, firstspace,
 								w->dest->members.replacement,
-								w->nmatch, w->pmatch)) == 0)
+								w->nmatch, pmatch)) == 0)
 					{
 						fprintf(stderr, "router_test: failed to rewrite "
 								"metric: newmetric size too small to hold "

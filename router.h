@@ -29,6 +29,8 @@ typedef struct {
 	server *dest;
 } destination;
 
+#define RE_MAX_MATCHES     64
+
 int router_readconfig(const char *path, size_t queuesize, size_t batchsize);
 void router_optimise(void);
 size_t router_rewrite_metric(char (*newmetric)[METRIC_BUFSIZ], char **newfirstspace, const char *metric, const char *firstspace, const char *replacement, const size_t nmatch, const regmatch_t *pmatch);
