@@ -109,26 +109,26 @@ bindlisten(int ret[], int *retlen, unsigned short port)
 
 	/* fake loop to simplify breakout below */
 	while (curlen < *retlen) {
-        struct sockaddr_un server;
+		struct sockaddr_un server;
 
 #ifndef PF_LOCAL
 # define PF_LOCAL PF_UNIX
 #endif
-        if ((sock = socket(PF_LOCAL, SOCK_STREAM, 0)) < 0)
+		if ((sock = socket(PF_LOCAL, SOCK_STREAM, 0)) < 0)
 			break;
 
 		snprintf(buf, sizeof(buf), "%s/%s.%u", TMPDIR, SOCKFILE, port);
-        memset(&server, 0, sizeof(struct sockaddr_un));
-        server.sun_family = PF_LOCAL;
-        strncpy(server.sun_path, buf, sizeof(server.sun_path) - 1);
+		memset(&server, 0, sizeof(struct sockaddr_un));
+		server.sun_family = PF_LOCAL;
+		strncpy(server.sun_path, buf, sizeof(server.sun_path) - 1);
 
 		unlink(buf);  /* avoid address already in use */
-        if (bind(sock, (struct sockaddr *)&server, sizeof(struct sockaddr_un)) < 0) {
+		if (bind(sock, (struct sockaddr *)&server, sizeof(struct sockaddr_un)) < 0) {
 			fprintf(stderr, "failed to bind for %s: %s\n",
 					buf, strerror(errno));
 			close(sock);
 			break;
-        }
+		}
 
 		if (listen(sock, 3) < 0) {  /* backlog of 3, enough? */
 			close(sock);
