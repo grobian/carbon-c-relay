@@ -250,13 +250,10 @@ collector_writer(void *unused)
  * Initialises and starts the collector.
  */
 void
-collector_start(dispatcher **d, server **s, enum rmode mode, server *submission)
+collector_start(dispatcher **d, server **s, server *submission)
 {
 	dispatchers = d;
 	servers = s;
-
-	if (mode == NORMAL) {
-	}
 
 	if (mode == DEBUG)
 		debug = 1;

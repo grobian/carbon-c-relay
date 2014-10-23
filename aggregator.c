@@ -144,7 +144,9 @@ aggregator_putmetric(
 	/* get value */
 	if ((v = strchr(firstspace + 1, ' ')) == NULL) {
 		/* metric includes \n */
-		fprintf(stderr, "aggregator: dropping incorrect metric: %s", metric);
+		if (mode == DEBUG)
+			fprintf(stderr, "aggregator: dropping incorrect metric: %s",
+					metric);
 		return;
 	}
 
@@ -227,10 +229,11 @@ aggregator_putmetric(
 
 		slot = itime / s->interval;
 		if (slot >= s->bucketcnt) {
-			fprintf(stderr, "aggregator: dropping metric too far in the "
-					"future (%lld > %lld): %s from %s", epoch,
-					invocation->buckets[s->bucketcnt - 1].start,
-					ometric, metric);
+			if (mode == DEBUG)
+				fprintf(stderr, "aggregator: dropping metric too far in the "
+						"future (%lld > %lld): %s from %s", epoch,
+						invocation->buckets[s->bucketcnt - 1].start,
+						ometric, metric);
 			s->dropped++;
 			continue;
 		}

@@ -34,6 +34,7 @@
 
 int keep_running = 1;
 char relay_hostname[256];
+enum rmode mode = NORMAL;
 
 
 static void
@@ -120,7 +121,6 @@ main(int argc, char * const argv[])
 	unsigned short listenport = 2003;
 	int batchsize = 2500;
 	int queuesize = 25000;
-	enum rmode mode = NORMAL;
 	int ch;
 	char nowbuf[24];
 	size_t numaggregators;
@@ -342,7 +342,7 @@ main(int argc, char * const argv[])
 	}
 
 	fprintf(stdout, "starting statistics collector\n");
-	collector_start((void **)&workers[1], (void **)servers, mode,
+	collector_start((void **)&workers[1], (void **)servers,
 			internal_submission);
 
 	fflush(stdout);  /* ensure all info stuff up here is out of the door */
