@@ -33,7 +33,7 @@
 #include "collector.h"
 
 int keep_running = 1;
-char relay_hostname[128];
+char relay_hostname[256];
 
 
 static void
