@@ -356,7 +356,7 @@ The previous example could also be written as follows to be more
 dynamic:
 
     aggregate
-            ^sys\.dc[0-9].(somehost-[0-9]+)\.(somecluster)\.mysql\.replication_delay
+            ^sys\.dc[0-9].(somehost-[0-9]+)\.([^.]+)\.mysql\.replication_delay
         every 10 seconds
         expire after 35 seconds
         compute sum write to
