@@ -1661,10 +1661,14 @@ router_test_intern(char *metric, char *firstspace, route *routes)
 									"%s", ac->metric);
 						}
 
-						fprintf(stdout, "    %s -> %s\n",
+						fprintf(stdout, "    %s%s%s%s -> %s\n",
 								ac->type == SUM ? "sum" : ac->type == CNT ? "count" :
 								ac->type == MAX ? "max" : ac->type == MIN ? "min" :
-								ac->type == AVG ? "average" : "<unknown>", newmetric);
+								ac->type == AVG ? "average" : "<unknown>",
+								w->nmatch > 0 ? "(" : "",
+								w->nmatch > 0 ? ac->metric : "",
+								w->nmatch > 0 ? ")" : "",
+								newmetric);
 					}
 				}	break;
 				case BLACKHOLE: {
