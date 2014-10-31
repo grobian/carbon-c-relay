@@ -41,5 +41,6 @@ size_t server_get_metrics(server *s);
 size_t server_get_dropped(server *s);
 size_t server_get_queue_len(server *s);
 server **server_get_servers(void);
+struct server_addr * server_resolve(const char *, unsigned short, serv_ctype);
 
 #endif
