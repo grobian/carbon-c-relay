@@ -275,6 +275,7 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize)
 			/* group config */
 			servers *w;
 			char *name;
+			int usedns = 0;
 			p += 8;
 			for (; *p != '\0' && isspace(*p); p++)
 				;
@@ -341,6 +342,13 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize)
 				cl->members.forward = NULL;
 			} else if (strncmp(p, "any_of", 6) == 0 && isspace(*(p + 6))) {
 				p += 7;
+
+				for (; *p != '\0' && isspace(*p); p++)
+					;
+				if (strncmp(p, "usedns", 6) == 0 && isspace(*(p + 6))) {
+					p += 7;
+					usedns = 1;
+				}
 
 				if ((cl = cl->next = malloc(sizeof(cluster))) == NULL) {
 					fprintf(stderr, "malloc failed in cluster any_of\n");
@@ -439,16 +447,29 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize)
 					}
 				}
 
-				/* resolve hostname into multiple IP addresses */
-				if ((ipaddrs = server_resolve(ip, (unsigned short)port,
-								*proto == 'u' ? CON_UDP : CON_TCP))
-						== NULL) {
-					fprintf(stderr, "failed to resolve server %s:%d (%s) "
-							"to cluster %s: %s\n", ip, port, proto,
-							name, strerror(errno));
-					free(cl);
-					free(buf);
-					return 0;
+				if (usedns) {
+					/* resolve hostname into multiple IP addresses */
+					if ((ipaddrs = server_resolve(ip, (unsigned short)port,
+									*proto == 'u' ? CON_UDP : CON_TCP))
+							== NULL) {
+						fprintf(stderr, "failed to resolve server %s:%d (%s) "
+								"to cluster %s: %s\n", ip, port, proto,
+								name, strerror(errno));
+						free(cl);
+						free(buf);
+						return 0;
+					}
+				} else {
+					/* move ip into ipaddrs struct to single-path logic below */
+					if ((ipaddrs = malloc(sizeof(struct server_addr) * 2)) == NULL) {
+						fprintf(stderr, "malloc failed in cluster %s\n", name);
+						free(cl);
+						free(buf);
+						return 0;
+					}
+					snprintf(ipaddrs[0].hostname, sizeof(ipaddrs[0].hostname),
+							"%s", ip);
+					ipaddrs[1].hostname[0] = '\0';
 				}
 
 				for (cnt = 0; ipaddrs != NULL &&

@@ -35,7 +35,7 @@ file is as follows:
 # comments are allowed in any place and start with a hash (#)
 
 cluster <name>
-    <forward | any_of | <carbon_ch | fnv1a_ch> [replication <count>]>
+    <forward | any_of [usedns] | <carbon_ch | fnv1a_ch> [replication <count>]>
         <host[:port] [proto <udp | tcp>]> ...
     ;
 match <* | <expression>>
@@ -81,6 +81,11 @@ technique (FNV1a) which is faster but more importantly defined to get by
 a limitation of `carbon_ch` to use both host and port from the members.
 This is useful when multiple targets live on the same host just separated
 by port.
+
+DNS hostnames are resolved to a single address, according to the preference
+rules in [RFC 3484](https://www.ietf.org/rfc/rfc3484.txt).  The `any_of`
+cluster has an explicit `usedns` flag that enables a hostname to resolve to
+multiple addresses.  Each address returned becomes a cluster destination.
 
 Match rules are the way to direct incoming metrics to one or more
 clusters.  Match rules are processed top to bottom as they are defined
