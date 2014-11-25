@@ -337,7 +337,7 @@ dispatch_connection(connection *conn, dispatcher *self)
 					(*p >= 'a' && *p <= 'z') ||
 					(*p >= 'A' && *p <= 'Z') ||
 					(*p >= '0' && *p <= '9') ||
-					*p == '-' || *p == '_' || *p == ':')
+					*p == '-' || *p == '_' || *p == ':' || *p == '#')
 			{
 				/* copy char */
 				*q++ = *p;
