@@ -1,0 +1,82 @@
+#!/bin/bash
+#
+#	/etc/rc.d/init.d/relay
+#
+#	relay    Startup script for the carbon-c-relay metrics aggregation daemon
+#	Packaged for the BBC by Matthew Hollick <matthew@mayan-it.co.uk>
+#
+# description: Carbon-like graphite line mode relay.\n
+#\n
+#This project aims to be a replacement of the original Carbon relay\n
+#\n
+#The main reason to build a replacement is performance and configurability.\n
+#Carbon is single threaded, and sending metrics to multiple consistent-hash\n
+#clusters requires chaining of relays. This project provides a multithreaded\n
+#relay which can address multiple targets and clusters for each and every\n
+#metric based on pattern matches.\n
+#
+# chkconfig: 2345 80 80
+#
+# config: /etc/relay.conf
+# pidfile: /var/run/carbon/relay.pid
+
+# Source function library.
+. /etc/init.d/functions
+
+
+RETVAL=0
+PROG="relay"
+DAEMON_CONFIG=/etc/${PROG}.conf
+DAEMON_SYSCONFIG=/etc/sysconfig/${PROG}
+DAEMON=/usr/bin/${PROG}
+PID_FILE=/var/run/carbon/${PROG}.pid
+LOCK_FILE=/var/lock/subsys/${PROG}
+LOG_FILE=/var/log/carbon/relay.log
+DAEMON_USER="relay"
+FQDN=$(hostname --long)
+
+. ${DAEMON_SYSCONFIG}
+
+start() {
+  echo -n $"Starting Carbon C Relay: "
+  daemonize -u ${DAEMON_USER} -p ${PID_FILE} -l ${LOCK_FILE} -a -e ${LOG_FILE} -o ${LOG_FILE} ${DAEMON} ${ARGS} -H ${FQDN} -f ${DAEMON_CONFIG}
+  RETVAL=$?
+  echo ""
+  return ${RETVAL}
+}
+
+stop() {
+    echo -n $"Stopping Carbon C Relay: "
+    killproc -p ${PID_FILE} -d 10 ${DAEMON}
+    RETVAL=$?
+    echo
+    [ $RETVAL = 0 ] && rm -f ${LOCK_FILE} ${PID_FILE}
+    return $RETVAL
+}  
+
+case "$1" in
+    start)
+        start
+        ;;
+    stop)
+        stop
+        ;;
+    status)
+        status -p ${PID_FILE} ${DAEMON}
+        RETVAL=$?
+        ;;
+    reload|force-reload)
+        reload
+        ;;
+    restart)
+        stop
+        start
+        ;;
+    *)
+        N=/etc/init.d/${NAME}
+        echo "Usage: $N {start|stop|status|restart|force-reload}" >&2
+        RETVAL=2
+        ;;
+esac
+
+exit ${RETVAL}

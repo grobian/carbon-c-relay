@@ -1,0 +1,6 @@
+# Monit script to ensure carbon c relay is always running
+check process relay with pidfile /var/run/relay/relay.pid
+  start program = "/etc/init.d/relay start"
+  stop program = "/etc/init.d/relay stop"
+  if failed port 2003 type tcp then restart
+  if 5 restarts within 5 cycles then timeout

@@ -1,0 +1,12 @@
+# not installed by default as logrotate is used to manage all carbon log files.
+/var/log/carbon/relay.log
+{
+  sharedscripts
+  missingok
+  notifempty
+  rotate 30
+  compress
+  postrotate
+        [ ! -f /var/run/carbon/relay.pid ] || /etc/init.d/relay restart
+  endscript
+}

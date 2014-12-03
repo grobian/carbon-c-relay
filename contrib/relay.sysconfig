@@ -1,0 +1,17 @@
+#Usage: relay [-vdst] -f <config> [-p <port>] [-w <workers>] [-b <size>] [-q <size>]
+#
+#Options:
+#  -v  print version and exit
+#  -f  read <config> for clusters and routes
+#  -p  listen on <port> for connections, defaults to 2003
+#  -w  user <workers> worker threads, defaults to 16
+#  -b  server send batch size, defaults to 2500
+#  -q  server queue size, defaults to 25000
+#  -d  debug mode: currently writes statistics to stdout
+#  -s  submission mode: write info about errors to stdout
+#  -t  config test mode: prints rule matches from input on stdin
+#  -H  hostname: override hostname (used in statistics)
+#
+#  Note: The hostname is set dynamically in the init script.
+
+ARGS="-p 2003 -w 4 -b 2500 -q 25000"
