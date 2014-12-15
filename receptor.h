@@ -18,7 +18,8 @@
 #ifndef RECEPTOR_H
 #define RECEPTOR_H 1
 
-int bindlisten(int ret[], int *retlen, const char *interface, unsigned short port);
+int bindlisten(int ret[], int *retlen, const char *interface, unsigned short port,
+        int protocol);
 void destroy_usock(unsigned short port);
 
 #endif

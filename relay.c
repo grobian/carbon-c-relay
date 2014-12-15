@@ -22,6 +22,7 @@
 #include <signal.h>
 #include <time.h>
 #include <errno.h>
+#include <netinet/in.h>
 
 #include "relay.h"
 #include "consistent-hash.h"
@@ -89,12 +90,13 @@ do_version(void)
 void
 do_usage(int exitcode)
 {
-	printf("Usage: relay [-vdst] -f <config> [-p <port>] [-w <workers>] [-b <size>] [-q <size>]\n");
+	printf("Usage: relay [-vdst] -f <config> [-p <port>] [-P protocol] [-w <workers>] [-b <size>] [-q <size>]\n");
 	printf("\n");
 	printf("Options:\n");
 	printf("  -v  print version and exit\n");
 	printf("  -f  read <config> for clusters and routes\n");
 	printf("  -p  listen on <port> for connections, defaults to 2003\n");
+	printf("  -P  listen using <protocol>, defaults to tcp. (tcp, udp, any)\n");
 	printf("  -i  listen on <interface> for connections, defaults to all\n");
 	printf("  -w  use <workers> worker threads, defaults to 16\n");
 	printf("  -b  server send batch size, defaults to 2500\n");
@@ -127,11 +129,12 @@ main(int argc, char * const argv[])
 	size_t numcomputes;
 	server *internal_submission;
 	char *listeninterface = NULL;
+	int protocol = IPPROTO_TCP;
 
 	if (gethostname(relay_hostname, sizeof(relay_hostname)) < 0)
 		snprintf(relay_hostname, sizeof(relay_hostname), "127.0.0.1");
 
-	while ((ch = getopt(argc, argv, ":hvdstf:i:p:w:b:q:S:H:")) != -1) {
+	while ((ch = getopt(argc, argv, ":hvdstf:i:p:P:w:b:q:S:H:")) != -1) {
 		switch (ch) {
 			case 'v':
 				do_version();
@@ -155,6 +158,18 @@ main(int argc, char * const argv[])
 				listenport = (unsigned short)atoi(optarg);
 				if (listenport == 0) {
 					fprintf(stderr, "error: port needs to be a number >0\n");
+					do_usage(1);
+				}
+				break;
+			case 'P':
+				if (strncmp(optarg, "tcp", 3) == 0) {
+					protocol = IPPROTO_TCP;
+				} else if (strncmp(optarg, "udp", 3) == 0) {
+					protocol = IPPROTO_UDP;
+				} else if (strncmp(optarg, "any", 3) == 0) {
+					protocol = 0;
+				} else {
+					fprintf(stderr, "error: protocol needs to be 'tcp', 'udp' or 'any'\n");
 					do_usage(1);
 				}
 				break;
@@ -294,7 +309,7 @@ main(int argc, char * const argv[])
 		return 1;
 	}
 
-	if (bindlisten(sock, &socklen, listeninterface, listenport) < 0) {
+	if (bindlisten(sock, &socklen, listeninterface, listenport, protocol) < 0) {
 		fprintf(stderr, "failed to bind on port %s:%d: %s\n",
 				listeninterface, listenport, strerror(errno));
 		return -1;
