@@ -41,7 +41,8 @@
  * large enough to old it.
  */
 int
-bindlisten(int ret[], int *retlen, const char *interface, unsigned short port)
+bindlisten(int ret[], int *retlen, const char *interface, unsigned short port,
+        int protocol)
 {
 	int sock;
 	int optval;
@@ -59,7 +60,7 @@ bindlisten(int ret[], int *retlen, const char *interface, unsigned short port)
 	memset(&hint, 0, sizeof(hint));
 	hint.ai_family = PF_UNSPEC;
 	hint.ai_socktype = 0;
-	hint.ai_protocol = IPPROTO_TCP;  /* 0 for UDP as well */
+	hint.ai_protocol = protocol;
 	hint.ai_flags = AI_NUMERICSERV | AI_PASSIVE;
 	snprintf(buf, sizeof(buf), "%u", port);
 
