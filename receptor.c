@@ -38,7 +38,7 @@
  * Opens up listener sockets.  Returns the socket fds in ret, and
  * updates retlen.  If opening sockets failed, -1 is returned.  The
  * caller should ensure retlen is at least 1, and ret should be an array
- * large enough to old it.
+ * large enough to hold it.
  */
 int
 bindlisten(int ret[], int *retlen, const char *interface, unsigned short port)
