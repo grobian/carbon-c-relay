@@ -470,7 +470,7 @@ dispatch_runner(void *arg)
 							dispatch_check_rlimit_and_warn();
 							continue;
 						}
-						if (dispatch_addconnection(client) != -1) {
+						if (dispatch_addconnection(client) == -1) {
 							close(client);
 							continue;
 						}
