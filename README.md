@@ -28,8 +28,22 @@ reading the data from incoming connections and passing them onto the
 right destination(s).  The route file supports two main constructs:
 clusters and matches.  The first define groups of hosts data metrics can
 be sent to, the latter define which metrics should be sent to which
-cluster.  Aggregation rules are seen as matches.  The syntax in this
-file is as follows:
+cluster.  Aggregation rules are seen as matches.
+
+For every metric received by the relay, cleansing is performed.  The
+following changes are performed before any match, aggregate or rewrite
+rule sees the metric:
+
+  - double dot elimination (necessary for correctly functioning
+    consistent hash routing)
+  - trailing/leading dot elimination
+  - whitespace normalisation (this mostly affects output of the relay
+    to other targets: metric, value and timestamp will be separated by
+    a single space only, ever)
+  - irregular char replacement with underscores (\_), currently
+    irregular is defined as not being in [0-9a-zA-Z-_:#].
+
+The route file syntax is as follows:
 
 ```
 # comments are allowed in any place and start with a hash (#)
