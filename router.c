@@ -605,7 +605,10 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize)
 
 			/* lookup dest */
 			for (w = clusters; w != NULL; w = w->next) {
-				if (strcmp(w->name, dest) == 0)
+				if (w->type == GROUP ||
+						w->type == AGGREGATION ||
+						w->type == REWRITE ||
+						strcmp(w->name, dest) == 0)
 					break;
 			}
 			if (w == NULL) {
