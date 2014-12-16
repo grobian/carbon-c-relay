@@ -93,6 +93,8 @@ static route *routes = NULL;
 static cluster *clusters = NULL;
 static char keep_running = 1;
 
+/* custom constant, meant to force regex mode matching */
+#define REG_FORCE   01000000 
 
 /**
  * Examines pattern and sets matchtype and rule or strmatch in route.
@@ -110,7 +112,12 @@ determine_if_regex(route *r, char *pat, int flags)
 	r->matchtype = CONTAINS;
 	r->nmatch = 0;
 
-	if (*e == '^') {
+	if (flags & REG_FORCE) {
+		flags &= ~REG_NOSUB;
+		r->matchtype = REGEX;
+	}
+
+	if (*e == '^' && r->matchtype == CONTAINS) {
 		e++;
 		r->matchtype = STARTS_WITH;
 	}
@@ -169,12 +176,14 @@ determine_if_regex(route *r, char *pat, int flags)
 		r->strmatch = strdup(patbuf);
 		r->pattern = strdup(pat);
 	} else {
-		int ret = regcomp(&r->rule, pat, flags);
+		int ret = regcomp(&r->rule, pat, flags & ~REG_FORCE);
 		if (ret != 0)
 			return ret;  /* allow use of regerror */
 		r->strmatch = NULL;
 		r->pattern = strdup(pat);
-		if ((flags & REG_NOSUB) == 0 && r->rule.re_nsub > 0) {
+		if (((flags & REG_NOSUB) == 0 && r->rule.re_nsub > 0) ||
+				flags & REG_FORCE)
+		{
 			/* we need +1 because position 0 contains the entire
 			 * expression */
 			r->nmatch = r->rule.re_nsub + 1;
@@ -885,7 +894,7 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize)
 			} else {
 				r = r->next = malloc(sizeof(route));
 			}
-			err = determine_if_regex(r, pat, REG_EXTENDED);
+			err = determine_if_regex(r, pat, REG_EXTENDED | REG_FORCE);
 			if (err != 0) {
 				char ebuf[512];
 				regerror(err, &r->rule, ebuf, sizeof(ebuf));
