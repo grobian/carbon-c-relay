@@ -67,7 +67,7 @@ bindlisten(
 		hint.ai_family = PF_UNSPEC;
 		hint.ai_socktype = *socktype;
 		hint.ai_protocol = 0;
-		hint.ai_flags = AI_NUMERICSERV | AI_PASSIVE;
+		hint.ai_flags = AI_ADDRCONFIG | AI_NUMERICSERV | AI_PASSIVE;
 		snprintf(buf, sizeof(buf), "%u", port);
 
 		if ((err = getaddrinfo(interface, buf, &hint, &res)) != 0) {
@@ -88,6 +88,10 @@ bindlisten(
 			(void) setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
 			optval = 1;  /* allow takeover */
 			(void) setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval));
+			if (resw->ai_family == PF_INET6) {
+				optval = 1;
+				(void) setsockopt(sock, IPPROTO_IPV6, IPV6_V6ONLY, &optval, sizeof(optval));
+			}
 
 			if (bind(sock, resw->ai_addr, resw->ai_addrlen) < 0) {
 				close(sock);
