@@ -300,7 +300,8 @@ main(int argc, char * const argv[])
 				dgram_sock, &dgram_socklen,
 				listeninterface, listenport) < 0) {
 		fprintf(stderr, "failed to bind on port %s:%d: %s\n",
-				listeninterface, listenport, strerror(errno));
+				listeninterface == NULL ? "" : listeninterface,
+				listenport, strerror(errno));
 		return -1;
 	}
 	for (ch = 0; ch < stream_socklen; ch++) {
