@@ -43,6 +43,7 @@ typedef struct _connection {
 	char buf[METRIC_BUFSIZ];
 	int buflen;
 	char needmore:1;
+	char noexpire:1;
 	char metric[METRIC_BUFSIZ];
 	destination dests[CONN_DESTS_SIZE];
 	size_t destlen;
@@ -152,6 +153,7 @@ dispatch_removelistener(int sock)
 /**
  * Adds a connection socket to the chain of connections.
  * Connection sockets are those which need to be read from.
+ * Returns the connection id, or -1 if a failure occurred.
  */
 int
 dispatch_addconnection(int sock)
@@ -182,7 +184,7 @@ dispatch_addconnection(int sock)
 					fmtnow(nowbuf), connectionslen);
 
 			pthread_rwlock_unlock(&connectionslock);
-			return 1;
+			return -1;
 		}
 
 		memset(&newlst[connectionslen], '\0',
@@ -201,13 +203,35 @@ dispatch_addconnection(int sock)
 	connections[c].sock = sock;
 	connections[c].buflen = 0;
 	connections[c].needmore = 0;
+	connections[c].noexpire = 0;
 	connections[c].destlen = 0;
 	connections[c].wait = 0;
 	connections[c].takenby = 0;  /* now dispatchers will pick this one up */
 	acceptedconnections++;
 
+	return c;
+}
+
+/**
+ * Adds a pseudo-listener for datagram (UDP) sockets, which is pseudo,
+ * for in fact it adds a new connection, but makes sure that connection
+ * won't be closed after being idle, and won't count that connection as
+ * an incoming connection either.
+ */
+int
+dispatch_addlistener_udp(int sock)
+{
+	int conn = dispatch_addconnection(sock);
+	
+	if (conn == -1)
+		return 1;
+
+	connections[conn].noexpire = 1;
+	acceptedconnections--;
+
 	return 0;
 }
+
 
 inline static char
 dispatch_process_dests(connection *conn, dispatcher *self)
@@ -364,7 +388,9 @@ dispatch_connection(connection *conn, dispatcher *self)
 			conn->wait = time(NULL);
 			conn->takenby = 0;
 			return 0;
-		} else if (time(NULL) - conn->wait > IDLE_DISCONNECT_TIME) {
+		} else if (!conn->noexpire &&
+				time(NULL) - conn->wait > IDLE_DISCONNECT_TIME)
+		{
 			/* force close connection below */
 			len = 0;
 		} else {
@@ -444,7 +470,7 @@ dispatch_runner(void *arg)
 							dispatch_check_rlimit_and_warn();
 							continue;
 						}
-						if (dispatch_addconnection(client) != 0) {
+						if (dispatch_addconnection(client) != -1) {
 							close(client);
 							continue;
 						}

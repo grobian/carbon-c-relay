@@ -111,8 +111,10 @@ do_usage(int exitcode)
 int
 main(int argc, char * const argv[])
 {
-	int sock[] = {0, 0, 0, 0, 0};  /* tcp4, udp4, tcp6, udp6, UNIX */
-	int socklen = sizeof(sock) / sizeof(sock[0]);
+	int stream_sock[] = {0, 0, 0};  /* tcp4, tcp6, UNIX */
+	int stream_socklen = sizeof(stream_sock) / sizeof(stream_sock[0]);
+	int dgram_sock[] = {0, 0};  /* udp4, udp6 */
+	int dgram_socklen = sizeof(dgram_sock) / sizeof(dgram_sock[0]);
 	char id;
 	server **servers;
 	dispatcher **workers;
@@ -294,14 +296,22 @@ main(int argc, char * const argv[])
 		return 1;
 	}
 
-	if (bindlisten(sock, &socklen, listeninterface, listenport) < 0) {
+	if (bindlisten(stream_sock, &stream_socklen,
+				dgram_sock, &dgram_socklen,
+				listeninterface, listenport) < 0) {
 		fprintf(stderr, "failed to bind on port %s:%d: %s\n",
 				listeninterface, listenport, strerror(errno));
 		return -1;
 	}
-	for (ch = 0; ch < socklen; ch++) {
-		if (dispatch_addlistener(sock[ch]) != 0) {
+	for (ch = 0; ch < stream_socklen; ch++) {
+		if (dispatch_addlistener(stream_sock[ch]) != 0) {
 			fprintf(stderr, "failed to add listener\n");
+			return -1;
+		}
+	}
+	for (ch = 0; ch < dgram_socklen; ch++) {
+		if (dispatch_addlistener_udp(dgram_sock[ch]) != 0) {
+			fprintf(stderr, "failed to listen to datagram socket\n");
 			return -1;
 		}
 	}
@@ -354,8 +364,8 @@ main(int argc, char * const argv[])
 	fprintf(stdout, "[%s] shutting down...\n", fmtnow(nowbuf));
 	fflush(stdout);
 	/* make sure we don't accept anything new anymore */
-	for (ch = 0; ch < socklen; ch++)
-		dispatch_removelistener(sock[ch]);
+	for (ch = 0; ch < stream_socklen; ch++)
+		dispatch_removelistener(stream_sock[ch]);
 	destroy_usock(listenport);
 	fprintf(stdout, "[%s] listener for port %u closed\n",
 			fmtnow(nowbuf), listenport);

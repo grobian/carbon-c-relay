@@ -41,7 +41,10 @@
  * large enough to hold it.
  */
 int
-bindlisten(int ret[], int *retlen, const char *interface, unsigned short port)
+bindlisten(
+		int ret_stream[], int *retlen_stream,
+		int ret_dgram[], int *retlen_dgram,
+		const char *interface, unsigned short port)
 {
 	int sock;
 	int optval;
@@ -51,7 +54,8 @@ bindlisten(int ret[], int *retlen, const char *interface, unsigned short port)
 	char buf[128];
 	char saddr[INET6_ADDRSTRLEN];
 	int err;
-	int curlen = 0;
+	int curlen_stream = 0;
+	int curlen_dgram = 0;
 
 	tv.tv_sec = 0;
 	tv.tv_usec = 500 * 1000;
@@ -59,14 +63,14 @@ bindlisten(int ret[], int *retlen, const char *interface, unsigned short port)
 	memset(&hint, 0, sizeof(hint));
 	hint.ai_family = PF_UNSPEC;
 	hint.ai_socktype = 0;
-	hint.ai_protocol = IPPROTO_TCP;  /* 0 for UDP as well */
+	hint.ai_protocol = 0;
 	hint.ai_flags = AI_NUMERICSERV | AI_PASSIVE;
 	snprintf(buf, sizeof(buf), "%u", port);
 
 	if ((err = getaddrinfo(interface, buf, &hint, &res)) != 0)
 		return -1;
 
-	for (resw = res; resw != NULL && curlen < *retlen; resw = resw->ai_next) {
+	for (resw = res; resw != NULL; resw = resw->ai_next) {
 		if (resw->ai_family != PF_INET && resw->ai_family != PF_INET6)
 			continue;
 		if (resw->ai_protocol != IPPROTO_TCP && resw->ai_protocol != IPPROTO_UDP)
@@ -93,22 +97,26 @@ bindlisten(int ret[], int *retlen, const char *interface, unsigned short port)
 				close(sock);
 				continue;
 			}
-			printf("listening on tcp%d %s port %s\n",
-					resw->ai_family == PF_INET6 ? 6 : 4, saddr, buf);
+			if (curlen_stream < *retlen_stream) {
+				printf("listening on tcp%d %s port %s\n",
+						resw->ai_family == PF_INET6 ? 6 : 4, saddr, buf);
+				ret_stream[curlen_stream++] = sock;
+			}
 		} else {
-			printf("listening on udp%d %s port %s\n",
-					resw->ai_family == PF_INET6 ? 6 : 4, saddr, buf);
+			if (curlen_dgram < *retlen_dgram) {
+				printf("listening on udp%d %s port %s\n",
+						resw->ai_family == PF_INET6 ? 6 : 4, saddr, buf);
+				ret_dgram[curlen_dgram++] = sock;
+			}
 		}
-
-		ret[curlen++] = sock;
 	}
 	freeaddrinfo(res);
 
-	if (curlen == 0)
+	if (curlen_stream + curlen_dgram == 0)
 		return -1;
 
 	/* fake loop to simplify breakout below */
-	while (curlen < *retlen) {
+	while (curlen_stream < *retlen_stream) {
 		struct sockaddr_un server;
 
 #ifndef PF_LOCAL
@@ -137,11 +145,12 @@ bindlisten(int ret[], int *retlen, const char *interface, unsigned short port)
 
 		printf("listening on UNIX socket %s\n", buf);
 
-		ret[curlen++] = sock;
+		ret_stream[curlen_stream++] = sock;
 		break;
 	}
 
-	*retlen = curlen;
+	*retlen_stream = curlen_stream;
+	*retlen_dgram = curlen_dgram;
 	return 0;
 }
 
