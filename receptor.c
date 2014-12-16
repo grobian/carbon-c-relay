@@ -56,61 +56,69 @@ bindlisten(
 	int err;
 	int curlen_stream = 0;
 	int curlen_dgram = 0;
+	int socktypes[] = {SOCK_STREAM, SOCK_DGRAM, 0};
+	int *socktype = socktypes;
 
 	tv.tv_sec = 0;
 	tv.tv_usec = 500 * 1000;
 
-	memset(&hint, 0, sizeof(hint));
-	hint.ai_family = PF_UNSPEC;
-	hint.ai_socktype = 0;
-	hint.ai_protocol = 0;
-	hint.ai_flags = AI_NUMERICSERV | AI_PASSIVE;
-	snprintf(buf, sizeof(buf), "%u", port);
+	for (; *socktype != 0; socktype++) {
+		memset(&hint, 0, sizeof(hint));
+		hint.ai_family = PF_UNSPEC;
+		hint.ai_socktype = *socktype;
+		hint.ai_protocol = 0;
+		hint.ai_flags = AI_NUMERICSERV | AI_PASSIVE;
+		snprintf(buf, sizeof(buf), "%u", port);
 
-	if ((err = getaddrinfo(interface, buf, &hint, &res)) != 0)
-		return -1;
-
-	for (resw = res; resw != NULL; resw = resw->ai_next) {
-		if (resw->ai_family != PF_INET && resw->ai_family != PF_INET6)
-			continue;
-		if (resw->ai_protocol != IPPROTO_TCP && resw->ai_protocol != IPPROTO_UDP)
-			continue;
-		if ((sock = socket(resw->ai_family, resw->ai_socktype, resw->ai_protocol)) < 0)
-			continue;
-
-		(void) setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
-		optval = 1;  /* allow takeover */
-		(void) setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval));
-
-		if (bind(sock, resw->ai_addr, resw->ai_addrlen) < 0) {
-			close(sock);
-			continue;
+		if ((err = getaddrinfo(interface, buf, &hint, &res)) != 0) {
+			fprintf(stderr, "getaddrinfo(%s, %s, ...) failed: %s\n",
+					interface == NULL ? "NULL" : interface,
+					buf, gai_strerror(err));
+			return -1;
 		}
 
-		if (inet_ntop(resw->ai_family,
-					&((struct sockaddr_in *)resw->ai_addr)->sin_addr,
-					saddr, sizeof(saddr)) == NULL)
-			snprintf(saddr, sizeof(saddr), "(unknown)");
+		for (resw = res; resw != NULL; resw = resw->ai_next) {
+			if (resw->ai_family != PF_INET && resw->ai_family != PF_INET6)
+				continue;
+			if (resw->ai_protocol != IPPROTO_TCP && resw->ai_protocol != IPPROTO_UDP)
+				continue;
+			if ((sock = socket(resw->ai_family, resw->ai_socktype, resw->ai_protocol)) < 0)
+				continue;
 
-		if (resw->ai_protocol == IPPROTO_TCP) {
-			if (listen(sock, 3) < 0) {  /* backlog of 3, enough? */
+			(void) setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+			optval = 1;  /* allow takeover */
+			(void) setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval));
+
+			if (bind(sock, resw->ai_addr, resw->ai_addrlen) < 0) {
 				close(sock);
 				continue;
 			}
-			if (curlen_stream < *retlen_stream) {
-				printf("listening on tcp%d %s port %s\n",
-						resw->ai_family == PF_INET6 ? 6 : 4, saddr, buf);
-				ret_stream[curlen_stream++] = sock;
-			}
-		} else {
-			if (curlen_dgram < *retlen_dgram) {
-				printf("listening on udp%d %s port %s\n",
-						resw->ai_family == PF_INET6 ? 6 : 4, saddr, buf);
-				ret_dgram[curlen_dgram++] = sock;
+
+			if (inet_ntop(resw->ai_family,
+						&((struct sockaddr_in *)resw->ai_addr)->sin_addr,
+						saddr, sizeof(saddr)) == NULL)
+				snprintf(saddr, sizeof(saddr), "(unknown)");
+
+			if (resw->ai_protocol == IPPROTO_TCP) {
+				if (listen(sock, 3) < 0) {  /* backlog of 3, enough? */
+					close(sock);
+					continue;
+				}
+				if (curlen_stream < *retlen_stream) {
+					printf("listening on tcp%d %s port %s\n",
+							resw->ai_family == PF_INET6 ? 6 : 4, saddr, buf);
+					ret_stream[curlen_stream++] = sock;
+				}
+			} else {
+				if (curlen_dgram < *retlen_dgram) {
+					printf("listening on udp%d %s port %s\n",
+							resw->ai_family == PF_INET6 ? 6 : 4, saddr, buf);
+					ret_dgram[curlen_dgram++] = sock;
+				}
 			}
 		}
+		freeaddrinfo(res);
 	}
-	freeaddrinfo(res);
 
 	if (curlen_stream + curlen_dgram == 0)
 		return -1;
