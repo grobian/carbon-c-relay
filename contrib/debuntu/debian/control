@@ -1,0 +1,19 @@
+Source: carbon-c-relay
+Section: contrib/utils
+Priority: optional
+Maintainer: Jose Riguera <jriguera@gmail.com>
+Build-Depends: debhelper (>= 8.0.0)
+Standards-Version: 3.9.4
+Homepage: https://github.com/grobian/carbon-c-relay
+
+Package: carbon-c-relay
+Architecture: any
+Depends: adduser, ${shlibs:Depends}, ${misc:Depends}
+Description: Enhanced C implementation of Carbon relay, aggregator and rewriter
+ The relay is a simple program that reads its routing information from a file. 
+ The command line arguments allow to set the location for this file, as well 
+ as the amount of dispatchers (worker threads) to use for reading the data 
+ from incoming connections and passing them onto the right destination(s). 
+ The route file supports two main constructs: clusters and matches. The first 
+ define groups of hosts data metrics can be sent to, the latter define which 
+ metrics should be sent to which cluster. 
