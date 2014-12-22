@@ -248,6 +248,7 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize)
 	cluster *cl;
 	struct stat st;
 	route *r = routes;
+	struct server_addr *ipaddrs = NULL;
 
 	if ((cnf = fopen(path, "r")) == NULL || stat(path, &st) == -1)
 		return 0;
@@ -283,6 +284,7 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize)
 			/* group config */
 			servers *w;
 			char *name;
+			int usedns = 0;
 			p += 8;
 			for (; *p != '\0' && isspace(*p); p++)
 				;
@@ -350,6 +352,13 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize)
 			} else if (strncmp(p, "any_of", 6) == 0 && isspace(*(p + 6))) {
 				p += 7;
 
+				for (; *p != '\0' && isspace(*p); p++)
+					;
+				if (strncmp(p, "usedns", 6) == 0 && isspace(*(p + 6))) {
+					p += 7;
+					usedns = 1;
+				}
+
 				if ((cl = cl->next = malloc(sizeof(cluster))) == NULL) {
 					fprintf(stderr, "malloc failed in cluster any_of\n");
 					free(buf);
@@ -379,6 +388,7 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize)
 				char *proto = "tcp";
 				int port = 2003;
 				server *newserver = NULL;
+				int cnt;
 
 				for (; *p != '\0' && !isspace(*p) && *p != ';'; p++)
 					if (*p == ':')
@@ -446,70 +456,104 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize)
 					}
 				}
 
-				newserver = server_new(ip, (unsigned short)port,
-						*proto == 'u' ? CON_UDP : CON_TCP,
-						queuesize, batchsize);
-				if (newserver == NULL) {
-					fprintf(stderr, "failed to add server %s:%d (%s) "
-							"to cluster %s: %s\n", ip, port, proto,
-							name, strerror(errno));
-					free(cl);
-					free(buf);
-					return 0;
+				if (usedns) {
+					/* resolve hostname into multiple IP addresses */
+					if ((ipaddrs = server_resolve(ip, (unsigned short)port,
+									*proto == 'u' ? CON_UDP : CON_TCP))
+							== NULL) {
+						fprintf(stderr, "failed to resolve server %s:%d (%s) "
+								"to cluster %s: %s\n", ip, port, proto,
+								name, strerror(errno));
+						free(cl);
+						free(buf);
+						return 0;
+					}
+				} else {
+					/* move ip into ipaddrs struct to single-path logic below */
+					if ((ipaddrs = malloc(sizeof(struct server_addr) * 2)) == NULL) {
+						fprintf(stderr, "malloc failed in cluster %s\n", name);
+						free(cl);
+						free(buf);
+						return 0;
+					}
+					snprintf(ipaddrs[0].hostname, sizeof(ipaddrs[0].hostname),
+							"%s", ip);
+					ipaddrs[1].hostname[0] = '\0';
 				}
 
-				if (cl->type == CARBON_CH || cl->type == FNV1A_CH) {
-					if (w == NULL) {
-						cl->members.ch->servers = w =
-							malloc(sizeof(servers));
-					} else {
-						w = w->next = malloc(sizeof(servers));
-					}
-					if (w == NULL) {
-						fprintf(stderr, "malloc failed for %s_ch %s\n",
-								cl->type == CARBON_CH ? "carbon" : "fnv1a", ip);
+				for (cnt = 0; ipaddrs != NULL &&
+						ipaddrs[cnt].hostname[0] != '\0'; cnt++) {
+					ip = ipaddrs[cnt].hostname;
+
+					newserver = server_new(ip, (unsigned short)port,
+							*proto == 'u' ? CON_UDP : CON_TCP,
+							queuesize, batchsize);
+					if (newserver == NULL) {
+						fprintf(stderr, "failed to add server %s:%d (%s) "
+								"to cluster %s: %s\n", ip, port, proto,
+								name, strerror(errno));
 						free(cl);
 						free(buf);
 						return 0;
 					}
-					w->next = NULL;
-					w->server = newserver;
-					cl->members.ch->ring = ch_addnode(
-							cl->members.ch->ring,
-							w->server);
-					if (cl->members.ch->ring == NULL) {
-						fprintf(stderr, "failed to add server %s:%d "
-								"to ring for cluster %s: out of memory\n",
-								ip, port, name);
-						free(cl);
-						free(buf);
-						return 0;
+
+					if (cl->type == CARBON_CH || cl->type == FNV1A_CH) {
+						if (w == NULL) {
+							cl->members.ch->servers = w =
+								malloc(sizeof(servers));
+						} else {
+							w = w->next = malloc(sizeof(servers));
+						}
+						if (w == NULL) {
+							fprintf(stderr, "malloc failed for %s_ch %s\n",
+									cl->type == CARBON_CH ? "carbon" : "fnv1a", ip);
+							free(cl);
+							free(buf);
+							return 0;
+						}
+						w->next = NULL;
+						w->server = newserver;
+						cl->members.ch->ring = ch_addnode(
+								cl->members.ch->ring,
+								w->server);
+						if (cl->members.ch->ring == NULL) {
+							fprintf(stderr, "failed to add server %s:%d "
+									"to ring for cluster %s: out of memory\n",
+									ip, port, name);
+							free(cl);
+							free(buf);
+							return 0;
+						}
+					} else if (cl->type == FORWARD || cl->type == ANYOF) {
+						if (w == NULL) {
+							w = malloc(sizeof(servers));
+						} else {
+							w = w->next = malloc(sizeof(servers));
+						}
+						if (w == NULL) {
+							fprintf(stderr, "malloc failed for %s %s\n",
+									cl->type == FORWARD ? "forward" : "any_of", ip);
+							free(cl);
+							free(buf);
+							return 0;
+						}
+						w->next = NULL;
+						w->server = newserver;
+						if (cl->type == FORWARD && cl->members.forward == NULL)
+							cl->members.forward = w;
+						if (cl->type == ANYOF && cl->members.anyof == NULL) {
+							cl->members.anyof = malloc(sizeof(serverlist));
+							cl->members.anyof->count = 0;
+							cl->members.anyof->servers = NULL;
+							cl->members.anyof->list = w;
+						}
+						if (cl->type == ANYOF)
+							cl->members.anyof->count++;
 					}
-				} else if (cl->type == FORWARD || cl->type == ANYOF) {
-					if (w == NULL) {
-						w = malloc(sizeof(servers));
-					} else {
-						w = w->next = malloc(sizeof(servers));
-					}
-					if (w == NULL) {
-						fprintf(stderr, "malloc failed for %s %s\n",
-								cl->type == FORWARD ? "forward" : "any_of", ip);
-						free(cl);
-						free(buf);
-						return 0;
-					}
-					w->next = NULL;
-					w->server = newserver;
-					if (cl->type == FORWARD && cl->members.forward == NULL)
-						cl->members.forward = w;
-					if (cl->type == ANYOF && cl->members.anyof == NULL) {
-						cl->members.anyof = malloc(sizeof(serverlist));
-						cl->members.anyof->count = 0;
-						cl->members.anyof->servers = NULL;
-						cl->members.anyof->list = w;
-					}
-					if (cl->type == ANYOF)
-						cl->members.anyof->count++;
+				}
+				if (ipaddrs) {
+					free(ipaddrs);
+					ipaddrs = NULL;
 				}
 
 				*p = termchr;
