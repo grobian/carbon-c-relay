@@ -26,10 +26,6 @@ enum rmode { NORMAL, DEBUG, SUBMISSION, TEST };
 
 typedef enum { CON_TCP, CON_UDP, CON_PIPE } serv_ctype;
 
-struct server_addr {
-    char hostname[256];
-};
-
 extern char relay_hostname[];
 extern enum rmode mode;
 

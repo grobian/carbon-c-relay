@@ -338,7 +338,7 @@ main(int argc, char * const argv[])
 	/* server used for delivering metrics produced inside the relay,
 	 * that is collector (statistics) and aggregator (aggregations) */
 	if ((internal_submission = server_new("internal", listenport, CON_PIPE,
-					3000 + (numcomputes * 3), batchsize)) == NULL)
+					NULL, 3000 + (numcomputes * 3), batchsize)) == NULL)
 	{
 		fprintf(stderr, "failed to create internal submission queue, shutting down\n");
 		keep_running = 0;

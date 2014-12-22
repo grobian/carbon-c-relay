@@ -387,6 +387,7 @@ server_new(
 		const char *ip,
 		unsigned short port,
 		serv_ctype ctype,
+		struct addrinfo *saddr,
 		size_t qsize,
 		size_t bsize)
 {
@@ -408,29 +409,7 @@ server_new(
 		return NULL;
 	}
 	ret->fd = -1;
-	if (ctype == CON_PIPE) {
-		ret->saddr = NULL;
-	} else {
-		struct addrinfo hint;
-		char sport[8];
-		int err;
-
-		memset(&hint, 0, sizeof(hint));
-
-		hint.ai_family = PF_UNSPEC;
-		hint.ai_socktype = ctype == CON_UDP ? SOCK_DGRAM : SOCK_STREAM;
-		hint.ai_protocol = ctype == CON_UDP ? IPPROTO_UDP : IPPROTO_TCP;
-		hint.ai_flags = AI_NUMERICSERV;
-		snprintf(sport, sizeof(sport), "%u", port);
-
-		if ((err = getaddrinfo(ip, sport, &hint, &(ret->saddr))) != 0) {
-			fprintf(stderr, "%s:%s: invalid host: %s\n",
-					ip, sport, gai_strerror(err));
-			free((char *)ret->ip);
-			free(ret);
-			return NULL;
-		}
-	}
+	ret->saddr = saddr;
 	ret->queue = queue_new(qsize);
 	if (ret->queue == NULL) {
 		free((char *)ret->ip);
@@ -694,61 +673,4 @@ server_get_queue_len(server *s)
 	if (s == NULL)
 		return 0;
 	return queue_len(s->queue);
-}
-
-/**
- * Returns a NULL-terminated array of server_addr structs
- */
-struct server_addr *
-server_resolve(
-		const char *hostname,
-		unsigned short port,
-		serv_ctype ctype)
-{
-	struct server_addr *ret;
-	struct addrinfo hint, *saddr = NULL, *walk;
-	char sport[8];
-	int err;
-	size_t cnt = 0;
-
-	memset(&hint, 0, sizeof(hint));
-
-	hint.ai_family = PF_UNSPEC;
-	hint.ai_socktype = ctype == CON_UDP ? SOCK_DGRAM : SOCK_STREAM;
-	hint.ai_protocol = ctype == CON_UDP ? IPPROTO_UDP : IPPROTO_TCP;
-	hint.ai_flags = AI_NUMERICSERV;
-	snprintf(sport, sizeof(sport), "%u", port);
-
-	if ((err = getaddrinfo(hostname, sport, &hint, &saddr)) != 0) {
-		fprintf(stderr, "%s:%s: cannot resolve host: %s\n",
-				hostname, sport, gai_strerror(err));
-		cnt = 1;
-		saddr = NULL;
-	}
-
-	for (walk = saddr; walk != NULL; walk = walk->ai_next)
-		cnt++;
-	if ((ret = malloc(sizeof(struct server_addr) * (cnt + 1))) == NULL) {
-		if (saddr != NULL)
-			freeaddrinfo(saddr);
-		return NULL;
-	}
-	for (cnt = 0, walk = saddr; walk != NULL; walk = walk->ai_next, cnt++) {
-		inet_ntop(walk->ai_family,
-				&((struct sockaddr_in *)walk->ai_addr)->sin_addr,
-				ret[cnt].hostname, sizeof(ret[cnt].hostname));
-		if (mode == DEBUG)
-			fprintf(stderr, "resolved %s -> %s\n", hostname,
-					ret[cnt].hostname);
-	}
-	if (saddr == NULL) {
-		snprintf(ret[0].hostname, sizeof(ret[0].hostname), "%s", hostname);
-		cnt = 1;
-	}
-	ret[cnt].hostname[0] = '\0';
-
-	if (saddr != NULL)
-		freeaddrinfo(saddr);
-
-	return ret;
 }

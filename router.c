@@ -21,6 +21,7 @@
 #include <ctype.h>
 #include <regex.h>
 #include <sys/stat.h>
+#include <arpa/inet.h>
 #include <errno.h>
 
 #include "consistent-hash.h"
@@ -248,7 +249,7 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize)
 	cluster *cl;
 	struct stat st;
 	route *r = routes;
-	struct server_addr *ipaddrs = NULL;
+	struct addrinfo *saddrs;
 
 	if ((cnf = fopen(path, "r")) == NULL || stat(path, &st) == -1)
 		return 0;
@@ -284,7 +285,7 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize)
 			/* group config */
 			servers *w;
 			char *name;
-			int usedns = 0;
+			char useall = 0;
 			p += 8;
 			for (; *p != '\0' && isspace(*p); p++)
 				;
@@ -354,9 +355,9 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize)
 
 				for (; *p != '\0' && isspace(*p); p++)
 					;
-				if (strncmp(p, "usedns", 6) == 0 && isspace(*(p + 6))) {
+				if (strncmp(p, "useall", 6) == 0 && isspace(*(p + 6))) {
 					p += 7;
-					usedns = 1;
+					useall = 1;
 				}
 
 				if ((cl = cl->next = malloc(sizeof(cluster))) == NULL) {
@@ -388,7 +389,12 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize)
 				char *proto = "tcp";
 				int port = 2003;
 				server *newserver = NULL;
-				int cnt;
+				struct addrinfo hint;
+				char sport[8];
+				int err;
+				struct addrinfo *walk = NULL;
+				struct addrinfo *next = NULL;
+				char hnbuf[256];
 
 				for (; *p != '\0' && !isspace(*p) && *p != ';'; p++)
 					if (*p == ':')
@@ -456,37 +462,60 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize)
 					}
 				}
 
-				if (usedns) {
-					/* resolve hostname into multiple IP addresses */
-					if ((ipaddrs = server_resolve(ip, (unsigned short)port,
-									*proto == 'u' ? CON_UDP : CON_TCP))
-							== NULL) {
-						fprintf(stderr, "failed to resolve server %s:%d (%s) "
-								"to cluster %s: %s\n", ip, port, proto,
-								name, strerror(errno));
-						free(cl);
-						free(buf);
-						return 0;
-					}
-				} else {
-					/* move ip into ipaddrs struct to single-path logic below */
-					if ((ipaddrs = malloc(sizeof(struct server_addr) * 2)) == NULL) {
-						fprintf(stderr, "malloc failed in cluster %s\n", name);
-						free(cl);
-						free(buf);
-						return 0;
-					}
-					snprintf(ipaddrs[0].hostname, sizeof(ipaddrs[0].hostname),
-							"%s", ip);
-					ipaddrs[1].hostname[0] = '\0';
+				/* resolve host/IP */
+				memset(&hint, 0, sizeof(hint));
+
+				hint.ai_family = PF_UNSPEC;
+				hint.ai_socktype = *proto == 'u' ? SOCK_DGRAM : SOCK_STREAM;
+				hint.ai_protocol = *proto == 'u' ? IPPROTO_UDP : IPPROTO_TCP;
+				hint.ai_flags = AI_NUMERICSERV;
+				snprintf(sport, sizeof(sport), "%u", port);  /* for default */
+
+				if ((err = getaddrinfo(ip, sport, &hint, &saddrs)) != 0) {
+					fprintf(stderr, "failed to resolve server %s:%s (%s) "
+							"for cluster %s: %s\n",
+							ip, sport, proto, name, gai_strerror(err));
+					free(cl);
+					free(buf);
+					return 0;
 				}
 
-				for (cnt = 0; ipaddrs != NULL &&
-						ipaddrs[cnt].hostname[0] != '\0'; cnt++) {
-					ip = ipaddrs[cnt].hostname;
+				if (!useall && saddrs->ai_next != NULL) {
+					/* take first result only */
+					freeaddrinfo(saddrs->ai_next);
+					saddrs->ai_next = NULL;
+				}
+
+				walk = saddrs;
+				while (walk != NULL) {
+					/* disconnect from the rest to avoid double
+					 * frees by freeaddrinfo() in server_destroy() */
+					next = walk->ai_next;
+					walk->ai_next = NULL;
+
+					if (useall) {
+						/* unfold whatever we resolved, for human
+						 * readability issues */
+						if (walk->ai_family == AF_INET) {
+							if (inet_ntop(walk->ai_family,
+									&((struct sockaddr_in *)walk->ai_addr)->sin_addr,
+									hnbuf, sizeof(hnbuf)) != NULL)
+								ip = hnbuf;
+						} else if (walk->ai_family == AF_INET6) {
+							if (inet_ntop(walk->ai_family,
+									&((struct sockaddr_in6 *)walk->ai_addr)->sin6_addr,
+									hnbuf + 1, sizeof(hnbuf) - 2) != NULL)
+							{
+								hnbuf[0] = '[';
+								/* space is reserved above */
+								strcat(hnbuf, "]");
+								ip = hnbuf;
+							}
+						}
+					}
 
 					newserver = server_new(ip, (unsigned short)port,
-							*proto == 'u' ? CON_UDP : CON_TCP,
+							*proto == 'u' ? CON_UDP : CON_TCP, walk,
 							queuesize, batchsize);
 					if (newserver == NULL) {
 						fprintf(stderr, "failed to add server %s:%d (%s) "
@@ -550,10 +579,8 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize)
 						if (cl->type == ANYOF)
 							cl->members.anyof->count++;
 					}
-				}
-				if (ipaddrs) {
-					free(ipaddrs);
-					ipaddrs = NULL;
+
+					walk = next;
 				}
 
 				*p = termchr;

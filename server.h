@@ -18,6 +18,8 @@
 #ifndef SERVER_H
 #define SERVER_H 1
 
+#include <netdb.h>
+
 #include "relay.h"
 
 typedef struct _server server;
@@ -26,6 +28,7 @@ server *server_new(
 		const char *ip,
 		unsigned short port,
 		serv_ctype ctype,
+		struct addrinfo *saddr,
 		size_t queuesize,
 		size_t batchsize);
 void server_add_secondaries(server *d, server **sec, size_t cnt);
@@ -41,6 +44,5 @@ size_t server_get_metrics(server *s);
 size_t server_get_dropped(server *s);
 size_t server_get_queue_len(server *s);
 server **server_get_servers(void);
-struct server_addr * server_resolve(const char *, unsigned short, serv_ctype);
 
 #endif
