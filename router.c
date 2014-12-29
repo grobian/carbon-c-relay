@@ -247,8 +247,10 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize)
 	size_t len = 0;
 	char *p;
 	cluster *cl;
+	cluster *topcl;
 	struct stat st;
-	route *r = routes;
+	route *r = NULL;
+	route *topr = NULL;
 	struct addrinfo *saddrs;
 
 	if ((cnf = fopen(path, "r")) == NULL || stat(path, &st) == -1)
@@ -265,7 +267,7 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize)
 	cl->type = BLACKHOLE;
 	cl->members.forward = NULL;
 	cl->next = NULL;
-	clusters = cl;
+	topcl = cl;
 
 	/* remove all comments to ease parsing below */
 	p = buf;
@@ -684,7 +686,7 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize)
 			}
 
 			/* lookup dest */
-			for (w = clusters; w != NULL; w = w->next) {
+			for (w = topcl; w != NULL; w = w->next) {
 				if (w->type != GROUP &&
 						w->type != AGGREGATION &&
 						w->type != REWRITE &&
@@ -698,7 +700,7 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize)
 				return 0;
 			}
 			if (r == NULL) {
-				routes = r = malloc(sizeof(route));
+				topr = r = malloc(sizeof(route));
 			} else {
 				r = r->next = malloc(sizeof(route));
 			}
@@ -753,7 +755,7 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize)
 					;
 
 				if (r == NULL) {
-					routes = r = malloc(sizeof(route));
+					topr = r = malloc(sizeof(route));
 				} else {
 					r = r->next = malloc(sizeof(route));
 				}
@@ -961,7 +963,7 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize)
 			}
 
 			if (r == NULL) {
-				routes = r = malloc(sizeof(route));
+				topr = r = malloc(sizeof(route));
 			} else {
 				r = r->next = malloc(sizeof(route));
 			}
@@ -998,6 +1000,8 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize)
 	} while (*p != '\0');
 
 	free(buf);
+	clusters = topcl;
+	routes = topr;
 	return 1;
 }
 
