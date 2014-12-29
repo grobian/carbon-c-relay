@@ -119,7 +119,7 @@ main(int argc, char * const argv[])
 	server **servers;
 	dispatcher **workers;
 	char workercnt = 0;
-	char *routes = NULL;
+	char *config = NULL;
 	unsigned short listenport = 2003;
 	int batchsize = 2500;
 	int queuesize = 25000;
@@ -148,7 +148,7 @@ main(int argc, char * const argv[])
 				mode = TEST;
 				break;
 			case 'f':
-				routes = optarg;
+				config = optarg;
 				break;
 			case 'i':
 				listeninterface = optarg;
@@ -202,7 +202,7 @@ main(int argc, char * const argv[])
 				break;
 		}
 	}
-	if (optind == 1 || routes == NULL)
+	if (optind == 1 || config == NULL)
 		do_usage(1);
 
 
@@ -234,10 +234,10 @@ main(int argc, char * const argv[])
 		fprintf(stdout, "    debug = true\n");
 	else if (mode == SUBMISSION)
 		fprintf(stdout, "    submission = true\n");
-	fprintf(stdout, "    routes configuration = %s\n", routes);
+	fprintf(stdout, "    routes configuration = %s\n", config);
 	fprintf(stdout, "\n");
-	if (router_readconfig(routes, queuesize, batchsize) == 0) {
-		fprintf(stderr, "failed to read configuration '%s'\n", routes);
+	if (router_readconfig(config, queuesize, batchsize) == 0) {
+		fprintf(stderr, "failed to read configuration '%s'\n", config);
 		return 1;
 	}
 	router_optimise();
