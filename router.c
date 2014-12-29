@@ -206,7 +206,7 @@ determine_if_regex(route *r, char *pat, int flags)
  * Config file supports the following:
  *
  * cluster (name)
- *     (forward | any_of | carbon_ch [replication (count)])
+ *     (forward | any_of [useall] | carbon_ch [replication (count)])
  *         (ip:port [proto (tcp | udp)] ...)
  *     ;
  * match (* | regex)
