@@ -29,6 +29,7 @@
 #include "queue.h"
 #include "aggregator.h"
 #include "relay.h"
+#include "router.h"
 
 enum clusttype {
 	BLACKHOLE,  /* /dev/null-like destination */
@@ -58,7 +59,7 @@ typedef struct {
 	servers *list;
 } serverlist;
 
-typedef struct _cluster {
+struct _cluster {
 	char *name;
 	enum clusttype type;
 	union {
@@ -70,9 +71,9 @@ typedef struct _cluster {
 		char *replacement;
 	} members;
 	struct _cluster *next;
-} cluster;
+};
 
-typedef struct _route {
+struct _route {
 	char *pattern;    /* original regex input, used for printing only */
 	regex_t rule;     /* regex on metric, only if type == REGEX */
 	size_t nmatch;    /* number of match groups */
@@ -88,10 +89,8 @@ typedef struct _route {
 		MATCHES       /* metric matches string exactly */
 	} matchtype;      /* how to interpret the pattern */
 	struct _route *next;
-} route;
+};
 
-static route *routes = NULL;
-static cluster *clusters = NULL;
 static char keep_running = 1;
 
 /* custom constant, meant to force regex mode matching */
@@ -240,7 +239,8 @@ determine_if_regex(route *r, char *pat, int flags)
  *    stop;
  */
 int
-router_readconfig(const char *path, size_t queuesize, size_t batchsize)
+router_readconfig(cluster **clret, route **rret,
+		const char *path, size_t queuesize, size_t batchsize)
 {
 	FILE *cnf;
 	char *buf;
@@ -1000,8 +1000,8 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize)
 	} while (*p != '\0');
 
 	free(buf);
-	clusters = topcl;
-	routes = topr;
+	*clret = topcl;
+	*rret = topr;
 	return 1;
 }
 
@@ -1030,7 +1030,7 @@ typedef struct _block {
  * specific and expensive matches to confirm fit.
  */
 void
-router_optimise(void)
+router_optimise(route **routes)
 {
 	char *p;
 	char pblock[64];
@@ -1046,7 +1046,7 @@ router_optimise(void)
 
 	/* avoid optimising anything if it won't pay off */
 	seq = 0;
-	for (rwalk = routes; rwalk != NULL && seq < 50; rwalk = rwalk->next)
+	for (rwalk = *routes; rwalk != NULL && seq < 50; rwalk = rwalk->next)
 		seq++;
 	if (seq < 50)
 		return;
@@ -1065,7 +1065,7 @@ router_optimise(void)
 	blocks->seqnr = seq++;
 	blocks->prev = NULL;
 	blocks->next = NULL;
-	for (rwalk = routes; rwalk != NULL; rwalk = rnext) {
+	for (rwalk = *routes; rwalk != NULL; rwalk = rnext) {
 		/* matchall rules cannot be in a group */
 		if (rwalk->matchtype == MATCHALL) {
 			blast->next = malloc(sizeof(block));
@@ -1205,7 +1205,7 @@ router_optimise(void)
 	blast->next = NULL;
 	blast->seqnr = seq;
 
-	rwalk = routes = NULL;
+	rwalk = *routes = NULL;
 	seq = 1;
 	bstart = NULL;
 	/* create groups, if feasible */
@@ -1231,8 +1231,8 @@ router_optimise(void)
 			free(bwalk);
 			continue;
 		} else if (bwalk->refcnt < 3) {
-			if (routes == NULL) {
-				rwalk = routes = bwalk->firstroute;
+			if (*routes == NULL) {
+				rwalk = *routes = bwalk->firstroute;
 			} else {
 				rwalk->next = bwalk->firstroute;
 			}
@@ -1241,8 +1241,8 @@ router_optimise(void)
 			free(bwalk->pattern);
 			free(bwalk);
 		} else {
-			if (routes == NULL) {
-				rwalk = routes = malloc(sizeof(route));
+			if (*routes == NULL) {
+				rwalk = *routes = malloc(sizeof(route));
 			} else {
 				rwalk = rwalk->next = malloc(sizeof(route));
 			}
@@ -1270,7 +1270,7 @@ router_optimise(void)
  * thousands.
  */
 void
-router_printconfig(FILE *f, char all)
+router_printconfig(FILE *f, char all, cluster *clusters, route *routes)
 {
 	cluster *c;
 	route *r;
@@ -1642,7 +1642,12 @@ router_route_intern(
  * returned.
  */
 inline size_t
-router_route(destination ret[], size_t retsize, char *metric, char *firstspace)
+router_route(
+		destination ret[],
+		size_t retsize,
+		char *metric,
+		char *firstspace,
+		route *routes)
 {
 	size_t curlen = 0;
 
@@ -1800,7 +1805,7 @@ router_test_intern(char *metric, char *firstspace, route *routes)
 }
 
 void
-router_test(char *metric)
+router_test(char *metric, route *routes)
 {
 	char *firstspace;
 

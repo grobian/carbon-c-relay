@@ -123,6 +123,8 @@ main(int argc, char * const argv[])
 	unsigned short listenport = 2003;
 	int batchsize = 2500;
 	int queuesize = 25000;
+	cluster *clusters;
+	route *routes;
 	int ch;
 	char nowbuf[24];
 	size_t numaggregators;
@@ -236,21 +238,25 @@ main(int argc, char * const argv[])
 		fprintf(stdout, "    submission = true\n");
 	fprintf(stdout, "    routes configuration = %s\n", config);
 	fprintf(stdout, "\n");
-	if (router_readconfig(config, queuesize, batchsize) == 0) {
+
+	if (router_readconfig(&clusters, &routes,
+				config, queuesize, batchsize) == 0)
+	{
 		fprintf(stderr, "failed to read configuration '%s'\n", config);
 		return 1;
 	}
-	router_optimise();
+	router_optimise(&routes);
+
 	numaggregators = aggregator_numaggregators();
 	numcomputes = aggregator_numcomputes();
 	if (numaggregators > 10) {
 		fprintf(stdout, "parsed configuration follows:\n"
 				"(%zd aggregations with %zd computations omitted "
 				"for brevity)\n", numaggregators, numcomputes);
-		router_printconfig(stdout, 0);
+		router_printconfig(stdout, 0, clusters, routes);
 	} else {
 		fprintf(stdout, "parsed configuration follows:\n");
-		router_printconfig(stdout, 1);
+		router_printconfig(stdout, 1, clusters, routes);
 	}
 	fprintf(stdout, "\n");
 
@@ -263,7 +269,7 @@ main(int argc, char * const argv[])
 		while (fgets(metricbuf, sizeof(metricbuf), stdin) != NULL) {
 			if ((p = strchr(metricbuf, '\n')) != NULL)
 				*p = '\0';
-			router_test(metricbuf);
+			router_test(metricbuf, routes);
 		}
 
 		exit(0);
@@ -321,7 +327,7 @@ main(int argc, char * const argv[])
 
 	fprintf(stdout, "starting %d workers\n", workercnt);
 	for (id = 1; id < 1 + workercnt; id++) {
-		workers[id + 0] = dispatch_new_connection();
+		workers[id + 0] = dispatch_new_connection(routes);
 		if (workers[id + 0] == NULL) {
 			fprintf(stderr, "failed to add worker %d\n", id);
 			break;

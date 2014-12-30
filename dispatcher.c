@@ -58,6 +58,7 @@ typedef struct _dispatcher {
 	size_t ticks;
 	enum { RUNNING, SLEEPING } state;
 	char keep_running:1;
+	route *routes;
 } dispatcher;
 
 static connection *listeners[32];       /* hopefully enough */
@@ -322,7 +323,7 @@ dispatch_connection(connection *conn, dispatcher *self)
 				/* perform routing of this metric */
 				conn->destlen =
 					router_route(conn->dests, sizeof(conn->dests),
-							conn->metric, firstspace);
+							conn->metric, firstspace, self->routes);
 
 				/* restart building new one from the start */
 				q = conn->metric;
@@ -509,7 +510,7 @@ dispatch_runner(void *arg)
  * Returns its handle.
  */
 static dispatcher *
-dispatch_new(char id, enum conntype type)
+dispatch_new(char id, enum conntype type, route *routes)
 {
 	dispatcher *ret = malloc(sizeof(dispatcher));
 
@@ -523,6 +524,7 @@ dispatch_new(char id, enum conntype type)
 		free(ret);
 		return NULL;
 	}
+	ret->routes = routes;
 
 	return ret;
 }
@@ -537,7 +539,7 @@ dispatcher *
 dispatch_new_listener(void)
 {
 	char id = __sync_fetch_and_add(&globalid, 1);
-	return dispatch_new(id, LISTENER);
+	return dispatch_new(id, LISTENER, NULL);
 }
 
 /**
@@ -545,10 +547,10 @@ dispatch_new_listener(void)
  * existing connections.
  */
 dispatcher *
-dispatch_new_connection(void)
+dispatch_new_connection(route *routes)
 {
 	char id = __sync_fetch_and_add(&globalid, 1);
-	return dispatch_new(id, CONNECTION);
+	return dispatch_new(id, CONNECTION, routes);
 }
 
 /**

@@ -32,9 +32,9 @@
 #include "queue.h"
 #include "dispatcher.h"
 #include "collector.h"
+#include "server.h"
 
-
-typedef struct _server {
+struct _server {
 	const char *ip;
 	unsigned short port;
 	struct addrinfo *saddr;
@@ -53,7 +53,7 @@ typedef struct _server {
 	size_t dropped;
 	size_t ticks;
 	struct _server *next;
-} server;
+};
 
 static server *servers = NULL;
 
