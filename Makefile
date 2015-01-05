@@ -25,7 +25,7 @@ ifeq ($(shell uname), SunOS)
 SOCKET_LIBS += -lsocket  -lnsl
 endif
 
-override LIBS += `pkg-config openssl --libs` $(SOCKET_LIBS) -pthread
+override LIBS += `pkg-config openssl --libs` $(SOCKET_LIBS) -pthread -latomic
 
 OBJS = \
 	relay.o \
