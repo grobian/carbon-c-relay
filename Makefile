@@ -13,7 +13,7 @@
 # limitations under the License.
 
 
-CFLAGS ?= -O2 -Wall
+CFLAGS ?= -O2 -Wall -std=gnu89
 
 GIT_VERSION := $(shell git describe --abbrev=6 --dirty --always || date +%F)
 GVCFLAGS += -DGIT_VERSION=\"$(GIT_VERSION)\"
@@ -25,7 +25,7 @@ ifeq ($(shell uname), SunOS)
 SOCKET_LIBS += -lsocket  -lnsl
 endif
 
-override LIBS += `pkg-config openssl --libs` $(SOCKET_LIBS) -pthread -latomic
+override LIBS += `pkg-config openssl --libs` $(SOCKET_LIBS) -pthread
 
 OBJS = \
 	relay.o \

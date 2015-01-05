@@ -50,8 +50,10 @@ static void exchange_logs(FILE **new_log, FILE **old_log) {
 #if __STDC__VERSION__ >= 201112L && \
 	((__GNUC__ > 4 || ( __GNU_C__ == 4 && __GNUC_MINOR__ != 8)) || __clang__)
 	tmp = atomic_exchange(*new_log, *old_log);
-#elif __GNUC__
+#elif __GNUC__ && (__GNU_C__ > 4 || (__GNU_C__ == 4 && __GNUC_MINOR__ >= 8))
 	tmp = __atomic_exchange_n(old_log, *new_log, __ATOMIC_SEQ_CST);
+#elif __GNUC__
+	tmp = __sync_lock_test_and_set(old_log, *new_log);
 #else
 #error "Unsupported compiler and std combination"
 #endif

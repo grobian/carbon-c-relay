@@ -575,7 +575,11 @@ dispatch_shutdown(dispatcher *d)
 /**
  * Returns the wall-clock time in milliseconds consumed by this dispatcher.
  */
+#if __STDC_VERSION__ >= 199901L
 extern inline size_t
+#else
+inline size_t
+#endif
 dispatch_get_ticks(dispatcher *self)
 {
 	return self->ticks;
@@ -584,7 +588,11 @@ dispatch_get_ticks(dispatcher *self)
 /**
  * Returns the number of metrics dispatched since start.
  */
+#if __STDC_VERSION__ >= 199901L
 extern inline size_t
+#else
+inline size_t
+#endif
 dispatch_get_metrics(dispatcher *self)
 {
 	return self->metrics;
@@ -596,7 +604,11 @@ dispatch_get_metrics(dispatcher *self)
  * all tasks related to getting the data received in the place where it
  * should be.
  */
+#if __STDC_VERSION__ >= 199901L
 extern inline char
+#else
+inline char
+#endif
 dispatch_busy(dispatcher *self)
 {
 	return self->state == RUNNING;
