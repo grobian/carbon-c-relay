@@ -32,9 +32,9 @@ OBJS = \
 	consistent-hash.o \
 	receptor.o \
 	dispatcher.o \
+        queue.o \
+        server.o \
 	router.o \
-	queue.o \
-	server.o \
 	collector.o \
 	aggregator.o
 

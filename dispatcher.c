@@ -575,7 +575,7 @@ dispatch_shutdown(dispatcher *d)
 /**
  * Returns the wall-clock time in milliseconds consumed by this dispatcher.
  */
-inline size_t
+extern inline size_t
 dispatch_get_ticks(dispatcher *self)
 {
 	return self->ticks;
@@ -584,7 +584,7 @@ dispatch_get_ticks(dispatcher *self)
 /**
  * Returns the number of metrics dispatched since start.
  */
-inline size_t
+extern inline size_t
 dispatch_get_metrics(dispatcher *self)
 {
 	return self->metrics;
@@ -596,7 +596,7 @@ dispatch_get_metrics(dispatcher *self)
  * all tasks related to getting the data received in the place where it
  * should be.
  */
-inline char
+extern inline char
 dispatch_busy(dispatcher *self)
 {
 	return self->state == RUNNING;

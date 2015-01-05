@@ -19,6 +19,8 @@
 #include <string.h>
 #include <pthread.h>
 
+#include "queue.h"
+
 typedef struct _queue {
 	const char **queue;
 	size_t end;  

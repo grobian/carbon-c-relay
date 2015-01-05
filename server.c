@@ -31,6 +31,7 @@
 #include "relay.h"
 #include "queue.h"
 #include "dispatcher.h"
+#include "server.h"
 #include "collector.h"
 
 
