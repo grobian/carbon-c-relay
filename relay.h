@@ -18,6 +18,8 @@
 #ifndef HAVE_RELAY_H
 #define HAVE_RELAY_H 1
 
+#include <stdio.h>
+
 #define VERSION "0.37"
 
 #define METRIC_BUFSIZ 8192
@@ -28,6 +30,12 @@ typedef enum { CON_TCP, CON_UDP, CON_PIPE } serv_ctype;
 
 extern char relay_hostname[];
 extern enum rmode mode;
+
+extern FILE *outlog;
+extern FILE *errlog;
+
+extern char std_log_path[];
+extern char err_log_path[];
 
 char *fmtnow(char nowbuf[24]);
 

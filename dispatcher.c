@@ -72,7 +72,7 @@ static size_t closedconnections = 0;
  * Helper function to try and be helpful to the user.  If errno
  * indicates no new fds could be made, checks what the current max open
  * files limit is, and if it's close to what we have in use now, write
- * an informative message to stderr.
+ * an informative message to errlog.
  */
 void
 dispatch_check_rlimit_and_warn(void)
@@ -85,7 +85,7 @@ dispatch_check_rlimit_and_warn(void)
 		if (getrlimit(RLIMIT_NOFILE, &ofiles) < 0)
 			ofiles.rlim_max = 0;
 		if (ofiles.rlim_max != RLIM_INFINITY && ofiles.rlim_max > 0)
-			fprintf(stderr, "process configured maximum connections = %d, "
+			fprintf(errlog, "process configured maximum connections = %d, "
 					"consider raising max open files/max descriptor limit\n",
 					(int)ofiles.rlim_max);
 	}
@@ -114,7 +114,7 @@ dispatch_addlistener(int sock)
 	if (c == sizeof(listeners) / sizeof(connection *)) {
 		char nowbuf[24];
 		free(newconn);
-		fprintf(stderr, "[%s] cannot add new listener: "
+		fprintf(errlog, "[%s] cannot add new listener: "
 				"no more free listener slots (max = %zd)\n",
 				fmtnow(nowbuf), sizeof(listeners) / sizeof(connection *));
 		return 1;
@@ -135,7 +135,7 @@ dispatch_removelistener(int sock)
 			break;
 	if (c == sizeof(listeners) / sizeof(connection *)) {
 		/* not found?!? */
-		fprintf(stderr, "dispatch: cannot find listener!\n");
+		fprintf(errlog, "dispatch: cannot find listener!\n");
 		return;
 	}
 	/* make this connection no longer visible */
@@ -179,7 +179,7 @@ dispatch_addconnection(int sock)
 		newlst = realloc(connections,
 				sizeof(connection) * (connectionslen + CONNGROWSZ));
 		if (newlst == NULL) {
-			fprintf(stderr, "[%s] cannot add new connection: "
+			fprintf(errlog, "[%s] cannot add new connection: "
 					"out of memory allocating more slots (max = %zd)\n",
 					fmtnow(nowbuf), connectionslen);
 
@@ -464,7 +464,7 @@ dispatch_runner(void *arg)
 						if ((client = accept(conn->sock, &addr, &addrlen)) < 0)
 						{
 							char nowbuf[24];
-							fprintf(stderr, "[%s] dispatch: failed to "
+							fprintf(errlog, "[%s] dispatch: failed to "
 									"accept() new connection: %s\n",
 									fmtnow(nowbuf), strerror(errno));
 							dispatch_check_rlimit_and_warn();
@@ -498,7 +498,7 @@ dispatch_runner(void *arg)
 				usleep((100 + (rand() % 200)) * 1000);  /* 100ms - 300ms */
 		}
 	} else {
-		fprintf(stderr, "huh? unknown self type!\n");
+		fprintf(errlog, "huh? unknown self type!\n");
 	}
 
 	return NULL;
@@ -575,7 +575,11 @@ dispatch_shutdown(dispatcher *d)
 /**
  * Returns the wall-clock time in milliseconds consumed by this dispatcher.
  */
+#if __STDC_VERSION__ >= 199901L
+extern inline size_t
+#else
 inline size_t
+#endif
 dispatch_get_ticks(dispatcher *self)
 {
 	return self->ticks;
@@ -584,7 +588,11 @@ dispatch_get_ticks(dispatcher *self)
 /**
  * Returns the number of metrics dispatched since start.
  */
+#if __STDC_VERSION__ >= 199901L
+extern inline size_t
+#else
 inline size_t
+#endif
 dispatch_get_metrics(dispatcher *self)
 {
 	return self->metrics;
@@ -596,7 +604,11 @@ dispatch_get_metrics(dispatcher *self)
  * all tasks related to getting the data received in the place where it
  * should be.
  */
+#if __STDC_VERSION__ >= 199901L
+extern inline char
+#else
 inline char
+#endif
 dispatch_busy(dispatcher *self)
 {
 	return self->state == RUNNING;

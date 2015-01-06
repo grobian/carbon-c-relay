@@ -27,6 +27,7 @@
 #include <netinet/in.h>
 #include <errno.h>
 
+#include "relay.h"
 #ifndef TMPDIR
 # define TMPDIR "/tmp"
 #endif
@@ -71,7 +72,7 @@ bindlisten(
 		snprintf(buf, sizeof(buf), "%u", port);
 
 		if ((err = getaddrinfo(interface, buf, &hint, &res)) != 0) {
-			fprintf(stderr, "getaddrinfo(%s, %s, ...) failed: %s\n",
+			fprintf(errlog, "getaddrinfo(%s, %s, ...) failed: %s\n",
 					interface == NULL ? "NULL" : interface,
 					buf, gai_strerror(err));
 			return -1;
@@ -144,7 +145,7 @@ bindlisten(
 
 		unlink(buf);  /* avoid address already in use */
 		if (bind(sock, (struct sockaddr *)&server, sizeof(struct sockaddr_un)) < 0) {
-			fprintf(stderr, "failed to bind for %s: %s\n",
+			fprintf(errlog, "failed to bind for %s: %s\n",
 					buf, strerror(errno));
 			close(sock);
 			break;

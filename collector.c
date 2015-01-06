@@ -71,7 +71,7 @@ collector_runner(void *s)
 
 #define send(metric) \
 	if (debug) \
-		fprintf(stdout, "%s", metric); \
+		fprintf(outlog, "%s", metric); \
 	else \
 		server_send(submission, strdup(metric), 1);
 
@@ -187,7 +187,7 @@ collector_runner(void *s)
 		i = 0;
 
 		if (debug)
-			fflush(stdout);
+			fflush(outlog);
 	}
 
 	return NULL;
@@ -218,25 +218,25 @@ collector_writer(void *unused)
 			totdropped += server_get_dropped(servers[i]);
 
 			if (queued > 150) {
-				fprintf(stdout, "[%s] warning: metrics queuing up "
+				fprintf(outlog, "[%s] warning: metrics queuing up "
 						"for %s:%u: %zd metrics\n",
 						fmtnow(nowbuf),
 						server_ip(servers[i]), server_port(servers[i]), queued);
-				fflush(stdout);
+				fflush(outlog);
 			}
 		}
 		if (totdropped - lastdropped > 0) {
-			fprintf(stdout, "[%s] warning: dropped %zd metrics\n",
+			fprintf(outlog, "[%s] warning: dropped %zd metrics\n",
 					fmtnow(nowbuf), totdropped - lastdropped);
-			fflush(stdout);
+			fflush(outlog);
 		}
 		lastdropped = totdropped;
 		if (numaggregators > 0) {
 			totdropped = aggregator_get_dropped();
 			if (totdropped - lastaggrdropped > 0) {
-				fprintf(stdout, "[%s] warning: aggregator dropped %zd metrics\n",
+				fprintf(outlog, "[%s] warning: aggregator dropped %zd metrics\n",
 						fmtnow(nowbuf), totdropped - lastaggrdropped);
-				fflush(stdout);
+				fflush(outlog);
 			}
 			lastaggrdropped = totdropped;
 		}
@@ -260,10 +260,10 @@ collector_start(dispatcher **d, server **s, server *submission)
 
 	if (mode != SUBMISSION) {
 		if (pthread_create(&collectorid, NULL, collector_runner, submission) != 0)
-			fprintf(stderr, "failed to start collector!\n");
+			fprintf(errlog, "failed to start collector!\n");
 	} else {
 		if (pthread_create(&collectorid, NULL, collector_writer, NULL) != 0)
-			fprintf(stderr, "failed to start collector!\n");
+			fprintf(errlog, "failed to start collector!\n");
 	}
 }
 
