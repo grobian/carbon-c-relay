@@ -23,6 +23,7 @@
 #include "relay.h"
 
 typedef struct _server server;
+struct addrinfo;
 
 server *server_new(
 		const char *ip,

@@ -18,7 +18,7 @@ CFLAGS ?= -O2 -Wall -std=gnu89
 GIT_VERSION := $(shell git describe --abbrev=6 --dirty --always || date +%F)
 GVCFLAGS += -DGIT_VERSION=\"$(GIT_VERSION)\"
 
-override CFLAGS += $(GVCFLAGS) `pkg-config openssl --cflags` -pthread
+override CFLAGS += -D_GNU_SOURCE $(GVCFLAGS) `pkg-config openssl --cflags` -pthread
 
 SOCKET_LIBS =
 ifeq ($(shell uname), SunOS)
