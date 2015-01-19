@@ -35,5 +35,6 @@ void ch_get_nodes(
 		const char replcnt,
 		const char *metric,
 		const char *firstspace);
+void ch_free(ch_ring *ring);
 
 #endif

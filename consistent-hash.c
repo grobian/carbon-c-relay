@@ -239,3 +239,22 @@ ch_get_nodes(
 		ret[i].metric = strdup(metric);
 	}
 }
+
+/**
+ * Frees the ring structure and its added nodes.
+ */
+void
+ch_free(ch_ring *ring)
+{
+	ch_ring_entry *w;
+
+	while (ring->entries) {
+		server_shutdown(ring->entries->server);
+
+		w = ring->entries->next;
+		free(ring->entries);
+		ring->entries = w;
+	}
+
+	free(ring);
+}
