@@ -31,6 +31,7 @@
 #include "router.h"
 #include "server.h"
 #include "collector.h"
+#include "dispatcher.h"
 
 enum conntype {
 	LISTENER,
@@ -50,7 +51,7 @@ typedef struct _connection {
 	time_t wait;
 } connection;
 
-typedef struct _dispatcher {
+struct _dispatcher {
 	pthread_t tid;
 	enum conntype type;
 	char id;
@@ -59,7 +60,9 @@ typedef struct _dispatcher {
 	enum { RUNNING, SLEEPING } state;
 	char keep_running:1;
 	route *routes;
-} dispatcher;
+	route *pending_routes;
+	char route_refresh_pending:1;
+};
 
 static connection *listeners[32];       /* hopefully enough */
 static connection *connections = NULL;
@@ -482,6 +485,12 @@ dispatch_runner(void *arg)
 	} else if (self->type == CONNECTION) {
 		while (self->keep_running) {
 			work = 0;
+			if (self->route_refresh_pending) {
+				self->routes = self->pending_routes;
+				self->pending_routes = NULL;
+				self->route_refresh_pending = 0;
+			}
+
 			pthread_rwlock_rdlock(&connectionslock);
 			for (c = 0; c < connectionslen; c++) {
 				conn = &(connections[c]);
@@ -525,6 +534,7 @@ dispatch_new(char id, enum conntype type, route *routes)
 		return NULL;
 	}
 	ret->routes = routes;
+	ret->route_refresh_pending = 0;
 
 	return ret;
 }
@@ -572,6 +582,27 @@ dispatch_shutdown(dispatcher *d)
 	dispatch_stop(d);
 	pthread_join(d->tid, NULL);
 	free(d);
+}
+
+/**
+ * Schedules routes r to be put in place for the current routes.  The
+ * replacement is performed at the next cycle of the dispatcher.
+ */
+inline void
+dispatch_schedulereload(dispatcher *d, route *r)
+{
+	d->pending_routes = r;
+	d->route_refresh_pending = 1;
+}
+
+/**
+ * Returns true if the routes scheduled to be reloaded by a call to
+ * dispatch_schedulereload() have been activated.
+ */
+inline char
+dispatch_reloadcomplete(dispatcher *d)
+{
+	return d->route_refresh_pending == 0;
 }
 
 /**

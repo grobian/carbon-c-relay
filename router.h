@@ -40,6 +40,8 @@ size_t router_rewrite_metric(char (*newmetric)[METRIC_BUFSIZ], char **newfirstsp
 void router_printconfig(FILE *f, char all, cluster *clusters, route *routes);
 size_t router_route(destination ret[], size_t retsize, char *metric, char *firstspace, route *routes);
 void router_test(char *metric_path, route *routes);
+server **router_getservers(cluster *clusters);
 void router_shutdown(void);
+void router_free(cluster *clusters, route *r);
 
 #endif

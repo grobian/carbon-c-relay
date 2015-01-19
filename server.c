@@ -52,10 +52,7 @@ struct _server {
 	size_t metrics;
 	size_t dropped;
 	size_t ticks;
-	struct _server *next;
 };
-
-static server *servers = NULL;
 
 
 /**
@@ -398,7 +395,6 @@ server_new(
 
 	ret->ctype = ctype;
 	ret->tid = 0;
-	ret->next = NULL;
 	ret->secondaries = NULL;
 	ret->secondariescnt = 0;
 	ret->ip = strdup(ip);
@@ -430,8 +426,6 @@ server_new(
 		return NULL;
 	}
 
-	ret->next = servers;
-	servers = ret;
 	return ret;
 }
 
@@ -483,25 +477,13 @@ server_send(server *s, const char *d, char force)
 }
 
 /**
- * Returns a NULL-terminated list of servers.
+ * Signals this server to stop whatever it's doing.
  */
-server **
-server_get_servers(void)
+void
+server_stop(server *s)
 {
-	size_t cnt = 0;
-	server *walk;
-	server **ret;
-
-	for (walk = servers; walk != NULL; walk = walk->next)
-		cnt++;
-
-	if ((ret = malloc(sizeof(server *) * (cnt + 1))) == NULL)
-		return NULL;
-	for (cnt = 0, walk = servers; walk != NULL; walk = walk->next, cnt++)
-		ret[cnt] = walk;
-	ret[cnt] = NULL;
-
-	return ret;
+	if (s->secondariescnt == 0)
+		s->keep_running = 0;
 }
 
 /**
@@ -567,24 +549,6 @@ server_shutdown(server *s)
 		freeaddrinfo(s->saddr);
 	free((char *)s->ip);
 	s->ip = NULL;
-}
-
-/**
- * Waits for all servers to be shut down.  This is a small optimisation
- * over looping over server_shutdown for it tries to speed up the
- * waiting time by shutting down in parallel as many servers as
- * possible.
- */
-void
-server_shutdown_all(void)
-{
-	server *walk;
-
-	for (walk = servers; walk != NULL; walk = walk->next)
-		if (walk->secondariescnt == 0)
-			walk->keep_running = 0;
-	for (walk = servers; walk != NULL; walk = walk->next)
-		server_shutdown(walk);
 }
 
 /**

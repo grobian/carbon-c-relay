@@ -36,6 +36,13 @@ int keep_running = 1;
 char relay_hostname[256];
 enum rmode mode = NORMAL;
 
+static char *config = NULL;
+static int batchsize = 2500;
+static int queuesize = 25000;
+static dispatcher **workers = NULL;
+static char workercnt = 0;
+static cluster *clusters = NULL;
+static route *routes = NULL;
 
 static void
 exit_handler(int sig)
@@ -63,6 +70,53 @@ exit_handler(int sig)
 		exit(1);
 	}
 	keep_running = 0;
+}
+
+static void
+hup_handler(int sig)
+{
+	route *newroutes;
+	cluster *newclusters;
+	int id;
+	char nowbuf[24];
+
+	fprintf(stderr, "caught SIGHUP, reloading config from '%s'...\n", config);
+
+	if (router_readconfig(&newclusters, &newroutes,
+				config, queuesize, batchsize) == 0)
+	{
+		fprintf(stderr, "failed to read configuration '%s', aborting reload\n",
+				config);
+		return;
+	}
+	router_optimise(&newroutes);
+
+	fprintf(stdout, "[%s] reloading worker", fmtnow(nowbuf));
+	fflush(stdout);
+
+	for (id = 0; id < 1 + workercnt; id++)
+		dispatch_schedulereload(workers[id + 0], newroutes);
+	for (id = 0; id < 1 + workercnt; id++) {
+		while (!dispatch_reloadcomplete(workers[id + 0]))
+			usleep((100 + (rand() % 200)) * 1000);  /* 100ms - 300ms */
+		fprintf(stdout, " %d", id + 1);
+		fflush(stdout);
+	}
+	fprintf(stdout, " (%s)\n", fmtnow(nowbuf));
+	fprintf(stdout, "[%s] reloading collector", fmtnow(nowbuf));
+	fflush(stdout);
+
+	collector_schedulereload(newclusters);
+	while (!collector_reloadcomplete())
+		usleep((100 + (rand() % 200)) * 1000);  /* 100ms - 300ms */
+
+	fprintf(stdout, " (%s)\n", fmtnow(nowbuf));
+	fflush(stdout);
+
+	router_free(clusters, routes);
+
+	routes = newroutes;
+	clusters = newclusters;
 }
 
 char *
@@ -116,21 +170,15 @@ main(int argc, char * const argv[])
 	int dgram_sock[] = {0, 0};  /* udp4, udp6 */
 	int dgram_socklen = sizeof(dgram_sock) / sizeof(dgram_sock[0]);
 	char id;
-	server **servers;
-	dispatcher **workers;
-	char workercnt = 0;
-	char *config = NULL;
 	unsigned short listenport = 2003;
-	int batchsize = 2500;
-	int queuesize = 25000;
-	cluster *clusters;
-	route *routes;
 	int ch;
 	char nowbuf[24];
 	size_t numaggregators;
 	size_t numcomputes;
 	server *internal_submission;
 	char *listeninterface = NULL;
+	server **servers;
+	int i;
 
 	if (gethostname(relay_hostname, sizeof(relay_hostname)) < 0)
 		snprintf(relay_hostname, sizeof(relay_hostname), "127.0.0.1");
@@ -290,6 +338,11 @@ main(int argc, char * const argv[])
 				strerror(errno));
 		return 1;
 	}
+	if (signal(SIGHUP, hup_handler) == SIG_ERR) {
+		fprintf(stderr, "failed to create SIGHUP handler: %s\n",
+				strerror(errno));
+		return 1;
+	}
 	if (signal(SIGPIPE, SIG_IGN) == SIG_ERR) {
 		fprintf(stderr, "failed to ignore SIGPIPE: %s\n",
 				strerror(errno));
@@ -339,8 +392,6 @@ main(int argc, char * const argv[])
 		keep_running = 0;
 	}
 
-	servers = server_get_servers();
-
 	/* server used for delivering metrics produced inside the relay,
 	 * that is collector (statistics) and aggregator (aggregations) */
 	if ((internal_submission = server_new("internal", listenport, CON_PIPE,
@@ -359,8 +410,7 @@ main(int argc, char * const argv[])
 	}
 
 	fprintf(stdout, "starting statistics collector\n");
-	collector_start((void **)&workers[1], (void **)servers,
-			internal_submission);
+	collector_start(&workers[1], clusters, internal_submission);
 
 	fflush(stdout);  /* ensure all info stuff up here is out of the door */
 
@@ -403,13 +453,23 @@ main(int argc, char * const argv[])
 	fprintf(stdout, " (%s)\n", fmtnow(nowbuf));
 	fflush(stdout);
 	router_shutdown();
-	server_shutdown_all();
+	servers = router_getservers(clusters);
+	fprintf(stdout, "[%s] stopped server", fmtnow(nowbuf));
+	fflush(stdout);
+	for (i = 0; servers[i] != NULL; i++)
+		server_stop(servers[i]);
+	for (i = 0; servers[i] != NULL; i++) {
+		server_shutdown(servers[i]);
+		fprintf(stdout, " %d", i + 1);
+		fflush(stdout);
+	}
+	fprintf(stdout, " (%s)\n", fmtnow(nowbuf));
 	fprintf(stdout, "[%s] routing stopped\n", fmtnow(nowbuf));
 	fflush(stdout);
 
 	fflush(stderr);  /* ensure all of our termination messages are out */
 
+	router_free(clusters, routes);
 	free(workers);
-	free(servers);
 	return 0;
 }

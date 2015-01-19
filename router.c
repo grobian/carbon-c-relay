@@ -23,6 +23,7 @@
 #include <sys/stat.h>
 #include <arpa/inet.h>
 #include <errno.h>
+#include <assert.h>
 
 #include "consistent-hash.h"
 #include "server.h"
@@ -985,6 +986,7 @@ router_readconfig(cluster **clret, route **rret,
 				return 0;
 			}
 			cl->type = REWRITE;
+			cl->name = NULL;
 			cl->members.replacement = strdup(replacement);
 			cl->next = NULL;
 
@@ -1264,6 +1266,48 @@ router_optimise(route **routes)
 }
 
 /**
+ * Returns all (unique) servers from the cluster-configuration.
+ */
+server **
+router_getservers(cluster *clusters)
+{
+#define SERVSZ  511
+	server **ret = malloc(sizeof(server *) * SERVSZ + 1);
+	cluster *c;
+	servers *s;
+	int i;
+
+	*ret = NULL;
+
+#define add_server(X) { \
+	for (i = 0; i < SERVSZ && ret[i] != NULL; i++) \
+		if (ret[i] == X) \
+			break; \
+	if (i < SERVSZ && ret[i] == NULL) { \
+		ret[i] = X; \
+		ret[i + 1] = NULL; \
+	} \
+}
+
+	for (c = clusters; c != NULL; c = c->next) {
+		if (c->type == BLACKHOLE || c->type == REWRITE)
+			continue;
+		if (c->type == FORWARD) {
+			for (s = c->members.forward; s != NULL; s = s->next)
+				add_server(s->server);
+		} else if (c->type == ANYOF) {
+			for (s = c->members.anyof->list; s != NULL; s = s->next)
+				add_server(s->server);
+		} else if (c->type == CARBON_CH || c->type == FNV1A_CH) {
+			for (s = c->members.ch->servers; s != NULL; s = s->next)
+				add_server(s->server);
+		}
+	}
+
+	return ret;
+}
+
+/**
  * Mere debugging function to check if the configuration is picked up
  * alright.  If all is set to false, aggregation rules won't be printed.
  * This comes in handy because aggregations usually come in the order of
@@ -1355,6 +1399,81 @@ router_printconfig(FILE *f, char all, cluster *clusters, route *routes)
 		}
 	}
 	fflush(f);
+}
+
+/**
+ * Free the routes and all associated resources.
+ */
+void
+router_free(cluster *clusters, route *routes)
+{
+	cluster *c;
+	route *r;
+	servers *s;
+
+	while (routes != NULL) {
+		if (routes->dest->type == GROUP)
+			router_free(NULL, routes->dest->members.routes);
+
+		if (routes->pattern)
+			free(routes->pattern);
+		if (routes->strmatch)
+			free(routes->strmatch);
+		if (routes->matchtype == REGEX)
+			regfree(&routes->rule);
+
+		r = routes->next;
+		free(routes);
+		routes = r;
+	}
+
+	while (clusters != NULL) {
+		switch (clusters->type) {
+			case CARBON_CH:
+			case FNV1A_CH:
+				assert(clusters->members.ch != NULL);
+				ch_free(clusters->members.ch->ring);
+				free(clusters->members.ch);
+				break;
+			case FORWARD:
+			case BLACKHOLE:
+				while (clusters->members.forward) {
+					server_shutdown(clusters->members.forward->server);
+
+					s = clusters->members.forward->next;
+					free(clusters->members.forward);
+					clusters->members.forward = s;
+				}
+				break;
+			case ANYOF:
+				while (clusters->members.anyof->list) {
+					server_shutdown(clusters->members.anyof->list->server);
+
+					s = clusters->members.anyof->list->next;
+					free(clusters->members.anyof->list);
+					clusters->members.anyof->list = s;
+				}
+				if (clusters->members.anyof->servers)
+					free(clusters->members.anyof->servers);
+				break;
+			case GROUP:
+				/* handled at the routes above */
+				break;
+			case AGGREGATION:
+				/* aggregators starve when they get no more input */
+				break;
+			case REWRITE:
+				if (clusters->members.replacement)
+					free(clusters->members.replacement);
+				break;
+		}
+		if (clusters->name)
+			free(clusters->name);
+
+		c = clusters->next;
+		free(clusters);
+		clusters = c;
+	}
 }
 
 inline static char
