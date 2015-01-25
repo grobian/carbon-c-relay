@@ -20,6 +20,7 @@
 #include <string.h>
 #include <time.h>
 #include <pthread.h>
+#include <assert.h>
 
 #include "relay.h"
 #include "dispatcher.h"
@@ -87,6 +88,7 @@ collector_runner(void *s)
 			srvs = newservers;
 			cluster_refresh_pending = 0;
 		}
+		assert(srvs != NULL);
 		sleep(1);
 		now = time(NULL);
 		if (nextcycle > now)
@@ -193,8 +195,6 @@ collector_runner(void *s)
 			send(metric);
 		}
 
-		i = 0;
-
 		if (debug)
 			fflush(stdout);
 	}
@@ -225,6 +225,7 @@ collector_writer(void *unused)
 			srvs = newservers;
 			cluster_refresh_pending = 0;
 		}
+		assert(srvs != NULL);
 		sleep(1);
 		i++;
 		if (i < collector_interval)

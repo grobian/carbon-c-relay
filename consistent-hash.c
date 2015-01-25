@@ -19,6 +19,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <openssl/md5.h>
+#include <assert.h>
 
 #include "server.h"
 
@@ -160,6 +161,7 @@ ch_addnode(ch_ring *ring, server *s)
 		ch_ring_entry *w, *last;
 		i = 0;
 		last = NULL;
+		assert(ring->hash_replicas > 0);
 		for (w = ring->entries; w != NULL && i < ring->hash_replicas; ) {
 			if (w->pos < entries[i].pos) {
 				last = w;
@@ -214,6 +216,8 @@ ch_get_nodes(
 			pos = fnv1a_hashpos(metric, firstspace);
 			break;
 	}
+
+	assert(ring->entries);
 
 	/* implement behaviour of Python's bisect_left on the ring (used in
 	 * carbon hash source), one day we might want to implement it as

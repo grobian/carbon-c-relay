@@ -1020,6 +1020,7 @@ router_readconfig(cluster **clret, route **rret,
 			/* garbage? */
 			fprintf(stderr, "garbage in config: %s\n", p);
 			free(buf);
+			router_free(topcl, topr);
 			return 0;
 		}
 	} while (*p != '\0');
@@ -1257,7 +1258,7 @@ router_optimise(route **routes)
 			continue;
 		} else if (bwalk->refcnt < 3) {
 			if (*routes == NULL) {
-				rwalk = *routes = bwalk->firstroute;
+				*routes = bwalk->firstroute;
 			} else {
 				rwalk->next = bwalk->firstroute;
 			}
@@ -1562,6 +1563,8 @@ router_rewrite_metric(
 	const char *p;
 	const char *q;
 	const char *t;
+
+	assert(pmatch != NULL);
 
 	/* insert leading part */
 	q = metric;
