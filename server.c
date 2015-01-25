@@ -46,7 +46,8 @@ struct _server {
 	pthread_t tid;
 	struct _server **secondaries;
 	size_t secondariescnt;
-	char failure:6;
+	char failover:1;
+	char failure:5;
 	char running:1;
 	char keep_running:1;
 	size_t metrics;
@@ -107,7 +108,8 @@ server_queuereader(void *d)
 				/* it makes no sense to try and do something, so skip */
 				continue;
 		} else if (self->secondariescnt > 0 &&
-				(self->failure >= FAIL_WAIT_TIME || LEN_CRITICAL(self->queue)))
+				(self->failure >= FAIL_WAIT_TIME ||
+				 (!self->failover && LEN_CRITICAL(self->queue))))
 		{
 			size_t i;
 			/* offload data from our queue to our secondaries
@@ -126,7 +128,7 @@ server_queuereader(void *d)
 				if (self->secondaries[i]->failure)
 					continue;
 				queue = self->secondaries[i]->queue;
-				if (LEN_CRITICAL(queue)) {
+				if (!self->failover && LEN_CRITICAL(queue)) {
 					queue = NULL;
 					continue;
 				}
@@ -440,6 +442,16 @@ server_add_secondaries(server *self, server **secondaries, size_t count)
 {
 	self->secondaries = secondaries;
 	self->secondariescnt = count;
+}
+
+/**
+ * Flags this server as part of a failover cluster, which means the
+ * secondaries are used only to offload on failure, not on queue stress.
+ */
+void
+server_set_failover(server *self)
+{
+	self->failover = 1;
 }
 
 /**

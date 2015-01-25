@@ -32,6 +32,7 @@ server *server_new(
 		size_t queuesize,
 		size_t batchsize);
 void server_add_secondaries(server *d, server **sec, size_t cnt);
+void server_set_failover(server *d);
 char server_send(server *s, const char *d, char force);
 void server_stop(server *s);
 void server_shutdown(server *s);

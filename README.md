@@ -49,7 +49,7 @@ The route file syntax is as follows:
 # comments are allowed in any place and start with a hash (#)
 
 cluster <name>
-    <forward | any_of [useall] | <carbon_ch | fnv1a_ch> [replication <count>]>
+    <forward | any_of [useall] | failover | <carbon_ch | fnv1a_ch> [replication <count>]>
         <host[:port] [proto <udp | tcp>]> ...
     ;
 match <* | <expression>>
@@ -86,15 +86,17 @@ is not much useful in itself, but since any of the members can receive
 each metric, this means that when one of the members is unreachable, the
 other members will receive all of the metrics.  This can be useful when
 the cluster points to other relays.  The `any_of` router tries to send
-the same metrics to the same destination.  The `carbon_ch` cluster sends
-the metrics to the member that is responsible according to the
-consistent hash algorithm (as used in the original carbon), or multiple
-members if replication is set to more than 1.  The `fnv1a_ch` cluster is
-a identical in behaviour to `carbon_ch`, but it uses a different hash
-technique (FNV1a) which is faster but more importantly defined to get by
-a limitation of `carbon_ch` to use both host and port from the members.
-This is useful when multiple targets live on the same host just separated
-by port.
+the same metrics consistently to the same destination.  The `failover`
+cluster is like the `any_of` cluster, but sticks to the order in which
+servers are defined.  This is to implement a pure failover scenario
+between servers.  The `carbon_ch` cluster sends the metrics to the
+member that is responsible according to the consistent hash algorithm
+(as used in the original carbon), or multiple members if replication is
+set to more than 1.  The `fnv1a_ch` cluster is a identical in behaviour
+to `carbon_ch`, but it uses a different hash technique (FNV1a) which is
+faster but more importantly defined to get by a limitation of
+`carbon_ch` to use both host and port from the members.  This is useful
+when multiple targets live on the same host just separated by port.
 
 DNS hostnames are resolved to a single address, according to the preference
 rules in [RFC 3484](https://www.ietf.org/rfc/rfc3484.txt).  The `any_of`

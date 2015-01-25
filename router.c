@@ -39,6 +39,7 @@ enum clusttype {
 	CARBON_CH,  /* room for a better/different hash definition */
 	FNV1A_CH,   /* FNV1a-based consistent-hash */
 	ANYOF,      /* FNV1a-based hash, but with backup by others */
+	FAILOVER,   /* ordered attempt delivery list */
 	AGGREGATION,
 	REWRITE
 };
@@ -206,7 +207,7 @@ determine_if_regex(route *r, char *pat, int flags)
  * Config file supports the following:
  *
  * cluster (name)
- *     (forward | any_of [useall] | carbon_ch [replication (count)])
+ *     (forward | any_of [useall] | failover | (carbon|fnv1a)_ch [replication (count)])
  *         (ip:port [proto (tcp | udp)] ...)
  *     ;
  * match (* | regex)
@@ -369,6 +370,18 @@ router_readconfig(cluster **clret, route **rret,
 					return 0;
 				}
 				cl->type = ANYOF;
+				cl->members.anyof = NULL;
+			} else if (strncmp(p, "failover", 8) == 0 && isspace(*(p + 8))) {
+				p += 9;
+
+				for (; *p != '\0' && isspace(*p); p++)
+					;
+				if ((cl = cl->next = malloc(sizeof(cluster))) == NULL) {
+					fprintf(stderr, "malloc failed in cluster failover\n");
+					free(buf);
+					return 0;
+				}
+				cl->type = FAILOVER;
 				cl->members.anyof = NULL;
 			} else {
 				char *type = p;
@@ -556,7 +569,10 @@ router_readconfig(cluster **clret, route **rret,
 							free(buf);
 							return 0;
 						}
-					} else if (cl->type == FORWARD || cl->type == ANYOF) {
+					} else if (cl->type == FORWARD ||
+							cl->type == ANYOF ||
+							cl->type == FAILOVER)
+					{
 						if (w == NULL) {
 							w = malloc(sizeof(servers));
 						} else {
@@ -564,7 +580,9 @@ router_readconfig(cluster **clret, route **rret,
 						}
 						if (w == NULL) {
 							fprintf(stderr, "malloc failed for %s %s\n",
-									cl->type == FORWARD ? "forward" : "any_of", ip);
+									cl->type == FORWARD ? "forward" :
+									cl->type == ANYOF ? "any_of" : "failover",
+									ip);
 							free(cl);
 							free(buf);
 							return 0;
@@ -573,13 +591,15 @@ router_readconfig(cluster **clret, route **rret,
 						w->server = newserver;
 						if (cl->type == FORWARD && cl->members.forward == NULL)
 							cl->members.forward = w;
-						if (cl->type == ANYOF && cl->members.anyof == NULL) {
+						if ((cl->type == ANYOF || cl->type == FAILOVER) &&
+								cl->members.anyof == NULL)
+						{
 							cl->members.anyof = malloc(sizeof(serverlist));
 							cl->members.anyof->count = 0;
 							cl->members.anyof->servers = NULL;
 							cl->members.anyof->list = w;
 						}
-						if (cl->type == ANYOF)
+						if (cl->type == ANYOF || cl->type == FAILOVER)
 							cl->members.anyof->count++;
 					}
 
@@ -591,16 +611,19 @@ router_readconfig(cluster **clret, route **rret,
 					;
 			} while (*p != ';');
 			p++; /* skip over ';' */
-			if (cl->type == ANYOF) {
+			if (cl->type == ANYOF || cl->type == FAILOVER) {
 				size_t i = 0;
 				cl->members.anyof->servers =
 					malloc(sizeof(server *) * cl->members.anyof->count);
 				for (w = cl->members.anyof->list; w != NULL; w = w->next)
 					cl->members.anyof->servers[i++] = w->server;
-				for (w = cl->members.anyof->list; w != NULL; w = w->next)
+				for (w = cl->members.anyof->list; w != NULL; w = w->next) {
 					server_add_secondaries(w->server,
 							cl->members.anyof->servers,
 							cl->members.anyof->count);
+					if (cl->type == FAILOVER)
+						server_set_failover(w->server);
+				}
 			}
 			cl->name = strdup(name);
 			cl->next = NULL;
@@ -1295,7 +1318,7 @@ router_getservers(cluster *clusters)
 		if (c->type == FORWARD) {
 			for (s = c->members.forward; s != NULL; s = s->next)
 				add_server(s->server);
-		} else if (c->type == ANYOF) {
+		} else if (c->type == ANYOF || c->type == FAILOVER) {
 			for (s = c->members.anyof->list; s != NULL; s = s->next)
 				add_server(s->server);
 		} else if (c->type == CARBON_CH || c->type == FNV1A_CH) {
@@ -1332,8 +1355,8 @@ router_printconfig(FILE *f, char all, cluster *clusters, route *routes)
 			for (s = c->members.forward; s != NULL; s = s->next)
 				fprintf(f, "        %s:%d%s\n",
 						server_ip(s->server), server_port(s->server), PPROTO);
-		} else if (c->type == ANYOF) {
-			fprintf(f, "    any_of\n");
+		} else if (c->type == ANYOF || c->type == FAILOVER) {
+			fprintf(f, "    %s\n", c->type == ANYOF ? "any_of" : "failover");
 			for (s = c->members.anyof->list; s != NULL; s = s->next)
 				fprintf(f, "        %s:%d%s\n",
 						server_ip(s->server), server_port(s->server), PPROTO);
@@ -1446,6 +1469,7 @@ router_free(cluster *clusters, route *routes)
 				}
 				break;
 			case ANYOF:
+			case FAILOVER:
 				while (clusters->members.anyof->list) {
 					server_shutdown(clusters->members.anyof->list->server);
 
@@ -1699,6 +1723,24 @@ router_route_intern(
 					failif(retsize, *curlen + 1);
 					ret[*curlen].dest =
 						w->dest->members.anyof->servers[hash];
+					ret[(*curlen)++].metric = strdup(metric);
+				}	break;
+				case FAILOVER: {
+					/* queue at the first non-failing server */
+					unsigned short i;
+
+					failif(retsize, *curlen + 1);
+					ret[*curlen].dest = NULL;
+					for (i = 0; i < w->dest->members.anyof->count; i++) {
+						server *s = w->dest->members.anyof->servers[i];
+						if (server_failed(s))
+							continue;
+						ret[*curlen].dest = s;
+						break;
+					}
+					if (ret[*curlen].dest == NULL)
+						/* all failed, take first server */
+						ret[*curlen].dest = w->dest->members.anyof->servers[0];
 					ret[(*curlen)++].metric = strdup(metric);
 				}	break;
 				case CARBON_CH:
