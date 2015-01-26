@@ -34,6 +34,7 @@
 
 typedef struct _ring_entry {
 	unsigned short pos;
+	unsigned char malloced:1;
 	server *server;
 	struct _ring_entry *next;
 } ch_ring_entry;
@@ -141,6 +142,7 @@ ch_addnode(ch_ring *ring, server *s)
 				entries[i].pos = carbon_hashpos(buf, buf + strlen(buf));
 				entries[i].server = s;
 				entries[i].next = NULL;
+				entries[i].malloced = 0;
 			}
 			break;
 		case FNV1a:
@@ -153,12 +155,14 @@ ch_addnode(ch_ring *ring, server *s)
 				entries[i].pos = fnv1a_hashpos(buf, buf + strlen(buf));
 				entries[i].server = s;
 				entries[i].next = NULL;
+				entries[i].malloced = 0;
 			}
 			break;
 	}
 
 	/* sort to allow merge joins later down the road */
 	qsort(entries, ring->hash_replicas, sizeof(ch_ring_entry), *entrycmp);
+	entries[0].malloced = 1;
 
 	if (ring->entries == NULL) {
 		for (i = 1; i < ring->hash_replicas; i++)
@@ -258,14 +262,26 @@ ch_get_nodes(
 void
 ch_free(ch_ring *ring)
 {
+	ch_ring_entry *deletes = NULL;
 	ch_ring_entry *w;
 
-	while (ring->entries) {
+	for (; ring->entries != NULL; ring->entries = ring->entries->next) {
 		server_shutdown(ring->entries->server);
 
-		w = ring->entries->next;
-		free(ring->entries);
-		ring->entries = w;
+		if (ring->entries->malloced) {
+			if (deletes == NULL) {
+				w = deletes = ring->entries;
+			} else {
+				w = w->next = ring->entries;
+			}
+		}
+	}
+
+	w->next = NULL;
+	while (deletes != NULL) {
+		w = deletes->next;
+		free(deletes);
+		deletes = w;
 	}
 
 	free(ring);
