@@ -37,6 +37,7 @@
 struct _server {
 	const char *ip;
 	unsigned short port;
+	char *instance;
 	struct addrinfo *saddr;
 	int fd;
 	queue *queue;
@@ -401,6 +402,7 @@ server_new(
 	ret->secondariescnt = 0;
 	ret->ip = strdup(ip);
 	ret->port = port;
+	ret->instance = NULL;
 	ret->bsize = bsize;
 	if ((ret->batch = malloc(sizeof(char *) * (bsize + 1))) == NULL) {
 		free(ret);
@@ -452,6 +454,15 @@ void
 server_set_failover(server *self)
 {
 	self->failover = 1;
+}
+
+/**
+ * Sets instance name only used for carbon_ch cluster type.
+ */
+void
+server_set_instance(server *self, char *instance)
+{
+	self->instance = strdup(instance);
 }
 
 /**
@@ -557,6 +568,8 @@ server_shutdown(server *s)
 					qlen, s->ip, s->port);
 	}
 	free(s->batch);
+	if (s->instance)
+		free(s->instance);
 	if (s->saddr != NULL)
 		freeaddrinfo(s->saddr);
 	free((char *)s->ip);
@@ -583,6 +596,15 @@ server_port(server *s)
 	if (s == NULL)
 		return 0;
 	return s->port;
+}
+
+/**
+ * Returns the instance associated with this server.
+ */
+inline char *
+server_instance(server *s)
+{
+	return s->instance;
 }
 
 /**

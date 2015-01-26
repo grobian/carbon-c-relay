@@ -96,7 +96,10 @@ set to more than 1.  The `fnv1a_ch` cluster is a identical in behaviour
 to `carbon_ch`, but it uses a different hash technique (FNV1a) which is
 faster but more importantly defined to get by a limitation of
 `carbon_ch` to use both host and port from the members.  This is useful
-when multiple targets live on the same host just separated by port.
+when multiple targets live on the same host just separated by port.  The
+instance that original carbon uses to get around this can be set by
+appending it after the port, separated by an equals sign, e.g.
+`127.0.0.1:2006=a` for instance `a`.
 
 DNS hostnames are resolved to a single address, according to the preference
 rules in [RFC 3484](https://www.ietf.org/rfc/rfc3484.txt).  The `any_of`

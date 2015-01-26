@@ -103,7 +103,9 @@ ch_new(ch_type type)
  * Computes the hash positions for the server name given.  This is based
  * on the hashpos function.  The server name usually is the IPv4
  * address.  The port component is just stored and not used in the
- * carbon hash calculation.  Returns an updated ring.
+ * carbon hash calculation in case of carbon_ch.  The instance component
+ * is used in the hash calculation of carbon_ch, it is ignored for
+ * fnv1a_ch.  Returns an updated ring.
  */
 ch_ring *
 ch_addnode(ch_ring *ring, server *s)
@@ -123,9 +125,15 @@ ch_addnode(ch_ring *ring, server *s)
 	switch (ring->type) {
 		case CARBON:
 			for (i = 0; i < ring->hash_replicas; i++) {
+				char *instance = server_instance(s);
 				/* this format is actually Python's tuple format that is
 				 * used in serialised form as input for the hash */
-				snprintf(buf, sizeof(buf), "('%s', None):%d", server_ip(s), i);
+				snprintf(buf, sizeof(buf), "('%s', %s%s%s):%d",
+						server_ip(s),
+						instance == NULL ? "" : "'",
+						instance == NULL ? "None" : instance,
+						instance == NULL ? "" : "'",
+						i);
 				/* TODO:
 				 * https://github.com/graphite-project/carbon/commit/024f9e67ca47619438951c59154c0dec0b0518c7
 				 * Question is how harmful the collision is -- it will probably

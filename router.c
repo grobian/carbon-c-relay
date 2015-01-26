@@ -208,7 +208,7 @@ determine_if_regex(route *r, char *pat, int flags)
  *
  * cluster (name)
  *     (forward | any_of [useall] | failover | (carbon|fnv1a)_ch [replication (count)])
- *         (ip:port [proto (tcp | udp)] ...)
+ *         (ip:port[=instance] [proto (tcp | udp)] ...)
  *     ;
  * match (* | regex)
  *     send to (cluster | blackhole)
@@ -402,6 +402,7 @@ router_readconfig(cluster **clret, route **rret,
 				char termchr;
 				char *lastcolon = NULL;
 				char *ip = p;
+				char *inst = NULL;
 				char *proto = "tcp";
 				int port = 2003;
 				server *newserver = NULL;
@@ -427,6 +428,19 @@ router_readconfig(cluster **clret, route **rret,
 				termchr = *p;
 				*p = '\0';
 
+				if (cl->type == CARBON_CH) {
+					/* parse optional "=instance" bit */
+					for (inst = p - 1; inst > ip; inst--) {
+						if (*inst == '=') {
+							*inst = '\0';
+							p = inst++;
+							break;
+						}
+					}
+					if (inst == ip)
+						inst = NULL;
+				}
+
 				if (*(p - 1) == ']')
 					lastcolon = NULL;
 				if (lastcolon != NULL) {
@@ -447,6 +461,9 @@ router_readconfig(cluster **clret, route **rret,
 						return 0;
 					}
 				}
+
+				if (inst != NULL)
+					p = inst + strlen(inst);
 
 				if (isspace(termchr)) {
 					p++;
@@ -557,6 +574,8 @@ router_readconfig(cluster **clret, route **rret,
 							return 0;
 						}
 						w->next = NULL;
+						if (cl->type == CARBON_CH && inst != NULL)
+							server_set_instance(newserver, inst);
 						w->server = newserver;
 						cl->members.ch->ring = ch_addnode(
 								cl->members.ch->ring,
@@ -1366,8 +1385,11 @@ router_printconfig(FILE *f, char all, cluster *clusters, route *routes)
 					c->type == CARBON_CH ? "carbon" : "fnv1a",
 					c->members.ch->repl_factor);
 			for (s = c->members.ch->servers; s != NULL; s = s->next)
-				fprintf(f, "        %s:%d%s\n",
-						server_ip(s->server), server_port(s->server), PPROTO);
+				fprintf(f, "        %s:%d%s%s%s\n",
+						server_ip(s->server), server_port(s->server),
+						server_instance(s->server) ? "=" : "",
+						server_instance(s->server) ? server_instance(s->server) : "",
+						PPROTO);
 		}
 		fprintf(f, "    ;\n");
 	}
