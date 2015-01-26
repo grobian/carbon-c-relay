@@ -200,9 +200,9 @@ different from the two consistent hash cluster types:
 
     cluster graphite
         carbon_ch
-            10.1.0.1
-            10.1.0.2
-            10.1.0.3
+            127.0.0.1:2006=a
+            127.0.0.1:2007=b
+            127.0.0.1:2008=c
         ;
 
 If a member in this example fails, all metrics that would go to that
@@ -212,8 +212,8 @@ metric ends up on the same server always.  The `carbon_ch` cluster type
 is compatible with carbon-relay consistent hash, and can be used for
 existing clusters populated by carbon-relay.  For new clusters, however,
 it is better to use the `fnv1a_ch` cluster type, for it is faster, and
-allows to balance over the same address but different ports, unlike
-`carbon_ch`.
+allows to balance over the same address but different ports without an
+instance number, unlike `carbon_ch`.
 
 Because we can use multiple clusters, we can also replicate without the
 use of the `forward` cluster type, in a more intelligent way:
