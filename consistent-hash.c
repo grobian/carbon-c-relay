@@ -263,7 +263,7 @@ void
 ch_free(ch_ring *ring)
 {
 	ch_ring_entry *deletes = NULL;
-	ch_ring_entry *w;
+	ch_ring_entry *w = NULL;
 
 	for (; ring->entries != NULL; ring->entries = ring->entries->next) {
 		server_shutdown(ring->entries->server);
@@ -277,6 +277,7 @@ ch_free(ch_ring *ring)
 		}
 	}
 
+	assert(w != NULL);
 	w->next = NULL;
 	while (deletes != NULL) {
 		w = deletes->next;
