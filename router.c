@@ -428,6 +428,14 @@ router_readconfig(cluster **clret, route **rret,
 				termchr = *p;
 				*p = '\0';
 
+				if (lastcolon != NULL && p - lastcolon == 1) {
+					fprintf(stderr, "expected port at '%s' "
+							"for cluster %s\n", ip, name);
+					free(cl);
+					free(buf);
+					return 0;
+				}
+
 				if (cl->type == CARBON_CH) {
 					/* parse optional "=instance" bit */
 					for (inst = p - 1; inst > ip; inst--) {
