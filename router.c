@@ -428,14 +428,6 @@ router_readconfig(cluster **clret, route **rret,
 				termchr = *p;
 				*p = '\0';
 
-				if (lastcolon != NULL && p - lastcolon == 1) {
-					fprintf(stderr, "expected port at '%s' "
-							"for cluster %s\n", ip, name);
-					free(cl);
-					free(buf);
-					return 0;
-				}
-
 				if (cl->type == CARBON_CH) {
 					/* parse optional "=instance" bit */
 					for (inst = p - 1; inst > ip; inst--) {
@@ -452,8 +444,16 @@ router_readconfig(cluster **clret, route **rret,
 				if (*(p - 1) == ']')
 					lastcolon = NULL;
 				if (lastcolon != NULL) {
+					char *endp = NULL;
 					*lastcolon = '\0';
-					port = atoi(lastcolon + 1);
+					port = (int)strtol(lastcolon + 1, &endp, 10);
+					if (port == 0 || endp != p) {
+						fprintf(stderr, "expected port, or unexpected data at "
+								"'%s' for cluster %s\n", lastcolon + 1, name);
+						free(cl);
+						free(buf);
+						return 0;
+					}
 				}
 				if (*ip == '[') {
 					ip++;
