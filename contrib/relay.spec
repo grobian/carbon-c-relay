@@ -29,6 +29,9 @@ mkdir -vp $RPM_BUILD_ROOT/var/log/carbon/
 mkdir -vp $RPM_BUILD_ROOT/etc/monit.d/
 mkdir -vp $RPM_BUILD_ROOT/var/run/carbon
 mkdir -vp $RPM_BUILD_ROOT/var/lib/carbon
+mkdir -vp $RPM_BUILD_ROOT/usr/bin
+mkdir -vp $RPM_BUILD_ROOT/etc/init.d
+mkdir -vp $RPM_BUILD_ROOT/etc/sysconfig
 install -m 755 relay $RPM_BUILD_ROOT/usr/bin/relay
 install -m 644 contrib/relay.conf $RPM_BUILD_ROOT/etc/relay.conf
 install -m 755 contrib/relay.init $RPM_BUILD_ROOT/etc/init.d/relay
