@@ -46,10 +46,12 @@ collector_runner(void *s)
 	size_t totticks;
 	size_t totmetrics;
 	size_t totqueued;
+	size_t totstalls;
 	size_t totdropped;
 	size_t ticks;
 	size_t metrics;
 	size_t queued;
+	size_t stalls;
 	size_t dropped;
 	size_t dispatchers_idle;
 	size_t dispatchers_busy;
@@ -129,6 +131,7 @@ collector_runner(void *s)
 		totticks = 0;
 		totmetrics = 0;
 		totqueued = 0;
+		totstalls = 0;
 		totdropped = 0;
 		for (i = 0; srvs[i] != NULL; i++) {
 			if (server_ctype(srvs[i]) == CON_PIPE) {
@@ -137,6 +140,7 @@ collector_runner(void *s)
 				ticks = server_get_ticks(srvs[i]);
 				metrics = server_get_metrics(srvs[i]);
 				queued = server_get_queue_len(srvs[i]);
+				stalls = server_get_stalls(srvs[i]);
 				dropped = server_get_dropped(srvs[i]);
 			} else {
 				snprintf(ipbuf, sizeof(ipbuf), "%s:%u",
@@ -148,6 +152,7 @@ collector_runner(void *s)
 				totticks += ticks = server_get_ticks(srvs[i]);
 				totmetrics += metrics = server_get_metrics(srvs[i]);
 				totqueued += queued = server_get_queue_len(srvs[i]);
+				totstalls += stalls = server_get_stalls(srvs[i]);
 				totdropped += dropped = server_get_dropped(srvs[i]);
 			}
 			snprintf(m, sizem, "destinations.%s.sent %zd %zd\n",
@@ -155,6 +160,9 @@ collector_runner(void *s)
 			send(metric);
 			snprintf(m, sizem, "destinations.%s.queued %zd %zd\n",
 					ipbuf, queued, (size_t)now);
+			send(metric);
+			snprintf(m, sizem, "destinations.%s.stalls %zd %zd\n",
+					ipbuf, stalls, (size_t)now);
 			send(metric);
 			snprintf(m, sizem, "destinations.%s.dropped %zd %zd\n",
 					ipbuf, dropped, (size_t)now);
@@ -169,6 +177,9 @@ collector_runner(void *s)
 		send(metric);
 		snprintf(m, sizem, "metricsQueued %zd %zd\n",
 				totqueued, (size_t)now);
+		send(metric);
+		snprintf(m, sizem, "metricStalls %zd %zd\n",
+				totstalls, (size_t)now);
 		send(metric);
 		snprintf(m, sizem, "metricsDropped %zd %zd\n",
 				totdropped, (size_t)now);

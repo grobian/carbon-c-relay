@@ -44,6 +44,7 @@ inline serv_ctype server_ctype(server *s);
 char server_failed(server *s);
 size_t server_get_ticks(server *s);
 size_t server_get_metrics(server *s);
+size_t server_get_stalls(server *s);
 size_t server_get_dropped(server *s);
 size_t server_get_queue_len(server *s);
 

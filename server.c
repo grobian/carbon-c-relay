@@ -53,6 +53,7 @@ struct _server {
 	char keep_running:1;
 	size_t metrics;
 	size_t dropped;
+	size_t stalls;
 	size_t ticks;
 };
 
@@ -422,6 +423,7 @@ server_new(
 	ret->keep_running = 1;
 	ret->metrics = 0;
 	ret->dropped = 0;
+	ret->stalls = 0;
 	ret->ticks = 0;
 
 	if (pthread_create(&ret->tid, NULL, &server_queuereader, ret) != 0) {
@@ -491,6 +493,7 @@ server_send(server *s, const char *d, char force)
 			s->dropped++;
 			/* excess event will be dropped by the enqueue below */
 		} else {
+			s->stalls++;
 			return 0;
 		}
 	}
@@ -660,6 +663,19 @@ server_get_dropped(server *s)
 	if (s == NULL)
 		return 0;
 	return s->dropped;
+}
+
+/**
+ * Returns the number of stalls since start.  A stall happens when the
+ * queue is full, but it appears as if it would be a good idea to wait
+ * for a brief period and retry.
+ */
+inline size_t
+server_get_stalls(server *s)
+{
+	if (s == NULL)
+		return 0;
+	return s->stalls;
 }
 
 /**
