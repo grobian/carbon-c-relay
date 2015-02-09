@@ -345,7 +345,8 @@ main(int argc, char * const argv[])
 	}
 	relay_can_log = 1;
 
-	logout("starting carbon-c-relay v%s (%s)\n", VERSION, GIT_VERSION);
+	logout("starting carbon-c-relay v%s (%s), pid=%d\n",
+			VERSION, GIT_VERSION, getpid());
 	fprintf(relay_stdout, "configuration:\n");
 	fprintf(relay_stdout, "    relay hostname = %s\n", relay_hostname);
 	fprintf(relay_stdout, "    listen port = %u\n", listenport);
