@@ -45,6 +45,7 @@ static dispatcher **workers = NULL;
 static char workercnt = 0;
 static cluster *clusters = NULL;
 static route *routes = NULL;
+static char *relay_logfile = NULL;
 static FILE *relay_stdout = NULL;
 static FILE *relay_stderr = NULL;
 static char relay_can_log = 0;
@@ -136,8 +137,26 @@ hup_handler(int sig)
 	route *newroutes;
 	cluster *newclusters;
 	int id;
+	FILE *newfd;
 
-	logerr("caught SIGHUP, reloading config from '%s'...\n", config);
+	logout("caught SIGHUP...\n");
+	if (relay_stderr != stderr) {
+		/* try to re-open the file first, so we can still try and say
+		 * something if that fails */
+		if ((newfd = fopen(relay_logfile, "a")) == NULL) {
+			logerr("not reopening logfiles: can't open '%s': %s\n",
+					relay_logfile, strerror(errno));
+		} else {
+			logout("closing logfile\n");
+			relay_can_log = 0;
+			fclose(relay_stderr);
+			relay_stdout = newfd;
+			relay_stdout = newfd;
+			relay_can_log = 1;
+			logout("reopening logfile\n");
+		}
+	}
+	logout("reloading config from '%s'...\n", config);
 
 	if (router_readconfig(&newclusters, &newroutes,
 				config, queuesize, batchsize) == 0)
@@ -217,7 +236,6 @@ main(int argc, char * const argv[])
 	size_t numcomputes;
 	server *internal_submission;
 	char *listeninterface = NULL;
-	char *logfile = NULL;
 	server **servers;
 	int i;
 
@@ -245,7 +263,7 @@ main(int argc, char * const argv[])
 				listeninterface = optarg;
 				break;
 			case 'l':
-				logfile = optarg;
+				relay_logfile = optarg;
 				break;
 			case 'p':
 				listenport = (unsigned short)atoi(optarg);
@@ -312,11 +330,11 @@ main(int argc, char * const argv[])
 		exit(-1);
 	}
 
-	if (logfile != NULL && mode != TEST) {
-		FILE *f = fopen(logfile, "a");
+	if (relay_logfile != NULL && mode != TEST) {
+		FILE *f = fopen(relay_logfile, "a");
 		if (f == NULL) {
 			fprintf(stderr, "error: failed to open logfile '%s': %s\n",
-					logfile, strerror(errno));
+					relay_logfile, strerror(errno));
 			exit(-1);
 		}
 		relay_stdout = f;
