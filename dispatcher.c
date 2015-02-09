@@ -89,7 +89,7 @@ dispatch_check_rlimit_and_warn(void)
 		if (getrlimit(RLIMIT_NOFILE, &ofiles) < 0)
 			ofiles.rlim_max = 0;
 		if (ofiles.rlim_max != RLIM_INFINITY && ofiles.rlim_max > 0)
-			fprintf(stderr, "process configured maximum connections = %d, "
+			logerr("process configured maximum connections = %d, "
 					"consider raising max open files/max descriptor limit\n",
 					(int)ofiles.rlim_max);
 	}
@@ -116,11 +116,10 @@ dispatch_addlistener(int sock)
 		if (__sync_bool_compare_and_swap(&(listeners[c]), NULL, newconn))
 			break;
 	if (c == sizeof(listeners) / sizeof(connection *)) {
-		char nowbuf[24];
 		free(newconn);
-		fprintf(stderr, "[%s] cannot add new listener: "
+		logerr("cannot add new listener: "
 				"no more free listener slots (max = %zd)\n",
-				fmtnow(nowbuf), sizeof(listeners) / sizeof(connection *));
+				sizeof(listeners) / sizeof(connection *));
 		return 1;
 	}
 
@@ -139,7 +138,7 @@ dispatch_removelistener(int sock)
 			break;
 	if (c == sizeof(listeners) / sizeof(connection *)) {
 		/* not found?!? */
-		fprintf(stderr, "dispatch: cannot find listener!\n");
+		logerr("dispatch: cannot find listener!\n");
 		return;
 	}
 	/* make this connection no longer visible */
@@ -171,7 +170,6 @@ dispatch_addconnection(int sock)
 	pthread_rwlock_unlock(&connectionslock);
 
 	if (c == connectionslen) {
-		char nowbuf[24];
 		connection *newlst;
 
 		pthread_rwlock_wrlock(&connectionslock);
@@ -183,9 +181,9 @@ dispatch_addconnection(int sock)
 		newlst = realloc(connections,
 				sizeof(connection) * (connectionslen + CONNGROWSZ));
 		if (newlst == NULL) {
-			fprintf(stderr, "[%s] cannot add new connection: "
+			logerr("cannot add new connection: "
 					"out of memory allocating more slots (max = %zd)\n",
-					fmtnow(nowbuf), connectionslen);
+					connectionslen);
 
 			pthread_rwlock_unlock(&connectionslock);
 			return -1;
@@ -467,10 +465,9 @@ dispatch_runner(void *arg)
 
 						if ((client = accept(conn->sock, &addr, &addrlen)) < 0)
 						{
-							char nowbuf[24];
-							fprintf(stderr, "[%s] dispatch: failed to "
+							logerr("dispatch: failed to "
 									"accept() new connection: %s\n",
-									fmtnow(nowbuf), strerror(errno));
+									strerror(errno));
 							dispatch_check_rlimit_and_warn();
 							continue;
 						}
@@ -508,7 +505,7 @@ dispatch_runner(void *arg)
 				usleep((100 + (rand() % 200)) * 1000);  /* 100ms - 300ms */
 		}
 	} else {
-		fprintf(stderr, "huh? unknown self type!\n");
+		logerr("huh? unknown self type!\n");
 	}
 
 	return NULL;

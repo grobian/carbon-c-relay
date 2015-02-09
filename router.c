@@ -190,7 +190,7 @@ determine_if_regex(route *r, char *pat, int flags)
 			 * expression */
 			r->nmatch = r->rule.re_nsub + 1;
 			if (r->nmatch > RE_MAX_MATCHES) {
-				fprintf(stderr, "determine_if_regex: too many match groups, "
+				logerr("determine_if_regex: too many match groups, "
 						"please increase RE_MAX_MATCHES in router.h\n");
 				free(r->pattern);
 				return REG_ESPACE;  /* lie closest to the truth */
@@ -297,7 +297,7 @@ router_readconfig(cluster **clret, route **rret,
 			for (; *p != '\0' && !isspace(*p); p++)
 				;
 			if (*p == '\0') {
-				fprintf(stderr, "unexpected end of file after 'cluster'\n");
+				logerr("unexpected end of file after 'cluster'\n");
 				free(buf);
 				return 0;
 			}
@@ -323,7 +323,7 @@ router_readconfig(cluster **clret, route **rret,
 					for (; *p != '\0' && !isspace(*p); p++)
 						;
 					if (*p == '\0') {
-						fprintf(stderr, "unexpected end of file after "
+						logerr("unexpected end of file after "
 								"'replication %s' for cluster %s\n",
 								repl, name);
 						free(buf);
@@ -335,7 +335,7 @@ router_readconfig(cluster **clret, route **rret,
 				}
 
 				if ((cl = cl->next = malloc(sizeof(cluster))) == NULL) {
-					fprintf(stderr, "malloc failed in cluster %s\n", name);
+					logerr("malloc failed in cluster %s\n", name);
 					free(buf);
 					return 0;
 				}
@@ -348,7 +348,7 @@ router_readconfig(cluster **clret, route **rret,
 				p += 8;
 
 				if ((cl = cl->next = malloc(sizeof(cluster))) == NULL) {
-					fprintf(stderr, "malloc failed in cluster forward\n");
+					logerr("malloc failed in cluster forward\n");
 					free(buf);
 					return 0;
 				}
@@ -365,7 +365,7 @@ router_readconfig(cluster **clret, route **rret,
 				}
 
 				if ((cl = cl->next = malloc(sizeof(cluster))) == NULL) {
-					fprintf(stderr, "malloc failed in cluster any_of\n");
+					logerr("malloc failed in cluster any_of\n");
 					free(buf);
 					return 0;
 				}
@@ -377,7 +377,7 @@ router_readconfig(cluster **clret, route **rret,
 				for (; *p != '\0' && isspace(*p); p++)
 					;
 				if ((cl = cl->next = malloc(sizeof(cluster))) == NULL) {
-					fprintf(stderr, "malloc failed in cluster failover\n");
+					logerr("malloc failed in cluster failover\n");
 					free(buf);
 					return 0;
 				}
@@ -388,7 +388,7 @@ router_readconfig(cluster **clret, route **rret,
 				for (; *p != '\0' && !isspace(*p); p++)
 					;
 				*p = 0;
-				fprintf(stderr, "unknown cluster type '%s' for cluster %s\n",
+				logerr("unknown cluster type '%s' for cluster %s\n",
 						type, name);
 				free(buf);
 				return 0;
@@ -418,7 +418,7 @@ router_readconfig(cluster **clret, route **rret,
 						lastcolon = p;
 
 				if (*p == '\0') {
-					fprintf(stderr, "unexpected end of file at '%s' "
+					logerr("unexpected end of file at '%s' "
 							"for cluster %s\n", ip, name);
 					free(cl);
 					free(buf);
@@ -448,7 +448,7 @@ router_readconfig(cluster **clret, route **rret,
 					*lastcolon = '\0';
 					port = (int)strtol(lastcolon + 1, &endp, 10);
 					if (port == 0 || endp != p) {
-						fprintf(stderr, "expected port, or unexpected data at "
+						logerr("expected port, or unexpected data at "
 								"'%s' for cluster %s\n", lastcolon + 1, name);
 						free(cl);
 						free(buf);
@@ -462,7 +462,7 @@ router_readconfig(cluster **clret, route **rret,
 					} else if (lastcolon == NULL && *(p - 1) == ']') {
 						*(p - 1) = '\0';
 					} else {
-						fprintf(stderr, "expected ']' at '%s' "
+						logerr("expected ']' at '%s' "
 								"for cluster %s\n", ip, name);
 						free(cl);
 						free(buf);
@@ -491,7 +491,7 @@ router_readconfig(cluster **clret, route **rret,
 						if (strcmp(proto, "tcp") != 0
 								&& strcmp(proto, "udp") != 0)
 						{
-							fprintf(stderr, "expected 'udp' or 'tcp' after "
+							logerr("expected 'udp' or 'tcp' after "
 									"'proto' at '%s' for cluster %s\n",
 									proto, name);
 							free(cl);
@@ -513,7 +513,7 @@ router_readconfig(cluster **clret, route **rret,
 				snprintf(sport, sizeof(sport), "%u", port);  /* for default */
 
 				if ((err = getaddrinfo(ip, sport, &hint, &saddrs)) != 0) {
-					fprintf(stderr, "failed to resolve server %s:%s (%s) "
+					logerr("failed to resolve server %s:%s (%s) "
 							"for cluster %s: %s\n",
 							ip, sport, proto, name, gai_strerror(err));
 					free(cl);
@@ -559,7 +559,7 @@ router_readconfig(cluster **clret, route **rret,
 							*proto == 'u' ? CON_UDP : CON_TCP, walk,
 							queuesize, batchsize);
 					if (newserver == NULL) {
-						fprintf(stderr, "failed to add server %s:%d (%s) "
+						logerr("failed to add server %s:%d (%s) "
 								"to cluster %s: %s\n", ip, port, proto,
 								name, strerror(errno));
 						free(cl);
@@ -575,7 +575,7 @@ router_readconfig(cluster **clret, route **rret,
 							w = w->next = malloc(sizeof(servers));
 						}
 						if (w == NULL) {
-							fprintf(stderr, "malloc failed for %s_ch %s\n",
+							logerr("malloc failed for %s_ch %s\n",
 									cl->type == CARBON_CH ? "carbon" : "fnv1a", ip);
 							free(cl);
 							free(buf);
@@ -589,7 +589,7 @@ router_readconfig(cluster **clret, route **rret,
 								cl->members.ch->ring,
 								w->server);
 						if (cl->members.ch->ring == NULL) {
-							fprintf(stderr, "failed to add server %s:%d "
+							logerr("failed to add server %s:%d "
 									"to ring for cluster %s: out of memory\n",
 									ip, port, name);
 							free(cl);
@@ -606,7 +606,7 @@ router_readconfig(cluster **clret, route **rret,
 							w = w->next = malloc(sizeof(servers));
 						}
 						if (w == NULL) {
-							fprintf(stderr, "malloc failed for %s %s\n",
+							logerr("malloc failed for %s %s\n",
 									cl->type == FORWARD ? "forward" :
 									cl->type == ANYOF ? "any_of" : "failover",
 									ip);
@@ -668,7 +668,7 @@ router_readconfig(cluster **clret, route **rret,
 			for (; *p != '\0' && !isspace(*p); p++)
 				;
 			if (*p == '\0') {
-				fprintf(stderr, "unexpected end of file after 'match'\n");
+				logerr("unexpected end of file after 'match'\n");
 				free(buf);
 				return 0;
 			}
@@ -676,7 +676,7 @@ router_readconfig(cluster **clret, route **rret,
 			for (; *p != '\0' && isspace(*p); p++)
 				;
 			if (strncmp(p, "send", 4) != 0 || !isspace(*(p + 4))) {
-				fprintf(stderr, "expected 'send to' after match %s\n", pat);
+				logerr("expected 'send to' after match %s\n", pat);
 				free(buf);
 				return 0;
 			}
@@ -684,7 +684,7 @@ router_readconfig(cluster **clret, route **rret,
 			for (; *p != '\0' && isspace(*p); p++)
 				;
 			if (strncmp(p, "to", 2) != 0 || !isspace(*(p + 2))) {
-				fprintf(stderr, "expected 'send to' after match %s\n", pat);
+				logerr("expected 'send to' after match %s\n", pat);
 				free(buf);
 				return 0;
 			}
@@ -695,7 +695,7 @@ router_readconfig(cluster **clret, route **rret,
 			for (; *p != '\0' && !isspace(*p) && *p != ';'; p++)
 				;
 			if (*p == '\0') {
-				fprintf(stderr, "unexpected end of file after 'send to %s'\n",
+				logerr("unexpected end of file after 'send to %s'\n",
 						dest);
 				free(buf);
 				return 0;
@@ -720,7 +720,7 @@ router_readconfig(cluster **clret, route **rret,
 						for (; *p != '\0' && isspace(*p); p++)
 							;
 						if (*p != ';') {
-							fprintf(stderr, "expected ';' after stop for "
+							logerr("expected ';' after stop for "
 									"match %s\n", pat);
 							free(buf);
 							return 0;
@@ -729,7 +729,7 @@ router_readconfig(cluster **clret, route **rret,
 					p++;
 					stop = 1;
 				} else {
-					fprintf(stderr, "expected 'stop' and/or ';' after '%s' "
+					logerr("expected 'stop' and/or ';' after '%s' "
 							"for match %s\n", dest, pat);
 					free(buf);
 					return 0;
@@ -745,8 +745,7 @@ router_readconfig(cluster **clret, route **rret,
 					break;
 			}
 			if (w == NULL) {
-				fprintf(stderr, "no such cluster '%s' for 'match %s'\n",
-						dest, pat);
+				logerr("no such cluster '%s' for 'match %s'\n", dest, pat);
 				free(buf);
 				return 0;
 			}
@@ -765,7 +764,7 @@ router_readconfig(cluster **clret, route **rret,
 				if (err != 0) {
 					char ebuf[512];
 					regerror(err, &r->rule, ebuf, sizeof(ebuf));
-					fprintf(stderr, "invalid expression '%s' for match: %s\n",
+					logerr("invalid expression '%s' for match: %s\n",
 							pat, ebuf);
 					free(r);
 					free(buf);
@@ -797,7 +796,7 @@ router_readconfig(cluster **clret, route **rret,
 				for (; *p != '\0' && !isspace(*p); p++)
 					;
 				if (*p == '\0') {
-					fprintf(stderr, "unexpected end of file after 'aggregate'\n");
+					logerr("unexpected end of file after 'aggregate'\n");
 					free(buf);
 					return 0;
 				}
@@ -814,7 +813,7 @@ router_readconfig(cluster **clret, route **rret,
 				if (err != 0) {
 					char ebuf[512];
 					regerror(err, &r->rule, ebuf, sizeof(ebuf));
-					fprintf(stderr, "invalid expression '%s' "
+					logerr("invalid expression '%s' "
 							"for aggregation: %s\n", pat, ebuf);
 					free(r);
 					free(buf);
@@ -831,13 +830,12 @@ router_readconfig(cluster **clret, route **rret,
 			for (; *p != '\0' && isdigit(*p); p++)
 				;
 			if (*p == '\0') {
-				fprintf(stderr, "unexpected end of file after 'every %s'\n",
-						interval);
+				logerr("unexpected end of file after 'every %s'\n", interval);
 				free(buf);
 				return 0;
 			}
 			if (!isspace(*p)) {
-				fprintf(stderr, "unexpected character '%c', "
+				logerr("unexpected character '%c', "
 						"expected number after 'every'\n", *p);
 				free(buf);
 				return 0;
@@ -846,8 +844,7 @@ router_readconfig(cluster **clret, route **rret,
 			for (; *p != '\0' && isspace(*p); p++)
 				;
 			if (strncmp(p, "seconds", 7) != 0 || !isspace(*(p + 7))) {
-				fprintf(stderr, "expected 'seconds' after 'every %s'\n",
-						interval);
+				logerr("expected 'seconds' after 'every %s'\n", interval);
 				free(buf);
 				return 0;
 			}
@@ -855,7 +852,7 @@ router_readconfig(cluster **clret, route **rret,
 			for (; *p != '\0' && isspace(*p); p++)
 				;
 			if (strncmp(p, "expire", 6) != 0 || !isspace(*(p + 6))) {
-				fprintf(stderr, "expected 'expire after' after 'every %s seconds\n",
+				logerr("expected 'expire after' after 'every %s seconds\n",
 						interval);
 				free(buf);
 				return 0;
@@ -864,7 +861,7 @@ router_readconfig(cluster **clret, route **rret,
 			for (; *p != '\0' && isspace(*p); p++)
 				;
 			if (strncmp(p, "after", 5) != 0 || !isspace(*(p + 5))) {
-				fprintf(stderr, "expected 'after' after 'expire'\n");
+				logerr("expected 'after' after 'expire'\n");
 				free(buf);
 				return 0;
 			}
@@ -875,13 +872,13 @@ router_readconfig(cluster **clret, route **rret,
 			for (; *p != '\0' && isdigit(*p); p++)
 				;
 			if (*p == '\0') {
-				fprintf(stderr, "unexpected end of file after 'expire after %s'\n",
+				logerr("unexpected end of file after 'expire after %s'\n",
 						expire);
 				free(buf);
 				return 0;
 			}
 			if (!isspace(*p)) {
-				fprintf(stderr, "unexpected character '%c', "
+				logerr("unexpected character '%c', "
 						"expected number after 'expire after'\n", *p);
 				free(buf);
 				return 0;
@@ -890,8 +887,7 @@ router_readconfig(cluster **clret, route **rret,
 			for (; *p != '\0' && isspace(*p); p++)
 				;
 			if (strncmp(p, "seconds", 7) != 0 || !isspace(*(p + 7))) {
-				fprintf(stderr, "expected 'seconds' after 'expire after %s'\n",
-						expire);
+				logerr("expected 'seconds' after 'expire after %s'\n", expire);
 				free(buf);
 				return 0;
 			}
@@ -902,14 +898,14 @@ router_readconfig(cluster **clret, route **rret,
 			w->members.aggregation =
 				aggregator_new(atoi(interval), atoi(expire));
 			if (w->members.aggregation == NULL) {
-				fprintf(stderr, "invalid interval (%s) or expire (%s)\n",
+				logerr("invalid interval (%s) or expire (%s)\n",
 						interval, expire);
 				free(buf);
 				return 0;
 			}
 			do {
 				if (strncmp(p, "compute", 7) != 0 || !isspace(*(p + 7))) {
-					fprintf(stderr, "expected 'compute' at %s'\n", p);
+					logerr("expected 'compute' at %s'\n", p);
 					free(buf);
 					return 0;
 				}
@@ -918,7 +914,7 @@ router_readconfig(cluster **clret, route **rret,
 				for (; *p != '\0' && !isspace(*p); p++)
 					;
 				if (*p == '\0') {
-					fprintf(stderr, "unexpected end of file after 'compute'\n");
+					logerr("unexpected end of file after 'compute'\n");
 					free(buf);
 					return 0;
 				}
@@ -927,7 +923,7 @@ router_readconfig(cluster **clret, route **rret,
 				for (; *p != '\0' && isspace(*p); p++)
 					;
 				if (strncmp(p, "write", 5) != 0 || !isspace(*(p + 5))) {
-					fprintf(stderr, "expected 'write to' after 'compute %s'\n", pat);
+					logerr("expected 'write to' after 'compute %s'\n", pat);
 					free(buf);
 					return 0;
 				}
@@ -935,7 +931,7 @@ router_readconfig(cluster **clret, route **rret,
 				for (; *p != '\0' && isspace(*p); p++)
 					;
 				if (strncmp(p, "to", 2) != 0 || !isspace(*(p + 2))) {
-					fprintf(stderr, "expected 'write to' after 'compute %s'\n", pat);
+					logerr("expected 'write to' after 'compute %s'\n", pat);
 					free(buf);
 					return 0;
 				}
@@ -946,14 +942,14 @@ router_readconfig(cluster **clret, route **rret,
 				for (; *p != '\0' && !isspace(*p); p++)
 					;
 				if (*p == '\0') {
-					fprintf(stderr, "unexpected end of file after 'write to'\n");
+					logerr("unexpected end of file after 'write to'\n");
 					free(buf);
 					return 0;
 				}
 				*p++ = '\0';
 
 				if (aggregator_add_compute(w->members.aggregation, pat, type) != 0) {
-					fprintf(stderr, "expected sum, count, max, min or average "
+					logerr("expected sum, count, max, min or average "
 							"after 'compute', got '%s'\n", type);
 					free(buf);
 					return 0;
@@ -976,7 +972,7 @@ router_readconfig(cluster **clret, route **rret,
 			for (; *p != '\0' && !isspace(*p); p++)
 				;
 			if (*p == '\0') {
-				fprintf(stderr, "unexpected end of file after 'rewrite'\n");
+				logerr("unexpected end of file after 'rewrite'\n");
 				free(buf);
 				return 0;
 			}
@@ -984,7 +980,7 @@ router_readconfig(cluster **clret, route **rret,
 			for (; *p != '\0' && isspace(*p); p++)
 				;
 			if (strncmp(p, "into", 4) != 0 || !isspace(*(p + 4))) {
-				fprintf(stderr, "expected 'into' after rewrite %s\n", pat);
+				logerr("expected 'into' after rewrite %s\n", pat);
 				free(buf);
 				return 0;
 			}
@@ -995,7 +991,7 @@ router_readconfig(cluster **clret, route **rret,
 			for (; *p != '\0' && !isspace(*p) && *p != ';'; p++)
 				;
 			if (*p == '\0') {
-				fprintf(stderr, "unexpected end of file after 'into %s'\n",
+				logerr("unexpected end of file after 'into %s'\n",
 						replacement);
 				free(buf);
 				return 0;
@@ -1006,7 +1002,7 @@ router_readconfig(cluster **clret, route **rret,
 				for (; *p != '\0' && isspace(*p) && *p != ';'; p++)
 					;
 				if (*p != ';') {
-					fprintf(stderr, "expected ';' after %s\n", replacement);
+					logerr("expected ';' after %s\n", replacement);
 					free(buf);
 					return 0;
 				}
@@ -1022,15 +1018,14 @@ router_readconfig(cluster **clret, route **rret,
 			if (err != 0) {
 				char ebuf[512];
 				regerror(err, &r->rule, ebuf, sizeof(ebuf));
-				fprintf(stderr, "invalid expression '%s' for rewrite: %s\n",
-						pat, ebuf);
+				logerr("invalid expression '%s' for rewrite: %s\n", pat, ebuf);
 				free(r);
 				free(buf);
 				return 0;
 			}
 
 			if ((cl = cl->next = malloc(sizeof(cluster))) == NULL) {
-				fprintf(stderr, "malloc failed for rewrite destination\n");
+				logerr("malloc failed for rewrite destination\n");
 				free(r);
 				free(buf);
 				return 0;
@@ -1045,7 +1040,7 @@ router_readconfig(cluster **clret, route **rret,
 			r->next = NULL;
 		} else {
 			/* garbage? */
-			fprintf(stderr, "garbage in config: %s\n", p);
+			logerr("garbage in config: %s\n", p);
 			free(buf);
 			router_free(topcl, topr);
 			return 0;
@@ -1693,7 +1688,7 @@ router_route_intern(
 
 #define failif(RETLEN, WANTLEN) \
 	if (WANTLEN > RETLEN) { \
-		fprintf(stderr, "router_route: out of destination slots, " \
+		logerr("router_route: out of destination slots, " \
 				"increase CONN_DESTS_SIZE in dispatcher.c\n"); \
 		return 1; \
 	}
@@ -1805,7 +1800,7 @@ router_route_intern(
 								w->dest->members.replacement,
 								w->nmatch, pmatch)) == 0)
 					{
-						fprintf(stderr, "router_route: failed to rewrite "
+						logerr("router_route: failed to rewrite "
 								"metric: newmetric size too small to hold "
 								"replacement (%s -> %s)\n",
 								metric, w->dest->members.replacement);

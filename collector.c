@@ -77,7 +77,7 @@ collector_runner(void *s)
 
 #define send(metric) \
 	if (debug) \
-		fprintf(stdout, "%s", metric); \
+		logout("%s", metric); \
 	else \
 		server_send(submission, strdup(metric), 1);
 
@@ -224,7 +224,6 @@ collector_writer(void *unused)
 	int i = 0;
 	size_t queued;
 	size_t totdropped;
-	char nowbuf[24];
 	size_t numaggregators = aggregator_numaggregators();
 	server **srvs = NULL;
 
@@ -246,27 +245,19 @@ collector_writer(void *unused)
 			queued = server_get_queue_len(srvs[i]);
 			totdropped += server_get_dropped(srvs[i]);
 
-			if (queued > 150) {
-				fprintf(stdout, "[%s] warning: metrics queuing up "
+			if (queued > 150)
+				logout("warning: metrics queuing up "
 						"for %s:%u: %zd metrics\n",
-						fmtnow(nowbuf),
 						server_ip(srvs[i]), server_port(srvs[i]), queued);
-				fflush(stdout);
-			}
 		}
-		if (totdropped - lastdropped > 0) {
-			fprintf(stdout, "[%s] warning: dropped %zd metrics\n",
-					fmtnow(nowbuf), totdropped - lastdropped);
-			fflush(stdout);
-		}
+		if (totdropped - lastdropped > 0)
+			logout("warning: dropped %zd metrics\n", totdropped - lastdropped);
 		lastdropped = totdropped;
 		if (numaggregators > 0) {
 			totdropped = aggregator_get_dropped();
-			if (totdropped - lastaggrdropped > 0) {
-				fprintf(stdout, "[%s] warning: aggregator dropped %zd metrics\n",
-						fmtnow(nowbuf), totdropped - lastaggrdropped);
-				fflush(stdout);
-			}
+			if (totdropped - lastaggrdropped > 0)
+				logout("warning: aggregator dropped %zd metrics\n",
+						totdropped - lastaggrdropped);
 			lastaggrdropped = totdropped;
 		}
 
@@ -310,10 +301,10 @@ collector_start(dispatcher **d, cluster *c, server *submission)
 
 	if (mode != SUBMISSION) {
 		if (pthread_create(&collectorid, NULL, collector_runner, submission) != 0)
-			fprintf(stderr, "failed to start collector!\n");
+			logerr("failed to start collector!\n");
 	} else {
 		if (pthread_create(&collectorid, NULL, collector_writer, NULL) != 0)
-			fprintf(stderr, "failed to start collector!\n");
+			logerr("failed to start collector!\n");
 	}
 }
 

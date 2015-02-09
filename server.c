@@ -75,7 +75,6 @@ server_queuereader(void *d)
 	const char **metric = self->batch;
 	struct timeval start, stop;
 	struct timeval timeout;
-	char nowbuf[24];
 	queue *queue;
 	char idle = 0;
 
@@ -152,7 +151,7 @@ server_queuereader(void *d)
 			}
 			for (; *metric != NULL; metric++) {
 				if (mode == DEBUG)
-					fprintf(stderr, "dropping metric: %s", *metric);
+					logerr("dropping metric: %s", *metric);
 				free((char *)*metric);
 				self->dropped++;
 			}
@@ -182,8 +181,7 @@ server_queuereader(void *d)
 				int intconn[2];
 				if (pipe(intconn) < 0) {
 					if (!self->failure)
-						fprintf(stderr, "[%s] failed to create pipe: %s\n",
-								fmtnow(nowbuf), strerror(errno));
+						logerr("failed to create pipe: %s\n", strerror(errno));
 					self->failure += self->failure >= FAIL_WAIT_TIME ? 0 : 1;
 					continue;
 				}
@@ -195,8 +193,8 @@ server_queuereader(void *d)
 								self->saddr->ai_protocol)) < 0)
 				{
 					if (!self->failure)
-						fprintf(stderr, "[%s] failed to create udp socket: "
-								"%s\n", fmtnow(nowbuf), strerror(errno));
+						logerr("failed to create udp socket: %s\n",
+								strerror(errno));
 					self->failure += self->failure >= FAIL_WAIT_TIME ? 0 : 1;
 					continue;
 				}
@@ -204,8 +202,8 @@ server_queuereader(void *d)
 						self->saddr->ai_addr, self->saddr->ai_addrlen) < 0)
 				{
 					if (!self->failure)
-						fprintf(stderr, "[%s] failed to connect udp socket: "
-								"%s\n", fmtnow(nowbuf), strerror(errno));
+						logerr("failed to connect udp socket: %s\n",
+								strerror(errno));
 					self->failure += self->failure >= FAIL_WAIT_TIME ? 0 : 1;
 					close(self->fd);
 					continue;
@@ -219,8 +217,8 @@ server_queuereader(void *d)
 								self->saddr->ai_protocol)) < 0)
 				{
 					if (!self->failure)
-						fprintf(stderr, "[%s] failed to create socket: %s\n",
-								fmtnow(nowbuf), strerror(errno));
+						logerr("failed to create socket: %s\n",
+								strerror(errno));
 					self->failure += self->failure >= FAIL_WAIT_TIME ? 0 : 1;
 					continue;
 				}
@@ -243,9 +241,9 @@ server_queuereader(void *d)
 					if (ret == 0) {
 						/* time limit expired */
 						if (!self->failure)
-							fprintf(stderr, "[%s] failed to connect() to "
+							logerr("failed to connect() to "
 									"%s:%u: Operation timed out\n",
-									fmtnow(nowbuf), self->ip, self->port);
+									self->ip, self->port);
 						close(self->fd);
 						self->fd = -1;
 						self->failure += self->failure >= FAIL_WAIT_TIME ? 0 : 1;
@@ -253,10 +251,8 @@ server_queuereader(void *d)
 					} else if (ret < 0) {
 						/* some error occurred */
 						if (!self->failure)
-							fprintf(stderr, "[%s] failed to connect() to "
-									"%s:%u: %s\n",
-									fmtnow(nowbuf), self->ip, self->port,
-									strerror(errno));
+							logerr("failed to connect() to %s:%u: %s\n",
+									self->ip, self->port, strerror(errno));
 						close(self->fd);
 						self->fd = -1;
 						self->failure += self->failure >= FAIL_WAIT_TIME ? 0 : 1;
@@ -269,10 +265,8 @@ server_queuereader(void *d)
 							serr = errno;
 						if (serr != 0) {
 							if (!self->failure)
-								fprintf(stderr, "[%s] failed to connect() to "
-										"%s:%u: %s\n",
-										fmtnow(nowbuf), self->ip, self->port,
-										strerror(serr));
+								logerr("failed to connect() to %s:%u: %s\n",
+										self->ip, self->port, strerror(serr));
 							close(self->fd);
 							self->fd = -1;
 							self->failure += self->failure >= FAIL_WAIT_TIME ? 0 : 1;
@@ -281,10 +275,8 @@ server_queuereader(void *d)
 					}
 				} else if (ret < 0) {
 					if (!self->failure) {
-						fprintf(stderr, "[%s] failed to connect() to "
-								"%s:%u: %s\n",
-								fmtnow(nowbuf), self->ip, self->port,
-								strerror(errno));
+						logerr("failed to connect() to %s:%u: %s\n",
+								self->ip, self->port, strerror(errno));
 						dispatch_check_rlimit_and_warn();
 					}
 					close(self->fd);
@@ -314,7 +306,7 @@ server_queuereader(void *d)
 		if (len != 0 && !self->keep_running) {
 			/* be noisy during shutdown so we can track any slowing down
 			 * servers, possibly preventing us to shut down */
-			fprintf(stderr, "shutting down %s:%u: waiting for %zd metrics\n",
+			logerr("shutting down %s:%u: waiting for %zd metrics\n",
 					self->ip, self->port, len + queue_len(self->queue));
 		}
 
@@ -325,8 +317,7 @@ server_queuereader(void *d)
 			 * node by probes, to avoid starvation of this server since
 			 * its queue is possibly being offloaded to secondaries */
 			if (self->ctype != CON_UDP)
-				fprintf(stderr, "[%s] server %s:%u: OK after probe\n",
-						fmtnow(nowbuf), self->ip, self->port);
+				logerr("server %s:%u: OK after probe\n", self->ip, self->port);
 			self->failure = 0;
 		}
 
@@ -339,8 +330,8 @@ server_queuereader(void *d)
 				 * blocking sockets, and hence partial sent is
 				 * indication of a failure */
 				if (self->ctype != CON_UDP)
-					fprintf(stderr, "[%s] failed to write() to %s:%u: %s\n",
-							fmtnow(nowbuf), self->ip, self->port,
+					logerr("failed to write() to %s:%u: %s\n",
+							self->ip, self->port,
 							(slen < 0 ? strerror(errno) : "uncomplete write"));
 				close(self->fd);
 				self->fd = -1;
@@ -349,7 +340,7 @@ server_queuereader(void *d)
 				for (; *metric != NULL; metric++) {
 					if (!queue_putback(self->queue, *metric)) {
 						if (mode == DEBUG)
-							fprintf(stderr, "server %s:%u: dropping metric: %s",
+							logerr("server %s:%u: dropping metric: %s",
 									self->ip, self->port, *metric);
 						free((char *)*metric);
 						self->dropped++;
@@ -358,8 +349,7 @@ server_queuereader(void *d)
 				break;
 			} else if (self->failure) {
 				if (self->ctype != CON_UDP)
-					fprintf(stderr, "[%s] server %s:%u: OK\n",
-							fmtnow(nowbuf), self->ip, self->port);
+					logerr("server %s:%u: OK\n", self->ip, self->port);
 				self->failure = 0;
 			}
 			free((char *)*metric);
@@ -546,7 +536,7 @@ server_shutdown(server *s)
 			/* loop until we all failed, or nothing is in the queues */
 		} while (failures != s->secondariescnt &&
 				inqueue != 0 &&
-				fprintf(stderr, "any_of cluster pending %zd metrics "
+				logerr("any_of cluster pending %zd metrics "
 					"(with %zd failed nodes)\n", inqueue, failures) >= -1 &&
 				usleep((200 + (rand() % 100)) * 1000) <= 0);
 		/* shut down entire cluster */
@@ -560,14 +550,14 @@ server_shutdown(server *s)
 
 	s->keep_running = 0;
 	if ((err = pthread_join(tid, NULL)) != 0)
-		fprintf(stderr, "%s:%u: failed to join server thread: %s\n",
+		logerr("%s:%u: failed to join server thread: %s\n",
 				s->ip, s->port, strerror(err));
 
 	if (s->ctype == CON_TCP) {
 		size_t qlen = queue_len(s->queue);
 		queue_destroy(s->queue);
 		if (qlen > 0)
-			fprintf(stderr, "dropping %zd metrics for %s:%u\n",
+			logerr("dropping %zd metrics for %s:%u\n",
 					qlen, s->ip, s->port);
 	}
 	free(s->batch);

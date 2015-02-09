@@ -27,6 +27,8 @@
 #include <netinet/in.h>
 #include <errno.h>
 
+#include "relay.h"
+
 #ifndef TMPDIR
 # define TMPDIR "/tmp"
 #endif
@@ -71,7 +73,7 @@ bindlisten(
 		snprintf(buf, sizeof(buf), "%u", port);
 
 		if ((err = getaddrinfo(interface, buf, &hint, &res)) != 0) {
-			fprintf(stderr, "getaddrinfo(%s, %s, ...) failed: %s\n",
+			logerr("getaddrinfo(%s, %s, ...) failed: %s\n",
 					interface == NULL ? "NULL" : interface,
 					buf, gai_strerror(err));
 			return -1;
@@ -109,13 +111,13 @@ bindlisten(
 					continue;
 				}
 				if (curlen_stream < *retlen_stream) {
-					printf("listening on tcp%d %s port %s\n",
+					logout("listening on tcp%d %s port %s\n",
 							resw->ai_family == PF_INET6 ? 6 : 4, saddr, buf);
 					ret_stream[curlen_stream++] = sock;
 				}
 			} else {
 				if (curlen_dgram < *retlen_dgram) {
-					printf("listening on udp%d %s port %s\n",
+					logout("listening on udp%d %s port %s\n",
 							resw->ai_family == PF_INET6 ? 6 : 4, saddr, buf);
 					ret_dgram[curlen_dgram++] = sock;
 				}
@@ -144,7 +146,7 @@ bindlisten(
 
 		unlink(buf);  /* avoid address already in use */
 		if (bind(sock, (struct sockaddr *)&server, sizeof(struct sockaddr_un)) < 0) {
-			fprintf(stderr, "failed to bind for %s: %s\n",
+			logerr("failed to bind for %s: %s\n",
 					buf, strerror(errno));
 			close(sock);
 			break;
@@ -155,7 +157,7 @@ bindlisten(
 			break;
 		}
 
-		printf("listening on UNIX socket %s\n", buf);
+		logout("listening on UNIX socket %s\n", buf);
 
 		ret_stream[curlen_stream++] = sock;
 		break;

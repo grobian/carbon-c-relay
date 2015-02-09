@@ -145,7 +145,7 @@ aggregator_putmetric(
 	if ((v = strchr(firstspace + 1, ' ')) == NULL) {
 		/* metric includes \n */
 		if (mode == DEBUG)
-			fprintf(stderr, "aggregator: dropping incorrect metric: %s",
+			logerr("aggregator: dropping incorrect metric: %s",
 					metric);
 		return;
 	}
@@ -180,12 +180,12 @@ aggregator_putmetric(
 			time_t now;
 
 			if ((invocation = malloc(sizeof(*invocation))) == NULL) {
-				fprintf(stderr, "aggregator: out of memory creating %s from %s",
+				logerr("aggregator: out of memory creating %s from %s",
 						ometric, metric);
 				continue;
 			}
 			if ((invocation->metric = strdup(ometric)) == NULL) {
-				fprintf(stderr, "aggregator: out of memory creating %s from %s",
+				logerr("aggregator: out of memory creating %s from %s",
 						ometric, metric);
 				free(invocation);
 				continue;
@@ -203,7 +203,7 @@ aggregator_putmetric(
 			invocation->buckets =
 				malloc(sizeof(struct _bucket) * s->bucketcnt);
 			if (invocation->buckets == NULL) {
-				fprintf(stderr, "aggregator: out of memory creating %s from %s",
+				logerr("aggregator: out of memory creating %s from %s",
 						ometric, metric);
 				free(invocation->metric);
 				free(invocation);
@@ -230,7 +230,7 @@ aggregator_putmetric(
 		slot = itime / s->interval;
 		if (slot >= s->bucketcnt) {
 			if (mode == DEBUG)
-				fprintf(stderr, "aggregator: dropping metric too far in the "
+				logerr("aggregator: dropping metric too far in the "
 						"future (%lld > %lld): %s from %s", epoch,
 						invocation->buckets[s->bucketcnt - 1].start,
 						ometric, metric);
@@ -391,10 +391,8 @@ aggregator_numcomputes(void)
 int
 aggregator_start(server *submission)
 {
-	if (pthread_create(&aggregatorid, NULL, aggregator_expire, submission) != 0) {
-		fprintf(stderr, "failed to start aggregator!\n");
+	if (pthread_create(&aggregatorid, NULL, aggregator_expire, submission) != 0)
 		return 0;
-	}
 
 	return 1;
 }

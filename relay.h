@@ -29,6 +29,10 @@ typedef enum { CON_TCP, CON_UDP, CON_PIPE } serv_ctype;
 extern char relay_hostname[];
 extern enum rmode mode;
 
-char *fmtnow(char nowbuf[24]);
+enum logdst { LOGOUT, LOGERR };
+
+int relaylog(enum logdst dest, const char *fmt, ...);
+#define logout(args...) relaylog(LOGOUT, args)
+#define logerr(args...) relaylog(LOGERR, args)
 
 #endif
