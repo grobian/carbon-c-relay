@@ -151,7 +151,7 @@ hup_handler(int sig)
 			relay_can_log = 0;
 			fclose(relay_stderr);
 			relay_stdout = newfd;
-			relay_stdout = newfd;
+			relay_stderr = newfd;
 			relay_can_log = 1;
 			logout("reopening logfile\n");
 		}
