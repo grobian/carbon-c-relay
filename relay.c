@@ -169,9 +169,9 @@ hup_handler(int sig)
 
 	logout("reloading worker");
 
-	for (id = 0; id < 1 + workercnt; id++)
+	for (id = 1; id < 1 + workercnt; id++)
 		dispatch_schedulereload(workers[id + 0], newroutes);
-	for (id = 0; id < 1 + workercnt; id++) {
+	for (id = 1; id < 1 + workercnt; id++) {
 		while (!dispatch_reloadcomplete(workers[id + 0]))
 			usleep((100 + (rand() % 200)) * 1000);  /* 100ms - 300ms */
 		fprintf(relay_stdout, " %d", id + 1);
