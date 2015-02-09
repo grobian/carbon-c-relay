@@ -168,7 +168,6 @@ hup_handler(int sig)
 	router_optimise(&newroutes);
 
 	logout("reloading worker");
-
 	for (id = 1; id < 1 + workercnt; id++)
 		dispatch_schedulereload(workers[id + 0], newroutes);
 	for (id = 1; id < 1 + workercnt; id++) {
@@ -177,8 +176,9 @@ hup_handler(int sig)
 		fprintf(relay_stdout, " %d", id + 1);
 		fflush(relay_stdout);
 	}
-	logout("reloading collector");
+	fprintf(relay_stdout, "\n");
 
+	logout("reloading collector\n");
 	collector_schedulereload(newclusters);
 	while (!collector_reloadcomplete())
 		usleep((100 + (rand() % 200)) * 1000);  /* 100ms - 300ms */
