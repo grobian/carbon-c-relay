@@ -38,6 +38,11 @@ FQDN=$(hostname --long)
 . ${DAEMON_SYSCONFIG}
 
 start() {
+  if check_status > /dev/null; then
+    echo "Carbon C Relay is already running"
+    exit 0
+  fi
+
   echo -n $"Starting Carbon C Relay: "
   daemonize -u ${DAEMON_USER} -p ${PID_FILE} -l ${LOCK_FILE} -a -e ${LOG_FILE} -o ${LOG_FILE} ${DAEMON} ${ARGS} -H ${FQDN} -f ${DAEMON_CONFIG}
   RETVAL=$?
@@ -54,6 +59,12 @@ stop() {
     return $RETVAL
 }  
 
+check_status() {
+    status -p ${PID_FILE} ${DAEMON}
+    RETVAL=$?
+    return $RETVAL
+}
+
 case "$1" in
     start)
         start
@@ -62,8 +73,7 @@ case "$1" in
         stop
         ;;
     status)
-        status -p ${PID_FILE} ${DAEMON}
-        RETVAL=$?
+	check_status
         ;;
     reload|force-reload)
         reload
