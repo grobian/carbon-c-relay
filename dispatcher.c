@@ -336,15 +336,15 @@ dispatch_connection(connection *conn, dispatcher *self)
 					break;
 			} else if (*p == ' ' || *p == '\t' || *p == '.') {
 				/* separator */
+				if (q == conn->metric) {
+					/* make sure we skip this on next iteration to
+					 * avoid an infinite loop, issues #8 and #51 */
+					lastnl = p;
+					continue;
+				}
 				if (*p == '\t')
 					*p = ' ';
 				if (*p == ' ' && firstspace == NULL) {
-					if (q == conn->metric) {
-						/* make sure we skip this on next iteration to
-						 * avoid an infinite loop */
-						lastnl = p;
-						continue;
-					}
 					if (*(q - 1) == '.')
 						q--;  /* strip trailing separator */
 					firstspace = q;
@@ -353,10 +353,7 @@ dispatch_connection(connection *conn, dispatcher *self)
 					/* metric_path separator or space,
 					 * - duplicate elimination
 					 * - don't start with separator/space */
-					if (
-							q != conn->metric &&
-							*(q - 1) != *p &&
-							(q - 1) != firstspace)
+					if (*(q - 1) != *p && (q - 1) != firstspace)
 						*q++ = *p;
 				}
 			} else if (firstspace != NULL ||
