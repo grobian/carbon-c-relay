@@ -263,7 +263,15 @@ server_queuereader(void *d)
 						socklen_t serrlen = sizeof(serr);
 						if (getsockopt(self->fd, SOL_SOCKET, SO_ERROR,
 									(void *)(&serr), &serrlen) < 0)
-							serr = errno;
+						{
+							if (!self->failure)
+								logerr("failed to getsockopt() for %s:%u: %s\n",
+										self->ip, self->port, strerror(errno));
+							close(self->fd);
+							self->fd = -1;
+							self->failure += self->failure >= FAIL_WAIT_TIME ? 0 : 1;
+							continue;
+						}
 						if (serr != 0) {
 							if (!self->failure)
 								logerr("failed to connect() to %s:%u: %s\n",
