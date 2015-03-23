@@ -250,9 +250,9 @@ server_queuereader(void *d)
 						self->failure += self->failure >= FAIL_WAIT_TIME ? 0 : 1;
 						continue;
 					} else if (ret < 0) {
-						/* some error occurred */
+						/* some select error occurred */
 						if (!self->failure)
-							logerr("failed to connect() to %s:%u: %s\n",
+							logerr("failed to select() for %s:%u: %s\n",
 									self->ip, self->port, strerror(errno));
 						close(self->fd);
 						self->fd = -1;
