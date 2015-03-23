@@ -273,9 +273,12 @@ server_queuereader(void *d)
 							continue;
 						}
 						if (serr != 0) {
-							if (!self->failure)
-								logerr("failed to connect() to %s:%u: %s\n",
+							if (!self->failure) {
+								logerr("failed to connect() to %s:%u: %s "
+										"(after select())\n",
 										self->ip, self->port, strerror(serr));
+								dispatch_check_rlimit_and_warn();
+							}
 							close(self->fd);
 							self->fd = -1;
 							self->failure += self->failure >= FAIL_WAIT_TIME ? 0 : 1;
