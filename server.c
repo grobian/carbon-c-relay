@@ -82,8 +82,6 @@ server_queuereader(void *d)
 	self->metrics = 0;
 	self->ticks = 0;
 
-	timeout.tv_sec = 0;
-
 #define FAIL_WAIT_TIME   6  /* 6 * 250ms = 1.5s */
 #define DISCONNECT_WAIT_TIME   12  /* 12 * 250ms = 3s */
 #define LEN_CRITICAL(Q)  (queue_free(Q) < self->bsize)
@@ -237,6 +235,7 @@ server_queuereader(void *d)
 					fd_set fds;
 					FD_ZERO(&fds);
 					FD_SET(self->fd, &fds);
+					timeout.tv_sec = 0;
 					timeout.tv_usec = (600 + (rand() % 100)) * 1000;
 					ret = select(self->fd + 1, NULL, &fds, NULL, &timeout);
 					if (ret == 0) {
@@ -302,6 +301,7 @@ server_queuereader(void *d)
 			}
 
 			/* ensure we will break out of connections being stuck */
+			timeout.tv_sec = 0;
 			timeout.tv_usec = (600 + (rand() % 100)) * 1000;
 			setsockopt(self->fd, SOL_SOCKET, SO_SNDTIMEO,
 					&timeout, sizeof(timeout));
