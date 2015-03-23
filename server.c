@@ -204,8 +204,9 @@ server_queuereader(void *d)
 					if (!self->failure)
 						logerr("failed to connect udp socket: %s\n",
 								strerror(errno));
-					self->failure += self->failure >= FAIL_WAIT_TIME ? 0 : 1;
 					close(self->fd);
+					self->fd = -1;
+					self->failure += self->failure >= FAIL_WAIT_TIME ? 0 : 1;
 					continue;
 				}
 			} else {
