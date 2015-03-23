@@ -13,7 +13,7 @@
 # limitations under the License.
 
 
-CFLAGS ?= -O2 -Wall
+CFLAGS ?= -O2 -Wall -std=gnu89
 
 GIT_VERSION := $(shell git describe --abbrev=6 --dirty --always || date +%F)
 GVCFLAGS += -DGIT_VERSION=\"$(GIT_VERSION)\"
