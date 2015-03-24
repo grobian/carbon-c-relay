@@ -139,6 +139,10 @@ of the writer to make sure the metrics are clean.  If this is an issue
 for routing, one can consider to have a rewrite-only instance that
 forwards all metrics to another instance that will do the routing.
 Obviously the second instance will cleanse the metrics as they come in.
+The backreference notation allows to lowercase and uppercase the
+replacement string with the use of the underscore (`_`) and carret
+(`^`) symbols following directly after the backslash.  For example,
+`role.\_1.` as substitution will lowercase the contents of `\1`.
 
 The aggregations defined take one or more input metrics expressed by one
 or more regular expresions, similar to the match rules.  Incoming
@@ -311,10 +315,10 @@ to cleanup metrics from applications, or provide a migration path.  In
 it's simplest form a rewrite rule looks like this:
 
     rewrite ^server\.(.+)\.(.+)\.([a-zA-Z]+)([0-9]+)
-        into server.\1.\2.\3.\3\4
+        into server.\_1.\2.\3.\3\4
         ;
 
-In this example a metric like `server.dc.role.name123` would be
+In this example a metric like `server.DC.role.name123` would be
 transformed into `server.dc.role.name.name123`.
 For rewrite rules hold the same as for matches, that their order
 matters.  Hence to build on top of the old/new cluster example done

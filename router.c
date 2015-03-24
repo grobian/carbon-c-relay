@@ -1588,6 +1588,7 @@ router_rewrite_metric(
 	const char *p;
 	const char *q;
 	const char *t;
+	enum rewrite_case { RETAIN, LOWER, UPPER } rcase = RETAIN;
 
 	assert(pmatch != NULL);
 
@@ -1606,11 +1607,16 @@ router_rewrite_metric(
 			case '\\':
 				if (!escape) {
 					escape = 1;
+					rcase = RETAIN;
 					break;
 				}
 				/* fall through so we handle \1\2 */
 			default:
-				if (escape && *p >= '0' && *p <= '9') {
+				if (escape && rcase == RETAIN && *p == '_') {
+					rcase = LOWER;
+				} else if (escape && rcase == RETAIN && *p == '^') {
+					rcase = UPPER;
+				} else if (escape && *p >= '0' && *p <= '9') {
 					ref *= 10;
 					ref += *p - '0';
 				} else {
@@ -1621,14 +1627,28 @@ router_rewrite_metric(
 							/* insert match part */
 							q = metric + pmatch[ref].rm_so;
 							t = metric + pmatch[ref].rm_eo;
-							if (s - *newmetric + t - q < sizeof(*newmetric))
-								while (q < t)
-									*s++ = *q++;
+							if (s - *newmetric + t - q < sizeof(*newmetric)) {
+								switch (rcase) {
+									case RETAIN:
+										while (q < t)
+											*s++ = *q++;
+										break;
+									case LOWER:
+										while (q < t)
+											*s++ = (char)tolower(*q++);
+										break;
+									case UPPER:
+										while (q < t)
+											*s++ = (char)toupper(*q++);
+										break;
+								}
+							}
 						}
 						ref = 0;
 					}
 					if (*p != '\\') { /* \1\2 case */
 						escape = 0;
+						rcase = RETAIN;
 						if (s - *newmetric + 1 < sizeof(*newmetric))
 							*s++ = *p;
 					}
