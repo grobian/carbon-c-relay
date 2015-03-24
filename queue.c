@@ -19,14 +19,16 @@
 #include <string.h>
 #include <pthread.h>
 
-typedef struct _queue {
+#include "queue.h"
+
+struct _queue {
 	const char **queue;
 	size_t end;  
 	size_t write;
 	size_t read;
 	size_t len;
 	pthread_mutex_t lock;
-} queue;
+};
 
 
 /**
