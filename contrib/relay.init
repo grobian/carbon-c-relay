@@ -5,34 +5,34 @@
 #	relay    Startup script for the carbon-c-relay metrics aggregation daemon
 #	Packaged for the BBC by Matthew Hollick <matthew@mayan-it.co.uk>
 #
-# description: Carbon-like graphite line mode relay.\n
-#\n
-#This project aims to be a replacement of the original Carbon relay\n
-#\n
-#The main reason to build a replacement is performance and configurability.\n
-#Carbon is single threaded, and sending metrics to multiple consistent-hash\n
-#clusters requires chaining of relays. This project provides a multithreaded\n
-#relay which can address multiple targets and clusters for each and every\n
-#metric based on pattern matches.\n
+# description: Carbon-like graphite line mode relay.
+#
+#This project aims to be a replacement of the original Carbon relay
+#
+#The main reason to build a replacement is performance and configurability.
+#Carbon is single threaded, and sending metrics to multiple consistent-hash
+#clusters requires chaining of relays. This project provides a multithreaded
+#relay which can address multiple targets and clusters for each and every
+#metric based on pattern matches.
 #
 # chkconfig: 2345 80 80
 #
-# config: /etc/relay.conf
-# pidfile: /var/run/carbon/relay.pid
+# config: /etc/%%NAME%%.conf
+# pidfile: /var/run/%%NAME%%/%%NAME%%.pid
 
 # Source function library.
 . /etc/init.d/functions
 
 
 RETVAL=0
-PROG="relay"
+PROG="%%NAME%%"
 DAEMON_CONFIG=/etc/${PROG}.conf
 DAEMON_SYSCONFIG=/etc/sysconfig/${PROG}
 DAEMON=/usr/bin/${PROG}
-PID_FILE=/var/run/carbon/${PROG}.pid
+PID_FILE=/var/run/${PROG}/${PROG}.pid
 LOCK_FILE=/var/lock/subsys/${PROG}
-LOG_FILE=/var/log/carbon/relay.log
-DAEMON_USER="relay"
+LOG_FILE=/var/log/${PROG}/${PROG}.log
+DAEMON_USER="%%NAME%%"
 FQDN=$(hostname --long)
 
 . ${DAEMON_SYSCONFIG}
