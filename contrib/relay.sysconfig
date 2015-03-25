@@ -1,4 +1,4 @@
-#Usage: relay [-vdst] -f <config> [-p <port>] [-w <workers>] [-b <size>] [-q <size>]
+#Usage: %%NAME%% [-vdst] -f <config> [-p <port>] [-w <workers>] [-b <size>] [-q <size>]
 #
 #Options:
 #  -v  print version and exit

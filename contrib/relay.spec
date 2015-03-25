@@ -1,16 +1,17 @@
-Name:		relay
-Version:	0.32
-Release:	1%{?dist}
-Summary:	A C implementation of the Graphite carbon relay daemon packaged for mdr.
-Group:		System Environment/Daemons
-License:	See the LICENSE file at github.
-URL:		https://github.com/grobian/carbon-c-relay
-Source0:	%{name}-%{version}.tar.gz
-BuildRoot:	%{_tmppath}/%{name}-%{version}-root
+Name:           cc_relay
+Version:        0.39
+Release:        1%{?dist}
+Summary:        A C implementation of the Graphite carbon relay daemon packaged for MDR
+Group:          System Environment/Daemons
+License:        See the LICENSE file at github.
+URL:            https://github.com/grobian/carbon-c-relay
+Source0:        %{name}-%{version}.tar.gz
+BuildRoot:      %{_tmppath}/%{name}-%{version}-root
 BuildRequires:  openssl-devel
 Requires(pre):  /usr/sbin/useradd
 Requires:       daemonize
-AutoReqProv:	No
+Requires(post): chkconfig
+AutoReqProv:    No
 
 %description
 
@@ -19,52 +20,79 @@ This project aims to be a replacement of the original Carbon relay.
 Carbon C Relay has been packed as part of twiki for the BBC.
 
 %prep
-%setup -q
+%setup -q -n carbon-c-relay
+%{__sed} -i s/%%%%NAME%%%%/%{name}/g contrib/relay.init
+%{__sed} -i s/%%%%NAME%%%%/%{name}/g contrib/relay.logrotate
+%{__sed} -i s/%%%%NAME%%%%/%{name}/g contrib/relay.monit
+%{__sed} -i s/%%%%NAME%%%%/%{name}/g contrib/relay.sysconfig
 
 %build
 make %{?_smp_mflags}
 
 %install
-mkdir -vp $RPM_BUILD_ROOT/var/log/carbon/
-mkdir -vp $RPM_BUILD_ROOT/etc/monit.d/
-mkdir -vp $RPM_BUILD_ROOT/var/run/carbon
-mkdir -vp $RPM_BUILD_ROOT/var/lib/carbon
-mkdir -vp $RPM_BUILD_ROOT/usr/bin
-mkdir -vp $RPM_BUILD_ROOT/etc/init.d
-mkdir -vp $RPM_BUILD_ROOT/etc/sysconfig
-install -m 755 relay $RPM_BUILD_ROOT/usr/bin/relay
-install -m 644 contrib/relay.conf $RPM_BUILD_ROOT/etc/relay.conf
-install -m 755 contrib/relay.init $RPM_BUILD_ROOT/etc/init.d/relay
-install -m 644 contrib/relay.sysconfig $RPM_BUILD_ROOT/etc/sysconfig/relay
-install -m 644 contrib/relay.monit $RPM_BUILD_ROOT/etc/monit.d/relay.conf
+mkdir -vp %{buildroot}%{_localstatedir}/log/%{name}
+mkdir -vp %{buildroot}%{_sysconfdir}/monit.d/
+mkdir -vp %{buildroot}%{_sysconfdir}/logrotate.d/
+mkdir -vp %{buildroot}%{_localstatedir}/run/%{name}
+mkdir -vp %{buildroot}%{_localstatedir}/lib/%{name}
+mkdir -vp %{buildroot}%{_bindir}
+mkdir -vp %{buildroot}%{_sysconfdir}/init.d
+mkdir -vp %{buildroot}%{_sysconfdir}/sysconfig
+%{__install} -m 755 relay %{buildroot}%{_bindir}/%{name}
+%{__install} -m 644 contrib/relay.conf %{buildroot}%{_sysconfdir}/%{name}.conf
+%{__install} -m 755 contrib/relay.init %{buildroot}%{_sysconfdir}/init.d/%{name}
+%{__install} -m 644 contrib/relay.logrotate %{buildroot}%{_sysconfdir}/logrotate.d/%{name}
+%{__install} -m 644 contrib/relay.monit %{buildroot}%{_sysconfdir}/monit.d/%{name}.conf
+%{__install} -m 644 contrib/relay.sysconfig %{buildroot}%{_sysconfdir}/sysconfig/%{name}
 
 %clean
 make clean
 
 %pre
-getent group carbon >/dev/null || groupadd -r carbon
-getent passwd carbon >/dev/null || \
-  useradd -r -g carbon -s /sbin/nologin \
-    -d $RPM_BUILD_ROOT/var/lib/carbon/ -c "Carbon Daemons" carbon
+getent group %{name} >/dev/null || groupadd -r %{name}
+getent passwd %{name} >/dev/null || \
+  useradd -r -g %{name} -s /sbin/nologin \
+    -d %{_localstatedir}/lib/%{name}/ -c "Carbon C Relay Daemon" %{name}
 exit 0
 
 %post
-chgrp carbon /var/run/carbon
-chmod 774 /var/run/relay
-chown carbon:carbon /var/log/carbon
-chmod 744 /var/log/carbon
+chgrp %{name} %{_localstatedir}/run/%{name}
+chmod 774 %{_localstatedir}/run/%{name}
+chown %{name}:%{name} %{_localstatedir}/log/%{name}
+chmod 744 %{_localstatedir}/log/%{name}
+/sbin/chkconfig --add %{name}
+
+%preun
+/sbin/chkconfig --del %{name}
+
 
 %files
 %defattr(-,root,root,-)
-/usr/bin/relay
-%config(noreplace) /etc/relay.conf
-/etc/init.d/relay
-%config(noreplace) /etc/sysconfig/relay
-%config(noreplace) /etc/monit.d/relay.conf
-#/var/run/carbon
-#/var/log/carbon
+%{_bindir}/%{name}
+%{_sysconfdir}/init.d/%{name}
+%config(noreplace) %{_sysconfdir}/%{name}.conf
+%config(noreplace) %{_sysconfdir}/sysconfig/%{name}
+%config(noreplace) %{_sysconfdir}/logrotate.d/%{name}
+%config(noreplace) %{_sysconfdir}/monit.d/%{name}.conf
+
+%defattr(655, %{name}, %{name}, 755)
+%{_localstatedir}/run/%{name}
+%{_localstatedir}/log/%{name}
+
+
 
 %changelog
+* Tue Mar 24 2015 Andy "Bob" Brockhurst <andy.brockhurst@b3cft.com>
+- updated spec file to use rpm macros where possible
+- updated %setup to use carbon-c-relay as tar extracted location
+- changed user/group to %{name}
+- added placeholder %%NAME%% in init, logrotate, monit, sysconfig
+-- added sed command to replace %%NAME%% in above at %prep stage
+- added creation of /var/run/%{name} and /var/log/%{name}
+- added chkconfig --add to %post
+- added logrotate file to spec
+- bump to version 0.39
+
 * Mon Sep 8 2014 Matthew Hollick <matthew@mayan-it.co.uk>
 - tidy up for github
 - reverted site specific changes
@@ -74,7 +102,7 @@ chmod 744 /var/log/carbon
 
 * Tue Jul 1 2014 Matthew Hollick <matthew@mayan-it.co.uk>
 - packaged as part of mdr
-- binary renamed from 'relay' to 'cc_relay'
+- binary renamed from 'relay' to '%{name}'
 - pagage renamed to reflect function rather than component
 - user / group named by function
 
