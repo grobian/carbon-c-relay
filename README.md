@@ -3,7 +3,8 @@ carbon-c-relay
 
 Carbon-like graphite line mode relay.
 
-This project aims to be a replacement of the original [Carbon relay](http://graphite.readthedocs.org/en/1.0/carbon-daemons.html#carbon-relay-py)
+This project aims to be a fast replacement of the original [Carbon
+relay](http://graphite.readthedocs.org/en/1.0/carbon-daemons.html#carbon-relay-py)
 
 The main reason to build a replacement is performance and
 configurability.  Carbon is single threaded, and sending metrics to
@@ -404,6 +405,43 @@ example have both identical values.  Note that with this single
 aggregation rule, both per-cluster, per-host and total aggregations are
 produced.  Obviously, the input metrics define which hosts and clusters
 are produced.
+
+
+Performance
+-----------
+The original argument for building carbon-c-relay was speed, with
+configurablility following close.  To date, performance has bypassed the
+original carbon-relay.py by orders of magnitude, but the actual speed
+highly depends on perception and scenario.  What follows below are some
+rough numbers about the environment at Booking.com where carbon-c-relay
+is used extensively in production.
+
+carbon-c-relay runs on all of our machines as a local submission relay.
+Its config is simply a match all to a `any_of` cluster with a number of
+upstream relays to try and send the metrics to.  These relays run with 4
+workers, and receive a minimal amount of metrics per minute, typically
+between 50 and 200.  These instances take typically around 19MiB of RAM
+and consume at top 0.8% CPU of a 2.4GHz core.  The minimal footprint of
+the relay is a desired property for running on all of our machines.
+
+The main relays we run, have roughly 20 clusters defined with `fnv1a_ch`
+hash.  Average clustersize around 10 members.  On top of that 30 match
+rules are defined.  For a mildly-loaded relay receiving 1M metrics per
+minute, the relay consumes 750MiB of RAM and needs around 40% of a
+2.4GHz core.  A relay with more load but the same configuration, 3M
+metrics per minute, needs almost 2GiB of RAM, and some 45% CPU of a
+2.4GHz core.  The memory usage is mainly in the buffers for writing to
+the server stores.
+
+On the stores, we run relays with a simple config with a match all rule
+to an `any_of` cluster pointing to 13 locally running carbon-cache.py
+instances.  These relays receive up to 1.7M metrics per minute, and
+require some 110MiB RAM for that.  The CPU usage is around 15% of a
+2.4GHz core.
+
+For aggregations we don't do much traffic (55K per minute) on a couple
+of aggregations expanding to a thousand of metrics.  In our setup this
+takes 30MiB of RAM usage with some 30% CPU usage.
 
 
 Author
