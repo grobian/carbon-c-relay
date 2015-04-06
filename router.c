@@ -1612,11 +1612,12 @@ router_rewrite_metric(
 				}
 				/* fall through so we handle \1\2 */
 			default:
-				if (escape && rcase == RETAIN && *p == '_') {
+				if (escape == 1 && rcase == RETAIN && *p == '_') {
 					rcase = LOWER;
-				} else if (escape && rcase == RETAIN && *p == '^') {
+				} else if (escape == 1 && rcase == RETAIN && *p == '^') {
 					rcase = UPPER;
 				} else if (escape && *p >= '0' && *p <= '9') {
+					escape = 2;
 					ref *= 10;
 					ref += *p - '0';
 				} else {
