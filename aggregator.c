@@ -118,7 +118,7 @@ aggregator_add_compute(
  * Adds a new metric to aggregator s.  The value from the metric is put
  * in the bucket matching the epoch contained in the metric.  In cases
  * where the contained epoch is too old or too new, the metric is
- * rejected.
+ * dropped.
  */
 void
 aggregator_putmetric(
