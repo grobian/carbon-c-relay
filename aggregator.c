@@ -282,10 +282,10 @@ aggregator_expire(void *sub)
 			/* send metrics for buckets that are completely past the
 			 * expiry time, unless we are shutting down, then send
 			 * metrics for all buckets that have completed */
-			now = time(NULL) + (keep_running ? 0 : s->expire);
+			now = time(NULL) + (keep_running ? 0 : s->expire - s->interval);
 			for (c = s->computes; c != NULL; c = c->next) {
 				for (i = c->invocations; i != NULL; i = i->next) {
-					while (i->buckets[0].start + s->interval < now - s->expire) {
+					while (i->buckets[0].start + s->expire < now) {
 						/* yay, let's produce something cool */
 						b = &i->buckets[0];
 						if (b->cnt > 0) {  /* avoid emitting empty/unitialised data */
