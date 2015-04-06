@@ -261,7 +261,8 @@ aggregator_putmetric(
 /**
  * Checks if the oldest bucket should be expired, if so, sends out
  * computed aggregate metrics and moves the bucket to the end of the
- * list.
+ * list.  When no buckets are in use for an invocation, it is removed to
+ * cleanup resources.
  */
 static void *
 aggregator_expire(void *sub)
@@ -271,9 +272,11 @@ aggregator_expire(void *sub)
 	struct _bucket *b;
 	struct _aggr_computes *c;
 	struct _aggr_invocations *i;
+	struct _aggr_invocations *lasti;
 	int work;
 	server *submission = (server *)sub;
 	char metric[METRIC_BUFSIZ];
+	char isempty;
 
 	while (1) {
 		work = 0;
@@ -284,11 +287,15 @@ aggregator_expire(void *sub)
 			 * metrics for all buckets that have completed */
 			now = time(NULL) + (keep_running ? 0 : s->expire - s->interval);
 			for (c = s->computes; c != NULL; c = c->next) {
-				for (i = c->invocations; i != NULL; i = i->next) {
+				lasti = NULL;
+				isempty = 0;
+				for (i = c->invocations; i != NULL; ) {
 					while (i->buckets[0].start + s->expire < now) {
 						/* yay, let's produce something cool */
 						b = &i->buckets[0];
-						if (b->cnt > 0) {  /* avoid emitting empty/unitialised data */
+						/* avoid emitting empty/unitialised data */
+						isempty = b->cnt == 0;
+						if (!isempty) {
 							switch (c->type) {
 								case SUM:
 									snprintf(metric, sizeof(metric),
@@ -323,19 +330,53 @@ aggregator_expire(void *sub)
 									break;
 							}
 							server_send(submission, strdup(metric), 1);
-						}
-						pthread_mutex_lock(&s->bucketlock);
-						if (b->cnt > 0)
 							s->sent++;
-						/* move the bucket to the end, to make room for new ones */
+						}
+
+						/* move the bucket to the end, to make room for
+						 * new ones */
+						pthread_mutex_lock(&s->bucketlock);
 						memmove(&i->buckets[0], &i->buckets[1],
 								sizeof(*b) * (s->bucketcnt - 1));
 						b = &i->buckets[s->bucketcnt - 1];
 						b->cnt = 0;
-						b->start = i->buckets[s->bucketcnt - 2].start + s->interval;
+						b->start =
+							i->buckets[s->bucketcnt - 2].start + s->interval;
 						pthread_mutex_unlock(&s->bucketlock);
 
 						work++;
+					}
+
+					if (isempty) {
+						int j;
+						/* see if the remaining buckets are empty too */
+						pthread_mutex_lock(&s->bucketlock);
+						for (j = 0; j < s->bucketcnt; j++) {
+							if (i->buckets[j].cnt != 0) {
+								isempty = 0;
+								pthread_mutex_unlock(&s->bucketlock);
+								break;
+							}
+						}
+					}
+					if (isempty) {
+						/* free and unlink */
+						fprintf(stderr, "freeing %s\n", i->metric);
+						free(i->metric);
+						free(i->buckets);
+						if (lasti != NULL) {
+							lasti->next = i->next;
+							free(i);
+							i = lasti->next;
+						} else {
+							c->invocations = i->next;
+							free(i);
+							i = c->invocations;
+						}
+						pthread_mutex_unlock(&s->bucketlock);
+					} else {
+						lasti = i;
+						i = i->next;
 					}
 				}
 			}
