@@ -361,7 +361,6 @@ aggregator_expire(void *sub)
 					}
 					if (isempty) {
 						/* free and unlink */
-						fprintf(stderr, "freeing %s\n", i->metric);
 						free(i->metric);
 						free(i->buckets);
 						if (lasti != NULL) {
