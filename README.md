@@ -168,16 +168,16 @@ Carbon-c-relay evolved over time, growing features on demand as the tool
 proved to be stable and fitting the job well.  Below follow some
 annotated examples of constructs that can be used with the relay.
 
-Clusters are defined as much as are necessary.  They receive data from
-match rules, then their type defines which members of the cluster get
-the metric data.  The simplest cluster form is a `forward` cluster:
+Clusters can be defined as much as necessary.  They receive data from
+match rules, and their type defines which members of the cluster finally
+get the metric data.  The simplest cluster form is a `forward` cluster:
 
     cluster send-through
         forward
             10.1.0.1
         ;
 
-Any metric send the `send-through` cluster would simply be forwarded to
+Any metric sent to the `send-through` cluster would simply be forwarded to
 the server at IPv4 address `10.1.0.1`.  If we define multiple servers,
 all of those servers would get the same metric, thus:
 
@@ -195,13 +195,19 @@ of the members.  The same example with such cluster would be:
     cluster send-to-any-one
         any_of 10.1.0.1:2010 10.1.0.1:2011;
 
-This would implement a fail-over scenario, where two servers are used,
-the load between them is spreaded, but should any of them fail, all
-metrics are send to the remaining one.  This typically works well for
+This would implement a multipath scenario, where two servers are used,
+the load between them is spread, but should any of them fail, all
+metrics are sent to the remaining one.  This typically works well for
 upstream relays, or for balancing carbon-cache processes running on the
 same machine.  Should any member become unavailable, for instance due to
-rolling restart, the other members receive the traffic.  This is
-different from the two consistent hash cluster types:
+a rolling restart, the other members receive the traffic.  If it is
+necessary to have true fail-over, where the secondary server is only
+used if the first is down, the following would implement that:
+
+    cluster try-first-then-second
+        failover 10.1.0.1:2010 10.1.0.1:2011;
+
+These types are different from the two consistent hash cluster types:
 
     cluster graphite
         carbon_ch
@@ -211,14 +217,15 @@ different from the two consistent hash cluster types:
         ;
 
 If a member in this example fails, all metrics that would go to that
-members are kept in the queue, waiting for the member to return.  This
-is useful for carbon-cache machines where it is desirable that the same
+member are kept in the queue, waiting for the member to return.  This
+is useful for clusters of carbon-cache machines where it is desirable
+that the same
 metric ends up on the same server always.  The `carbon_ch` cluster type
 is compatible with carbon-relay consistent hash, and can be used for
 existing clusters populated by carbon-relay.  For new clusters, however,
 it is better to use the `fnv1a_ch` cluster type, for it is faster, and
 allows to balance over the same address but different ports without an
-instance number, unlike `carbon_ch`.
+instance number, in constrast to `carbon_ch`.
 
 Because we can use multiple clusters, we can also replicate without the
 use of the `forward` cluster type, in a more intelligent way:
