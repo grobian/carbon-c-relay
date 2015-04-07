@@ -197,7 +197,7 @@ aggregator_putmetric(
 			 * e.g. right after startup when other relays flush their
 			 * queues. */
 			time(&now);
-			now -= s->expire + 1 + (rand() % s->interval);
+			now -= s->expire - 1 - (rand() % s->interval);
 
 			/* allocate enough buckets to hold the past + future */
 			invocation->buckets =
