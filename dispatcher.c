@@ -542,7 +542,7 @@ static char globalid = 0;
 dispatcher *
 dispatch_new_listener(void)
 {
-	char id = __sync_fetch_and_add(&globalid, 1);
+	char id = globalid++;
 	return dispatch_new(id, LISTENER, NULL);
 }
 
@@ -553,7 +553,7 @@ dispatch_new_listener(void)
 dispatcher *
 dispatch_new_connection(route *routes)
 {
-	char id = __sync_fetch_and_add(&globalid, 1);
+	char id = globalid++;
 	return dispatch_new(id, CONNECTION, routes);
 }
 
