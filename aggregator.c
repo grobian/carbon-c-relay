@@ -138,6 +138,8 @@ aggregator_putmetric(
 	char *newfirstspace = NULL;
 	size_t len;
 	const char *ometric;
+	const char *omp;
+	size_t omhash;
 	struct _aggr_computes *compute;
 	struct _aggr_invocations *invocation;
 
@@ -172,8 +174,13 @@ aggregator_putmetric(
 			ometric = newmetric;
 		}
 
+		omhash = 0;
+		for (omp = ometric; *omp != '\0'; omp++)
+			omhash += *omp;
+
 		for (invocation = compute->invocations; invocation != NULL; invocation = invocation->next)
-			if (strcmp(ometric, invocation->metric) == 0)  /* match */
+			if (invocation->hash == omhash &&
+					strcmp(ometric, invocation->metric) == 0)  /* match */
 				break;
 		if (invocation == NULL) {  /* no match, add */
 			int i;
@@ -190,6 +197,7 @@ aggregator_putmetric(
 				free(invocation);
 				continue;
 			}
+			invocation->hash = omhash;
 
 			/* Start buckets in the past with a splay, but before expiry
 			 * the splay is necessary to avoid a thundering herd of

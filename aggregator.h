@@ -35,6 +35,7 @@ typedef struct _aggregator {
 		const char *metric;   /* name template of metric to produce */
 		struct _aggr_invocations {
 			char *metric;     /* actual name to emit */
+			size_t hash;      /* to speed up matching */
 			struct _bucket {
 				long long int start;
 				size_t cnt;
