@@ -403,13 +403,22 @@ dispatch_connection(connection *conn, dispatcher *self)
 		 * size argument is 0) -> this is good, because we can't do much
 		 * with such client */
 
-		closedconnections++;
-		close(conn->sock);
+		if (conn->noexpire) {
+			/* reset buffer only (UDP) and move on */
+			conn->needmore = 1;
+			conn->buflen = 0;
+			conn->takenby = 0;
 
-		/* flag this connection as no longer in use */
-		conn->takenby = -1;
+			return 0;
+		} else {
+			closedconnections++;
+			close(conn->sock);
 
-		return 0;
+			/* flag this connection as no longer in use */
+			conn->takenby = -1;
+
+			return 0;
+		}
 	}
 
 	/* "release" this connection again */
