@@ -264,7 +264,24 @@ dispatch_process_dests(connection *conn, dispatcher *self)
 
 #define IDLE_DISCONNECT_TIME  (10 * 60)  /* 10 minutes */
 /**
- * Look at conn and see if works needs to be done.  If so, do it.
+ * Look at conn and see if works needs to be done.  If so, do it.  This
+ * function operates on an (exclusive) lock on the connection it serves.
+ * Schematically, what this function does is like this:
+ *
+ *   read (partial) data  <----
+ *         |                   |
+ *         v                   |
+ *   split and clean metrics   |
+ *         |                   |
+ *         v                   |
+ *   route metrics             | feedback loop
+ *         |                   | (stall client)
+ *         v                   |
+ *   send 1st attempt          |
+ *         \                   |
+ *          v*                 | * this is optional, but if a server's
+ *   retry send (<1s)  --------    queue is full, the client is stalled
+ *      block reads
  */
 static int
 dispatch_connection(connection *conn, dispatcher *self)
