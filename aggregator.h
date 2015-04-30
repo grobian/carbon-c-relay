@@ -23,6 +23,7 @@
 
 #include "server.h"
 
+#define AGGR_HT_POW_SIZE  12  /* 4096: too big? issue #60 */
 typedef struct _aggregator {
 	unsigned short interval;  /* when to perform the aggregation */
 	unsigned short expire;    /* when incoming metrics are no longer valid */
@@ -34,8 +35,8 @@ typedef struct _aggregator {
 		enum _aggr_compute_type { SUM, CNT, MAX, MIN, AVG } type;
 		const char *metric;   /* name template of metric to produce */
 		struct _aggr_invocations {
-			char *metric;     /* actual name to emit */
-			size_t hash;      /* to speed up matching */
+			char *metric;       /* actual name to emit */
+			unsigned int hash;  /* to speed up matching */
 			struct _bucket {
 				long long int start;
 				size_t cnt;
@@ -44,7 +45,7 @@ typedef struct _aggregator {
 				double min;
 			} *buckets;
 			struct _aggr_invocations *next;
-		} *invocations;
+		} *invocations_ht[1 << AGGR_HT_POW_SIZE];
 		struct _aggr_computes *next;
 	} *computes;
 	pthread_mutex_t bucketlock;

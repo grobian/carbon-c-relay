@@ -108,7 +108,8 @@ aggregator_add_compute(
 
 	ac->type = act;
 	ac->metric = strdup(metric);
-	ac->invocations = NULL;
+	memset(ac->invocations_ht, 0,
+			sizeof(*ac->invocations_ht) * sizeof(ac->invocations_ht));
 	ac->next = NULL;
 
 	return 0;
@@ -139,7 +140,8 @@ aggregator_putmetric(
 	size_t len;
 	const char *ometric;
 	const char *omp;
-	size_t omhash;
+	unsigned int omhash;
+	unsigned int omhtbucket;
 	struct _aggr_computes *compute;
 	struct _aggr_invocations *invocation;
 
@@ -174,11 +176,15 @@ aggregator_putmetric(
 			ometric = newmetric;
 		}
 
-		omhash = 0;
+		omhash = 2166136261UL;  /* FNV1a */
 		for (omp = ometric; *omp != '\0'; omp++)
-			omhash += *omp;
+			omhash = (omhash ^ (unsigned int)*omp) * 16777619;
 
-		for (invocation = compute->invocations; invocation != NULL; invocation = invocation->next)
+		omhtbucket =
+			((omhash >> AGGR_HT_POW_SIZE) ^ omhash) &
+			(((u_int32_t)1 << AGGR_HT_POW_SIZE) - 1);
+		invocation = compute->invocations_ht[omhtbucket];
+		for (; invocation != NULL; invocation = invocation->next)
 			if (invocation->hash == omhash &&
 					strcmp(ometric, invocation->metric) == 0)  /* match */
 				break;
@@ -222,8 +228,8 @@ aggregator_putmetric(
 				invocation->buckets[i].cnt = 0;
 			}
 
-			invocation->next = compute->invocations;
-			compute->invocations = invocation;
+			invocation->next = compute->invocations_ht[omhtbucket];
+			compute->invocations_ht[omhtbucket] = invocation;
 		}
 
 		/* finally, try to do the maths */
@@ -279,8 +285,9 @@ aggregator_expire(void *sub)
 	aggregator *s;
 	struct _bucket *b;
 	struct _aggr_computes *c;
-	struct _aggr_invocations *i;
-	struct _aggr_invocations *lasti;
+	struct _aggr_invocations *inv;
+	struct _aggr_invocations *lastinv;
+	int i;
 	int work;
 	server *submission = (server *)sub;
 	char metric[METRIC_BUFSIZ];
@@ -295,95 +302,98 @@ aggregator_expire(void *sub)
 			 * metrics for all buckets that have completed */
 			now = time(NULL) + (keep_running ? 0 : s->expire - s->interval);
 			for (c = s->computes; c != NULL; c = c->next) {
-				lasti = NULL;
-				isempty = 0;
-				for (i = c->invocations; i != NULL; ) {
-					while (i->buckets[0].start + s->expire < now) {
-						/* yay, let's produce something cool */
-						b = &i->buckets[0];
-						/* avoid emitting empty/unitialised data */
-						isempty = b->cnt == 0;
-						if (!isempty) {
-							switch (c->type) {
-								case SUM:
-									snprintf(metric, sizeof(metric),
-											"%s %f %lld\n",
-											i->metric, b->sum,
-											b->start + s->interval);
-									break;
-								case CNT:
-									snprintf(metric, sizeof(metric),
-											"%s %zd %lld\n",
-											i->metric, b->cnt,
-											b->start + s->interval);
-									break;
-								case MAX:
-									snprintf(metric, sizeof(metric),
-											"%s %f %lld\n",
-											i->metric, b->max,
-											b->start + s->interval);
-									break;
-								case MIN:
-									snprintf(metric, sizeof(metric),
-											"%s %f %lld\n",
-											i->metric, b->min,
-											b->start + s->interval);
-									break;
-								case AVG:
-									snprintf(metric, sizeof(metric),
-											"%s %f %lld\n",
-											i->metric,
-											b->sum / (double)b->cnt,
-											b->start + s->interval);
-									break;
+				for (i = 0; i < (1 << AGGR_HT_POW_SIZE); i++) {
+					lastinv = NULL;
+					isempty = 0;
+					for (inv = c->invocations_ht[i]; inv != NULL; ) {
+						while (inv->buckets[0].start + s->expire < now) {
+							/* yay, let's produce something cool */
+							b = &inv->buckets[0];
+							/* avoid emitting empty/unitialised data */
+							isempty = b->cnt == 0;
+							if (!isempty) {
+								switch (c->type) {
+									case SUM:
+										snprintf(metric, sizeof(metric),
+												"%s %f %lld\n",
+												inv->metric, b->sum,
+												b->start + s->interval);
+										break;
+									case CNT:
+										snprintf(metric, sizeof(metric),
+												"%s %zd %lld\n",
+												inv->metric, b->cnt,
+												b->start + s->interval);
+										break;
+									case MAX:
+										snprintf(metric, sizeof(metric),
+												"%s %f %lld\n",
+												inv->metric, b->max,
+												b->start + s->interval);
+										break;
+									case MIN:
+										snprintf(metric, sizeof(metric),
+												"%s %f %lld\n",
+												inv->metric, b->min,
+												b->start + s->interval);
+										break;
+									case AVG:
+										snprintf(metric, sizeof(metric),
+												"%s %f %lld\n",
+												inv->metric,
+												b->sum / (double)b->cnt,
+												b->start + s->interval);
+										break;
+								}
+								server_send(submission, strdup(metric), 1);
+								s->sent++;
 							}
-							server_send(submission, strdup(metric), 1);
-							s->sent++;
+
+							/* move the bucket to the end, to make room for
+							 * new ones */
+							pthread_mutex_lock(&s->bucketlock);
+							memmove(&inv->buckets[0], &inv->buckets[1],
+									sizeof(*b) * (s->bucketcnt - 1));
+							b = &inv->buckets[s->bucketcnt - 1];
+							b->cnt = 0;
+							b->start =
+								inv->buckets[s->bucketcnt - 2].start +
+								s->interval;
+							pthread_mutex_unlock(&s->bucketlock);
+
+							work++;
 						}
 
-						/* move the bucket to the end, to make room for
-						 * new ones */
-						pthread_mutex_lock(&s->bucketlock);
-						memmove(&i->buckets[0], &i->buckets[1],
-								sizeof(*b) * (s->bucketcnt - 1));
-						b = &i->buckets[s->bucketcnt - 1];
-						b->cnt = 0;
-						b->start =
-							i->buckets[s->bucketcnt - 2].start + s->interval;
-						pthread_mutex_unlock(&s->bucketlock);
-
-						work++;
-					}
-
-					if (isempty) {
-						int j;
-						/* see if the remaining buckets are empty too */
-						pthread_mutex_lock(&s->bucketlock);
-						for (j = 0; j < s->bucketcnt; j++) {
-							if (i->buckets[j].cnt != 0) {
-								isempty = 0;
-								pthread_mutex_unlock(&s->bucketlock);
-								break;
+						if (isempty) {
+							int j;
+							/* see if the remaining buckets are empty too */
+							pthread_mutex_lock(&s->bucketlock);
+							for (j = 0; j < s->bucketcnt; j++) {
+								if (inv->buckets[j].cnt != 0) {
+									isempty = 0;
+									pthread_mutex_unlock(&s->bucketlock);
+									break;
+								}
 							}
 						}
-					}
-					if (isempty) {
-						/* free and unlink */
-						free(i->metric);
-						free(i->buckets);
-						if (lasti != NULL) {
-							lasti->next = i->next;
-							free(i);
-							i = lasti->next;
+						if (isempty) {
+							/* free and unlink */
+							free(inv->metric);
+							free(inv->buckets);
+							if (lastinv != NULL) {
+								lastinv->next = inv->next;
+								free(inv);
+								inv = lastinv->next;
+							} else {
+								c->invocations_ht[i] = inv->next;
+								free(inv);
+								inv = c->invocations_ht[i];
+							}
+							pthread_mutex_unlock(&s->bucketlock);
 						} else {
-							c->invocations = i->next;
-							free(i);
-							i = c->invocations;
+							lastinv = inv;
+							inv = inv->next;
 						}
-						pthread_mutex_unlock(&s->bucketlock);
-					} else {
-						lasti = i;
-						i = i->next;
 					}
 				}
 			}
