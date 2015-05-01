@@ -14,30 +14,21 @@
  * limitations under the License.
  */
 
-
-#include <stdio.h>
 #include <stdlib.h>
-#include <stdarg.h>
 #include <unistd.h>
 #include <string.h>
 #include <signal.h>
 #include <time.h>
 #include <errno.h>
-#include <assert.h>
 
 #include "relay.h"
-#include "consistent-hash.h"
-#include "server.h"
 #include "router.h"
 #include "receptor.h"
 #include "dispatcher.h"
 #include "aggregator.h"
 #include "collector.h"
 
-int keep_running = 1;
-char relay_hostname[256];
-enum rmode mode = NORMAL;
-
+static int keep_running = 1;
 static char *config = NULL;
 static int batchsize = 2500;
 static int queuesize = 25000;
@@ -45,65 +36,6 @@ static dispatcher **workers = NULL;
 static char workercnt = 0;
 static cluster *clusters = NULL;
 static route *routes = NULL;
-static char *relay_logfile = NULL;
-static FILE *relay_stdout = NULL;
-static FILE *relay_stderr = NULL;
-static char relay_can_log = 0;
-
-
-/**
- * Writes to the setup output stream, prefixed with a timestamp, and if
- * the stream is not going to stdout or stderr, prefixed with MSG or
- * ERR.
- */
-int
-relaylog(enum logdst dest, const char *fmt, ...)
-{
-	va_list ap;
-	char prefix[64];
-	size_t len;
-	time_t now;
-	struct tm *tm_now;
-	FILE *dst = NULL;
-	char console = 0;
-	int ret;
-
-	switch (dest) {
-		case LOGOUT:
-			dst = relay_stdout;
-			if (dst == stdout)
-				console = 1;
-			break;
-		case LOGERR:
-			dst = relay_stderr;
-			if (dst == stderr)
-				console = 1;
-			break;
-	}
-	assert(dst != NULL);
-
-	/* briefly stall if we're swapping fds */
-	while (!relay_can_log)
-		usleep((100 + (rand() % 200)) * 1000);  /* 100ms - 300ms */
-
-	time(&now);
-	tm_now = localtime(&now);
-	len = strftime(prefix, sizeof(prefix), "[%Y-%m-%d %H:%M:%S]", tm_now);
-
-	if (!console)
-		len += snprintf(prefix + len, sizeof(prefix) - len, " (%s)", dest == LOGOUT ? "MSG" : "ERR");
-
-	fprintf(dst, "%s ", prefix);
-
-	va_start(ap, fmt);
-
-	ret = vfprintf(dst, fmt, ap);
-	fflush(dst);
-
-	va_end(ap);
-
-	return ret;
-}
 
 static void
 exit_handler(int sig)

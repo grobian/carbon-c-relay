@@ -28,7 +28,8 @@ endif
 override LIBS += `pkg-config openssl --libs` $(SOCKET_LIBS) -pthread
 
 OBJS = \
-	relay.o \
+	main.o \
+	relaylog.o \
 	consistent-hash.o \
 	receptor.o \
 	dispatcher.o \
