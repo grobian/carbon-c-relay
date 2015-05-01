@@ -255,7 +255,6 @@ dispatch_process_dests(connection *conn, dispatcher *self)
 			/* finally "complete" this metric */
 			conn->destlen = 0;
 			conn->wait = 0;
-			self->metrics++;
 		}
 	}
 
@@ -335,6 +334,7 @@ dispatch_connection(connection *conn, dispatcher *self)
 					continue;
 				}
 
+				self->metrics++;
 				*q++ = '\n';
 				*q = '\0';  /* can do this because we substract one from buf */
 
