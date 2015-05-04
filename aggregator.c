@@ -108,8 +108,7 @@ aggregator_add_compute(
 
 	ac->type = act;
 	ac->metric = strdup(metric);
-	memset(ac->invocations_ht, 0,
-			sizeof(*ac->invocations_ht) * sizeof(ac->invocations_ht));
+	memset(ac->invocations_ht, 0, sizeof(ac->invocations_ht));
 	ac->next = NULL;
 
 	return 0;
