@@ -200,7 +200,7 @@ get_cores(void)
 #if defined(_OPENMP)
 	return omp_get_num_procs();
 #else
-	return 16;
+	return 5;
 #endif
 }
 
