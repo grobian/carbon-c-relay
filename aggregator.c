@@ -181,7 +181,7 @@ aggregator_putmetric(
 
 		omhtbucket =
 			((omhash >> AGGR_HT_POW_SIZE) ^ omhash) &
-			(((u_int32_t)1 << AGGR_HT_POW_SIZE) - 1);
+			(((unsigned int)1 << AGGR_HT_POW_SIZE) - 1);
 		invocation = compute->invocations_ht[omhtbucket];
 		for (; invocation != NULL; invocation = invocation->next)
 			if (invocation->hash == omhash &&
