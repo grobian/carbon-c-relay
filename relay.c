@@ -24,6 +24,9 @@
 #include <time.h>
 #include <errno.h>
 #include <assert.h>
+#if defined(_OPENMP)
+# include <omp.h>
+#endif
 
 #include "relay.h"
 #include "consistent-hash.h"
@@ -191,7 +194,17 @@ hup_handler(int sig)
 	logout("SIGHUP handler complete\n");
 }
 
-void
+static int
+get_cores(void)
+{
+#if defined(_OPENMP)
+	return omp_get_num_procs();
+#else
+	return 16;
+#endif
+}
+
+static void
 do_version(void)
 {
 	printf("carbon-c-relay v" VERSION " (" GIT_VERSION ")\n");
@@ -199,7 +212,7 @@ do_version(void)
 	exit(0);
 }
 
-void
+static void
 do_usage(int exitcode)
 {
 	printf("Usage: relay [-vdst] -f <config> [-p <port>] [-w <workers>] [-b <size>] [-q <size>]\n");
@@ -210,7 +223,7 @@ do_usage(int exitcode)
 	printf("  -p  listen on <port> for connections, defaults to 2003\n");
 	printf("  -i  listen on <interface> for connections, defaults to all\n");
 	printf("  -l  write output to <file>, defaults to stdout/stderr\n");
-	printf("  -w  use <workers> worker threads, defaults to 16\n");
+	printf("  -w  use <workers> worker threads, defaults to %d\n", get_cores());
 	printf("  -b  server send batch size, defaults to 2500\n");
 	printf("  -q  server queue size, defaults to 25000\n");
 	printf("  -S  statistics sending interval in seconds, defaults to 60\n");
@@ -322,7 +335,7 @@ main(int argc, char * const argv[])
 	srand(time(NULL));
 
 	if (workercnt == 0)
-		workercnt = mode == SUBMISSION ? 2 : 16;
+		workercnt = mode == SUBMISSION ? 2 : get_cores();
 
 	/* any_of failover maths need batchsize to be smaller than queuesize */
 	if (batchsize > queuesize) {
