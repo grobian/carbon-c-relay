@@ -130,7 +130,7 @@ ch_addnode(ch_ring *ring, server *s)
 				/* this format is actually Python's tuple format that is
 				 * used in serialised form as input for the hash */
 				snprintf(buf, sizeof(buf), "('%s', %s%s%s):%d",
-						server_ip(s),
+						server_instance(s),
 						instance == NULL ? "" : "'",
 						instance == NULL ? "None" : instance,
 						instance == NULL ? "" : "'",
