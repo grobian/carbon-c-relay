@@ -1999,6 +1999,53 @@ router_test_intern(char *metric, char *firstspace, route *routes)
 							w->dest->members.replacement, metric);
 					*firstspace = ' ';
 				}	break;
+				case FORWARD: {
+					servers *s;
+
+					fprintf(stdout, "    forward(%s)\n", w->dest->name);
+					for (s = w->dest->members.forward; s != NULL; s = s->next)
+						fprintf(stdout, "        %s:%d\n",
+								server_ip(s->server), server_port(s->server));
+				}	break;
+				case CARBON_CH:
+				case FNV1A_CH: {
+					destination dst[CONN_DESTS_SIZE];
+					int i;
+
+					fprintf(stdout, "    %s_ch(%s)\n", 
+							w->dest->type == FNV1A_CH ? "fnv1a" : "carbon",
+							w->dest->name);
+					ch_get_nodes(dst,
+							w->dest->members.ch->ring,
+							w->dest->members.ch->repl_factor,
+							metric,
+							firstspace);
+					for (i = 0; i < w->dest->members.ch->repl_factor; i++) {
+						fprintf(stdout, "        %s:%d\n",
+								server_ip(dst[i].dest),
+								server_port(dst[i].dest));
+						free((char *)dst[i].metric);
+					}
+				}	break;
+				case FAILOVER:
+				case ANYOF: {
+					unsigned int hash = 2166136261UL;  /* FNV1a */
+
+					fprintf(stdout, "    %s(%s)\n",
+							w->dest->type == ANYOF ? "any_of" : "failover",
+							w->dest->name);
+					if (w->dest->type == ANYOF) {
+						const char *p;
+						for (p = metric; p < firstspace; p++)
+							hash = (hash ^ (unsigned int)*p) * 16777619;
+						hash %= w->dest->members.anyof->count;
+					} else {
+						hash = 0;
+					}
+					fprintf(stdout, "        %s:%d\n",
+							server_ip(w->dest->members.anyof->servers[hash]),
+							server_port(w->dest->members.anyof->servers[hash]));
+				}	break;
 				default: {
 					fprintf(stdout, "    cluster(%s)\n", w->dest->name);
 				}	break;
