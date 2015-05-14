@@ -86,13 +86,13 @@ aggregator_add_compute(
 
 	if (strcmp(type, "sum") == 0) {
 		act = SUM;
-	} else if (strcmp(type, "count") == 0) {
+	} else if (strcmp(type, "count") == 0 || strcmp(type, "cnt") == 0) {
 		act = CNT;
 	} else if (strcmp(type, "max") == 0) {
 		act = MAX;
 	} else if (strcmp(type, "min") == 0) {
 		act = MIN;
-	} else if (strcmp(type, "average") == 0) {
+	} else if (strcmp(type, "average") == 0 || strcmp(type, "avg") == 0) {
 		act = AVG;
 	} else {
 		return -1;
