@@ -238,7 +238,7 @@ determine_if_regex(route *r, char *pat, int flags)
  *     [timestamp at (start | middle | end) of bucket]
  *     compute (sum | count | max | min | average) write to
  *         (metric)
- *     [compute ...]
+ *     [compute ... write to ...]
  *     [send to (cluster ...)]
  *     [stop]
  *     ;
@@ -1172,7 +1172,8 @@ router_readconfig(cluster **clret, route **rret,
 			 	*p++ = '\0';
 
 				if (aggregator_add_compute(w->members.aggregation, pat, type) != 0) {
-					logerr("expected sum, count, max, min or average "
+					logerr("expected sum, count, max, min, average, "
+							"rate, median, variance or stddev "
 							"after 'compute', got '%s'\n", type);
 					FREE_R;
 					free(w);
@@ -1836,7 +1837,12 @@ router_printconfig(FILE *f, char mode, cluster *clusters, route *routes)
 						"        %s\n",
 						ac->type == SUM ? "sum" : ac->type == CNT ? "count" :
 						ac->type == MAX ? "max" : ac->type == MIN ? "min" :
-						ac->type == AVG ? "average" : "<unknown>",
+						ac->type == AVG ? "average" : 
+						ac->type == RATE ? "rate" :
+						ac->type == MEDN ? "median" :
+						ac->type == VAR ? "variance" :
+						ac->type == SDEV ? "stddev" :
+						"<unknown>",
 						ac->metric + strlen(stubname));
 			if (r->dests->next != NULL) {
 				destinations *dn = r->dests->next;
@@ -2513,7 +2519,11 @@ router_test_intern(char *metric, char *firstspace, route *routes)
 							fprintf(stdout, "    %s%s%s%s -> %s\n",
 									ac->type == SUM ? "sum" : ac->type == CNT ? "count" :
 									ac->type == MAX ? "max" : ac->type == MIN ? "min" :
-									ac->type == AVG ? "average" : "<unknown>",
+									ac->type == AVG ? "average" :
+									ac->type == RATE ? "rate" :
+									ac->type == MEDN ? "median" :
+									ac->type == VAR ? "variance" :
+									ac->type == SDEV ? "stddev" : "<unknown>",
 									w->nmatch > 0 ? "(" : "",
 									w->nmatch > 0 ? ac->metric + stublen : "",
 									w->nmatch > 0 ? ")" : "",
