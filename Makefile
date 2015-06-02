@@ -20,17 +20,18 @@ CC += -fopenmp
 GIT_VERSION := $(shell git describe --abbrev=6 --dirty --always || date +%F)
 GVCFLAGS += -DGIT_VERSION=\"$(GIT_VERSION)\"
 
-override CFLAGS += $(GVCFLAGS) `pkg-config openssl --cflags` -pthread
+override CFLAGS += $(GVCFLAGS) -pthread
 
 SOCKET_LIBS =
 ifeq ($(shell uname), SunOS)
 SOCKET_LIBS += -lsocket  -lnsl
 endif
 
-override LIBS += `pkg-config openssl --libs` $(SOCKET_LIBS) -pthread
+override LIBS += $(SOCKET_LIBS) -pthread
 
 OBJS = \
 	relay.o \
+	md5.o \
 	consistent-hash.o \
 	receptor.o \
 	dispatcher.o \

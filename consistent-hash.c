@@ -18,9 +18,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <openssl/md5.h>
 #include <assert.h>
 
+#include "md5.h"
 #include "server.h"
 
 #define CH_RING struct _ch_ring
