@@ -37,6 +37,7 @@ typedef struct _aggregator {
 		struct _aggr_invocations {
 			char *metric;       /* actual name to emit */
 			unsigned int hash;  /* to speed up matching */
+			unsigned short expire;  /* expire + splay */
 			struct _bucket {
 				long long int start;
 				size_t cnt;

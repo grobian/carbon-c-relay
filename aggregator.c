@@ -204,13 +204,16 @@ aggregator_putmetric(
 			}
 			invocation->hash = omhash;
 
-			/* Start buckets in the past with a splay, but before expiry
-			 * the splay is necessary to avoid a thundering herd of
-			 * expirations when the aggregator is spammed with metrics,
-			 * e.g. right after startup when other relays flush their
-			 * queues. */
+			/* Start buckets in the past such that expiry time
+			 * conditions are met.  Add a splay to the expiry time to
+			 * avoid a thundering herd of expirations when the
+			 * aggregator is spammed with metrics, e.g. right after
+			 * startup when other relays flush their queues.  This
+			 * approach shouldn't affect the timing of the buckets as
+			 * requested in issue #72. */
 			time(&now);
-			now -= s->expire - 1 - (rand() % s->interval);
+			now -= s->expire;
+			invocation->expire = s->expire + (rand() % s->interval);
 
 			/* allocate enough buckets to hold the past + future */
 			invocation->buckets =
@@ -305,7 +308,9 @@ aggregator_expire(void *sub)
 					lastinv = NULL;
 					isempty = 0;
 					for (inv = c->invocations_ht[i]; inv != NULL; ) {
-						while (inv->buckets[0].start + s->expire < now) {
+						while (inv->buckets[0].start +
+								(keep_running ? inv->expire : s->expire) < now)
+						{
 							/* yay, let's produce something cool */
 							b = &inv->buckets[0];
 							/* avoid emitting empty/unitialised data */
