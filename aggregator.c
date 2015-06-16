@@ -336,33 +336,28 @@ aggregator_expire(void *sub)
 									case SUM:
 										snprintf(metric, sizeof(metric),
 												"%s %f %lld\n",
-												inv->metric, b->sum,
-												b->start + s->interval);
+												inv->metric, b->sum, ts);
 										break;
 									case CNT:
 										snprintf(metric, sizeof(metric),
 												"%s %zd %lld\n",
-												inv->metric, b->cnt,
-												b->start + s->interval);
+												inv->metric, b->cnt, ts);
 										break;
 									case MAX:
 										snprintf(metric, sizeof(metric),
 												"%s %f %lld\n",
-												inv->metric, b->max,
-												b->start + s->interval);
+												inv->metric, b->max, ts);
 										break;
 									case MIN:
 										snprintf(metric, sizeof(metric),
 												"%s %f %lld\n",
-												inv->metric, b->min,
-												b->start + s->interval);
+												inv->metric, b->min, ts);
 										break;
 									case AVG:
 										snprintf(metric, sizeof(metric),
 												"%s %f %lld\n",
 												inv->metric,
-												b->sum / (double)b->cnt,
-												b->start + s->interval);
+												b->sum / (double)b->cnt, ts);
 										break;
 								}
 								server_send(submission, strdup(metric), 1);
