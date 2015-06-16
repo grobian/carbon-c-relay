@@ -64,7 +64,7 @@ aggregate
         <expression> ...
     every <interval> seconds
     expire after <expiration> seconds
-	[timestamp at <start | middle | end> of bucket]
+    [timestamp at <start | middle | end> of bucket]
     compute <sum | count | max | min | average> write to
         <metric>
     [compute ...]
