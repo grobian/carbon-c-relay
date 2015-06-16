@@ -22,6 +22,7 @@
 #include <time.h>
 #include <regex.h>
 #include <pthread.h>
+#include <assert.h>
 
 #include "relay.h"
 #include "dispatcher.h"
@@ -331,6 +332,8 @@ aggregator_expire(void *sub)
 									case TS_END:
 										ts = b->start + s->interval;
 										break;
+									default:
+										assert(0);
 								}
 								switch (c->type) {
 									case SUM:
