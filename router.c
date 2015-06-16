@@ -221,6 +221,7 @@ determine_if_regex(route *r, char *pat, int flags)
  *         (regex[ regex ...])
  *     every (interval) seconds
  *     expire after (expiration) seconds
+ *     [timestamp at (start | middle | end) of bucket]
  *     compute (sum | count | max | min | average) write to
  *         (metric)
  *     [compute ...]
@@ -779,6 +780,7 @@ router_readconfig(cluster **clret, route **rret,
 			char *pat;
 			char *interval;
 			char *expire;
+			enum _aggr_timestamp tswhen = TS_END;
 			cluster *w;
 			int err;
 
@@ -895,8 +897,56 @@ router_readconfig(cluster **clret, route **rret,
 			for (; *p != '\0' && isspace(*p); p++)
 				;
 
+			/* optional timestamp bit */
+			if (strncmp(p, "timestamp", 9) == 0 && isspace(*(p + 9))) {
+				p += 10;
+				for (; *p != '\0' && isspace(*p); p++)
+					;
+				if (strncmp(p, "at", 2) != 0 || !isspace(*(p + 2))) {
+					logerr("expected 'at' after 'timestamp'\n");
+					free(buf);
+					return 0;
+				}
+				p += 3;
+				for (; *p != '\0' && isspace(*p); p++)
+					;
+				if (strncmp(p, "start", 5) == 0 && isspace(*(p + 5))) {
+					p += 6;
+					tswhen = TS_START;
+				} else if (strncmp(p, "middle", 6) == 0 && isspace(*(p + 6))) {
+					p += 7;
+					tswhen = TS_MIDDLE;
+				} else if (strncmp(p, "end", 3) == 0 && isspace(*(p + 3))) {
+					p += 4;
+					tswhen = TS_END;
+				} else {
+					logerr("expected 'start', 'middle' or 'end' "
+							"after 'timestamp at'\n");
+					free(buf);
+					return 0;
+				}
+				for (; *p != '\0' && isspace(*p); p++)
+					;
+				if (strncmp(p, "of", 2) != 0 || !isspace(*(p + 2))) {
+					logerr("expected 'of' after 'timestamp at ...'\n");
+					free(buf);
+					return 0;
+				}
+				p += 3;
+				for (; *p != '\0' && isspace(*p); p++)
+					;
+				if (strncmp(p, "bucket", 6) != 0 || !isspace(*(p + 6))) {
+					logerr("expected 'bucket' after 'timestamp at ... of'\n");
+					free(buf);
+					return 0;
+				}
+				p += 7;
+				for (; *p != '\0' && isspace(*p); p++)
+					;
+			}
+
 			w->members.aggregation =
-				aggregator_new(atoi(interval), atoi(expire));
+				aggregator_new(atoi(interval), atoi(expire), tswhen);
 			if (w->members.aggregation == NULL) {
 				logerr("invalid interval (%s) or expire (%s)\n",
 						interval, expire);
@@ -1411,9 +1461,14 @@ router_printconfig(FILE *f, char all, cluster *clusters, route *routes)
 			} while (r->next != NULL && r->next->dest == aggr
 					&& (r = r->next) != NULL);
 			fprintf(f, "    every %u seconds\n"
-					"    expire after %u seconds\n",
+					"    expire after %u seconds\n"
+					"    timestamp at %s of bucket\n",
 					aggr->members.aggregation->interval,
-					aggr->members.aggregation->expire);
+					aggr->members.aggregation->expire,
+					aggr->members.aggregation->tswhen == TS_START ? "start" :
+					aggr->members.aggregation->tswhen == TS_MIDDLE ? "middle" :
+					aggr->members.aggregation->tswhen == TS_END ? "end" :
+					"<unknown>");
 			for (ac = aggr->members.aggregation->computes; ac != NULL; ac = ac->next)
 				fprintf(f, "    compute %s write to\n"
 						"        %s\n",

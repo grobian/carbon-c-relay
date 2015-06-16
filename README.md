@@ -64,6 +64,7 @@ aggregate
         <expression> ...
     every <interval> seconds
     expire after <expiration> seconds
+	timestamp at <start | middle | end> of bucket
     compute <sum | count | max | min | average> write to
         <metric>
     [compute ...]
@@ -355,6 +356,7 @@ e.g. for each hostname encountered.  A typical aggregation looks like:
             ^sys\.dc2\.somehost-[0-9]+\.somecluster\.mysql\.replication_delay
         every 10 seconds
         expire after 35 seconds
+		timestamp at end of bucket
         compute sum write to
             mysql.somecluster.total_replication_delay
         compute average write to
@@ -378,6 +380,10 @@ before considering a data bucket (which is aggregated) to be complete.
 In the example, 35 was used, which means after 35 + 10 seconds the first
 four aggregate metrics are produced.  It also means that metrics can
 arrive 35 seconds late, and still be taken into account.
+The `timestamp` that is used for the aggregations can be specified to be
+the `start`, `middle` or `end` of the bucket.  Original
+carbon-aggregator.py uses `start`, while carbon-c-relay's default has
+always been `end`.
 The `compute` clauses demonstrate a single aggregation rule can produce
 multiple aggregates, as often is the case.  Internally, this comes for
 free, since all possible aggregates are always calculated, whether or

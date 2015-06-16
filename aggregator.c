@@ -40,7 +40,10 @@ static char keep_running = 1;
  * and expiry time.
  */
 aggregator *
-aggregator_new(unsigned int interval, unsigned int expire)
+aggregator_new(
+		unsigned int interval,
+		unsigned int expire,
+		enum _aggr_timestamp tswhen)
 {
 	aggregator *ret = malloc(sizeof(aggregator));
 
@@ -59,6 +62,7 @@ aggregator_new(unsigned int interval, unsigned int expire)
 
 	ret->interval = interval;
 	ret->expire = expire;
+	ret->tswhen = tswhen;
 	ret->bucketcnt = (expire / interval) * 2 + 1 ;
 	ret->received = 0;
 	ret->sent = 0;
@@ -294,6 +298,7 @@ aggregator_expire(void *sub)
 	server *submission = (server *)sub;
 	char metric[METRIC_BUFSIZ];
 	char isempty;
+	long long int ts;
 
 	while (1) {
 		work = 0;
@@ -316,6 +321,17 @@ aggregator_expire(void *sub)
 							/* avoid emitting empty/unitialised data */
 							isempty = b->cnt == 0;
 							if (!isempty) {
+								switch (s->tswhen) {
+									case TS_START:
+										ts = b->start;
+										break;
+									case TS_MIDDLE:
+										ts = b->start + (s->interval / 2);
+										break;
+									case TS_END:
+										ts = b->start + s->interval;
+										break;
+								}
 								switch (c->type) {
 									case SUM:
 										snprintf(metric, sizeof(metric),

@@ -27,6 +27,7 @@
 typedef struct _aggregator {
 	unsigned short interval;  /* when to perform the aggregation */
 	unsigned short expire;    /* when incoming metrics are no longer valid */
+	enum _aggr_timestamp { TS_START, TS_MIDDLE, TS_END } tswhen;
 	unsigned char bucketcnt;
 	size_t received;
 	size_t sent;
@@ -53,7 +54,7 @@ typedef struct _aggregator {
 	struct _aggregator *next;
 } aggregator;
 
-aggregator *aggregator_new(unsigned int interval, unsigned int expire);
+aggregator *aggregator_new(unsigned int interval, unsigned int expire, enum _aggr_timestamp tswhen);
 char aggregator_add_compute(aggregator *s, const char *metric, const char *type);
 void aggregator_putmetric(aggregator *s, const char *metric, const char *firstspace, size_t nmatch, regmatch_t *pmatch);
 int aggregator_start(server *submission);
