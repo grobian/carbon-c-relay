@@ -207,6 +207,17 @@ server_queuereader(void *d)
 					self->failure += self->failure >= FAIL_WAIT_TIME ? 0 : 1;
 					continue;
 				}
+			} else if (self->ctype == CON_FILE) {
+				if ((self->fd = open(self->ip,
+								O_WRONLY | O_APPEND | O_CREAT,
+								S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)) < 0)
+				{
+					if (!self->failure)
+						logerr("failed to open file '%s': %s\n",
+								self->ip, strerror(errno));
+					self->failure += self->failure >= FAIL_WAIT_TIME ? 0 : 1;
+					continue;
+				}
 			} else {
 				int ret;
 				int args;
