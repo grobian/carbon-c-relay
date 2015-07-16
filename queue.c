@@ -207,3 +207,12 @@ queue_free(queue *q)
 {
 	return q->end - q->len;
 }
+
+/**
+ * Returns the size of the queue.
+ */
+inline size_t
+queue_size(queue *q)
+{
+	return q->end;
+}
