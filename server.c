@@ -701,3 +701,15 @@ server_get_queue_len(server *s)
 		return 0;
 	return queue_len(s->queue);
 }
+
+/**
+ * Returns the allocated size of the queue backing metrics waiting to be
+ * sent.
+ */
+inline size_t
+server_get_queue_size(server *s)
+{
+	if (s == NULL)
+		return 0;
+	return queue_size(s->queue);
+}

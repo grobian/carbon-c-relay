@@ -15,7 +15,7 @@
 
 CFLAGS ?= -O2 -Wall
 # if your compiler doesn't support OpenMP, comment out this line
-CC += -fopenmp
+#CC += -fopenmp
 
 GIT_VERSION := $(shell git describe --abbrev=6 --dirty --always || date +%F)
 GVCFLAGS += -DGIT_VERSION=\"$(GIT_VERSION)\"
