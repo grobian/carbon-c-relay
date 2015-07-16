@@ -223,6 +223,8 @@ collector_writer(void *unused)
 {
 	int i = 0;
 	size_t queued;
+	size_t queuesize;
+	double queueusage;
 	size_t totdropped;
 	size_t numaggregators = aggregator_numaggregators();
 	server **srvs = NULL;
@@ -243,12 +245,15 @@ collector_writer(void *unused)
 		totdropped = 0;
 		for (i = 0; srvs[i] != NULL; i++) {
 			queued = server_get_queue_len(srvs[i]);
+			queuesize = server_get_queue_size(srvs[i]);
 			totdropped += server_get_dropped(srvs[i]);
+			queueusage = (double)queued / (double)queuesize;
 
-			if (queued > 150)
+			if (queueusage >= 0.75)
 				logout("warning: metrics queuing up "
-						"for %s:%u: %zd metrics\n",
-						server_ip(srvs[i]), server_port(srvs[i]), queued);
+						"for %s:%u: %zd metrics (%d%% of queue size)\n",
+						server_ip(srvs[i]), server_port(srvs[i]), queued,
+						(int)(queueusage * 100));
 		}
 		if (totdropped - lastdropped > 0)
 			logout("warning: dropped %zd metrics\n", totdropped - lastdropped);
