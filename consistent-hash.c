@@ -191,7 +191,8 @@ ch_addnode(ch_ring *ring, server *s)
 		last = NULL;
 		assert(ring->hash_replicas > 0);
 		for (w = ring->entries; w != NULL && i < ring->hash_replicas; ) {
-			if (w->pos < entries[i].pos) {
+			if ((ring->type == FNV1a  && w->pos < entries[i].pos) ||
+                            (ring->type == CARBON && entrycmp(w, &entries[i]) <= 0)) {
 				last = w;
 				w = w->next;
 			} else {
