@@ -17,7 +17,7 @@ CFLAGS ?= -O2 -Wall
 # if your compiler doesn't support OpenMP, comment out this line, or
 # define OPENMP_FLAGS to be empty
 OPENMP_FLAGS ?= -fopenmp
-CC += $(OPENMP_FLAGS)
+override CC += $(OPENMP_FLAGS)
 
 GIT_VERSION := $(shell git describe --abbrev=6 --dirty --always || date +%F)
 GVCFLAGS += -DGIT_VERSION=\"$(GIT_VERSION)\"
