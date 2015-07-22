@@ -38,6 +38,7 @@ void ch_get_nodes(
 		const char *metric,
 		const char *firstspace);
 void ch_printhashring(ch_ring *ring, FILE *out);
+unsigned short ch_gethashpos(ch_ring *ring, const char *key, const char *end);
 void ch_free(ch_ring *ring);
 
 #endif

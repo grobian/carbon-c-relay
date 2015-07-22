@@ -280,6 +280,17 @@ ch_printhashring(ch_ring *ring, FILE *f)
 	}
 }
 
+unsigned short
+ch_gethashpos(ch_ring *ring, const char *key, const char *end)
+{
+	switch (ring->type) {
+		case CARBON:
+			return carbon_hashpos(key, end);
+		case FNV1a:
+			return fnv1a_hashpos(key, end);
+	}
+}
+
 /**
  * Frees the ring structure and its added nodes.
  */
