@@ -260,6 +260,7 @@ router_readconfig(cluster **clret, route **rret,
 	route *r = NULL;
 	route *topr = NULL;
 	struct addrinfo *saddrs;
+	char matchcatchallfound = 0;
 
 	if ((cnf = fopen(path, "r")) == NULL || stat(path, &st) == -1)
 		return 0;
@@ -806,6 +807,14 @@ router_readconfig(cluster **clret, route **rret,
 			}
 			r->stop = w->type == BLACKHOLE ? 1 : stop;
 			r->next = NULL;
+
+			if (matchcatchallfound) {
+				logerr("warning: match %s will never be matched "
+						"due to preceeding match * ... stop\n",
+						r->pattern == NULL ? "*" : r->pattern);
+			}
+			if (r->matchtype == MATCHALL && r->stop)
+				matchcatchallfound = 1;
 		} else if (strncmp(p, "aggregate", 9) == 0 && isspace(*(p + 9))) {
 			/* aggregation rule */
 			char *type;
@@ -1041,6 +1050,12 @@ router_readconfig(cluster **clret, route **rret,
 					;
 			} while (*p != ';');
 			p++;
+
+			if (matchcatchallfound) {
+				logerr("warning: aggregate %s will never be matched "
+						"due to preceeding match * ... stop\n",
+						r->pattern == NULL ? "*" : r->pattern);
+			}
 		} else if (strncmp(p, "rewrite", 7) == 0 && isspace(*(p + 7))) {
 			/* rewrite rule */
 			char *pat;
@@ -1120,6 +1135,12 @@ router_readconfig(cluster **clret, route **rret,
 			r->dest = cl;
 			r->stop = 0;
 			r->next = NULL;
+
+			if (matchcatchallfound) {
+				logerr("warning: rewrite %s will never be matched "
+						"due to preceeding match * ... stop\n",
+						r->pattern == NULL ? "*" : r->pattern);
+			}
 		} else {
 			/* garbage? */
 			logerr("garbage in config: %s\n", p);
