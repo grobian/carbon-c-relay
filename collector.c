@@ -301,7 +301,7 @@ collector_start(dispatcher **d, cluster *c, server *submission)
 	dispatchers = d;
 	collector_schedulereload(c);
 
-	if (mode == DEBUG)
+	if (mode == DEBUG || mode == DEBUGTEST)
 		debug = 1;
 
 	if (mode != SUBMISSION) {

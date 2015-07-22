@@ -1463,7 +1463,7 @@ router_getservers(cluster *clusters)
  * thousands.
  */
 void
-router_printconfig(FILE *f, char all, cluster *clusters, route *routes)
+router_printconfig(FILE *f, char mode, cluster *clusters, route *routes)
 {
 	cluster *c;
 	route *r;
@@ -1503,6 +1503,12 @@ router_printconfig(FILE *f, char all, cluster *clusters, route *routes)
 						PPROTO);
 		}
 		fprintf(f, "    ;\n");
+		if (mode & 2) {
+			if (c->type == CARBON_CH || c->type == FNV1A_CH) {
+				fprintf(f, "# hash ring for %s follows\n", c->name);
+				ch_printhashring(c->members.ch->ring, f);
+			}
+		}
 	}
 	fprintf(f, "\n");
 	for (r = routes; r != NULL; r = r->next) {
@@ -1510,7 +1516,7 @@ router_printconfig(FILE *f, char all, cluster *clusters, route *routes)
 			cluster *aggr = r->dest;
 			struct _aggr_computes *ac;
 
-			if (!all)
+			if (!(mode & 1))
 				continue;
 
 			fprintf(f, "aggregate\n");
@@ -2130,6 +2136,11 @@ router_test_intern(char *metric, char *firstspace, route *routes)
 					fprintf(stdout, "    %s_ch(%s)\n", 
 							w->dest->type == FNV1A_CH ? "fnv1a" : "carbon",
 							w->dest->name);
+					if (mode == DEBUGTEST) {
+						fprintf(stdout, "        hash_pos(%d)\n",
+								ch_gethashpos(w->dest->members.ch->ring,
+									metric, firstspace));
+					}
 					ch_get_nodes(dst,
 							w->dest->members.ch->ring,
 							w->dest->members.ch->repl_factor,

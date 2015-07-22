@@ -227,7 +227,8 @@ do_usage(int exitcode)
 	printf("  -b  server send batch size, defaults to 2500\n");
 	printf("  -q  server queue size, defaults to 25000\n");
 	printf("  -S  statistics sending interval in seconds, defaults to 60\n");
-	printf("  -d  debug mode: currently writes statistics to log\n");
+	printf("  -d  debug mode: currently writes statistics to log, prints hash\n"
+	       "      ring contents and matching position in test mode (-t)\n");
 	printf("  -s  submission mode: write info about errors to log\n");
 	printf("  -t  config test mode: prints rule matches from input on stdin\n");
 	printf("  -H  hostname: override hostname (used in statistics)\n");
@@ -261,13 +262,21 @@ main(int argc, char * const argv[])
 				do_version();
 				break;
 			case 'd':
-				mode = DEBUG;
+				if (mode == TEST) {
+					mode = DEBUGTEST;
+				} else {
+					mode = DEBUG;
+				}
 				break;
 			case 's':
 				mode = SUBMISSION;
 				break;
 			case 't':
-				mode = TEST;
+				if (mode == DEBUG) {
+					mode = DEBUGTEST;
+				} else {
+					mode = TEST;
+				}
 				break;
 			case 'f':
 				config = optarg;
@@ -343,7 +352,7 @@ main(int argc, char * const argv[])
 		exit(-1);
 	}
 
-	if (relay_logfile != NULL && mode != TEST) {
+	if (relay_logfile != NULL && mode != TEST && mode != DEBUGTEST) {
 		FILE *f = fopen(relay_logfile, "a");
 		if (f == NULL) {
 			fprintf(stderr, "error: failed to open logfile '%s': %s\n",
@@ -370,7 +379,7 @@ main(int argc, char * const argv[])
 	fprintf(relay_stdout, "    server queue size = %d\n", queuesize);
 	fprintf(relay_stdout, "    statistics submission interval = %ds\n",
 			collector_interval);
-	if (mode == DEBUG)
+	if (mode == DEBUG || mode == DEBUGTEST)
 		fprintf(relay_stdout, "    debug = true\n");
 	else if (mode == SUBMISSION)
 		fprintf(relay_stdout, "    submission = true\n");
@@ -387,19 +396,20 @@ main(int argc, char * const argv[])
 
 	numaggregators = aggregator_numaggregators();
 	numcomputes = aggregator_numcomputes();
+#define dbg (mode == DEBUG || mode == DEBUGTEST ? 2 : 0)
 	if (numaggregators > 10) {
 		fprintf(relay_stdout, "parsed configuration follows:\n"
 				"(%zd aggregations with %zd computations omitted "
 				"for brevity)\n", numaggregators, numcomputes);
-		router_printconfig(relay_stdout, 0, clusters, routes);
+		router_printconfig(relay_stdout, 0 + dbg, clusters, routes);
 	} else {
 		fprintf(relay_stdout, "parsed configuration follows:\n");
-		router_printconfig(relay_stdout, 1, clusters, routes);
+		router_printconfig(relay_stdout, 1 + dbg, clusters, routes);
 	}
 	fprintf(relay_stdout, "\n");
 
 	/* shortcut for rule testing mode */
-	if (mode == TEST) {
+	if (mode == TEST || mode == DEBUGTEST) {
 		char metricbuf[METRIC_BUFSIZ];
 		char *p;
 
