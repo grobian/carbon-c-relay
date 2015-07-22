@@ -18,6 +18,8 @@
 #ifndef CONSISTENT_HASH_H
 #define CONSISTENT_HASH_H 1
 
+#include <stdio.h>
+
 #include "server.h"
 #include "router.h"
 
@@ -35,6 +37,7 @@ void ch_get_nodes(
 		const char replcnt,
 		const char *metric,
 		const char *firstspace);
+void ch_printhashring(ch_ring *ring, FILE *out);
 void ch_free(ch_ring *ring);
 
 #endif

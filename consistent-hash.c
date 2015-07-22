@@ -256,6 +256,30 @@ ch_get_nodes(
 	}
 }
 
+void
+ch_printhashring(ch_ring *ring, FILE *f)
+{
+	ch_ring_entry *w;
+	char column = 0;
+	char srvbuf[21];
+
+	for (w = ring->entries; w != NULL; w = w->next) {
+		snprintf(srvbuf, sizeof(srvbuf), "%s:%d%s%s",
+				server_ip(w->server),
+				server_port(w->server),
+				server_instance(w->server) ? "=" : "",
+				server_instance(w->server) ? server_instance(w->server) : "");
+		fprintf(f, "%5d@%-20s", w->pos, srvbuf);
+		if (column < 2) {
+			fprintf(f, " ");
+			column++;
+		} else {
+			fprintf(f, "\n");
+			column = 0;
+		}
+	}
+}
+
 /**
  * Frees the ring structure and its added nodes.
  */
