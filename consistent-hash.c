@@ -288,6 +288,8 @@ ch_gethashpos(ch_ring *ring, const char *key, const char *end)
 			return carbon_hashpos(key, end);
 		case FNV1a:
 			return fnv1a_hashpos(key, end);
+		default:
+			assert(0);  /* this shouldn't happen */
 	}
 }
 
