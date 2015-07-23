@@ -78,12 +78,43 @@ fnv1a_hashpos(const char *key, const char *end)
 }
 
 /**
- * Qsort comparator for ch_ring_entry structs on pos.
+ * Sort comparator for ch_ring_entry structs on pos, ip, port or instance.
  */
 static int
-entrycmp(const void *l, const void *r)
+entrycmp(void *t, const void *l, const void *r)
 {
-	return ((ch_ring_entry *)l)->pos - ((ch_ring_entry *)r)->pos;
+	ch_ring_entry *ch_l = (ch_ring_entry *)l;
+	ch_ring_entry *ch_r = (ch_ring_entry *)r;
+	ch_ring *ring = (ch_ring *)t;
+	(void)ring;  /* pacify compiler */
+
+	if (ch_l->pos != ch_r->pos)
+		return ch_l->pos - ch_r->pos;
+
+#ifndef CH_CMP_V40_BEHAVIOUR
+	if (ring->type == CARBON) {
+		int d = strcmp(server_ip(ch_l->server), server_ip(ch_r->server));
+		char *i_l, *i_r;
+		if (d != 0)
+			return d;
+		i_l = server_instance(ch_l->server);
+		i_r = server_instance(ch_r->server);
+		if (i_l == NULL && i_r == NULL)
+			return 0;
+		if (i_l == NULL)
+			return 1;
+		if (i_r == NULL)
+			return -1;
+		return strcmp(i_l, i_r);
+	} else if (ring->type == FNV1a) {
+		int d = strcmp(server_ip(ch_l->server), server_ip(ch_r->server));
+		if (d != 0)
+			return d;
+		return server_port(ch_l->server) - server_port(ch_r->server);
+	}
+#endif
+
+	return 0;
 }
 
 ch_ring *
@@ -161,7 +192,8 @@ ch_addnode(ch_ring *ring, server *s)
 	}
 
 	/* sort to allow merge joins later down the road */
-	qsort(entries, ring->hash_replicas, sizeof(ch_ring_entry), *entrycmp);
+	qsort_r(entries, ring->hash_replicas, sizeof(ch_ring_entry),
+			ring, *entrycmp);
 	entries[0].malloced = 1;
 
 	if (ring->entries == NULL) {
@@ -175,7 +207,7 @@ ch_addnode(ch_ring *ring, server *s)
 		last = NULL;
 		assert(ring->hash_replicas > 0);
 		for (w = ring->entries; w != NULL && i < ring->hash_replicas; ) {
-			if (w->pos < entries[i].pos) {
+			if (entrycmp(ring, &w->pos, &entries[i].pos) <= 0) {
 				last = w;
 				w = w->next;
 			} else {
