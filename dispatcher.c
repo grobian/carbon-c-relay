@@ -62,6 +62,7 @@ struct _dispatcher {
 	route *routes;
 	route *pending_routes;
 	char route_refresh_pending:1;
+	char *allowed_chars;
 };
 
 static connection *listeners[32];       /* hopefully enough */
@@ -377,7 +378,7 @@ dispatch_connection(connection *conn, dispatcher *self)
 					(*p >= 'a' && *p <= 'z') ||
 					(*p >= 'A' && *p <= 'Z') ||
 					(*p >= '0' && *p <= '9') ||
-					*p == '-' || *p == '_' || *p == ':' || *p == '#')
+					strchr(self->allowed_chars, *p))
 			{
 				/* copy char */
 				*q++ = *p;
@@ -539,7 +540,7 @@ dispatch_runner(void *arg)
  * Returns its handle.
  */
 static dispatcher *
-dispatch_new(char id, enum conntype type, route *routes)
+dispatch_new(char id, enum conntype type, route *routes, char *allowed_chars)
 {
 	dispatcher *ret = malloc(sizeof(dispatcher));
 
@@ -555,6 +556,7 @@ dispatch_new(char id, enum conntype type, route *routes)
 	}
 	ret->routes = routes;
 	ret->route_refresh_pending = 0;
+	ret->allowed_chars = allowed_chars;
 
 	return ret;
 }
@@ -569,7 +571,7 @@ dispatcher *
 dispatch_new_listener(void)
 {
 	char id = globalid++;
-	return dispatch_new(id, LISTENER, NULL);
+	return dispatch_new(id, LISTENER, NULL, NULL);
 }
 
 /**
@@ -577,10 +579,10 @@ dispatch_new_listener(void)
  * existing connections.
  */
 dispatcher *
-dispatch_new_connection(route *routes)
+dispatch_new_connection(route *routes, char *allowed_chars)
 {
 	char id = globalid++;
-	return dispatch_new(id, CONNECTION, routes);
+	return dispatch_new(id, CONNECTION, routes, allowed_chars);
 }
 
 /**

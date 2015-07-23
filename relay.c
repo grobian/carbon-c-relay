@@ -227,6 +227,7 @@ do_usage(int exitcode)
 	printf("  -b  server send batch size, defaults to 2500\n");
 	printf("  -q  server queue size, defaults to 25000\n");
 	printf("  -S  statistics sending interval in seconds, defaults to 60\n");
+	printf("  -c  characters to allow next to [A-Za-z0-9], defaults to -_:#\n");
 	printf("  -d  debug mode: currently writes statistics to log, prints hash\n"
 	       "      ring contents and matching position in test mode (-t)\n");
 	printf("  -s  submission mode: write info about errors to log\n");
@@ -251,12 +252,14 @@ main(int argc, char * const argv[])
 	server *internal_submission;
 	char *listeninterface = NULL;
 	server **servers;
+#define DEF_ALLOWED_CHARS "-_:#"
+	char *allowed_chars = DEF_ALLOWED_CHARS;
 	int i;
 
 	if (gethostname(relay_hostname, sizeof(relay_hostname)) < 0)
 		snprintf(relay_hostname, sizeof(relay_hostname), "127.0.0.1");
 
-	while ((ch = getopt(argc, argv, ":hvdstf:i:l:p:w:b:q:S:H:")) != -1) {
+	while ((ch = getopt(argc, argv, ":hvdstf:i:l:p:w:b:q:S:c:H:")) != -1) {
 		switch (ch) {
 			case 'v':
 				do_version();
@@ -323,6 +326,9 @@ main(int argc, char * const argv[])
 					do_usage(1);
 				}
 				break;
+			case 'c':
+				allowed_chars = optarg;
+				break;
 			case 'H':
 				snprintf(relay_hostname, sizeof(relay_hostname), "%s", optarg);
 				break;
@@ -379,6 +385,9 @@ main(int argc, char * const argv[])
 	fprintf(relay_stdout, "    server queue size = %d\n", queuesize);
 	fprintf(relay_stdout, "    statistics submission interval = %ds\n",
 			collector_interval);
+	if (allowed_chars != DEF_ALLOWED_CHARS)
+		fprintf(relay_stdout, "    extra allowed characters = %s\n",
+				allowed_chars);
 	if (mode == DEBUG || mode == DEBUGTEST)
 		fprintf(relay_stdout, "    debug = true\n");
 	else if (mode == SUBMISSION)
@@ -475,7 +484,7 @@ main(int argc, char * const argv[])
 
 	logout("starting %d workers\n", workercnt);
 	for (id = 1; id < 1 + workercnt; id++) {
-		workers[id + 0] = dispatch_new_connection(routes);
+		workers[id + 0] = dispatch_new_connection(routes, allowed_chars);
 		if (workers[id + 0] == NULL) {
 			logerr("failed to add worker %d\n", id);
 			break;
