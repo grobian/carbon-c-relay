@@ -166,10 +166,12 @@ ch_addnode(ch_ring *ring, server *s)
 						instance == NULL ? "None" : instance,
 						instance == NULL ? "" : "'",
 						i);
-				/* TODO:
+				/* carbon upstream committed:
 				 * https://github.com/graphite-project/carbon/commit/024f9e67ca47619438951c59154c0dec0b0518c7
-				 * Question is how harmful the collision is -- it will probably
-				 * change the location of some metrics */
+				 * this makes sure no collissions exist on pos, however,
+				 * at the expense of being agnostic to the input order,
+				 * therefore that change isn't implemented here, see
+				 * https://github.com/grobian/carbon-c-relay/issues/84 */
 				entries[i].pos = carbon_hashpos(buf, buf + strlen(buf));
 				entries[i].server = s;
 				entries[i].next = NULL;
