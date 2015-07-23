@@ -78,12 +78,28 @@ fnv1a_hashpos(const char *key, const char *end)
 }
 
 /**
- * Qsort comparator for ch_ring_entry structs on pos.
+ * Qsort comparator for ch_ring_entry structs on pos.  We compare the server
+ * and instance (if present) to simulate Python's bisect.insort() function
+ * as well as make the qsort stable.
  */
 static int
 entrycmp(const void *l, const void *r)
 {
-	return ((ch_ring_entry *)l)->pos - ((ch_ring_entry *)r)->pos;
+        int i;
+
+	if ((i = ((ch_ring_entry *)l)->pos - ((ch_ring_entry *)r)->pos) != 0) {
+                return i;
+        }
+        if ((i = strcmp(server_ip(((ch_ring_entry *)l)->server), server_ip(((ch_ring_entry *)r)->server))) != 0) {
+                return i;
+        }
+        if (server_instance(((ch_ring_entry *)l)->server) == NULL || server_instance(((ch_ring_entry *)r)->server) == NULL) {
+                /* Nothing left to compare, we are equal */
+                return 0;
+        }
+
+        return strcmp(server_instance(((ch_ring_entry *)l)->server),
+                      server_instance(((ch_ring_entry *)r)->server));
 }
 
 ch_ring *
@@ -175,7 +191,8 @@ ch_addnode(ch_ring *ring, server *s)
 		last = NULL;
 		assert(ring->hash_replicas > 0);
 		for (w = ring->entries; w != NULL && i < ring->hash_replicas; ) {
-			if (w->pos < entries[i].pos) {
+			if ((ring->type == FNV1a  && w->pos < entries[i].pos) ||
+                            (ring->type == CARBON && entrycmp(w, &entries[i]) <= 0)) {
 				last = w;
 				w = w->next;
 			} else {
