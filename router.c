@@ -1851,6 +1851,7 @@ router_route_intern(
 					break;
 			}
 			/* indirection */
+			assert(q != NULL);
 			if (*q == '\0')
 				stop = router_route_intern(
 						ret,
