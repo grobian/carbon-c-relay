@@ -78,21 +78,19 @@ fnv1a_hashpos(const char *key, const char *end)
 }
 
 /**
- * Sort comparator for ch_ring_entry structs on pos, ip, port or instance.
+ * Sort comparator for ch_ring_entry structs on pos, ip and instance.
  */
 static int
-entrycmp(void *t, const void *l, const void *r)
+entrycmp_carbon(const void *l, const void *r)
 {
 	ch_ring_entry *ch_l = (ch_ring_entry *)l;
 	ch_ring_entry *ch_r = (ch_ring_entry *)r;
-	ch_ring *ring = (ch_ring *)t;
-	(void)ring;  /* pacify compiler */
 
 	if (ch_l->pos != ch_r->pos)
 		return ch_l->pos - ch_r->pos;
 
 #ifndef CH_CMP_V40_BEHAVIOUR
-	if (ring->type == CARBON) {
+	{
 		int d = strcmp(server_ip(ch_l->server), server_ip(ch_r->server));
 		char *i_l, *i_r;
 		if (d != 0)
@@ -106,7 +104,26 @@ entrycmp(void *t, const void *l, const void *r)
 		if (i_r == NULL)
 			return -1;
 		return strcmp(i_l, i_r);
-	} else if (ring->type == FNV1a) {
+	}
+#endif
+
+	return 0;
+}
+
+/**
+ * Sort comparator for ch_ring_entry structs on pos, ip and port.
+ */
+static int
+entrycmp_fnv1a(const void *l, const void *r)
+{
+	ch_ring_entry *ch_l = (ch_ring_entry *)l;
+	ch_ring_entry *ch_r = (ch_ring_entry *)r;
+
+	if (ch_l->pos != ch_r->pos)
+		return ch_l->pos - ch_r->pos;
+
+#ifndef CH_CMP_V40_BEHAVIOUR
+	{
 		int d = strcmp(server_ip(ch_l->server), server_ip(ch_r->server));
 		if (d != 0)
 			return d;
@@ -145,6 +162,7 @@ ch_addnode(ch_ring *ring, server *s)
 	int i;
 	char buf[256];
 	ch_ring_entry *entries;
+	int (*cmp)(const void *, const void *);
 
 	if (ring == NULL)
 		return NULL;
@@ -177,6 +195,7 @@ ch_addnode(ch_ring *ring, server *s)
 				entries[i].next = NULL;
 				entries[i].malloced = 0;
 			}
+			cmp = *entrycmp_carbon;
 			break;
 		case FNV1a:
 			for (i = 0; i < ring->hash_replicas; i++) {
@@ -190,12 +209,12 @@ ch_addnode(ch_ring *ring, server *s)
 				entries[i].next = NULL;
 				entries[i].malloced = 0;
 			}
+			cmp = *entrycmp_fnv1a;
 			break;
 	}
 
 	/* sort to allow merge joins later down the road */
-	qsort_r(entries, ring->hash_replicas, sizeof(ch_ring_entry),
-			ring, *entrycmp);
+	qsort(entries, ring->hash_replicas, sizeof(ch_ring_entry), cmp);
 	entries[0].malloced = 1;
 
 	if (ring->entries == NULL) {
@@ -209,7 +228,7 @@ ch_addnode(ch_ring *ring, server *s)
 		last = NULL;
 		assert(ring->hash_replicas > 0);
 		for (w = ring->entries; w != NULL && i < ring->hash_replicas; ) {
-			if (entrycmp(ring, &w->pos, &entries[i].pos) <= 0) {
+			if (cmp(&w->pos, &entries[i].pos) <= 0) {
 				last = w;
 				w = w->next;
 			} else {
