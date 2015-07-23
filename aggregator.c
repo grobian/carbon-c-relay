@@ -299,7 +299,7 @@ aggregator_expire(void *sub)
 	server *submission = (server *)sub;
 	char metric[METRIC_BUFSIZ];
 	char isempty;
-	long long int ts;
+	long long int ts = 0;
 
 	while (1) {
 		work = 0;

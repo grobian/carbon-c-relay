@@ -252,8 +252,7 @@ main(int argc, char * const argv[])
 	server *internal_submission;
 	char *listeninterface = NULL;
 	server **servers;
-#define DEF_ALLOWED_CHARS "-_:#"
-	char *allowed_chars = DEF_ALLOWED_CHARS;
+	char *allowed_chars = NULL;
 	int i;
 
 	if (gethostname(relay_hostname, sizeof(relay_hostname)) < 0)
@@ -385,7 +384,7 @@ main(int argc, char * const argv[])
 	fprintf(relay_stdout, "    server queue size = %d\n", queuesize);
 	fprintf(relay_stdout, "    statistics submission interval = %ds\n",
 			collector_interval);
-	if (allowed_chars != DEF_ALLOWED_CHARS)
+	if (allowed_chars != NULL)
 		fprintf(relay_stdout, "    extra allowed characters = %s\n",
 				allowed_chars);
 	if (mode == DEBUG || mode == DEBUGTEST)
@@ -482,6 +481,8 @@ main(int argc, char * const argv[])
 	if ((workers[0] = dispatch_new_listener()) == NULL)
 		logerr("failed to add listener\n");
 
+	if (allowed_chars == NULL)
+		allowed_chars = "-_:#";
 	logout("starting %d workers\n", workercnt);
 	for (id = 1; id < 1 + workercnt; id++) {
 		workers[id + 0] = dispatch_new_connection(routes, allowed_chars);

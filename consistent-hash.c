@@ -162,7 +162,7 @@ ch_addnode(ch_ring *ring, server *s)
 	int i;
 	char buf[256];
 	ch_ring_entry *entries;
-	int (*cmp)(const void *, const void *);
+	int (*cmp)(const void *, const void *) = NULL;
 
 	if (ring == NULL)
 		return NULL;
@@ -344,6 +344,8 @@ ch_gethashpos(ch_ring *ring, const char *key, const char *end)
 		default:
 			assert(0);  /* this shouldn't happen */
 	}
+
+	return 0;  /* pacify compiler */
 }
 
 /**
