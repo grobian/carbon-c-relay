@@ -87,7 +87,7 @@ chmod 744 %{_localstatedir}/log/%{name}
 - updated %setup to use carbon-c-relay as tar extracted location
 - changed user/group to %{name}
 - added placeholder %%NAME%% in init, logrotate, monit, sysconfig
--- added sed command to replace %%NAME%% in above at %prep stage
+-- added sed command to replace %%NAME%% in above at prep stage
 - added creation of /var/run/%{name} and /var/log/%{name}
 - added chkconfig --add to %post
 - added logrotate file to spec
