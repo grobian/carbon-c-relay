@@ -1,5 +1,5 @@
-Name:           cc_relay
-Version:        0.39
+Name:           carbon-c-relay
+Version:        0.42
 Release:        1%{?dist}
 Summary:        A C implementation of the Graphite carbon relay daemon packaged for MDR
 Group:          System Environment/Daemons
@@ -20,7 +20,7 @@ This project aims to be a replacement of the original Carbon relay.
 Carbon C Relay has been packed as part of twiki for the BBC.
 
 %prep
-%setup -q -n carbon-c-relay
+%setup -q -n %{name}-%{version}
 %{__sed} -i s/%%%%NAME%%%%/%{name}/g contrib/relay.init
 %{__sed} -i s/%%%%NAME%%%%/%{name}/g contrib/relay.logrotate
 %{__sed} -i s/%%%%NAME%%%%/%{name}/g contrib/relay.monit
@@ -87,7 +87,7 @@ chmod 744 %{_localstatedir}/log/%{name}
 - updated %setup to use carbon-c-relay as tar extracted location
 - changed user/group to %{name}
 - added placeholder %%NAME%% in init, logrotate, monit, sysconfig
--- added sed command to replace %%NAME%% in above at %prep stage
+-- added sed command to replace %%NAME%% in above at prep stage
 - added creation of /var/run/%{name} and /var/log/%{name}
 - added chkconfig --add to %post
 - added logrotate file to spec
@@ -97,7 +97,7 @@ chmod 744 %{_localstatedir}/log/%{name}
 - tidy up for github
 - reverted site specific changes
 
-* Tue Aug 8 2014 Matthew Hollick <matthew@mayan-it.co.uk>
+* Fri Aug 8 2014 Matthew Hollick <matthew@mayan-it.co.uk>
 - packaged as part of twiki
 
 * Tue Jul 1 2014 Matthew Hollick <matthew@mayan-it.co.uk>
