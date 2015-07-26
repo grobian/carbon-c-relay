@@ -287,7 +287,7 @@ static int
 dispatch_connection(connection *conn, dispatcher *self)
 {
 	char *p, *q, *firstspace, *lastnl;
-	int len;
+	int len, numspaces;
 	struct timeval start, stop;
 
 	gettimeofday(&start, NULL);
@@ -323,15 +323,20 @@ dispatch_connection(connection *conn, dispatcher *self)
 		q = conn->metric;
 		firstspace = NULL;
 		lastnl = NULL;
+		numspaces = 0;
 		for (p = conn->buf; p - conn->buf < conn->buflen; p++) {
 			if (*p == '\n' || *p == '\r') {
 				/* end of metric */
 				lastnl = p;
 
 				/* just a newline on it's own? some random garbage? skip */
-				if (q == conn->metric || firstspace == NULL) {
+				if (q == conn->metric ||
+						firstspace == NULL ||
+						numspaces != 2)
+				{
 					q = conn->metric;
 					firstspace = NULL;
+					numspaces = 0;
 					continue;
 				}
 
@@ -347,6 +352,7 @@ dispatch_connection(connection *conn, dispatcher *self)
 				/* restart building new one from the start */
 				q = conn->metric;
 				firstspace = NULL;
+				numspaces = 0;
 
 				conn->wait = time(NULL);
 				/* send the metric to where it is supposed to go */
@@ -362,6 +368,8 @@ dispatch_connection(connection *conn, dispatcher *self)
 				}
 				if (*p == '\t')
 					*p = ' ';
+				if (*p == ' ')
+					numspaces++;
 				if (*p == ' ' && firstspace == NULL) {
 					if (*(q - 1) == '.')
 						q--;  /* strip trailing separator */
