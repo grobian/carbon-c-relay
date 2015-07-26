@@ -29,7 +29,6 @@
 #endif
 
 #include "relay.h"
-#include "consistent-hash.h"
 #include "server.h"
 #include "router.h"
 #include "receptor.h"
