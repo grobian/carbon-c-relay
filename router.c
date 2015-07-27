@@ -655,7 +655,7 @@ router_readconfig(cluster **clret, route **rret,
 						if (cl->type == ANYOF || cl->type == FAILOVER) {
 							if (cl->members.anyof == NULL) {
 								cl->members.anyof = malloc(sizeof(serverlist));
-								cl->members.anyof->count = 0;
+								cl->members.anyof->count = 1;
 								cl->members.anyof->servers = NULL;
 								cl->members.anyof->list = w;
 							} else {
