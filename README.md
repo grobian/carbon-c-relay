@@ -13,7 +13,7 @@ project provides a multithreaded relay which can address multiple
 targets and clusters for each and every metric based on pattern matches.
 
 There are a couple more replacement projects out there we know of, which
-are [carbon-relay-ng](https://github.com/rcrowley/carbon-relay-ng) and [graphite-relay](https://github.com/markchadwick/graphite-relay
+are [carbon-relay-ng](https://github.com/graphite-ng/carbon-relay-ng) and [graphite-relay](https://github.com/markchadwick/graphite-relay
 )
 
 Compared to carbon-relay-ng, this project does provide carbon's
