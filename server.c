@@ -652,9 +652,12 @@ server_failed(server *s)
 inline size_t
 server_get_ticks(server *s)
 {
-	if (s == NULL)
+	size_t value;
+        if (s == NULL)
 		return 0;
-	return s->ticks;
+	value = s->ticks;
+	s->ticks = 0;
+	return value;
 }
 
 /**
@@ -663,9 +666,12 @@ server_get_ticks(server *s)
 inline size_t
 server_get_metrics(server *s)
 {
+        size_t value;
 	if (s == NULL)
 		return 0;
-	return s->metrics;
+	value = s->metrics;
+	s->metrics = 0;
+	return value;
 }
 
 /**
@@ -674,9 +680,12 @@ server_get_metrics(server *s)
 inline size_t
 server_get_dropped(server *s)
 {
+        size_t value;
 	if (s == NULL)
 		return 0;
-	return s->dropped;
+	value = s->dropped;
+	s->dropped = 0;
+	return value;
 }
 
 /**
@@ -687,9 +696,12 @@ server_get_dropped(server *s)
 inline size_t
 server_get_stalls(server *s)
 {
+        size_t value;
 	if (s == NULL)
 		return 0;
-	return s->stalls;
+	value = s->stalls;
+	s->stalls = 0;
+	return value;
 }
 
 /**
