@@ -633,7 +633,10 @@ dispatch_reloadcomplete(dispatcher *d)
 inline size_t
 dispatch_get_ticks(dispatcher *self)
 {
-	return self->ticks;
+	size_t value;
+	value = self->ticks;
+	self->ticks = 0;
+	return value;
 }
 
 /**
@@ -642,7 +645,10 @@ dispatch_get_ticks(dispatcher *self)
 inline size_t
 dispatch_get_metrics(dispatcher *self)
 {
-	return self->metrics;
+	size_t value;
+	value = self->metrics;
+	self->metrics = 0;
+	return value;
 }
 
 /**
