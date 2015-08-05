@@ -39,6 +39,7 @@
 int keep_running = 1;
 char relay_hostname[256];
 enum rmode mode = NORMAL;
+enum mmode metric_style = CRELAY;
 
 static char *config = NULL;
 static int batchsize = 2500;
@@ -214,7 +215,7 @@ do_version(void)
 static void
 do_usage(int exitcode)
 {
-	printf("Usage: relay [-vdst] -f <config> [-p <port>] [-w <workers>] [-b <size>] [-q <size>]\n");
+	printf("Usage: relay [-vdmst] -f <config> [-p <port>] [-w <workers>] [-b <size>] [-q <size>]\n");
 	printf("\n");
 	printf("Options:\n");
 	printf("  -v  print version and exit\n");
@@ -226,6 +227,7 @@ do_usage(int exitcode)
 	printf("  -b  server send batch size, defaults to 2500\n");
 	printf("  -q  server queue size, defaults to 25000\n");
 	printf("  -S  statistics sending interval in seconds, defaults to 60\n");
+	printf("  -m  Use original graphite style statistics\n");
 	printf("  -c  characters to allow next to [A-Za-z0-9], defaults to -_:#\n");
 	printf("  -d  debug mode: currently writes statistics to log, prints hash\n"
 	       "      ring contents and matching position in test mode (-t)\n");
@@ -257,7 +259,7 @@ main(int argc, char * const argv[])
 	if (gethostname(relay_hostname, sizeof(relay_hostname)) < 0)
 		snprintf(relay_hostname, sizeof(relay_hostname), "127.0.0.1");
 
-	while ((ch = getopt(argc, argv, ":hvdstf:i:l:p:w:b:q:S:c:H:")) != -1) {
+	while ((ch = getopt(argc, argv, ":hvdmstf:i:l:p:w:b:q:S:c:H:")) != -1) {
 		switch (ch) {
 			case 'v':
 				do_version();
@@ -268,6 +270,9 @@ main(int argc, char * const argv[])
 				} else {
 					mode = DEBUG;
 				}
+				break;
+			case 'm':
+				metric_style = GRAPHITE;
 				break;
 			case 's':
 				mode = SUBMISSION;

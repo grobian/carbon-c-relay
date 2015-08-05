@@ -635,7 +635,8 @@ dispatch_get_ticks(dispatcher *self)
 {
 	size_t value;
 	value = self->ticks;
-	self->ticks = 0;
+	if (metric_style == GRAPHITE)
+		self->ticks = 0;
 	return value;
 }
 
@@ -647,7 +648,8 @@ dispatch_get_metrics(dispatcher *self)
 {
 	size_t value;
 	value = self->metrics;
-	self->metrics = 0;
+	if (metric_style == GRAPHITE)
+		self->metrics = 0;
 	return value;
 }
 

@@ -656,7 +656,8 @@ server_get_ticks(server *s)
         if (s == NULL)
 		return 0;
 	value = s->ticks;
-	s->ticks = 0;
+	if (metric_style == GRAPHITE)
+		s->ticks = 0;
 	return value;
 }
 
@@ -670,7 +671,8 @@ server_get_metrics(server *s)
 	if (s == NULL)
 		return 0;
 	value = s->metrics;
-	s->metrics = 0;
+	if (metric_style == GRAPHITE)
+		s->metrics = 0;
 	return value;
 }
 
@@ -684,7 +686,8 @@ server_get_dropped(server *s)
 	if (s == NULL)
 		return 0;
 	value = s->dropped;
-	s->dropped = 0;
+	if (metric_style == GRAPHITE)
+		s->dropped = 0;
 	return value;
 }
 
@@ -700,7 +703,8 @@ server_get_stalls(server *s)
 	if (s == NULL)
 		return 0;
 	value = s->stalls;
-	s->stalls = 0;
+	if (metric_style == GRAPHITE)
+		s->stalls = 0;
 	return value;
 }
 
