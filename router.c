@@ -262,7 +262,9 @@ router_readconfig(cluster **clret, route **rret,
 	struct addrinfo *saddrs;
 	char matchcatchallfound = 0;
 
-	if ((cnf = fopen(path, "r")) == NULL || stat(path, &st) == -1)
+	if (stat(path, &st) == -1)
+		return 0;
+	if ((cnf = fopen(path, "r")) == NULL)
 		return 0;
 	buf = malloc(st.st_size + 1);
 	while ((len = fread(buf + len, 1, st.st_size - len, cnf)) != 0)
