@@ -23,7 +23,7 @@
 
 #include "server.h"
 
-#define CONN_DESTS_SIZE    32
+#define CONN_DESTS_SIZE    64
 typedef struct {
 	const char *metric;
 	server *dest;
