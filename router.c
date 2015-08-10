@@ -1832,7 +1832,7 @@ router_route_intern(
 #define failif(RETLEN, WANTLEN) \
 	if (WANTLEN > RETLEN) { \
 		logerr("router_route: out of destination slots, " \
-				"increase CONN_DESTS_SIZE in dispatcher.c\n"); \
+				"increase CONN_DESTS_SIZE in router.h\n"); \
 		return 1; \
 	}
 
