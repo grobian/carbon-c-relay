@@ -434,9 +434,12 @@ router_readconfig(cluster **clret, route **rret,
 				struct addrinfo *next = NULL;
 				char hnbuf[256];
 
-				for (; *p != '\0' && !isspace(*p) && *p != ';'; p++)
-					if (*p == ':')
+				for (; *p != '\0' && !isspace(*p) && *p != ';'; p++) {
+					if (*p == ':' && inst == NULL)
 						lastcolon = p;
+					if (*p == '=' && inst == NULL)
+						inst = p;
+				}
 
 				if (*p == '\0') {
 					logerr("unexpected end of file at '%s' "
@@ -449,14 +452,10 @@ router_readconfig(cluster **clret, route **rret,
 				termchr = *p;
 				*p = '\0';
 
-				if (cl->type == CARBON_CH) {
-					/* parse optional "=instance" bit */
-					for (inst = p - 1; inst > ip; inst--) {
-						if (*inst == '=') {
-							*inst = '\0';
-							p = inst++;
-							break;
-						}
+				if (cl->type == CARBON_CH || cl->type == FNV1A_CH) {
+					if (inst != NULL) {
+						*inst = '\0';
+						p = inst++;
 					}
 					if (inst == ip)
 						inst = NULL;
@@ -614,7 +613,8 @@ router_readconfig(cluster **clret, route **rret,
 							return 0;
 						}
 						w->next = NULL;
-						if (cl->type == CARBON_CH && inst != NULL)
+						if ((cl->type == CARBON_CH || cl->type == FNV1A_CH)
+								&& inst != NULL)
 							server_set_instance(newserver, inst);
 						w->server = newserver;
 						cl->members.ch->ring = ch_addnode(

@@ -162,6 +162,7 @@ ch_addnode(ch_ring *ring, server *s)
 	int i;
 	char buf[256];
 	ch_ring_entry *entries;
+	char *instance = server_instance(s);
 	int (*cmp)(const void *, const void *) = NULL;
 
 	if (ring == NULL)
@@ -175,7 +176,6 @@ ch_addnode(ch_ring *ring, server *s)
 	switch (ring->type) {
 		case CARBON:
 			for (i = 0; i < ring->hash_replicas; i++) {
-				char *instance = server_instance(s);
 				/* this format is actually Python's tuple format that is
 				 * used in serialised form as input for the hash */
 				snprintf(buf, sizeof(buf), "('%s', %s%s%s):%d",
@@ -201,9 +201,13 @@ ch_addnode(ch_ring *ring, server *s)
 			for (i = 0; i < ring->hash_replicas; i++) {
 				/* take all server info into account, such that
 				 * different port numbers for the same hosts will work
-				 * (unlike CARBON) */
-				snprintf(buf, sizeof(buf), "%d-%s:%u",
-						i, server_ip(s), server_port(s));
+				 * (unlike CARBON), unless we got a full overrride */
+				if (instance == NULL) {
+					snprintf(buf, sizeof(buf), "%d-%s:%u",
+							i, server_ip(s), server_port(s));
+				} else {
+					snprintf(buf, sizeof(buf), "%d-%s", i, instance);
+				}
 				entries[i].pos = fnv1a_hashpos(buf, buf + strlen(buf));
 				entries[i].server = s;
 				entries[i].next = NULL;
