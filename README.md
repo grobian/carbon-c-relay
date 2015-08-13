@@ -42,7 +42,8 @@ rule sees the metric:
     to other targets: metric, value and timestamp will be separated by
     a single space only, ever)
   - irregular char replacement with underscores (\_), currently
-    irregular is defined as not being in [0-9a-zA-Z-_:#].
+    irregular is defined as not being in [0-9a-zA-Z-_:#], but can be
+	overridden on the command line.
 
 The route file syntax is as follows:
 
@@ -51,7 +52,7 @@ The route file syntax is as follows:
 
 cluster <name>
     <forward | any_of [useall] | failover | <carbon_ch | fnv1a_ch> [replication <count>]>
-        <host[:port] [proto <udp | tcp>]> ...
+        <host[:port][=instance] [proto <udp | tcp>]> ...
     ;
 cluster <name>
     file
@@ -107,7 +108,15 @@ faster but more importantly defined to get by a limitation of
 when multiple targets live on the same host just separated by port.  The
 instance that original carbon uses to get around this can be set by
 appending it after the port, separated by an equals sign, e.g.
-`127.0.0.1:2006=a` for instance `a`.
+`127.0.0.1:2006=a` for instance `a`.  When using the `fnv1a_ch` cluster,
+this instance overrides the hash key in use.  This allows for many
+things, including masquerading old IP addresses, but mostly to make the
+hash key location to become agnostic of the (physical) location of that
+key.  For example, usage like
+`10.0.0.1:2003=4d79d13554fa1301476c1f9fe968b0ac` would allow to change
+port and/or ip address of the server that receives data for the instance
+key.  Obviously, this way migration of data can be dealt with much more
+conveniently.
 
 DNS hostnames are resolved to a single address, according to the preference
 rules in [RFC 3484](https://www.ietf.org/rfc/rfc3484.txt).  The `any_of`
