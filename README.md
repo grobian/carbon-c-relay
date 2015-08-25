@@ -358,13 +358,13 @@ cluster, and the new metric name in the new cluster:
 Note that after the rewrite, the original metric name is no longer
 available, as the rewrite happens in-place.
 
-Aggregations are probably the most complex part of carbon-c-relay.
-Compared to carbon-aggregator, the capabilities of carbon-c-relay are
-limited.  Yet for certain scenarios, the aggregate functionalities can
-be very useful.  Aggregations are performed on a static set of
-aggregates, defined in the configuration.  That is, at the time of this
-writing, it is not possible to have dynamically generated aggregates,
-e.g. for each hostname encountered.  A typical aggregation looks like:
+Aggregations are probably the most complex part of carbon-c-relay.  Two
+ways of specifying aggregates are supported by carbon-c-relay.  The
+first, static rules, are handled by an optimiser which tries to fold
+thousands of rules into groups to make the matching more efficient.  The
+second, dynamic rules, are very powerful compact definitions with
+possibly thousands of internal instantiations.  A typical static
+aggregation looks like:
 
     aggregate
             ^sys\.dc1\.somehost-[0-9]+\.somecluster\.mysql\.replication_delay
@@ -409,8 +409,7 @@ generated this way.  In general, splitting aggregations to their own
 carbon-c-relay instance, such that it is easy to forward the produced
 metrics to another relay instance is a good practice.
 
-The previous example could also be written as follows to be more
-dynamic:
+The previous example could also be written as follows to be dynamic:
 
     aggregate
             ^sys\.dc[0-9].(somehost-[0-9]+)\.([^.]+)\.mysql\.replication_delay
