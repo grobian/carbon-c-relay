@@ -120,7 +120,7 @@ conveniently.
 
 DNS hostnames are resolved to a single address, according to the preference
 rules in [RFC 3484](https://www.ietf.org/rfc/rfc3484.txt).  The `any_of`
-cluster has an explicit `usedns` flag that enables a hostname to resolve to
+cluster has an explicit `useall` flag that enables a hostname to resolve to
 multiple addresses.  Each address returned becomes a cluster destination.
 
 Match rules are the way to direct incoming metrics to one or more
