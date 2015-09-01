@@ -229,7 +229,8 @@ do_usage(int exitcode)
 	printf("  -c  characters to allow next to [A-Za-z0-9], defaults to -_:#\n");
 	printf("  -d  debug mode: currently writes statistics to log, prints hash\n"
 	       "      ring contents and matching position in test mode (-t)\n");
-	printf("  -s  submission mode: write info about errors to log\n");
+	printf("  -s  submission mode: don't add any metrics to the stream like\n"
+	       "      statistics, report drop counts and queue pressure to log\n");
 	printf("  -t  config test mode: prints rule matches from input on stdin\n");
 	printf("  -H  hostname: override hostname (used in statistics)\n");
 
