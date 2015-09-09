@@ -100,10 +100,19 @@ bindlisten(
 				continue;
 			}
 
-			if (inet_ntop(resw->ai_family,
-						&((struct sockaddr_in *)resw->ai_addr)->sin_addr,
-						saddr, sizeof(saddr)) == NULL)
-				snprintf(saddr, sizeof(saddr), "(unknown)");
+			snprintf(saddr, sizeof(saddr), "(unknown)");
+			switch (resw->ai_family) {
+				case PF_INET:
+					inet_ntop(resw->ai_family,
+							&((struct sockaddr_in *)resw->ai_addr)->sin_addr,
+							saddr, sizeof(saddr));
+					break;
+				case PF_INET6:
+					inet_ntop(resw->ai_family,
+							&((struct sockaddr_in6 *)resw->ai_addr)->sin6_addr,
+							saddr, sizeof(saddr));
+					break;
+			}
 
 			if (resw->ai_protocol == IPPROTO_TCP) {
 				if (listen(sock, 3) < 0) {  /* backlog of 3, enough? */
