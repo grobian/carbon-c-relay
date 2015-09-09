@@ -1828,6 +1828,7 @@ router_route_intern(
 		destination ret[],
 		size_t *curlen,
 		size_t retsize,
+		char *srcaddr,
 		char *metric,
 		char *firstspace,
 		const route *r)
@@ -1872,6 +1873,7 @@ router_route_intern(
 						ret,
 						curlen,
 						retsize,
+						srcaddr,
 						metric,
 						firstspace,
 						w->dest->members.routes);
@@ -1882,7 +1884,17 @@ router_route_intern(
 				case BLACKHOLE: {
 					/* maybe just record we're dropping this metric? */
 				}	break;
-				case FILELOGIP:
+				case FILELOGIP: {
+					servers *s;
+					snprintf(newmetric, sizeof(newmetric), "%s %s",
+							srcaddr, metric);
+					for (s = w->dest->members.forward; s != NULL; s = s->next)
+					{
+						failif(retsize, *curlen + 1);
+						ret[*curlen].dest = s->server;
+						ret[(*curlen)++].metric = strdup(newmetric);
+					}
+				}	break;
 				case FILELOG:
 				case FORWARD: {
 					/* simple case, no logic necessary */
@@ -1993,13 +2005,14 @@ inline size_t
 router_route(
 		destination ret[],
 		size_t retsize,
+		char *srcaddr,
 		char *metric,
 		char *firstspace,
 		route *routes)
 {
 	size_t curlen = 0;
 
-	(void)router_route_intern(ret, &curlen, retsize,
+	(void)router_route_intern(ret, &curlen, retsize, srcaddr,
 			metric, firstspace, routes);
 
 	return curlen;

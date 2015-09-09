@@ -362,7 +362,7 @@ dispatch_connection(connection *conn, dispatcher *self)
 
 				/* perform routing of this metric */
 				conn->destlen =
-					router_route(conn->dests, CONN_DESTS_SIZE,
+					router_route(conn->dests, CONN_DESTS_SIZE, conn->srcaddr,
 							conn->metric, firstspace, self->routes);
 
 				/* restart building new one from the start */
