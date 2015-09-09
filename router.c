@@ -37,6 +37,7 @@ enum clusttype {
 	GROUP,      /* pseudo type to create a matching tree */
 	FORWARD,
 	FILELOG,    /* like forward, write metric to file */
+	FILELOGIP,  /* like forward, write ip metric to file */
 	CARBON_CH,  /* room for a better/different hash definition */
 	FNV1A_CH,   /* FNV1a-based consistent-hash */
 	ANYOF,      /* FNV1a-based hash, but with backup by others */
@@ -402,7 +403,14 @@ router_readconfig(cluster **clret, route **rret,
 					free(buf);
 					return 0;
 				}
-				cl->type = FILELOG;
+				if (strncmp(p, "ip", 2) == 0 && isspace(*(p + 2))) {
+					p += 3;
+					for (; *p != '\0' && isspace(*p); p++)
+						;
+					cl->type = FILELOGIP;
+				} else {
+					cl->type = FILELOG;
+				}
 				cl->members.forward = NULL;
 			} else {
 				char *type = p;
@@ -523,7 +531,7 @@ router_readconfig(cluster **clret, route **rret,
 					}
 				}
 
-				if (cl->type != FILELOG) {
+				if (cl->type != FILELOG && cl->type != FILELOGIP) {
 					/* resolve host/IP */
 					memset(&hint, 0, sizeof(hint));
 
@@ -631,7 +639,8 @@ router_readconfig(cluster **clret, route **rret,
 					} else if (cl->type == FORWARD ||
 							cl->type == ANYOF ||
 							cl->type == FAILOVER ||
-							cl->type == FILELOG)
+							cl->type == FILELOG ||
+							cl->type == FILELOGIP)
 					{
 						if (w == NULL) {
 							w = malloc(sizeof(servers));
@@ -651,7 +660,8 @@ router_readconfig(cluster **clret, route **rret,
 						}
 						w->next = NULL;
 						w->server = newserver;
-						if ((cl->type == FORWARD || cl->type == FILELOG)
+						if ((cl->type == FORWARD ||
+							 cl->type == FILELOG || cl->type == FILELOGIP)
 									&& cl->members.forward == NULL)
 							cl->members.forward = w;
 						if (cl->type == ANYOF || cl->type == FAILOVER) {
@@ -1443,7 +1453,9 @@ router_getservers(cluster *clusters)
 	for (c = clusters; c != NULL; c = c->next) {
 		if (c->type == BLACKHOLE || c->type == REWRITE)
 			continue;
-		if (c->type == FORWARD || c->type == FILELOG) {
+		if (c->type == FORWARD ||
+				c->type == FILELOG || c->type == FILELOGIP)
+		{
 			for (s = c->members.forward; s != NULL; s = s->next)
 				add_server(s->server);
 		} else if (c->type == ANYOF || c->type == FAILOVER) {
@@ -1483,8 +1495,8 @@ router_printconfig(FILE *f, char mode, cluster *clusters, route *routes)
 			for (s = c->members.forward; s != NULL; s = s->next)
 				fprintf(f, "        %s:%d%s\n",
 						server_ip(s->server), server_port(s->server), PPROTO);
-		} else if (c->type == FILELOG) {
-			fprintf(f, "    file\n");
+		} else if (c->type == FILELOG || c->type == FILELOGIP) {
+			fprintf(f, "    file%s\n", c->type == FILELOGIP ? " ip" : "");
 			for (s = c->members.forward; s != NULL; s = s->next)
 				fprintf(f, "        %s\n",
 						server_ip(s->server));
@@ -1607,6 +1619,7 @@ router_free(cluster *clusters, route *routes)
 				break;
 			case FORWARD:
 			case FILELOG:
+			case FILELOGIP:
 			case BLACKHOLE:
 				while (clusters->members.forward) {
 					server_shutdown(clusters->members.forward->server);
@@ -1869,6 +1882,7 @@ router_route_intern(
 				case BLACKHOLE: {
 					/* maybe just record we're dropping this metric? */
 				}	break;
+				case FILELOGIP:
 				case FILELOG:
 				case FORWARD: {
 					/* simple case, no logic necessary */
