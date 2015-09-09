@@ -26,6 +26,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/resource.h>
+#include <arpa/inet.h>
 
 #include "relay.h"
 #include "router.h"
@@ -41,6 +42,7 @@ enum conntype {
 typedef struct _connection {
 	int sock;
 	char takenby;   /* -2: being setup, -1: free, 0: not taken, >0: tid */
+	char srcaddr[24];  /* string representation of source address */
 	char buf[METRIC_BUFSIZ];
 	int buflen;
 	char needmore:1;
@@ -163,6 +165,8 @@ int
 dispatch_addconnection(int sock)
 {
 	size_t c;
+	struct sockaddr_in6 saddr;
+	socklen_t saddr_len = sizeof(saddr);
 
 	pthread_rwlock_rdlock(&connectionslock);
 	for (c = 0; c < connectionslen; c++)
@@ -200,6 +204,23 @@ dispatch_addconnection(int sock)
 		connectionslen += CONNGROWSZ;
 
 		pthread_rwlock_unlock(&connectionslock);
+	}
+
+	/* figure out who's calling */
+	if (getpeername(sock, (struct sockaddr *)&saddr, &saddr_len) == 0) {
+		snprintf(connections[c].srcaddr, sizeof(connections[c].srcaddr),
+				"(unknown)");
+		switch (saddr.sin6_family) {
+			case PF_INET:
+				inet_ntop(saddr.sin6_family,
+						&((struct sockaddr_in *)&saddr)->sin_addr,
+						connections[c].srcaddr, sizeof(connections[c].srcaddr));
+				break;
+			case PF_INET6:
+				inet_ntop(saddr.sin6_family, &saddr.sin6_addr,
+						connections[c].srcaddr, sizeof(connections[c].srcaddr));
+				break;
+		}
 	}
 
 	(void) fcntl(sock, F_SETFL, O_NONBLOCK);
