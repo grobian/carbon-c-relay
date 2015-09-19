@@ -58,6 +58,7 @@ struct _dispatcher {
 	enum conntype type;
 	char id;
 	size_t metrics;
+	size_t blackholes;
 	size_t ticks;
 	enum { RUNNING, SLEEPING } state;
 	char keep_running:1;
@@ -361,9 +362,10 @@ dispatch_connection(connection *conn, dispatcher *self)
 				*q = '\0';  /* can do this because we substract one from buf */
 
 				/* perform routing of this metric */
-				conn->destlen =
-					router_route(conn->dests, CONN_DESTS_SIZE, conn->srcaddr,
-							conn->metric, firstspace, self->routes);
+				self->blackholes += router_route(
+						conn->dests, &conn->destlen, CONN_DESTS_SIZE,
+						conn->srcaddr,
+						conn->metric, firstspace, self->routes);
 
 				/* restart building new one from the start */
 				q = conn->metric;
@@ -479,6 +481,7 @@ dispatch_runner(void *arg)
 	int c;
 
 	self->metrics = 0;
+	self->blackholes = 0;
 	self->ticks = 0;
 	self->state = SLEEPING;
 
@@ -664,6 +667,16 @@ inline size_t
 dispatch_get_metrics(dispatcher *self)
 {
 	return self->metrics;
+}
+
+/**
+ * Returns the number of metrics that were explicitly or implicitly
+ * blackholed since start.
+ */
+inline size_t
+dispatch_get_blackholes(dispatcher *self)
+{
+	return self->blackholes;
 }
 
 /**

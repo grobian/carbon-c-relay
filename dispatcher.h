@@ -35,6 +35,7 @@ void dispatch_stop(dispatcher *d);
 void dispatch_shutdown(dispatcher *d);
 size_t dispatch_get_ticks(dispatcher *self);
 size_t dispatch_get_metrics(dispatcher *self);
+size_t dispatch_get_blackholes(dispatcher *self);
 char dispatch_busy(dispatcher *self);
 size_t dispatch_get_accepted_connections(void);
 size_t dispatch_get_closed_connections(void);

@@ -45,11 +45,13 @@ collector_runner(void *s)
 	int i;
 	size_t totticks;
 	size_t totmetrics;
+	size_t totblackholes;
 	size_t totqueued;
 	size_t totstalls;
 	size_t totdropped;
 	size_t ticks;
 	size_t metrics;
+	size_t blackholes;
 	size_t queued;
 	size_t stalls;
 	size_t dropped;
@@ -98,6 +100,7 @@ collector_runner(void *s)
 		nextcycle += collector_interval;
 		totticks = 0;
 		totmetrics = 0;
+		totblackholes = 0;
 		dispatchers_idle = 0;
 		dispatchers_busy = 0;
 		for (i = 0; dispatchers[i] != NULL; i++) {
@@ -108,8 +111,13 @@ collector_runner(void *s)
 			}
 			totticks += ticks = dispatch_get_ticks(dispatchers[i]);
 			totmetrics += metrics = dispatch_get_metrics(dispatchers[i]);
+			totblackholes += blackholes =
+				dispatch_get_blackholes(dispatchers[i]);
 			snprintf(m, sizem, "dispatcher%d.metricsReceived %zd %zd\n",
 					i + 1, metrics, (size_t)now);
+			send(metric);
+			snprintf(m, sizem, "dispatcher%d.metricsBlackholed %zd %zd\n",
+					i + 1, blackholes, (size_t)now);
 			send(metric);
 			snprintf(m, sizem, "dispatcher%d.wallTime_us %zd %zd\n",
 					i + 1, ticks, (size_t)now);
@@ -117,6 +125,9 @@ collector_runner(void *s)
 		}
 		snprintf(m, sizem, "metricsReceived %zd %zd\n",
 				totmetrics, (size_t)now);
+		send(metric);
+		snprintf(m, sizem, "metricsBlackholed %zd %zd\n",
+				totblackholes, (size_t)now);
 		send(metric);
 		snprintf(m, sizem, "dispatch_wallTime_us %zd %zd\n",
 				totticks, (size_t)now);

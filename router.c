@@ -1825,6 +1825,7 @@ router_rewrite_metric(
 
 static char
 router_route_intern(
+		char *blackholed,
 		destination ret[],
 		size_t *curlen,
 		size_t retsize,
@@ -1870,6 +1871,7 @@ router_route_intern(
 			assert(q != NULL);
 			if (*q == '\0')
 				stop = router_route_intern(
+						blackholed,
 						ret,
 						curlen,
 						retsize,
@@ -1881,9 +1883,8 @@ router_route_intern(
 			stop = w->stop;
 			/* rule matches, send to destination(s) */
 			switch (w->dest->type) {
-				case BLACKHOLE: {
-					/* maybe just record we're dropping this metric? */
-				}	break;
+				case BLACKHOLE:
+					break;
 				case FILELOGIP: {
 					servers *s;
 					snprintf(newmetric, sizeof(newmetric), "%s %s",
@@ -1894,6 +1895,7 @@ router_route_intern(
 						ret[*curlen].dest = s->server;
 						ret[(*curlen)++].metric = strdup(newmetric);
 					}
+					blackholed = 0;
 				}	break;
 				case FILELOG:
 				case FORWARD: {
@@ -1905,6 +1907,7 @@ router_route_intern(
 						ret[*curlen].dest = s->server;
 						ret[(*curlen)++].metric = strdup(metric);
 					}
+					blackholed = 0;
 				}	break;
 				case ANYOF: {
 					/* we queue the same metrics at the same server */
@@ -1923,6 +1926,7 @@ router_route_intern(
 					ret[*curlen].dest =
 						w->dest->members.anyof->servers[hash];
 					ret[(*curlen)++].metric = strdup(metric);
+					blackholed = 0;
 				}	break;
 				case FAILOVER: {
 					/* queue at the first non-failing server */
@@ -1941,6 +1945,7 @@ router_route_intern(
 						/* all failed, take first server */
 						ret[*curlen].dest = w->dest->members.anyof->servers[0];
 					ret[(*curlen)++].metric = strdup(metric);
+					blackholed = 0;
 				}	break;
 				case CARBON_CH:
 				case FNV1A_CH: {
@@ -1954,6 +1959,7 @@ router_route_intern(
 							metric,
 							firstspace);
 					*curlen += w->dest->members.ch->repl_factor;
+					blackholed = 0;
 				}	break;
 				case AGGREGATION: {
 					/* aggregation rule */
@@ -1962,6 +1968,7 @@ router_route_intern(
 							metric,
 							firstspace,
 							w->nmatch, pmatch);
+					blackholed = 0;
 				}	break;
 				case REWRITE: {
 					/* rewrite metric name */
@@ -1999,11 +2006,13 @@ router_route_intern(
 /**
  * Looks up the locations the given metric_path should be sent to, and
  * returns the list of servers in ret, the number of servers is
- * returned.
+ * returned in retcnt.
+ * Returns whether the metric was blackholed (e.g. not routed anywhere).
  */
-inline size_t
+inline char
 router_route(
 		destination ret[],
+		size_t *retcnt,
 		size_t retsize,
 		char *srcaddr,
 		char *metric,
@@ -2011,11 +2020,13 @@ router_route(
 		route *routes)
 {
 	size_t curlen = 0;
+	char blackholed = 1;
 
-	(void)router_route_intern(ret, &curlen, retsize, srcaddr,
+	(void)router_route_intern(&blackholed, ret, &curlen, retsize, srcaddr,
 			metric, firstspace, routes);
 
-	return curlen;
+	*retcnt = curlen;
+	return blackholed;
 }
 
 /**
