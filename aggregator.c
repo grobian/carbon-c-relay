@@ -64,7 +64,7 @@ aggregator_new(
 	ret->interval = interval;
 	ret->expire = expire;
 	ret->tswhen = tswhen;
-	ret->bucketcnt = (expire + (interval - 1) / interval) + 1 + 1;
+	ret->bucketcnt = (expire + (interval - 1)) / interval + 1 + 1;
 	ret->received = 0;
 	ret->sent = 0;
 	ret->dropped = 0;
