@@ -392,9 +392,12 @@ to arrive.  This interval is used to produce the aggregations, thus each
 Because data may be in transit for some reason, or generation stalled,
 the `expire after` clause specifies how long the data should be kept
 before considering a data bucket (which is aggregated) to be complete.
-In the example, 35 was used, which means after 35 + 10 seconds the first
-four aggregate metrics are produced.  It also means that metrics can
-arrive 35 seconds late, and still be taken into account.
+In the example, 35 was used, which means after 35 seconds the first
+aggregates are produced.  It also means that metrics can arrive 35
+seconds late, and still be taken into account.  The exact time at which
+the aggregate metrics are produced is random between 0 and interval (10
+in this case) seconds after the expiry time.  This is done to prevent
+thundering herds of metrics for large aggregation sets.
 The `timestamp` that is used for the aggregations can be specified to be
 the `start`, `middle` or `end` of the bucket.  Original
 carbon-aggregator.py uses `start`, while carbon-c-relay's default has
