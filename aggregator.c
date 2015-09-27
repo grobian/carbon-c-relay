@@ -50,10 +50,9 @@ aggregator_new(
 
 	if (ret == NULL)
 		return ret;
-	if (interval == 0 || expire == 0) {
-		free(ret);
-		return NULL;
-	}
+
+	assert(interval != 0);
+	assert(interval < expire);
 
 	if (aggregators == NULL) {
 		aggregators = lastaggr = ret;

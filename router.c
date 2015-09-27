@@ -831,11 +831,12 @@ router_readconfig(cluster **clret, route **rret,
 			/* aggregation rule */
 			char *type;
 			char *pat;
-			char *interval;
-			char *expire;
+			char *num;
 			enum _aggr_timestamp tswhen = TS_END;
 			cluster *w;
 			int err;
+			int intv;
+			int exp;
 
 			p += 10;
 			for (; *p != '\0' && isspace(*p); p++)
@@ -881,11 +882,11 @@ router_readconfig(cluster **clret, route **rret,
 			p += 6;
 			for (; *p != '\0' && isspace(*p); p++)
 				;
-			interval = p;
+			num = p;
 			for (; *p != '\0' && isdigit(*p); p++)
 				;
 			if (*p == '\0') {
-				logerr("unexpected end of file after 'every %s'\n", interval);
+				logerr("unexpected end of file after 'every %s'\n", num);
 				free(buf);
 				return 0;
 			}
@@ -899,16 +900,22 @@ router_readconfig(cluster **clret, route **rret,
 			for (; *p != '\0' && isspace(*p); p++)
 				;
 			if (strncmp(p, "seconds", 7) != 0 || !isspace(*(p + 7))) {
-				logerr("expected 'seconds' after 'every %s'\n", interval);
+				logerr("expected 'seconds' after 'every %s'\n", num);
 				free(buf);
 				return 0;
 			}
-			p += 7;
+			p += 8;
+			intv = atoi(num);
+			if (intv == 0) {
+				logerr("interval must be non-zero\n");
+				free(buf);
+				return 0;
+			}
 			for (; *p != '\0' && isspace(*p); p++)
 				;
 			if (strncmp(p, "expire", 6) != 0 || !isspace(*(p + 6))) {
 				logerr("expected 'expire after' after 'every %s seconds\n",
-						interval);
+						num);
 				free(buf);
 				return 0;
 			}
@@ -923,12 +930,12 @@ router_readconfig(cluster **clret, route **rret,
 			p += 6;
 			for (; *p != '\0' && isspace(*p); p++)
 				;
-			expire = p;
+			num = p;
 			for (; *p != '\0' && isdigit(*p); p++)
 				;
 			if (*p == '\0') {
 				logerr("unexpected end of file after 'expire after %s'\n",
-						expire);
+						num);
 				free(buf);
 				return 0;
 			}
@@ -942,11 +949,23 @@ router_readconfig(cluster **clret, route **rret,
 			for (; *p != '\0' && isspace(*p); p++)
 				;
 			if (strncmp(p, "seconds", 7) != 0 || !isspace(*(p + 7))) {
-				logerr("expected 'seconds' after 'expire after %s'\n", expire);
+				logerr("expected 'seconds' after 'expire after %s'\n", num);
 				free(buf);
 				return 0;
 			}
 			p += 8;
+			exp = atoi(num);
+			if (exp == 0) {
+				logerr("expire must be non-zero\n");
+				free(buf);
+				return 0;
+			}
+			if (exp < intv) {
+				logerr("expire (%d) must be greater than interval (%d)\n",
+						exp, intv);
+				free(buf);
+				return 0;
+			}
 			for (; *p != '\0' && isspace(*p); p++)
 				;
 
@@ -998,11 +1017,9 @@ router_readconfig(cluster **clret, route **rret,
 					;
 			}
 
-			w->members.aggregation =
-				aggregator_new(atoi(interval), atoi(expire), tswhen);
+			w->members.aggregation = aggregator_new(intv, exp, tswhen);
 			if (w->members.aggregation == NULL) {
-				logerr("invalid interval (%s) or expire (%s)\n",
-						interval, expire);
+				logerr("out of memory while allocating new aggregator\n");
 				free(buf);
 				return 0;
 			}
