@@ -214,9 +214,12 @@ aggregator_putmetric(
 			 * aggregator is spammed with metrics, e.g. right after
 			 * startup when other relays flush their queues.  This
 			 * approach shouldn't affect the timing of the buckets as
-			 * requested in issue #72. */
+			 * requested in issue #72.
+			 * For consistency with other tools/old carbon-aggregator
+			 * align the buckets to interval boundaries such that it is
+			 * predictable what intervals will be taken, issue #104. */
 			time(&now);
-			now -= s->expire;
+			now = ((now - s->expire) / s->interval) * s->interval;
 			invocation->expire = s->expire + (rand() % s->interval);
 
 			/* allocate enough buckets to hold the past + future */
