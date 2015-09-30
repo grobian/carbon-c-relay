@@ -25,6 +25,7 @@
 #include <errno.h>
 #include <assert.h>
 
+#include "fnv1a.h"
 #include "consistent-hash.h"
 #include "server.h"
 #include "queue.h"
@@ -89,7 +90,7 @@ struct _route {
 		REGEX,        /* a regex match */
 		CONTAINS,     /* find string occurrence */
 		STARTS_WITH,  /* metric must start with string */
-		ENDS_WITH,    /* metric must end with string */ 
+		ENDS_WITH,    /* metric must end with string */
 		MATCHES       /* metric matches string exactly */
 	} matchtype;      /* how to interpret the pattern */
 	struct _route *next;
@@ -98,7 +99,7 @@ struct _route {
 static char keep_running = 1;
 
 /* custom constant, meant to force regex mode matching */
-#define REG_FORCE   01000000 
+#define REG_FORCE   01000000
 
 /**
  * Examines pattern and sets matchtype and rule or strmatch in route.
@@ -1580,7 +1581,7 @@ router_printconfig(FILE *f, char mode, cluster *clusters, route *routes)
 			char blockname[64];
 			char *b = &blockname[sizeof(blockname) - 1];
 			char *p;
-			
+
 			for (rwalk = r->dest->members.routes; rwalk != NULL; rwalk = rwalk->next)
 				cnt++;
 			/* reverse the name, to make it human consumable */
@@ -1853,7 +1854,7 @@ router_route_intern(
 {
 	const route *w;
 	char stop = 0;
-	const char *p;
+	const char *p = NULL;  /* pacify compiler, won't happen in reality */
 	const char *q = NULL;  /* pacify compiler, won't happen in reality */
 	const char *t;
 	char newmetric[METRIC_BUFSIZ];
@@ -1928,10 +1929,7 @@ router_route_intern(
 				}	break;
 				case ANYOF: {
 					/* we queue the same metrics at the same server */
-					unsigned int hash = 2166136261UL;  /* FNV1a */
-
-					for (p = metric; p < firstspace; p++)
-						hash = (hash ^ (unsigned int)*p) * 16777619;
+					unsigned int hash = fnv1a_hash32(metric, firstspace);
 					/* We could use the retry approach here, but since
 					 * our c is very small compared to MAX_INT, the bias
 					 * we introduce for the last few of the range
@@ -2191,7 +2189,7 @@ router_test_intern(char *metric, char *firstspace, route *routes)
 					destination dst[CONN_DESTS_SIZE];
 					int i;
 
-					fprintf(stdout, "    %s_ch(%s)\n", 
+					fprintf(stdout, "    %s_ch(%s)\n",
 							w->dest->type == FNV1A_CH ? "fnv1a" : "carbon",
 							w->dest->name);
 					if (mode == DEBUGTEST) {
@@ -2213,15 +2211,12 @@ router_test_intern(char *metric, char *firstspace, route *routes)
 				}	break;
 				case FAILOVER:
 				case ANYOF: {
-					unsigned int hash = 2166136261UL;  /* FNV1a */
-
+					unsigned int hash;
 					fprintf(stdout, "    %s(%s)\n",
 							w->dest->type == ANYOF ? "any_of" : "failover",
 							w->dest->name);
 					if (w->dest->type == ANYOF) {
-						const char *p;
-						for (p = metric; p < firstspace; p++)
-							hash = (hash ^ (unsigned int)*p) * 16777619;
+						hash = fnv1a_hash32(metric, firstspace);
 						hash %= w->dest->members.anyof->count;
 					} else {
 						hash = 0;

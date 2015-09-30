@@ -24,6 +24,7 @@
 #include <pthread.h>
 #include <assert.h>
 
+#include "fnv1a.h"
 #include "relay.h"
 #include "dispatcher.h"
 #include "server.h"
@@ -142,7 +143,6 @@ aggregator_putmetric(
 	char *newfirstspace = NULL;
 	size_t len;
 	const char *ometric;
-	const char *omp;
 	unsigned int omhash;
 	unsigned int omhtbucket;
 	struct _aggr_computes *compute;
@@ -179,10 +179,7 @@ aggregator_putmetric(
 			ometric = newmetric;
 		}
 
-		omhash = 2166136261UL;  /* FNV1a */
-		for (omp = ometric; *omp != '\0'; omp++)
-			omhash = (omhash ^ (unsigned int)*omp) * 16777619;
-
+		omhash = fnv1a_hash32(ometric, ometric + strlen(ometric));
 		omhtbucket =
 			((omhash >> AGGR_HT_POW_SIZE) ^ omhash) &
 			(((unsigned int)1 << AGGR_HT_POW_SIZE) - 1);
