@@ -1912,7 +1912,7 @@ router_route_intern(
 						ret[*curlen].dest = s->server;
 						ret[(*curlen)++].metric = strdup(newmetric);
 					}
-					blackholed = 0;
+					*blackholed = 0;
 				}	break;
 				case FILELOG:
 				case FORWARD: {
@@ -1924,7 +1924,7 @@ router_route_intern(
 						ret[*curlen].dest = s->server;
 						ret[(*curlen)++].metric = strdup(metric);
 					}
-					blackholed = 0;
+					*blackholed = 0;
 				}	break;
 				case ANYOF: {
 					/* we queue the same metrics at the same server */
@@ -1943,7 +1943,7 @@ router_route_intern(
 					ret[*curlen].dest =
 						w->dest->members.anyof->servers[hash];
 					ret[(*curlen)++].metric = strdup(metric);
-					blackholed = 0;
+					*blackholed = 0;
 				}	break;
 				case FAILOVER: {
 					/* queue at the first non-failing server */
@@ -1962,7 +1962,7 @@ router_route_intern(
 						/* all failed, take first server */
 						ret[*curlen].dest = w->dest->members.anyof->servers[0];
 					ret[(*curlen)++].metric = strdup(metric);
-					blackholed = 0;
+					*blackholed = 0;
 				}	break;
 				case CARBON_CH:
 				case FNV1A_CH: {
@@ -1976,7 +1976,7 @@ router_route_intern(
 							metric,
 							firstspace);
 					*curlen += w->dest->members.ch->repl_factor;
-					blackholed = 0;
+					*blackholed = 0;
 				}	break;
 				case AGGREGATION: {
 					/* aggregation rule */
@@ -1985,7 +1985,7 @@ router_route_intern(
 							metric,
 							firstspace,
 							w->nmatch, pmatch);
-					blackholed = 0;
+					*blackholed = 0;
 				}	break;
 				case REWRITE: {
 					/* rewrite metric name */
