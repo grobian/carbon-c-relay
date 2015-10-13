@@ -38,7 +38,7 @@ enum clusttype {
 	FORWARD,
 	FILELOG,    /* like forward, write metric to file */
 	FILELOGIP,  /* like forward, write ip metric to file */
-	CARBON_CH,  /* room for a better/different hash definition */
+	CARBON_CH,  /* original carbon-relay.py consistent-hash */
 	FNV1A_CH,   /* FNV1a-based consistent-hash */
 	ANYOF,      /* FNV1a-based hash, but with backup by others */
 	FAILOVER,   /* ordered attempt delivery list */
