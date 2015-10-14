@@ -216,7 +216,8 @@ determine_if_regex(route *r, char *pat, int flags)
  *     log [ip]
  *         (/path/to/file ...)
  *     ;
- * match (* | regex)
+ * match
+ *         (* | regex[ regex ...])
  *     send to (cluster | blackhole)
  *     [stop]
  *     ;
@@ -706,31 +707,70 @@ router_readconfig(cluster **clret, route **rret,
 			char *dest;
 			char stop = -1;
 			cluster *w;
+			route *m = NULL;
 
 			p += 6;
 			for (; *p != '\0' && isspace(*p); p++)
 				;
-			pat = p;
-			for (; *p != '\0' && !isspace(*p); p++)
-				;
-			if (*p == '\0') {
-				logerr("unexpected end of file after 'match'\n");
-				free(buf);
-				return 0;
-			}
-			*p++ = '\0';
-			for (; *p != '\0' && isspace(*p); p++)
-				;
-			if (strncmp(p, "send", 4) != 0 || !isspace(*(p + 4))) {
-				logerr("expected 'send to' after match %s\n", pat);
-				free(buf);
-				return 0;
-			}
+
+			do {
+				pat = p;
+				for (; *p != '\0' && !isspace(*p); p++)
+					;
+				if (*p == '\0') {
+					route *lm;
+					logerr("unexpected end of file after 'match'\n");
+					do {
+						lm = m->next;
+						free(m);
+					} while (m != r && (m = lm) != NULL);
+					free(buf);
+					return 0;
+				}
+				*p++ = '\0';
+				for (; *p != '\0' && isspace(*p); p++)
+					;
+
+				if (r == NULL) {
+					topr = r = malloc(sizeof(route));
+				} else {
+					r = r->next = malloc(sizeof(route));
+				}
+				if (m == NULL)
+					m = r;
+				if (strcmp(pat, "*") == 0) {
+					r->pattern = NULL;
+					r->strmatch = NULL;
+					r->matchtype = MATCHALL;
+				} else {
+					int err = determine_if_regex(r, pat,
+							REG_EXTENDED | REG_NOSUB);
+					if (err != 0) {
+						route *lm;
+						char ebuf[512];
+						regerror(err, &r->rule, ebuf, sizeof(ebuf));
+						logerr("invalid expression '%s' for match: %s\n",
+								pat, ebuf);
+						do {
+							lm = m->next;
+							free(m);
+						} while (m != r && (m = lm) != NULL);
+						free(buf);
+						return 0;
+					}
+				}
+				r->next = NULL;
+			} while (strncmp(p, "send", 4) != 0 || !isspace(*(p + 4)));
 			p += 5;
 			for (; *p != '\0' && isspace(*p); p++)
 				;
 			if (strncmp(p, "to", 2) != 0 || !isspace(*(p + 2))) {
+				route *lm;
 				logerr("expected 'send to' after match %s\n", pat);
+				do {
+					lm = m->next;
+					free(m);
+				} while (m != r && (m = lm) != NULL);
 				free(buf);
 				return 0;
 			}
@@ -741,8 +781,13 @@ router_readconfig(cluster **clret, route **rret,
 			for (; *p != '\0' && !isspace(*p) && *p != ';'; p++)
 				;
 			if (*p == '\0') {
+				route *lm;
 				logerr("unexpected end of file after 'send to %s'\n",
 						dest);
+				do {
+					lm = m->next;
+					free(m);
+				} while (m != r && (m = lm) != NULL);
 				free(buf);
 				return 0;
 			} else if (*p == ';') {
@@ -766,8 +811,13 @@ router_readconfig(cluster **clret, route **rret,
 						for (; *p != '\0' && isspace(*p); p++)
 							;
 						if (*p != ';') {
+							route *lm;
 							logerr("expected ';' after stop for "
 									"match %s\n", pat);
+							do {
+								lm = m->next;
+								free(m);
+							} while (m != r && (m = lm) != NULL);
 							free(buf);
 							return 0;
 						}
@@ -775,8 +825,13 @@ router_readconfig(cluster **clret, route **rret,
 					p++;
 					stop = 1;
 				} else {
+					route *lm;
 					logerr("expected 'stop' and/or ';' after '%s' "
 							"for match %s\n", dest, pat);
+					do {
+						lm = m->next;
+						free(m);
+					} while (m != r && (m = lm) != NULL);
 					free(buf);
 					return 0;
 				}
@@ -791,34 +846,20 @@ router_readconfig(cluster **clret, route **rret,
 					break;
 			}
 			if (w == NULL) {
+				route *lm;
 				logerr("no such cluster '%s' for 'match %s'\n", dest, pat);
+				for (; m != r; m = lm) {
+					lm = m->next;
+					free(m);
+				}
+				free(r);
 				free(buf);
 				return 0;
 			}
-			if (r == NULL) {
-				topr = r = malloc(sizeof(route));
-			} else {
-				r = r->next = malloc(sizeof(route));
-			}
-			r->dest = w;
-			if (strcmp(pat, "*") == 0) {
-				r->pattern = NULL;
-				r->strmatch = NULL;
-				r->matchtype = MATCHALL;
-			} else {
-				int err = determine_if_regex(r, pat, REG_EXTENDED | REG_NOSUB);
-				if (err != 0) {
-					char ebuf[512];
-					regerror(err, &r->rule, ebuf, sizeof(ebuf));
-					logerr("invalid expression '%s' for match: %s\n",
-							pat, ebuf);
-					free(r);
-					free(buf);
-					return 0;
-				}
-			}
-			r->stop = w->type == BLACKHOLE ? 1 : stop;
-			r->next = NULL;
+			do {
+				m->dest = w;
+				m->stop = w->type == BLACKHOLE ? 1 : stop;
+			} while (m != r && (m = m->next) != NULL);
 
 			if (matchcatchallfound) {
 				logerr("warning: match %s will never be matched "
@@ -1591,10 +1632,16 @@ router_printconfig(FILE *f, char mode, cluster *clusters, route *routes)
 					"contains %zd aggregations/matches\n",
 					++b, cnt);
 		} else {
-			fprintf(f, "match %s\n    send to %s%s\n    ;\n",
-					r->matchtype == MATCHALL ? "*" : r->pattern,
-					r->dest->name,
-					r->stop ? "\n    stop" : "");
+			route *or = r;
+			fprintf(f, "match\n");
+			do {
+				fprintf(f, "        %s\n",
+						r->matchtype == MATCHALL ? "*" : r->pattern);
+			} while (r->next != NULL && r->next->dest == or->dest
+					&& (r = r->next) != NULL);
+			fprintf(f, "    send to %s%s\n    ;\n",
+					or->dest->name,
+					or->stop ? "\n    stop" : "");
 		}
 	}
 	fflush(f);

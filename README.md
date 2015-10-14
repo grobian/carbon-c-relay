@@ -58,7 +58,8 @@ cluster <name>
     file
         </path/to/file> ...
     ;
-match <* | <expression>>
+match
+        <* | <expression> ...>
     send to <cluster | blackhole>
     [stop]
     ;
@@ -125,7 +126,8 @@ multiple addresses.  Each address returned becomes a cluster destination.
 
 Match rules are the way to direct incoming metrics to one or more
 clusters.  Match rules are processed top to bottom as they are defined
-in the file.  Each match rule can send data to just one cluster.  Since
+in the file.  It is possible to define multiple matches in the same
+rule.  Each match rule can send data to just one cluster.  Since
 match rules "fall through" unless the `stop` keyword is added to the
 match rule, the same match expression can be used to target multiple
 clusters.  This ability allows to replicate metrics, as well as send
@@ -311,7 +313,9 @@ this metric.  The `blackhole` cluster is suitable for that, when it is
 harder to actually whitelist all wanted metrics.  Consider the
 following:
 
-    match some_legacy$
+    match
+            some_legacy1$
+            some_legacy2$
         send to blackhole
         stop;
 
