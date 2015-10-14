@@ -21,6 +21,7 @@
 #include <assert.h>
 
 #include "md5.h"
+#include "fnv1a.h"
 #include "server.h"
 
 #define CH_RING struct _ch_ring
@@ -59,22 +60,6 @@ carbon_hashpos(const char *key, const char *end)
 	MD5((unsigned char *)key, end - key, md5);
 
 	return ((md5[0] << 8) + md5[1]);
-}
-
-/**
- * Computes the hash position for key in a 16-bit unsigned integer
- * space.  Returns a number between 0 and 65535 based on the FNV1a hash
- * algorithm.
- */
-static unsigned short
-fnv1a_hashpos(const char *key, const char *end)
-{
-	unsigned int hash = 2166136261UL;  /* FNV1a */
-
-	for (; key < end; key++)
-		hash = (hash ^ (unsigned int)*key) * 16777619;
-
-	return (unsigned short)((hash >> 16) ^ (hash & (unsigned int)0xFFFF));
 }
 
 /**
@@ -208,7 +193,7 @@ ch_addnode(ch_ring *ring, server *s)
 				} else {
 					snprintf(buf, sizeof(buf), "%d-%s", i, instance);
 				}
-				entries[i].pos = fnv1a_hashpos(buf, buf + strlen(buf));
+				entries[i].pos = fnv1a_hash16(buf, buf + strlen(buf));
 				entries[i].server = s;
 				entries[i].next = NULL;
 				entries[i].malloced = 0;
@@ -282,7 +267,7 @@ ch_get_nodes(
 			pos = carbon_hashpos(metric, firstspace);
 			break;
 		case FNV1a:
-			pos = fnv1a_hashpos(metric, firstspace);
+			pos = fnv1a_hash16(metric, firstspace);
 			break;
 	}
 
@@ -344,7 +329,7 @@ ch_gethashpos(ch_ring *ring, const char *key, const char *end)
 		case CARBON:
 			return carbon_hashpos(key, end);
 		case FNV1a:
-			return fnv1a_hashpos(key, end);
+			return fnv1a_hash16(key, end);
 		default:
 			assert(0);  /* this shouldn't happen */
 	}

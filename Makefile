@@ -32,6 +32,7 @@ endif
 override LIBS += $(SOCKET_LIBS) -pthread
 
 OBJS = \
+	fnv1a.o \
 	relay.o \
 	md5.o \
 	consistent-hash.o \
