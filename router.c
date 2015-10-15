@@ -714,6 +714,15 @@ router_readconfig(cluster **clret, route **rret,
 			cluster *w;
 			route *m = NULL;
 
+#define FREE_R \
+			{ \
+				route *lm; \
+				do { \
+					lm = m->next; \
+					free(m); \
+				} while (m != r && (m = lm) != NULL); \
+			}
+
 			p += 6;
 			for (; *p != '\0' && isspace(*p); p++)
 				;
@@ -723,12 +732,8 @@ router_readconfig(cluster **clret, route **rret,
 				for (; *p != '\0' && !isspace(*p); p++)
 					;
 				if (*p == '\0') {
-					route *lm;
 					logerr("unexpected end of file after 'match'\n");
-					do {
-						lm = m->next;
-						free(m);
-					} while (m != r && (m = lm) != NULL);
+					FREE_R;
 					free(buf);
 					return 0;
 				}
@@ -751,15 +756,11 @@ router_readconfig(cluster **clret, route **rret,
 					int err = determine_if_regex(r, pat,
 							REG_EXTENDED | REG_NOSUB);
 					if (err != 0) {
-						route *lm;
 						char ebuf[512];
 						regerror(err, &r->rule, ebuf, sizeof(ebuf));
 						logerr("invalid expression '%s' for match: %s\n",
 								pat, ebuf);
-						do {
-							lm = m->next;
-							free(m);
-						} while (m != r && (m = lm) != NULL);
+						FREE_R;
 						free(buf);
 						return 0;
 					}
@@ -770,12 +771,8 @@ router_readconfig(cluster **clret, route **rret,
 			for (; *p != '\0' && isspace(*p); p++)
 				;
 			if (strncmp(p, "to", 2) != 0 || !isspace(*(p + 2))) {
-				route *lm;
 				logerr("expected 'send to' after match %s\n", pat);
-				do {
-					lm = m->next;
-					free(m);
-				} while (m != r && (m = lm) != NULL);
+				FREE_R;
 				free(buf);
 				return 0;
 			}
@@ -786,13 +783,9 @@ router_readconfig(cluster **clret, route **rret,
 			for (; *p != '\0' && !isspace(*p) && *p != ';'; p++)
 				;
 			if (*p == '\0') {
-				route *lm;
 				logerr("unexpected end of file after 'send to %s'\n",
 						dest);
-				do {
-					lm = m->next;
-					free(m);
-				} while (m != r && (m = lm) != NULL);
+				FREE_R;
 				free(buf);
 				return 0;
 			} else if (*p == ';') {
@@ -816,13 +809,9 @@ router_readconfig(cluster **clret, route **rret,
 						for (; *p != '\0' && isspace(*p); p++)
 							;
 						if (*p != ';') {
-							route *lm;
 							logerr("expected ';' after stop for "
 									"match %s\n", pat);
-							do {
-								lm = m->next;
-								free(m);
-							} while (m != r && (m = lm) != NULL);
+							FREE_R;
 							free(buf);
 							return 0;
 						}
@@ -830,13 +819,9 @@ router_readconfig(cluster **clret, route **rret,
 					p++;
 					stop = 1;
 				} else {
-					route *lm;
 					logerr("expected 'stop' and/or ';' after '%s' "
 							"for match %s\n", dest, pat);
-					do {
-						lm = m->next;
-						free(m);
-					} while (m != r && (m = lm) != NULL);
+					FREE_R;
 					free(buf);
 					return 0;
 				}
@@ -851,13 +836,8 @@ router_readconfig(cluster **clret, route **rret,
 					break;
 			}
 			if (w == NULL) {
-				route *lm;
 				logerr("no such cluster '%s' for 'match %s'\n", dest, pat);
-				for (; m != r; m = lm) {
-					lm = m->next;
-					free(m);
-				}
-				free(r);
+				FREE_R;
 				free(buf);
 				return 0;
 			}
