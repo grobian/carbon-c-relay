@@ -713,6 +713,8 @@ router_readconfig(cluster **clret, route **rret,
 			char stop = -1;
 			cluster *w;
 			route *m = NULL;
+			destinations *d;
+			destinations *dw = NULL;
 
 #define FREE_R \
 			{ \
@@ -721,6 +723,15 @@ router_readconfig(cluster **clret, route **rret,
 					lm = m->next; \
 					free(m); \
 				} while (m != r && (m = lm) != NULL); \
+			}
+#define FREE_D \
+			{ \
+				destinations *ld; \
+				while (dw != NULL) { \
+					ld = dw->next; \
+					free(dw); \
+					dw = ld; \
+				} \
 			}
 
 			p += 6;
@@ -779,71 +790,84 @@ router_readconfig(cluster **clret, route **rret,
 			p += 3;
 			for (; *p != '\0' && isspace(*p); p++)
 				;
-			dest = p;
-			for (; *p != '\0' && !isspace(*p) && *p != ';'; p++)
-				;
+			do {
+				char save;
+				dest = p;
+				for (; *p != '\0' && !isspace(*p) && *p != ';'; p++)
+					;
+				if (*p == '\0')
+					break;
+				save = *p;
+				*p = '\0';
+
+				/* lookup dest */
+				for (w = topcl; w != NULL; w = w->next) {
+					if (w->type != GROUP &&
+							w->type != AGGREGATION &&
+							w->type != REWRITE &&
+							strcmp(w->name, dest) == 0)
+						break;
+				}
+				if (w == NULL) {
+					logerr("no such cluster '%s' for 'match %s'\n", dest, pat);
+					FREE_R;
+					FREE_D;
+					free(buf);
+					return 0;
+				}
+
+				if (dw == NULL) {
+					dw = d = malloc(sizeof(destinations));
+				} else {
+					d = d->next = malloc(sizeof(destinations));
+				}
+				if (d == NULL) {
+					logerr("out of memory allocating new destination '%s' "
+							"for 'match %s'\n", dest, pat);
+					FREE_R;
+					FREE_D;
+					free(buf);
+					return 0;
+				}
+				d->cl = w;
+				d->next = NULL;
+
+				*p = save;
+				for (; *p != '\0' && isspace(*p); p++)
+					;
+			} while (*p != ';' &&
+					!(strncmp(p, "stop", 4) == 0 &&
+						(isspace(*(p + 4)) || *(p + 4) == ';')));
+
 			if (*p == '\0') {
 				logerr("unexpected end of file after 'send to %s'\n",
 						dest);
 				FREE_R;
+				FREE_D;
 				free(buf);
 				return 0;
 			} else if (*p == ';') {
-				*p++ = '\0';
 				stop = 0;
-			} else {
-				*p++ = '\0';
-			}
-			if (stop == -1) {
-				/* look for either ';' or 'stop' followed by ';' */
-				for (; *p != '\0' && isspace(*p); p++)
-					;
-				if (*p == ';') {
-					p++;
-					stop = 0;
-				} else if (strncmp(p, "stop", 4) == 0 &&
-						(isspace(*(p + 4)) || *(p + 4) == ';'))
-				{
-					p += 4;
-					if (*p != ';') {
-						for (; *p != '\0' && isspace(*p); p++)
-							;
-						if (*p != ';') {
-							logerr("expected ';' after stop for "
-									"match %s\n", pat);
-							FREE_R;
-							free(buf);
-							return 0;
-						}
-					}
-					p++;
-					stop = 1;
-				} else {
-					logerr("expected 'stop' and/or ';' after '%s' "
-							"for match %s\n", dest, pat);
-					FREE_R;
-					free(buf);
-					return 0;
-				}
+			} else { /* due to strncmp above, this must be stop */
+				p += 4;
+				stop = 1;
 			}
 
-			/* lookup dest */
-			for (w = topcl; w != NULL; w = w->next) {
-				if (w->type != GROUP &&
-						w->type != AGGREGATION &&
-						w->type != REWRITE &&
-						strcmp(w->name, dest) == 0)
-					break;
-			}
-			if (w == NULL) {
-				logerr("no such cluster '%s' for 'match %s'\n", dest, pat);
+			/* find the closing ';' */
+			for (; *p != '\0' && isspace(*p); p++)
+				;
+			if (*p != ';') {
+				logerr("expected ';' after match %s\n", pat);
 				FREE_R;
+				FREE_D;
 				free(buf);
 				return 0;
 			}
+			p++;
+
+			/* fill in the destinations for all the routes */
 			do {
-				m->dests.cl = w;
-				m->dests.next = NULL;
+				m->dests = dw;
 				m->stop = w->type == BLACKHOLE ? 1 : stop;
 			} while (m != r && (m = m->next) != NULL);
 
