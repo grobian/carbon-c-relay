@@ -1936,6 +1936,7 @@ router_route_intern(
 		const route *r)
 {
 	const route *w;
+	destinations *d;
 	char stop = 0;
 	const char *p;
 	const char *q = NULL;  /* pacify compiler, won't happen in reality */
@@ -1983,116 +1984,119 @@ router_route_intern(
 		} else if (router_metric_matches(w, metric, firstspace, pmatch)) {
 			stop = w->stop;
 			/* rule matches, send to destination(s) */
-			switch (w->dests->cl->type) {
-				case BLACKHOLE:
-					break;
-				case FILELOGIP: {
-					servers *s;
-					snprintf(newmetric, sizeof(newmetric), "%s %s",
-							srcaddr, metric);
-					for (s = w->dests->cl->members.forward; s != NULL; s = s->next)
-					{
+			for (d = w->dests; d != NULL; d = d->next) {
+				switch (d->cl->type) {
+					case BLACKHOLE:
+						break;
+					case FILELOGIP: {
+						servers *s;
+						snprintf(newmetric, sizeof(newmetric), "%s %s",
+								srcaddr, metric);
+						for (s = d->cl->members.forward; s != NULL; s = s->next)
+						{
+							failif(retsize, *curlen + 1);
+							ret[*curlen].dest = s->server;
+							ret[(*curlen)++].metric = strdup(newmetric);
+						}
+						*blackholed = 0;
+					}	break;
+					case FILELOG:
+					case FORWARD: {
+						/* simple case, no logic necessary */
+						servers *s;
+						for (s = d->cl->members.forward; s != NULL; s = s->next)
+						{
+							failif(retsize, *curlen + 1);
+							ret[*curlen].dest = s->server;
+							ret[(*curlen)++].metric = strdup(metric);
+						}
+						*blackholed = 0;
+					}	break;
+					case ANYOF: {
+						/* we queue the same metrics at the same server */
+						unsigned int hash = 2166136261UL;  /* FNV1a */
+
+						for (p = metric; p < firstspace; p++)
+							hash = (hash ^ (unsigned int)*p) * 16777619;
+						/* We could use the retry approach here, but since
+						 * our c is very small compared to MAX_INT, the bias
+						 * we introduce for the last few of the range
+						 * (MAX_INT % c) can be considered neglicible given
+						 * the number of occurances of c in the range of
+						 * MAX_INT, therefore we stick with a simple mod. */
+						hash %= d->cl->members.anyof->count;
 						failif(retsize, *curlen + 1);
-						ret[*curlen].dest = s->server;
-						ret[(*curlen)++].metric = strdup(newmetric);
-					}
-					*blackholed = 0;
-				}	break;
-				case FILELOG:
-				case FORWARD: {
-					/* simple case, no logic necessary */
-					servers *s;
-					for (s = w->dests->cl->members.forward; s != NULL; s = s->next)
-					{
-						failif(retsize, *curlen + 1);
-						ret[*curlen].dest = s->server;
+						ret[*curlen].dest =
+							d->cl->members.anyof->servers[hash];
 						ret[(*curlen)++].metric = strdup(metric);
-					}
-					*blackholed = 0;
-				}	break;
-				case ANYOF: {
-					/* we queue the same metrics at the same server */
-					unsigned int hash = 2166136261UL;  /* FNV1a */
+						*blackholed = 0;
+					}	break;
+					case FAILOVER: {
+						/* queue at the first non-failing server */
+						unsigned short i;
 
-					for (p = metric; p < firstspace; p++)
-						hash = (hash ^ (unsigned int)*p) * 16777619;
-					/* We could use the retry approach here, but since
-					 * our c is very small compared to MAX_INT, the bias
-					 * we introduce for the last few of the range
-					 * (MAX_INT % c) can be considered neglicible given
-					 * the number of occurances of c in the range of
-					 * MAX_INT, therefore we stick with a simple mod. */
-					hash %= w->dests->cl->members.anyof->count;
-					failif(retsize, *curlen + 1);
-					ret[*curlen].dest =
-						w->dests->cl->members.anyof->servers[hash];
-					ret[(*curlen)++].metric = strdup(metric);
-					*blackholed = 0;
-				}	break;
-				case FAILOVER: {
-					/* queue at the first non-failing server */
-					unsigned short i;
+						failif(retsize, *curlen + 1);
+						ret[*curlen].dest = NULL;
+						for (i = 0; i < d->cl->members.anyof->count; i++) {
+							server *s = d->cl->members.anyof->servers[i];
+							if (server_failed(s))
+								continue;
+							ret[*curlen].dest = s;
+							break;
+						}
+						if (ret[*curlen].dest == NULL)
+							/* all failed, take first server */
+							ret[*curlen].dest =
+								d->cl->members.anyof->servers[0];
+						ret[(*curlen)++].metric = strdup(metric);
+						*blackholed = 0;
+					}	break;
+					case CARBON_CH:
+					case FNV1A_CH: {
+						/* let the ring(bearer) decide */
+						failif(retsize,
+								*curlen + d->cl->members.ch->repl_factor);
+						ch_get_nodes(
+								&ret[*curlen],
+								d->cl->members.ch->ring,
+								d->cl->members.ch->repl_factor,
+								metric,
+								firstspace);
+						*curlen += d->cl->members.ch->repl_factor;
+						*blackholed = 0;
+					}	break;
+					case AGGREGATION: {
+						/* aggregation rule */
+						aggregator_putmetric(
+								d->cl->members.aggregation,
+								metric,
+								firstspace,
+								w->nmatch, pmatch);
+						*blackholed = 0;
+					}	break;
+					case REWRITE: {
+						/* rewrite metric name */
+						if ((len = router_rewrite_metric(
+									&newmetric, &newfirstspace,
+									metric, firstspace,
+									d->cl->members.replacement,
+									w->nmatch, pmatch)) == 0)
+						{
+							logerr("router_route: failed to rewrite "
+									"metric: newmetric size too small to hold "
+									"replacement (%s -> %s)\n",
+									metric, d->cl->members.replacement);
+							break;
+						};
 
-					failif(retsize, *curlen + 1);
-					ret[*curlen].dest = NULL;
-					for (i = 0; i < w->dests->cl->members.anyof->count; i++) {
-						server *s = w->dests->cl->members.anyof->servers[i];
-						if (server_failed(s))
-							continue;
-						ret[*curlen].dest = s;
-						break;
-					}
-					if (ret[*curlen].dest == NULL)
-						/* all failed, take first server */
-						ret[*curlen].dest = w->dests->cl->members.anyof->servers[0];
-					ret[(*curlen)++].metric = strdup(metric);
-					*blackholed = 0;
-				}	break;
-				case CARBON_CH:
-				case FNV1A_CH: {
-					/* let the ring(bearer) decide */
-					failif(retsize,
-							*curlen + w->dests->cl->members.ch->repl_factor);
-					ch_get_nodes(
-							&ret[*curlen],
-							w->dests->cl->members.ch->ring,
-							w->dests->cl->members.ch->repl_factor,
-							metric,
-							firstspace);
-					*curlen += w->dests->cl->members.ch->repl_factor;
-					*blackholed = 0;
-				}	break;
-				case AGGREGATION: {
-					/* aggregation rule */
-					aggregator_putmetric(
-							w->dests->cl->members.aggregation,
-							metric,
-							firstspace,
-							w->nmatch, pmatch);
-					*blackholed = 0;
-				}	break;
-				case REWRITE: {
-					/* rewrite metric name */
-					if ((len = router_rewrite_metric(
-								&newmetric, &newfirstspace,
-								metric, firstspace,
-								w->dests->cl->members.replacement,
-								w->nmatch, pmatch)) == 0)
-					{
-						logerr("router_route: failed to rewrite "
-								"metric: newmetric size too small to hold "
-								"replacement (%s -> %s)\n",
-								metric, w->dests->cl->members.replacement);
-						break;
-					};
-
-					/* scary! write back the rewritten metric */
-					memcpy(metric, newmetric, len);
-					firstspace = metric + (newfirstspace - newmetric);
-				}	break;
-				case GROUP: {
-					/* this should not happen */
-				}	break;
+						/* scary! write back the rewritten metric */
+						memcpy(metric, newmetric, len);
+						firstspace = metric + (newfirstspace - newmetric);
+					}	break;
+					case GROUP: {
+						/* this should not happen */
+					}	break;
+				}
 			}
 
 			/* stop processing further rules if requested */
