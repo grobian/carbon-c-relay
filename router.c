@@ -1655,9 +1655,15 @@ router_printconfig(FILE *f, char mode, cluster *clusters, route *routes)
 						r->matchtype == MATCHALL ? "*" : r->pattern);
 			} while (r->next != NULL && r->next->dests->cl == or->dests->cl
 					&& (r = r->next) != NULL);
-			fprintf(f, "    send to %s%s\n    ;\n",
-					or->dests->cl->name,
-					or->stop ? "\n    stop" : "");
+			fprintf(f, "    send to");
+			if (or->dests->next == NULL) {
+				fprintf(f, " %s", or->dests->cl->name);
+			} else {
+				destinations *d;
+				for (d = or->dests; d != NULL; d = d->next)
+					fprintf(f, "\n        %s", d->cl->name);
+			}
+			fprintf(f, "\n%s    ;\n", or->stop ? "    stop\n" : "");
 		}
 	}
 	fflush(f);
