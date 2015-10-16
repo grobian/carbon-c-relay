@@ -1649,12 +1649,18 @@ router_printconfig(FILE *f, char mode, cluster *clusters, route *routes)
 					++b, cnt);
 		} else {
 			route *or = r;
-			fprintf(f, "match\n");
-			do {
-				fprintf(f, "        %s\n",
+			fprintf(f, "match");
+			if (r->next == NULL) {
+				fprintf(f, " %s\n", 
 						r->matchtype == MATCHALL ? "*" : r->pattern);
-			} while (r->next != NULL && r->next->dests->cl == or->dests->cl
-					&& (r = r->next) != NULL);
+			} else {
+				fprintf(f, "\n");
+				do {
+					fprintf(f, "        %s\n",
+							r->matchtype == MATCHALL ? "*" : r->pattern);
+				} while (r->next != NULL && r->next->dests->cl == or->dests->cl
+						&& (r = r->next) != NULL);
+			}
 			fprintf(f, "    send to");
 			if (or->dests->next == NULL) {
 				fprintf(f, " %s", or->dests->cl->name);
