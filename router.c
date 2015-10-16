@@ -1687,20 +1687,22 @@ router_free(cluster *clusters, route *routes)
 	destinations *d;
 
 	while (routes != NULL) {
-		while (routes->dests != NULL) {
-			if (routes->dests->cl->type == GROUP)
-				router_free(NULL, routes->dests->cl->members.routes);
+		if (routes->pattern)
+			free(routes->pattern);
+		if (routes->strmatch)
+			free(routes->strmatch);
+		if (routes->matchtype == REGEX)
+			regfree(&routes->rule);
 
-			if (routes->pattern)
-				free(routes->pattern);
-			if (routes->strmatch)
-				free(routes->strmatch);
-			if (routes->matchtype == REGEX)
-				regfree(&routes->rule);
+		if (routes->next == NULL || routes->next->dests != routes->dests) {
+			while (routes->dests != NULL) {
+				if (routes->dests->cl->type == GROUP)
+					router_free(NULL, routes->dests->cl->members.routes);
 
-			d = routes->dests->next;
-			free(routes->dests);
-			routes->dests = d;
+				d = routes->dests->next;
+				free(routes->dests);
+				routes->dests = d;
+			}
 		}
 
 		r = routes->next;
