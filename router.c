@@ -223,7 +223,7 @@ determine_if_regex(route *r, char *pat, int flags)
  *     ;
  * match
  *         (* | regex[ regex ...])
- *     send to (cluster | blackhole)
+ *     send to (cluster ... | blackhole)
  *     [stop]
  *     ;
  * rewrite (regex)
@@ -237,6 +237,8 @@ determine_if_regex(route *r, char *pat, int flags)
  *     compute (sum | count | max | min | average) write to
  *         (metric)
  *     [compute ...]
+ *     [send to (cluster ...)]
+ *     [stop]
  *     ;
  *
  * Comments start with a #-char.
@@ -888,6 +890,10 @@ router_readconfig(cluster **clret, route **rret,
 			int err;
 			int intv;
 			int exp;
+			char stop = 0;
+			route *m = NULL;
+			destinations *d;
+			destinations *dw = NULL;
 
 			p += 10;
 			for (; *p != '\0' && isspace(*p); p++)
@@ -916,6 +922,8 @@ router_readconfig(cluster **clret, route **rret,
 				} else {
 					r = r->next = malloc(sizeof(route));
 				}
+				if (m == NULL)
+					m = r;
 				err = determine_if_regex(r, pat, REG_EXTENDED);
 				if (err != 0) {
 					char ebuf[512];
@@ -929,7 +937,6 @@ router_readconfig(cluster **clret, route **rret,
 				r->dests = malloc(sizeof(destinations));
 				r->dests->cl = w;
 				r->dests->next = NULL;
-				r->stop = 0;
 				r->next = NULL;
 			} while (strncmp(p, "every", 5) != 0 || !isspace(*(p + 5)));
 			p += 6;
@@ -1078,7 +1085,7 @@ router_readconfig(cluster **clret, route **rret,
 			}
 			do {
 				if (strncmp(p, "compute", 7) != 0 || !isspace(*(p + 7))) {
-					logerr("expected 'compute' at %s'\n", p);
+					logerr("expected 'compute' at: %.20s\n", p);
 					free(buf);
 					return 0;
 				}
@@ -1130,13 +1137,103 @@ router_readconfig(cluster **clret, route **rret,
 
 				for (; *p != '\0' && isspace(*p); p++)
 					;
-			} while (*p != ';');
+			} while (*p != ';' &&
+					!(strncmp(p, "send", 4) == 0 && isspace(*(p + 4))) &&
+					!(strncmp(p, "stop", 4) == 0 &&
+						(isspace(*(p + 4)) || *(p + 4) == ';')));
+
+			if (strncmp(p, "send", 4) == 0 && isspace(*(p + 4))) {
+				p += 5;
+				for (; *p != '\0' && isspace(*p); p++)
+					;
+				if (strncmp(p, "to", 2) != 0 || !isspace(*(p + 2))) {
+					logerr("expected 'to' after 'send' for aggregate\n");
+					free(buf);
+					return 0;
+				}
+				p += 3;
+				for (; *p != '\0' && isspace(*p); p++)
+					;
+				do {
+					char save;
+					char *dest = p;
+					for (; *p != '\0' && !isspace(*p) && *p != ';'; p++)
+						;
+					if (*p == '\0')
+						break;
+					save = *p;
+					*p = '\0';
+
+					/* lookup dest */
+					for (w = topcl; w != NULL; w = w->next) {
+						if (w->type != GROUP &&
+								w->type != AGGREGATION &&
+								w->type != REWRITE &&
+								strcmp(w->name, dest) == 0)
+							break;
+					}
+					if (w == NULL) {
+						logerr("no such cluster '%s' for aggregate\n", dest);
+						FREE_D;
+						free(buf);
+						return 0;
+					}
+
+					if (dw == NULL) {
+						dw = d = malloc(sizeof(destinations));
+					} else {
+						d = d->next = malloc(sizeof(destinations));
+					}
+					if (d == NULL) {
+						logerr("out of memory allocating new destination '%s' "
+								"for aggregation\n", dest);
+						FREE_D;
+						free(buf);
+						return 0;
+					}
+					d->cl = w;
+					d->next = NULL;
+
+					*p = save;
+					for (; *p != '\0' && isspace(*p); p++)
+						;
+				} while (*p != ';' &&
+						!(strncmp(p, "stop", 4) == 0 &&
+							(isspace(*(p + 4)) || *(p + 4) == ';')));
+			}
+
+			if (strncmp(p, "stop", 4) == 0 &&
+					(isspace(*(p + 4)) || *(p + 4) == ';'))
+			{
+				p += 4;
+				stop = 1;
+				for (; *p != '\0' && isspace(*p); p++)
+					;
+			}
+
+			if (*p == '\0') {
+				logerr("unexpected end of file after 'aggregate %s'\n",
+						r->pattern);
+				free(buf);
+				return 0;
+			}
+			if (*p != ';') {
+				logerr("expected ';' after aggregate %s\n", r->pattern);
+				free(buf);
+				return 0;
+			}
 			p++;
+
+			/* fill in the destinations for all the routes */
+			do {
+				m->dests->next = dw;
+				m->stop = stop;
+			} while (m != r && (m = m->next) != NULL);
 
 			if (matchcatchallfound) {
 				logerr("warning: aggregate %s will never be matched "
 						"due to preceeding match * ... stop\n",
-						r->pattern == NULL ? "*" : r->pattern);
+						r->pattern);
 			}
 		} else if (strncmp(p, "rewrite", 7) == 0 && isspace(*(p + 7))) {
 			/* rewrite rule */
