@@ -1747,7 +1747,7 @@ router_printconfig(FILE *f, char mode, cluster *clusters, route *routes)
 		} else {
 			route *or = r;
 			fprintf(f, "match");
-			if (r->next == NULL) {
+			if (r->next == NULL || r->next->dests->cl != or->dests->cl) {
 				fprintf(f, " %s\n", 
 						r->matchtype == MATCHALL ? "*" : r->pattern);
 			} else {
