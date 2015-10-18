@@ -1704,11 +1704,16 @@ router_printconfig(FILE *f, char mode, cluster *clusters, route *routes)
 			if (!(mode & 1))
 				continue;
 
-			fprintf(f, "aggregate\n");
-			do {
-				fprintf(f, "        %s\n", r->pattern);
-			} while (r->next != NULL && r->next->dests->cl == aggr
-					&& (r = r->next) != NULL);
+			fprintf(f, "aggregate");
+			if (r->next == NULL || r->next->dests->cl != aggr) {
+				fprintf(f, " %s\n", r->pattern);
+			} else {
+				fprintf(f, "\n");
+				do {
+					fprintf(f, "        %s\n", r->pattern);
+				} while (r->next != NULL && r->next->dests->cl == aggr
+						&& (r = r->next) != NULL);
+			}
 			fprintf(f, "    every %u seconds\n"
 					"    expire after %u seconds\n"
 					"    timestamp at %s of bucket\n",
@@ -1724,7 +1729,18 @@ router_printconfig(FILE *f, char mode, cluster *clusters, route *routes)
 						ac->type == SUM ? "sum" : ac->type == CNT ? "count" :
 						ac->type == MAX ? "max" : ac->type == MIN ? "min" :
 						ac->type == AVG ? "average" : "<unknown>", ac->metric);
-			fprintf(f, "    ;\n");
+			if (r->dests->next != NULL) {
+				destinations *dn = r->dests->next;
+				fprintf(f, "    send to");
+				if (dn->next == NULL) {
+					fprintf(f, " %s\n", dn->cl->name);
+				} else {
+					for (; dn != NULL; dn = dn->next)
+						fprintf(f, "\n        %s", dn->cl->name);
+					fprintf(f, "\n");
+				}
+			}
+			fprintf(f, "%s    ;\n", r->stop ? "    stop\n" : "");
 		} else if (r->dests->cl->type == REWRITE) {
 			fprintf(f, "rewrite %s\n    into %s\n    ;\n",
 					r->pattern, r->dests->cl->members.replacement);
