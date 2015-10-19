@@ -2314,6 +2314,11 @@ router_route_intern(
 								firstspace,
 								w->nmatch, pmatch);
 						*blackholed = 0;
+						/* we need to break out of the inner loop. since
+						 * the rest of dests are meant for the stub, and
+						 * we should certainly not process it now */
+						while (d->next != NULL)
+							d = d->next;
 					}	break;
 					case REWRITE: {
 						/* rewrite metric name */
@@ -2337,7 +2342,7 @@ router_route_intern(
 					case AGGRSTUB: {
 						/* strip off the stub pattern, and reroute this
 						 * thing */
-						stop = router_route_intern(
+						router_route_intern(
 								blackholed,
 								ret,
 								curlen,
