@@ -56,6 +56,7 @@ typedef struct _aggregator {
 
 aggregator *aggregator_new(unsigned int interval, unsigned int expire, enum _aggr_timestamp tswhen);
 char aggregator_add_compute(aggregator *s, const char *metric, const char *type);
+void aggregator_set_stub(aggregator *s, const char *stubname);
 void aggregator_putmetric(aggregator *s, const char *metric, const char *firstspace, size_t nmatch, regmatch_t *pmatch);
 int aggregator_start(server *submission);
 void aggregator_stop(void);

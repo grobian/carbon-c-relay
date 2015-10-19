@@ -118,6 +118,21 @@ aggregator_add_compute(
 	return 0;
 }
 
+void
+aggregator_set_stub(
+		aggregator *s,
+		const char *stubname)
+{
+	struct _aggr_computes *ac;
+	char newmetric[METRIC_BUFSIZ];
+	
+	for (ac = s->computes; ac != NULL; ac = ac->next) {
+		snprintf(newmetric, sizeof(newmetric), "%s%s", stubname, ac->metric);
+		free((void *)ac->metric);
+		ac->metric = strdup(newmetric);
+	}
+}
+
 /**
  * Adds a new metric to aggregator s.  The value from the metric is put
  * in the bucket matching the epoch contained in the metric.  In cases
