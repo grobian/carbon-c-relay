@@ -1803,7 +1803,7 @@ router_printconfig(FILE *f, char mode, cluster *clusters, route *routes)
 			if (!(mode & 1))
 				continue;
 
-			if (mode & 2) {
+			if (mode & 2 || r->dests->next == NULL) {
 				stubname[0] = '\0';
 			} else {
 				snprintf(stubname, sizeof(stubname),
@@ -1835,7 +1835,7 @@ router_printconfig(FILE *f, char mode, cluster *clusters, route *routes)
 						ac->type == SUM ? "sum" : ac->type == CNT ? "count" :
 						ac->type == MAX ? "max" : ac->type == MIN ? "min" :
 						ac->type == AVG ? "average" : "<unknown>",
-						ac->metric + (r->dests->next && r->dests->next->next ? strlen(stubname) : 0));
+						ac->metric + strlen(stubname));
 			if (r->dests->next != NULL) {
 				destinations *dn = r->dests->next;
 				fprintf(f, "    send to");
@@ -2463,6 +2463,15 @@ router_test_intern(char *metric, char *firstspace, route *routes)
 					struct _aggr_computes *ac;
 					char newmetric[METRIC_BUFSIZ];
 					char *newfirstspace = NULL;
+					char stubname[48];
+
+					if (mode == DEBUGTEST || w->dests->next == NULL) {
+						stubname[0] = '\0';
+					} else {
+						snprintf(stubname, sizeof(stubname),
+								"_stub_aggregator_%p__",
+								w->dests->cl->members.aggregation);
+					}
 
 					for (ac = w->dests->cl->members.aggregation->computes; ac != NULL; ac = ac->next)
 					{
@@ -2481,7 +2490,7 @@ router_test_intern(char *metric, char *firstspace, route *routes)
 								break;
 							}
 							snprintf(newmetric, sizeof(newmetric),
-									"%s", ac->metric);
+									"%s", ac->metric + strlen(stubname));
 						}
 
 						fprintf(stdout, "    %s%s%s%s -> %s\n",
