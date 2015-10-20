@@ -1879,7 +1879,7 @@ router_printconfig(FILE *f, char mode, cluster *clusters, route *routes)
 					for (; d != NULL; d = d->next)
 						fprintf(f, "\n        %s", d->cl->name);
 				}
-				fprintf(f, "\n    ;\n");
+				fprintf(f, "%s\n    ;\n", r->stop ? "\n    stop" : "");
 			}
 		} else {
 			route *or = r;
