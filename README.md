@@ -399,13 +399,14 @@ matching metrics.  In this example we could have written the two matches
 as one, but for demonstration purposes we did not.  Obviously they can
 refer to different metrics, if that makes sense.  The `every 10 seconds`
 clause specifies in what interval the aggregator can expect new metrics
-to arrive.  This interval is used to produce the aggregations, thus each
-10 seconds 4 new metrics are generated from the data received sofar.
-Because data may be in transit for some reason, or generation stalled,
-the `expire after` clause specifies how long the data should be kept
-before considering a data bucket (which is aggregated) to be complete.
+to arrive.  The interval should never be less than 10 secconds.  This 
+interval is used to produce the aggregations, thus each 10 seconds 4 new 
+metrics are generated from the data received sofar.  Because data may be in 
+transit for some reason, or generation stalled, the `expire after` clause 
+specifies how long the data should be kept before considering a data bucket 
+which is aggregated) to be complete.
 In the example, 35 was used, which means after 35 seconds the first
-aggregates are produced.  It also means that metrics can arrive 35
+aggregates are produced.  It also means that metrics can arrive 25
 seconds late, and still be taken into account.  The exact time at which
 the aggregate metrics are produced is random between 0 and interval (10
 in this case) seconds after the expiry time.  This is done to prevent
