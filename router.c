@@ -716,7 +716,7 @@ router_readconfig(cluster **clret, route **rret,
 			char stop = -1;
 			cluster *w;
 			route *m = NULL;
-			destinations *d;
+			destinations *d = NULL;
 			destinations *dw = NULL;
 
 #define FREE_R \
@@ -894,7 +894,7 @@ router_readconfig(cluster **clret, route **rret,
 			int exp;
 			char stop = 0;
 			route *m = NULL;
-			destinations *d;
+			destinations *d = NULL;
 			destinations *dw = NULL;
 
 			p += 10;
