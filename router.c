@@ -1310,6 +1310,7 @@ router_readconfig(cluster **clret, route **rret,
 				cl->type = AGGRSTUB;
 				cl->members.routes = m;
 				cl->next = NULL;
+				d->next = NULL;
 
 				snprintf(stubname, sizeof(stubname),
 						"_stub_aggregator_%p__", w->members.aggregation);
