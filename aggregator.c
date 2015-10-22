@@ -125,7 +125,7 @@ aggregator_set_stub(
 {
 	struct _aggr_computes *ac;
 	char newmetric[METRIC_BUFSIZ];
-	
+
 	for (ac = s->computes; ac != NULL; ac = ac->next) {
 		snprintf(newmetric, sizeof(newmetric), "%s%s", stubname, ac->metric);
 		free((void *)ac->metric);

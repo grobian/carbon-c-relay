@@ -23,7 +23,7 @@
 
 struct _queue {
 	const char **queue;
-	size_t end;  
+	size_t end;
 	size_t write;
 	size_t read;
 	size_t len;

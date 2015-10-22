@@ -95,7 +95,7 @@ struct _route {
 		REGEX,        /* a regex match */
 		CONTAINS,     /* find string occurrence */
 		STARTS_WITH,  /* metric must start with string */
-		ENDS_WITH,    /* metric must end with string */ 
+		ENDS_WITH,    /* metric must end with string */
 		MATCHES       /* metric matches string exactly */
 	} matchtype;      /* how to interpret the pattern */
 	struct _route *next;
@@ -104,7 +104,7 @@ struct _route {
 static char keep_running = 1;
 
 /* custom constant, meant to force regex mode matching */
-#define REG_FORCE   01000000 
+#define REG_FORCE   01000000
 
 /**
  * Examines pattern and sets matchtype and rule or strmatch in route.
@@ -1858,7 +1858,7 @@ router_printconfig(FILE *f, char mode, cluster *clusters, route *routes)
 			char blockname[64];
 			char *b = &blockname[sizeof(blockname) - 1];
 			char *p;
-			
+
 			for (rwalk = r->dests->cl->members.routes; rwalk != NULL; rwalk = rwalk->next)
 				cnt++;
 			/* reverse the name, to make it human consumable */
@@ -1886,7 +1886,7 @@ router_printconfig(FILE *f, char mode, cluster *clusters, route *routes)
 			route *or = r;
 			fprintf(f, "match");
 			if (r->next == NULL || r->next->dests != or->dests) {
-				fprintf(f, " %s\n", 
+				fprintf(f, " %s\n",
 						r->matchtype == MATCHALL ? "*" : r->pattern);
 			} else {
 				fprintf(f, "\n");
@@ -2548,7 +2548,7 @@ router_test_intern(char *metric, char *firstspace, route *routes)
 					destination dst[CONN_DESTS_SIZE];
 					int i;
 
-					fprintf(stdout, "    %s_ch(%s)\n", 
+					fprintf(stdout, "    %s_ch(%s)\n",
 							w->dests->cl->type == FNV1A_CH ? "fnv1a" : "carbon",
 							w->dests->cl->name);
 					if (mode == DEBUGTEST) {

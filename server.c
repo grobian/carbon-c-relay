@@ -537,7 +537,7 @@ server_shutdown(server *s)
 	size_t failures;
 	size_t inqueue;
 	int err;
-	
+
 	if (s->tid == 0)
 		return;
 
