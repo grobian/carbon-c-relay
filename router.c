@@ -25,6 +25,7 @@
 #include <errno.h>
 #include <assert.h>
 
+#include "fnv1a.h"
 #include "consistent-hash.h"
 #include "server.h"
 #include "queue.h"
@@ -2256,10 +2257,10 @@ router_route_intern(
 					}	break;
 					case ANYOF: {
 						/* we queue the same metrics at the same server */
-						unsigned int hash = 2166136261UL;  /* FNV1a */
+						unsigned int hash;
+						
+						fnv1a_32(hash, p, metric, firstspace);
 
-						for (p = metric; p < firstspace; p++)
-							hash = (hash ^ (unsigned int)*p) * 16777619;
 						/* We could use the retry approach here, but since
 						 * our c is very small compared to MAX_INT, the bias
 						 * we introduce for the last few of the range
@@ -2570,15 +2571,14 @@ router_test_intern(char *metric, char *firstspace, route *routes)
 				}	break;
 				case FAILOVER:
 				case ANYOF: {
-					unsigned int hash = 2166136261UL;  /* FNV1a */
+					unsigned int hash;
 
 					fprintf(stdout, "    %s(%s)\n",
 							w->dests->cl->type == ANYOF ? "any_of" : "failover",
 							w->dests->cl->name);
 					if (w->dests->cl->type == ANYOF) {
 						const char *p;
-						for (p = metric; p < firstspace; p++)
-							hash = (hash ^ (unsigned int)*p) * 16777619;
+						fnv1a_32(hash, p, metric, firstspace);
 						hash %= w->dests->cl->members.anyof->count;
 					} else {
 						hash = 0;

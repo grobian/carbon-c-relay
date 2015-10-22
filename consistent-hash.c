@@ -20,6 +20,7 @@
 #include <string.h>
 #include <assert.h>
 
+#include "fnv1a.h"
 #include "md5.h"
 #include "server.h"
 
@@ -69,10 +70,9 @@ carbon_hashpos(const char *key, const char *end)
 static unsigned short
 fnv1a_hashpos(const char *key, const char *end)
 {
-	unsigned int hash = 2166136261UL;  /* FNV1a */
+	unsigned int hash;
 
-	for (; key < end; key++)
-		hash = (hash ^ (unsigned int)*key) * 16777619;
+	fnv1a_32(hash, key, key, end);
 
 	return (unsigned short)((hash >> 16) ^ (hash & (unsigned int)0xFFFF));
 }
