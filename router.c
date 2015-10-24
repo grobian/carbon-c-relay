@@ -2403,6 +2403,7 @@ char
 router_test_intern(char *metric, char *firstspace, route *routes)
 {
 	route *w;
+	destinations *d;
 	char gotmatch = 0;
 	char newmetric[METRIC_BUFSIZ];
 	char *newfirstspace = NULL;
@@ -2428,6 +2429,13 @@ router_test_intern(char *metric, char *firstspace, route *routes)
 				case REWRITE:
 					fprintf(stdout, "rewrite\n");
 					break;
+				case AGGRSTUB: {
+					gotmatch |= router_test_intern(
+							metric + strlen(w->pattern),
+							firstspace + strlen(w->pattern),
+							w->dests->cl->members.routes);
+					return gotmatch;
+				}	break;
 				default:
 					fprintf(stdout, "match\n");
 					break;
@@ -2465,132 +2473,141 @@ router_test_intern(char *metric, char *firstspace, route *routes)
 				}	break;
 			}
 			*firstspace = ' ';
-			switch (w->dests->cl->type) {
-				case AGGREGATION: {
-					struct _aggr_computes *ac;
-					char newmetric[METRIC_BUFSIZ];
-					char *newfirstspace = NULL;
-					int stublen = 0;
+			for (d = w->dests; d != NULL; d = d->next) {
+				switch (d->cl->type) {
+					case AGGREGATION: {
+						struct _aggr_computes *ac;
+						char newmetric[METRIC_BUFSIZ];
+						char *newfirstspace = NULL;
+						int stublen = 0;
 
-					if (mode == DEBUGTEST || w->dests->next == NULL) {
-						stublen = 0;
-					} else {
-						char x;
-						stublen = snprintf(&x, 1,
-								"_stub_aggregator_%p__",
-								w->dests->cl->members.aggregation);
-					}
-
-					for (ac = w->dests->cl->members.aggregation->computes; ac != NULL; ac = ac->next)
-					{
-						if (w->nmatch == 0 || (len = router_rewrite_metric(
-										&newmetric, &newfirstspace,
-										metric, firstspace,
-										ac->metric,
-										w->nmatch, pmatch)) == 0)
-						{
-							if (w->nmatch > 0) {
-								fprintf(stderr, "router_test: failed to "
-										"rewrite metric: newmetric size too "
-										"small to hold replacement "
-										"(%s -> %s)\n",
-										metric, ac->metric);
-								break;
-							}
-							snprintf(newmetric, sizeof(newmetric),
-									"%s", ac->metric + stublen);
+						if (mode == DEBUGTEST || d->next == NULL) {
+							stublen = 0;
+						} else {
+							char x;
+							stublen = snprintf(&x, 1,
+									"_stub_aggregator_%p__",
+									d->cl->members.aggregation);
 						}
 
-						fprintf(stdout, "    %s%s%s%s -> %s\n",
-								ac->type == SUM ? "sum" : ac->type == CNT ? "count" :
-								ac->type == MAX ? "max" : ac->type == MIN ? "min" :
-								ac->type == AVG ? "average" : "<unknown>",
-								w->nmatch > 0 ? "(" : "",
-								w->nmatch > 0 ? ac->metric + stublen : "",
-								w->nmatch > 0 ? ")" : "",
-								newmetric + stublen);
-					}
-				}	break;
-				case BLACKHOLE: {
-					fprintf(stdout, "    blackholed\n");
-				}	break;
-				case REWRITE: {
-					/* rewrite metric name */
-					if ((len = router_rewrite_metric(
-								&newmetric, &newfirstspace,
-								metric, firstspace,
-								w->dests->cl->members.replacement,
-								w->nmatch, pmatch)) == 0)
-					{
-						fprintf(stderr, "router_test: failed to rewrite "
-								"metric: newmetric size too small to hold "
-								"replacement (%s -> %s)\n",
-								metric, w->dests->cl->members.replacement);
-						break;
-					};
+						for (ac = d->cl->members.aggregation->computes; ac != NULL; ac = ac->next)
+						{
+							if (w->nmatch == 0 || (len = router_rewrite_metric(
+											&newmetric, &newfirstspace,
+											metric, firstspace,
+											ac->metric,
+											w->nmatch, pmatch)) == 0)
+							{
+								if (w->nmatch > 0) {
+									fprintf(stderr, "router_test: failed to "
+											"rewrite metric: newmetric size too "
+											"small to hold replacement "
+											"(%s -> %s)\n",
+											metric, ac->metric);
+									break;
+								}
+								snprintf(newmetric, sizeof(newmetric),
+										"%s", ac->metric + stublen);
+							}
 
-					/* scary! write back the rewritten metric */
-					memcpy(metric, newmetric, len);
-					firstspace = metric + (newfirstspace - newmetric);
-					*firstspace = '\0';
-					fprintf(stdout, "    into(%s) -> %s\n",
-							w->dests->cl->members.replacement, metric);
-					*firstspace = ' ';
-				}	break;
-				case FORWARD: {
-					servers *s;
+							fprintf(stdout, "    %s%s%s%s -> %s\n",
+									ac->type == SUM ? "sum" : ac->type == CNT ? "count" :
+									ac->type == MAX ? "max" : ac->type == MIN ? "min" :
+									ac->type == AVG ? "average" : "<unknown>",
+									w->nmatch > 0 ? "(" : "",
+									w->nmatch > 0 ? ac->metric + stublen : "",
+									w->nmatch > 0 ? ")" : "",
+									newmetric + stublen);
+						}
+						if (stublen > 0) {
+							gotmatch |= router_test_intern(
+									newmetric,
+									newfirstspace,
+									routes);
+							return gotmatch;
+						}
+					}	break;
+					case BLACKHOLE: {
+						fprintf(stdout, "    blackholed\n");
+					}	break;
+					case REWRITE: {
+						/* rewrite metric name */
+						if ((len = router_rewrite_metric(
+									&newmetric, &newfirstspace,
+									metric, firstspace,
+									d->cl->members.replacement,
+									w->nmatch, pmatch)) == 0)
+						{
+							fprintf(stderr, "router_test: failed to rewrite "
+									"metric: newmetric size too small to hold "
+									"replacement (%s -> %s)\n",
+									metric, d->cl->members.replacement);
+							break;
+						};
 
-					fprintf(stdout, "    forward(%s)\n", w->dests->cl->name);
-					for (s = w->dests->cl->members.forward; s != NULL; s = s->next)
+						/* scary! write back the rewritten metric */
+						memcpy(metric, newmetric, len);
+						firstspace = metric + (newfirstspace - newmetric);
+						*firstspace = '\0';
+						fprintf(stdout, "    into(%s) -> %s\n",
+								d->cl->members.replacement, metric);
+						*firstspace = ' ';
+					}	break;
+					case FORWARD: {
+						servers *s;
+
+						fprintf(stdout, "    forward(%s)\n", d->cl->name);
+						for (s = d->cl->members.forward; s != NULL; s = s->next)
+							fprintf(stdout, "        %s:%d\n",
+									server_ip(s->server), server_port(s->server));
+					}	break;
+					case CARBON_CH:
+					case FNV1A_CH: {
+						destination dst[CONN_DESTS_SIZE];
+						int i;
+
+						fprintf(stdout, "    %s_ch(%s)\n",
+								d->cl->type == FNV1A_CH ? "fnv1a" : "carbon",
+								d->cl->name);
+						if (mode == DEBUGTEST) {
+							fprintf(stdout, "        hash_pos(%d)\n",
+									ch_gethashpos(d->cl->members.ch->ring,
+										metric, firstspace));
+						}
+						ch_get_nodes(dst,
+								d->cl->members.ch->ring,
+								d->cl->members.ch->repl_factor,
+								metric,
+								firstspace);
+						for (i = 0; i < d->cl->members.ch->repl_factor; i++) {
+							fprintf(stdout, "        %s:%d\n",
+									server_ip(dst[i].dest),
+									server_port(dst[i].dest));
+							free((char *)dst[i].metric);
+						}
+					}	break;
+					case FAILOVER:
+					case ANYOF: {
+						unsigned int hash;
+
+						fprintf(stdout, "    %s(%s)\n",
+								d->cl->type == ANYOF ? "any_of" : "failover",
+								d->cl->name);
+						if (d->cl->type == ANYOF) {
+							const char *p;
+							fnv1a_32(hash, p, metric, firstspace);
+							hash %= d->cl->members.anyof->count;
+						} else {
+							hash = 0;
+						}
 						fprintf(stdout, "        %s:%d\n",
-								server_ip(s->server), server_port(s->server));
-				}	break;
-				case CARBON_CH:
-				case FNV1A_CH: {
-					destination dst[CONN_DESTS_SIZE];
-					int i;
-
-					fprintf(stdout, "    %s_ch(%s)\n",
-							w->dests->cl->type == FNV1A_CH ? "fnv1a" : "carbon",
-							w->dests->cl->name);
-					if (mode == DEBUGTEST) {
-						fprintf(stdout, "        hash_pos(%d)\n",
-								ch_gethashpos(w->dests->cl->members.ch->ring,
-									metric, firstspace));
-					}
-					ch_get_nodes(dst,
-							w->dests->cl->members.ch->ring,
-							w->dests->cl->members.ch->repl_factor,
-							metric,
-							firstspace);
-					for (i = 0; i < w->dests->cl->members.ch->repl_factor; i++) {
-						fprintf(stdout, "        %s:%d\n",
-								server_ip(dst[i].dest),
-								server_port(dst[i].dest));
-						free((char *)dst[i].metric);
-					}
-				}	break;
-				case FAILOVER:
-				case ANYOF: {
-					unsigned int hash;
-
-					fprintf(stdout, "    %s(%s)\n",
-							w->dests->cl->type == ANYOF ? "any_of" : "failover",
-							w->dests->cl->name);
-					if (w->dests->cl->type == ANYOF) {
-						const char *p;
-						fnv1a_32(hash, p, metric, firstspace);
-						hash %= w->dests->cl->members.anyof->count;
-					} else {
-						hash = 0;
-					}
-					fprintf(stdout, "        %s:%d\n",
-							server_ip(w->dests->cl->members.anyof->servers[hash]),
-							server_port(w->dests->cl->members.anyof->servers[hash]));
-				}	break;
-				default: {
-					fprintf(stdout, "    cluster(%s)\n", w->dests->cl->name);
-				}	break;
+								server_ip(d->cl->members.anyof->servers[hash]),
+								server_port(d->cl->members.anyof->servers[hash]));
+					}	break;
+					default: {
+						fprintf(stdout, "    cluster(%s)\n", d->cl->name);
+					}	break;
+				}
 			}
 			if (w->stop) {
 				gotmatch = 3;
