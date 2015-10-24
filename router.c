@@ -2470,12 +2470,13 @@ router_test_intern(char *metric, char *firstspace, route *routes)
 					struct _aggr_computes *ac;
 					char newmetric[METRIC_BUFSIZ];
 					char *newfirstspace = NULL;
-					char stubname[48];
+					int stublen = 0;
 
 					if (mode == DEBUGTEST || w->dests->next == NULL) {
-						stubname[0] = '\0';
+						stublen = 0;
 					} else {
-						snprintf(stubname, sizeof(stubname),
+						char x;
+						stublen = snprintf(&x, 1,
 								"_stub_aggregator_%p__",
 								w->dests->cl->members.aggregation);
 					}
@@ -2497,7 +2498,7 @@ router_test_intern(char *metric, char *firstspace, route *routes)
 								break;
 							}
 							snprintf(newmetric, sizeof(newmetric),
-									"%s", ac->metric + strlen(stubname));
+									"%s", ac->metric + stublen);
 						}
 
 						fprintf(stdout, "    %s%s%s%s -> %s\n",
@@ -2505,9 +2506,9 @@ router_test_intern(char *metric, char *firstspace, route *routes)
 								ac->type == MAX ? "max" : ac->type == MIN ? "min" :
 								ac->type == AVG ? "average" : "<unknown>",
 								w->nmatch > 0 ? "(" : "",
-								w->nmatch > 0 ? ac->metric : "",
+								w->nmatch > 0 ? ac->metric + stublen : "",
 								w->nmatch > 0 ? ")" : "",
-								newmetric);
+								newmetric + stublen);
 					}
 				}	break;
 				case BLACKHOLE: {
