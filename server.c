@@ -56,6 +56,10 @@ struct _server {
 	size_t dropped;
 	size_t stalls;
 	size_t ticks;
+	size_t prevmetrics;
+	size_t prevdropped;
+	size_t prevstalls;
+	size_t prevticks;
 };
 
 
@@ -439,6 +443,10 @@ server_new(
 	ret->dropped = 0;
 	ret->stalls = 0;
 	ret->ticks = 0;
+	ret->prevmetrics = 0;
+	ret->prevdropped = 0;
+	ret->prevstalls = 0;
+	ret->prevticks = 0;
 
 	if (pthread_create(&ret->tid, NULL, &server_queuereader, ret) != 0) {
 		free((char *)ret->ip);
@@ -658,6 +666,21 @@ server_get_ticks(server *s)
 }
 
 /**
+ * Returns the wall-clock time in microseconds (us) consumed since last
+ * call to this function.
+ */
+inline size_t
+server_get_ticks_sub(server *s)
+{
+	size_t d;
+	if (s == NULL)
+		return 0;
+	d = s->ticks - s->prevticks;
+	s->prevticks += d;
+	return d;
+}
+
+/**
  * Returns the number of metrics sent since start.
  */
 inline size_t
@@ -666,6 +689,20 @@ server_get_metrics(server *s)
 	if (s == NULL)
 		return 0;
 	return s->metrics;
+}
+
+/**
+ * Returns the number of metrics sent since last call to this function.
+ */
+inline size_t
+server_get_metrics_sub(server *s)
+{
+	size_t d;
+	if (s == NULL)
+		return 0;
+	d = s->metrics - s->prevmetrics;
+	s->prevmetrics += d;
+	return d;
 }
 
 /**
@@ -680,6 +717,20 @@ server_get_dropped(server *s)
 }
 
 /**
+ * Returns the number of metrics dropped since last call to this function.
+ */
+inline size_t
+server_get_dropped_sub(server *s)
+{
+	size_t d;
+	if (s == NULL)
+		return 0;
+	d = s->dropped - s->prevdropped;
+	s->prevdropped += d;
+	return d;
+}
+
+/**
  * Returns the number of stalls since start.  A stall happens when the
  * queue is full, but it appears as if it would be a good idea to wait
  * for a brief period and retry.
@@ -690,6 +741,20 @@ server_get_stalls(server *s)
 	if (s == NULL)
 		return 0;
 	return s->stalls;
+}
+
+/**
+ * Returns the number of stalls since last call to this function.
+ */
+inline size_t
+server_get_stalls_sub(server *s)
+{
+	size_t d;
+	if (s == NULL)
+		return 0;
+	d = s->stalls - s->prevstalls;
+	s->prevstalls += d;
+	return d;
 }
 
 /**

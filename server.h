@@ -46,6 +46,10 @@ size_t server_get_ticks(server *s);
 size_t server_get_metrics(server *s);
 size_t server_get_stalls(server *s);
 size_t server_get_dropped(server *s);
+size_t server_get_ticks_sub(server *s);
+size_t server_get_metrics_sub(server *s);
+size_t server_get_stalls_sub(server *s);
+size_t server_get_dropped_sub(server *s);
 size_t server_get_queue_len(server *s);
 size_t server_get_queue_size(server *s);
 

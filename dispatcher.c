@@ -60,6 +60,9 @@ struct _dispatcher {
 	size_t metrics;
 	size_t blackholes;
 	size_t ticks;
+	size_t prevmetrics;
+	size_t prevblackholes;
+	size_t prevticks;
 	enum { RUNNING, SLEEPING } state;
 	char keep_running:1;
 	route *routes;
@@ -661,12 +664,36 @@ dispatch_get_ticks(dispatcher *self)
 }
 
 /**
+ * Returns the wall-clock time consumed since last call to this
+ * function.
+ */
+inline size_t
+dispatch_get_ticks_sub(dispatcher *self)
+{
+	size_t d = self->ticks - self->prevticks;
+	self->prevticks += d;
+	return d;
+}
+
+/**
  * Returns the number of metrics dispatched since start.
  */
 inline size_t
 dispatch_get_metrics(dispatcher *self)
 {
 	return self->metrics;
+}
+
+/**
+ * Returns the number of metrics dispatched since last call to this
+ * function.
+ */
+inline size_t
+dispatch_get_metrics_sub(dispatcher *self)
+{
+	size_t d = self->metrics - self->prevmetrics;
+	self->prevmetrics += d;
+	return d;
 }
 
 /**
@@ -677,6 +704,18 @@ inline size_t
 dispatch_get_blackholes(dispatcher *self)
 {
 	return self->blackholes;
+}
+
+/**
+ * Returns the number of metrics that were blackholed since last call to
+ * this function.
+ */
+inline size_t
+dispatch_get_blackholes_sub(dispatcher *self)
+{
+	size_t d = self->blackholes - self->prevblackholes;
+	self->prevblackholes += d;
+	return d;
 }
 
 /**
