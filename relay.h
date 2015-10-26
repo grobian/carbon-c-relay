@@ -23,11 +23,13 @@
 #define METRIC_BUFSIZ 8192
 
 enum rmode { NORMAL, DEBUG, SUBMISSION, TEST, DEBUGTEST };
+enum mmode { CRELAY, GRAPHITE };
 
 typedef enum { CON_TCP, CON_UDP, CON_PIPE, CON_FILE } serv_ctype;
 
 extern char relay_hostname[];
 extern enum rmode mode;
+extern enum mmode metric_style;
 
 enum logdst { LOGOUT, LOGERR };
 

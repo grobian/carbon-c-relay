@@ -660,9 +660,13 @@ server_failed(server *s)
 inline size_t
 server_get_ticks(server *s)
 {
-	if (s == NULL)
+	size_t value;
+        if (s == NULL)
 		return 0;
-	return s->ticks;
+	value = s->ticks;
+	if (metric_style == GRAPHITE)
+		s->ticks = 0;
+	return value;
 }
 
 /**
@@ -686,9 +690,13 @@ server_get_ticks_sub(server *s)
 inline size_t
 server_get_metrics(server *s)
 {
+        size_t value;
 	if (s == NULL)
 		return 0;
-	return s->metrics;
+	value = s->metrics;
+	if (metric_style == GRAPHITE)
+		s->metrics = 0;
+	return value;
 }
 
 /**
@@ -711,9 +719,13 @@ server_get_metrics_sub(server *s)
 inline size_t
 server_get_dropped(server *s)
 {
+        size_t value;
 	if (s == NULL)
 		return 0;
-	return s->dropped;
+	value = s->dropped;
+	if (metric_style == GRAPHITE)
+		s->dropped = 0;
+	return value;
 }
 
 /**
@@ -738,9 +750,13 @@ server_get_dropped_sub(server *s)
 inline size_t
 server_get_stalls(server *s)
 {
+        size_t value;
 	if (s == NULL)
 		return 0;
-	return s->stalls;
+	value = s->stalls;
+	if (metric_style == GRAPHITE)
+		s->stalls = 0;
+	return value;
 }
 
 /**
