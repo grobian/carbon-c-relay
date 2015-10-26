@@ -67,6 +67,16 @@ collector_runner(void *s)
 	char metric[METRIC_BUFSIZ];
 	char *m;
 	size_t sizem = 0;
+	size_t (*s_ticks)(server *);
+	size_t (*s_metrics)(server *);
+	size_t (*s_stalls)(server *);
+	size_t (*s_dropped)(server *);
+	size_t (*d_ticks)(dispatcher *);
+	size_t (*d_metrics)(dispatcher *);
+	size_t (*d_blackholes)(dispatcher *);
+	size_t (*a_received)(void);
+	size_t (*a_sent)(void);
+	size_t (*a_dropped)(void);
 
 	/* prepare hostname for graphite metrics */
 	snprintf(metric, sizeof(metric), "carbon.relays.%s", relay_hostname);
@@ -77,8 +87,33 @@ collector_runner(void *s)
 	*m = '\0';
 	sizem = sizeof(metric) - (m - metric);
 
+	/* setup functions to target what the user wants */
+	if (debug & 2) {
+		s_ticks = server_get_ticks_sub;
+		s_metrics = server_get_metrics_sub;
+		s_stalls = server_get_stalls_sub;
+		s_dropped = server_get_dropped_sub;
+		d_ticks = dispatch_get_ticks_sub;
+		d_metrics = dispatch_get_metrics_sub;
+		d_blackholes = dispatch_get_blackholes_sub;
+		a_received = aggregator_get_received_sub;
+		a_sent = aggregator_get_sent_sub;
+		a_dropped = aggregator_get_dropped_sub;
+	} else {
+		s_ticks = server_get_ticks;
+		s_metrics = server_get_metrics;
+		s_stalls = server_get_stalls;
+		s_dropped = server_get_dropped;
+		d_ticks = dispatch_get_ticks;
+		d_metrics = dispatch_get_metrics;
+		d_blackholes = dispatch_get_blackholes;
+		a_received = aggregator_get_received;
+		a_sent = aggregator_get_sent;
+		a_dropped = aggregator_get_dropped;
+	}
+
 #define send(metric) \
-	if (debug) \
+	if (debug & 1) \
 		logout("%s", metric); \
 	else \
 		server_send(submission, strdup(metric), 1);
@@ -109,10 +144,9 @@ collector_runner(void *s)
 			} else {
 				dispatchers_idle++;
 			}
-			totticks += ticks = dispatch_get_ticks(dispatchers[i]);
-			totmetrics += metrics = dispatch_get_metrics(dispatchers[i]);
-			totblackholes += blackholes =
-				dispatch_get_blackholes(dispatchers[i]);
+			totticks += ticks = d_ticks(dispatchers[i]);
+			totmetrics += metrics = d_metrics(dispatchers[i]);
+			totblackholes += blackholes = d_blackholes(dispatchers[i]);
 			snprintf(m, sizem, "dispatcher%d.metricsReceived %zd %zd\n",
 					i + 1, metrics, (size_t)now);
 			send(metric);
@@ -148,11 +182,11 @@ collector_runner(void *s)
 			if (server_ctype(srvs[i]) == CON_PIPE) {
 				strncpy(ipbuf, "internal", sizeof(ipbuf));
 
-				ticks = server_get_ticks(srvs[i]);
-				metrics = server_get_metrics(srvs[i]);
+				ticks = s_ticks(srvs[i]);
+				metrics = s_metrics(srvs[i]);
 				queued = server_get_queue_len(srvs[i]);
-				stalls = server_get_stalls(srvs[i]);
-				dropped = server_get_dropped(srvs[i]);
+				stalls = s_stalls(srvs[i]);
+				dropped = s_dropped(srvs[i]);
 			} else {
 				snprintf(ipbuf, sizeof(ipbuf), "%s:%u",
 						server_ip(srvs[i]), server_port(srvs[i]));
@@ -160,11 +194,11 @@ collector_runner(void *s)
 					if (*p == '.')
 						*p = '_';
 
-				totticks += ticks = server_get_ticks(srvs[i]);
-				totmetrics += metrics = server_get_metrics(srvs[i]);
+				totticks += ticks = s_ticks(srvs[i]);
+				totmetrics += metrics = s_metrics(srvs[i]);
 				totqueued += queued = server_get_queue_len(srvs[i]);
-				totstalls += stalls = server_get_stalls(srvs[i]);
-				totdropped += dropped = server_get_dropped(srvs[i]);
+				totstalls += stalls = s_stalls(srvs[i]);
+				totdropped += dropped = s_dropped(srvs[i]);
 			}
 			snprintf(m, sizem, "destinations.%s.sent %zd %zd\n",
 					ipbuf, metrics, (size_t)now);
@@ -207,17 +241,17 @@ collector_runner(void *s)
 
 		if (numaggregators > 0) {
 			snprintf(m, sizem, "aggregators.metricsReceived %zd %zd\n",
-					aggregator_get_received(), (size_t)now);
+					a_received(), (size_t)now);
 			send(metric);
 			snprintf(m, sizem, "aggregators.metricsSent %zd %zd\n",
-					aggregator_get_sent(), (size_t)now);
+					a_sent(), (size_t)now);
 			send(metric);
 			snprintf(m, sizem, "aggregators.metricsDropped %zd %zd\n",
-					aggregator_get_dropped(), (size_t)now);
+					a_dropped(), (size_t)now);
 			send(metric);
 		}
 
-		if (debug)
+		if (debug & 1)
 			fflush(stdout);
 	}
 
@@ -307,13 +341,14 @@ collector_reloadcomplete(void)
  * Initialises and starts the collector.
  */
 void
-collector_start(dispatcher **d, cluster *c, server *submission)
+collector_start(dispatcher **d, cluster *c, server *submission, char cum)
 {
 	dispatchers = d;
 	collector_schedulereload(c);
 
 	if (mode == DEBUG || mode == DEBUGTEST)
 		debug = 1;
+	debug |= (cum ? 0 : 2);
 
 	if (mode != SUBMISSION) {
 		if (pthread_create(&collectorid, NULL, collector_runner, submission) != 0)
