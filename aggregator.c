@@ -33,6 +33,9 @@
 static pthread_t aggregatorid;
 static aggregator *aggregators = NULL;
 static aggregator *lastaggr = NULL;
+static size_t prevreceived = 0;
+static size_t prevsent = 0;
+static size_t prevdropped = 0;
 static char keep_running = 1;
 
 
@@ -516,6 +519,19 @@ aggregator_get_received(void)
 }
 
 /**
+ * Returns an approximate number of metrics received by all aggregators
+ * since the last call to this function.
+ */
+inline size_t
+aggregator_get_received_sub()
+{
+	size_t d = aggregator_get_received();
+	size_t r = d - prevreceived;
+	prevreceived += d;
+	return r;
+}
+
+/**
  * Returns an approximate number of metrics sent by all aggregators.
  */
 size_t
@@ -528,6 +544,19 @@ aggregator_get_sent(void)
 		totsent += a->sent;
 
 	return totsent;
+}
+
+/**
+ * Returns an approximate number of metrics sent by all aggregators
+ * since the last call to this function.
+ */
+inline size_t
+aggregator_get_sent_sub()
+{
+	size_t d = aggregator_get_sent();
+	size_t r = d - prevsent;
+	prevsent += d;
+	return r;
 }
 
 /**
@@ -545,4 +574,17 @@ aggregator_get_dropped(void)
 		totdropped += a->dropped;
 
 	return totdropped;
+}
+
+/**
+ * Returns an approximate number of metrics dropped by all aggregators
+ * since the last call to this function.
+ */
+inline size_t
+aggregator_get_dropped_sub()
+{
+	size_t d = aggregator_get_dropped();
+	size_t r = d - prevdropped;
+	prevdropped += d;
+	return r;
 }

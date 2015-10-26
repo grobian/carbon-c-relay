@@ -65,5 +65,8 @@ size_t aggregator_numcomputes(void);
 size_t aggregator_get_received(void);
 size_t aggregator_get_sent(void);
 size_t aggregator_get_dropped(void);
+size_t aggregator_get_received_sub(void);
+size_t aggregator_get_sent_sub(void);
+size_t aggregator_get_dropped_sub(void);
 
 #endif
