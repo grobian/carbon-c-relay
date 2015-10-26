@@ -486,6 +486,9 @@ dispatch_runner(void *arg)
 	self->metrics = 0;
 	self->blackholes = 0;
 	self->ticks = 0;
+	self->prevmetrics = 0;
+	self->prevblackholes = 0;
+	self->prevticks = 0;
 	self->state = SLEEPING;
 
 	if (self->type == LISTENER) {
