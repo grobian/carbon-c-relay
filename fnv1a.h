@@ -14,11 +14,13 @@
  * limitations under the License.
  */
 
+#define FNV1A_32_OFFSET   2166136261UL
+#define FNV1A_32_PRIME    16777619
 /**
  * 32-bits unsigned FNV1a returning into hash, using p to as variable to
  * walk over metric up to firstspace
  */
 #define fnv1a_32(hash, p, metric, firstspace) \
-	hash = 2166136261UL; \
+	hash = FNV1A_32_OFFSET; \
 	for (p = metric; p < firstspace; p++) \
-		hash = (hash ^ (unsigned int)*p) * 16777619;
+		hash = (hash ^ (unsigned int)*p) * FNV1A_32_PRIME;

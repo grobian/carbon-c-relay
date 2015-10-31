@@ -29,6 +29,7 @@
 #include "server.h"
 #include "router.h"
 #include "aggregator.h"
+#include "fnv1a.h"
 
 static pthread_t aggregatorid;
 static aggregator *aggregators = NULL;
@@ -197,9 +198,9 @@ aggregator_putmetric(
 			ometric = newmetric;
 		}
 
-		omhash = 2166136261UL;  /* FNV1a */
+		omhash = FNV1A_32_OFFSET;
 		for (omp = ometric; *omp != '\0'; omp++)
-			omhash = (omhash ^ (unsigned int)*omp) * 16777619;
+			omhash = (omhash ^ (unsigned int)*omp) * FNV1A_32_PRIME;
 
 		omhtbucket =
 			((omhash >> AGGR_HT_POW_SIZE) ^ omhash) &
