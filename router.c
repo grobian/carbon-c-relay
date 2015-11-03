@@ -1173,7 +1173,7 @@ router_readconfig(cluster **clret, route **rret,
 
 				if (aggregator_add_compute(w->members.aggregation, pat, type) != 0) {
 					logerr("expected sum, count, max, min, average, "
-							"rate, median, variance or stddev "
+							"median, variance or stddev "
 							"after 'compute', got '%s'\n", type);
 					FREE_R;
 					free(w);
@@ -1838,7 +1838,6 @@ router_printconfig(FILE *f, char mode, cluster *clusters, route *routes)
 						ac->type == SUM ? "sum" : ac->type == CNT ? "count" :
 						ac->type == MAX ? "max" : ac->type == MIN ? "min" :
 						ac->type == AVG ? "average" : 
-						ac->type == RATE ? "rate" :
 						ac->type == MEDN ? "median" :
 						ac->type == VAR ? "variance" :
 						ac->type == SDEV ? "stddev" :
@@ -2520,7 +2519,6 @@ router_test_intern(char *metric, char *firstspace, route *routes)
 									ac->type == SUM ? "sum" : ac->type == CNT ? "count" :
 									ac->type == MAX ? "max" : ac->type == MIN ? "min" :
 									ac->type == AVG ? "average" :
-									ac->type == RATE ? "rate" :
 									ac->type == MEDN ? "median" :
 									ac->type == VAR ? "variance" :
 									ac->type == SDEV ? "stddev" : "<unknown>",

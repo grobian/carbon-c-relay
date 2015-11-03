@@ -104,9 +104,6 @@ aggregator_add_compute(
 		act = MIN;
 	} else if (strcmp(type, "average") == 0 || strcmp(type, "avg") == 0) {
 		act = AVG;
-	} else if (strcmp(type, "rate") == 0) {
-		act = RATE;
-		store = 1;
 	} else if (strcmp(type, "median") == 0) {
 		act = MEDN;
 		store = 1;
@@ -416,7 +413,6 @@ aggregator_expire(void *sub)
 												inv->metric,
 												b->sum / (double)b->cnt, ts);
 										break;
-									case RATE:
 									case MEDN:
 									case VAR:
 									case SDEV: {

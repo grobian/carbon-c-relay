@@ -34,7 +34,7 @@ typedef struct _aggregator {
 	size_t dropped;
 	struct _aggr_computes {
 		enum _aggr_compute_type { SUM, CNT, MAX, MIN, AVG,
-		                          RATE, MEDN, VAR, SDEV } type;
+		                          MEDN, VAR, SDEV } type;
 		const char *metric;   /* name template of metric to produce */
 		struct _aggr_invocations {
 			char *metric;       /* actual name to emit */
