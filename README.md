@@ -71,7 +71,8 @@ aggregate
     every <interval> seconds
     expire after <expiration> seconds
     [timestamp at <start | middle | end> of bucket]
-    compute <sum | count | max | min | average> write to
+    compute <sum | count | max | min | average |
+             median | percentile<%> | variance | stddev> write to
         <metric>
     [compute ...]
     [send to <cluster ...>]

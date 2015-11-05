@@ -93,6 +93,7 @@ aggregator_add_compute(
 	struct _aggr_computes *ac = s->computes;
 	enum _aggr_compute_type act;
 	char store = 0;
+	int pctl = 0;
 
 	if (strcmp(type, "sum") == 0) {
 		act = SUM;
@@ -106,7 +107,16 @@ aggregator_add_compute(
 		act = AVG;
 	} else if (strcmp(type, "median") == 0) {
 		act = MEDN;
+		pctl = 50;
 		store = 1;
+	} else if (strncmp(type, "percentile", strlen("percentile")) == 0) {
+		pctl = atoi(type + strlen("percentile"));
+		if (pctl > 100 || pctl <= 0) {
+			return -1;
+		} else {
+			act = PCTL;
+			store = 1;
+		}
 	} else if (strcmp(type, "variance") == 0) {
 		act = VAR;
 		store = 1;
@@ -126,6 +136,7 @@ aggregator_add_compute(
 	}
 
 	ac->type = act;
+	ac->percentile = (unsigned char)pctl;
 	ac->metric = strdup(metric);
 	memset(ac->invocations_ht, 0, sizeof(ac->invocations_ht));
 	ac->entries_needed = store;
@@ -328,6 +339,12 @@ aggregator_putmetric(
 	return;
 }
 
+static inline int
+cmp_entry(const void *l, const void *r)
+{
+	return *(const double *)l - *(const double *)r;
+}
+
 /**
  * Checks if the oldest bucket should be expired, if so, sends out
  * computed aggregate metrics and moves the bucket to the end of the
@@ -340,10 +357,10 @@ aggregator_expire(void *sub)
 	time_t now;
 	aggregator *s;
 	struct _aggr_bucket *b;
-	struct _aggr_bucket_entries *e;
 	struct _aggr_computes *c;
 	struct _aggr_invocations *inv;
 	struct _aggr_invocations *lastinv;
+	double *values;
 	int i;
 	unsigned char j;
 	int work;
@@ -414,17 +431,40 @@ aggregator_expire(void *sub)
 												b->sum / (double)b->cnt, ts);
 										break;
 									case MEDN:
-									case VAR:
-									case SDEV: {
-										e = &b->entries;
-										double avg = b->sum / (double)b->cnt;
-										double ksum = 0;
-										for (i = 0; i < b->cnt; i++)
-											ksum += pow(e->values[i] - avg, 2);
+										/* median == 50th percentile */
+									case PCTL: {
+										/* nearest rank method */
+										size_t n =
+											(int)(((double)c->percentile/100.0 *
+														(double)b->cnt) + 0.9);
+										values = b->entries.values;
+										/* TODO: lazy approach, in case
+										 * of 1 (first/last) or 2 buckets
+										 * distance we could do a
+										 * forward run picking the max
+										 * entries and returning that
+										 * iso sorting the full array */
+										qsort(values, b->cnt,
+												sizeof(double), cmp_entry);
 										snprintf(metric, sizeof(metric),
 												"%s %f %lld\n",
 												inv->metric,
-												sqrt(ksum / (double)b->cnt),
+												values[n - 1],
+												b->start + s->interval);
+									}	break;
+									case VAR:
+									case SDEV: {
+										double avg = b->sum / (double)b->cnt;
+										double ksum = 0;
+										values = b->entries.values;
+										for (i = 0; i < b->cnt; i++)
+											ksum += pow(values[i] - avg, 2);
+										ksum /= (double)b->cnt;
+										snprintf(metric, sizeof(metric),
+												"%s %f %lld\n",
+												inv->metric,
+												c->type == VAR ? ksum :
+													sqrt(ksum),
 												b->start + s->interval);
 									}	break;
 								}

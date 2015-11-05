@@ -34,7 +34,7 @@ typedef struct _aggregator {
 	size_t dropped;
 	struct _aggr_computes {
 		enum _aggr_compute_type { SUM, CNT, MAX, MIN, AVG,
-		                          MEDN, VAR, SDEV } type;
+		                          MEDN, PCTL, VAR, SDEV } type;
 		const char *metric;   /* name template of metric to produce */
 		struct _aggr_invocations {
 			char *metric;       /* actual name to emit */
@@ -53,7 +53,8 @@ typedef struct _aggregator {
 			} *buckets;
 			struct _aggr_invocations *next;
 		} *invocations_ht[1 << AGGR_HT_POW_SIZE];
-		char entries_needed:1;
+		unsigned char entries_needed:1;
+		unsigned char percentile:7;
 		struct _aggr_computes *next;
 	} *computes;
 	pthread_mutex_t bucketlock;
