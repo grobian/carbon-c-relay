@@ -29,7 +29,10 @@ ifeq ($(shell uname), SunOS)
 SOCKET_LIBS += -lsocket  -lnsl
 endif
 
-override LIBS += $(SOCKET_LIBS) -pthread
+# should be accepted sort of anywhere
+MATH_LIBS = -lm
+
+override LIBS += $(SOCKET_LIBS) $(MATH_LIBS) -pthread
 
 OBJS = \
 	relay.o \
