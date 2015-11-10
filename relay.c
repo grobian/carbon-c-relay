@@ -410,11 +410,11 @@ main(int argc, char * const argv[])
 	numaggregators = aggregator_numaggregators();
 	numcomputes = aggregator_numcomputes();
 #define dbg (mode == DEBUG || mode == DEBUGTEST ? 2 : 0)
-	if (numaggregators > 10) {
+	if (numaggregators > 10 && !dbg) {
 		fprintf(relay_stdout, "parsed configuration follows:\n"
 				"(%zd aggregations with %zd computations omitted "
 				"for brevity)\n", numaggregators, numcomputes);
-		router_printconfig(relay_stdout, 0 + dbg, clusters, routes);
+		router_printconfig(relay_stdout, 0, clusters, routes);
 	} else {
 		fprintf(relay_stdout, "parsed configuration follows:\n");
 		router_printconfig(relay_stdout, 1 + dbg, clusters, routes);
