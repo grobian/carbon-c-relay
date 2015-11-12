@@ -694,6 +694,12 @@ router_readconfig(cluster **clret, route **rret,
 				for (; *p != '\0' && isspace(*p); p++)
 					;
 			} while (*p != ';');
+
+			if (cl->members.ch && ch_size(cl->members.ch->ring) < cl->members.ch->repl_factor)
+				logerr("cluster under-replicated: %d nodes specified with a replication of %d",
+				       ch_size(cl->members.ch->ring),
+				       cl->members.ch->repl_factor);
+
 			p++; /* skip over ';' */
 			if (cl->type == ANYOF || cl->type == FAILOVER) {
 				size_t i = 0;

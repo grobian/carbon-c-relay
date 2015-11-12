@@ -151,6 +151,17 @@ ch_new(ch_type type)
 }
 
 /**
+ * Return the number of servers added to this ring.
+ */
+int
+ch_size(ch_ring *ring)
+{
+	if (ring == NULL)
+		return -1;
+	return ring->size;
+}
+
+/**
  * Computes the hash positions for the server name given.  This is based
  * on the hashpos function.  The server name usually is the IPv4
  * address.  The port component is just stored and not used in the
