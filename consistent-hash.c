@@ -44,6 +44,7 @@ struct _ch_ring {
 	ch_type type;
 	unsigned char hash_replicas;
 	ch_ring_entry *entries;
+	int size; // Number of servers added
 };
 
 
@@ -144,8 +145,20 @@ ch_new(ch_type type)
 	ret->type = type;
 	ret->hash_replicas = HASH_REPLICAS;
 	ret->entries = NULL;
+	ret->size = 0;
 
 	return ret;
+}
+
+/**
+ * Return the number of servers added to this ring.
+ */
+int
+ch_size(ch_ring *ring)
+{
+	if (ring == NULL)
+		return -1;
+	return ring->size;
 }
 
 /**
@@ -255,6 +268,7 @@ ch_addnode(ch_ring *ring, server *s)
 		}
 	}
 
+	ring->size += 1;
 	return ring;
 }
 
@@ -288,6 +302,10 @@ ch_get_nodes(
 
 	assert(ring->entries);
 
+	/* If there are less than replcnt entries in the ring, we need to only return
+	 * entries in the ring, or else we will spin forever finding unique entries. */
+	int limited_replcnt = replcnt > ring->size ? ring->size : replcnt;
+
 	/* implement behaviour of Python's bisect_left on the ring (used in
 	 * carbon hash source), one day we might want to implement it as
 	 * real binary search iso forward pointer chasing */
@@ -295,7 +313,7 @@ ch_get_nodes(
 		if (w->pos >= pos)
 			break;
 	/* now fetch enough unique servers to match the requested count */
-	for (i = 0; i < replcnt; i++, w = w->next) {
+	for (i = 0; i < limited_replcnt; i++, w = w->next) {
 		if (w == NULL)
 			w = ring->entries;
 		for (j = i - 1; j >= 0; j--) {
