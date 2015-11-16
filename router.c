@@ -708,6 +708,20 @@ router_readconfig(cluster **clret, route **rret,
 					if (cl->type == FAILOVER)
 						server_set_failover(w->server);
 				}
+			} else if (cl->type == CARBON_CH || cl->type == FNV1A_CH) {
+				/* check that replication count is actually <= the
+				 * number of servers */
+				size_t i = 0;
+				for (w = cl->members.ch->servers; w != NULL; w = w->next)
+					i++;
+				if (i <= cl->members.ch->repl_factor) {
+					logerr("invalid cluster '%s': replication count (%zd) is "
+							"larger than the number of servers (%zd)\n",
+							name, cl->members.ch->repl_factor, i);
+					free(cl);
+					free(buf);
+					return 0;
+				}
 			}
 			cl->name = strdup(name);
 			cl->next = NULL;
