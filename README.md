@@ -490,10 +490,13 @@ overridden using the `-S` argument specified in seconds.
 The following metrics are produced in the `carbon.relays.<hostname>`
 namespace:
 
-metricsReceived
+* metricsReceived
+  
   The number of metrics that were received by the relay.  Received here
   means that they were seen and processed by any of the dispatchers.
-metricsSent
+
+* metricsSent
+
   The number of metrics that were sent from the relay.  This is a total
   count for all servers combined.  When incoming metrics are duplicated
   by the cluster configuration, this counter will include all those
@@ -501,35 +504,47 @@ metricsSent
   successfully sent to other systems.  Note that metrics that are
   processed (received) but still in the sending queue (queued) are not
   included in this counter.
-metricsQueued
+
+* metricsQueued
+
   The total number of metrics that are currently in the queues for all
   the server targets.  This metric is not cumulative, for it is a sample
   of the queue size, which can (and should) go up and down.  Therefore
   you should not use the derivative function for this metric.
-metricsDropped
+
+* metricsDropped
+
   The total number of metric that had to be dropped due to server queues
   overflowing.  A queue typically overflows when the server it tries to
   send its metrics to is not reachable, or too slow in ingesting the
   amount of metrics queued.  This can be network or resource related,
   and also greatly depends on the rate of metrics being sent to the
   particular server.
-metricsBlackholed
+
+* metricsBlackholed
+
   The number of metrics that did not match any rule, or matched a rule
   with blackhole as target.  Depending on your configuration, a high
   value might be an indication of a misconfiguration somewhere.  These
   metrics were received by the relay, but never sent anywhere, thus they
   disappeared.
-metricStalls
+
+* metricStalls
+
   The number of times the relay had to stall a client to indicate that
   the downstream server cannot handle the stream of metrics.  A stall is
   only performed when the queue is full and the server is actually
   receptive of metrics, but just too slow at the moment.  Stalls
   typically happen during micro-bursts, where the client typically is
   unaware that it should stop sending more data, while it is able to.
-connections
+
+* connections
+
   The number of connect requests handled.  This is an ever increasing
   number just counting how many connections were accepted.
-disconnects
+
+* disconnects
+
   The number of disconnected clients.  A disconnect either happens
   because the client goes away, or due to an idle timeout in the relay.
   The difference between this metric and connections is the amount of
@@ -538,10 +553,14 @@ disconnects
   disconnections typically indicate a possible connection leak in the
   client.  The idle connections disconnect in the relay here is to guard
   against resource drain in such scenarios.
-dispatch\_busy
+
+* dispatch\_busy
+
   The number of dispatchers actively doing work at the moment of the
   sample.  This is just an indication of the work pressure on the relay.
-dispatch\_idle
+
+* dispatch\_idle
+
   The number of dispatchers sleeping at the moment of the sample.  When
   this number nears 0, dispatch\_busy should be high.  When the
   configured number of worker threads is low, this might mean more
@@ -549,7 +568,9 @@ dispatch\_idle
   is reaching its limits with regard to how much it can process.  A
   relay with no idle dispatchers will likely appear slow for clients,
   for the relay has too much work to serve them instantly.
-dispatch\_wallTime\_us
+
+* dispatch\_wallTime\_us
+
   The number of microseconds spent by the dispatchers to do their work.
   In particular on multi-core systems, this value can be confusing,
   however, it indicates how long the dispatchers were doing work
@@ -558,28 +579,40 @@ dispatch\_wallTime\_us
   the appropriate queues.  The larger the configuration, and more
   complex in terms of matches, the more time the dispatchers will spend
   on the cpu.
-server\_wallTime\_us
+
+* server\_wallTime\_us
+
   The number of microseconds spent by the servers to send the metrics
   from their queues.  This value includes connection creation, reading
   from the queue, and sending metrics over the network.
-dispatcherX
+
+* dispatcherX
+
   For each indivual dispatcher, the metrics received and blackholed plus
   the wall clock time.  The values are as described above.
-destinations.X
+
+* destinations.X
+
   For all known destinations, the number of dropped, queued and sent
   metrics plus the wall clock time spent.  The values are as described
   above.
-aggregators.metricsReceived
+
+* aggregators.metricsReceived
+
   The number of metrics that were matched an aggregator rule and were
   accepted by the aggregator.  When a metric matches multiple
   aggregators, this value will reflect that.  A metric is not counted
   when it is considered syntactically invalid, e.g. no value was found.
-aggregators.metricsDropped
+
+* aggregators.metricsDropped
+
   The number of metrics that were sent to an aggregator, but did not fit
   timewise.  This is either because the metric was too far in the past
   or future.  The expire after clause in aggregate statements controls
   how long in the past metric values are accepted.
-aggregators.metricsSent
+
+* aggregators.metricsSent
+
   The number of metrics that were sent from the aggregators.  These
   metrics were produced and are the actual results of aggregations.
 
