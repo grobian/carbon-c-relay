@@ -262,7 +262,8 @@ determine_if_regex(route *r, char *pat, int flags)
  */
 int
 router_readconfig(cluster **clret, route **rret,
-		const char *path, size_t queuesize, size_t batchsize)
+		const char *path, size_t queuesize, size_t batchsize,
+		unsigned short iotimeout)
 {
 	FILE *cnf;
 	char *buf;
@@ -609,7 +610,7 @@ router_readconfig(cluster **clret, route **rret,
 							*proto == 'f' ? CON_FILE :
 							*proto == 'u' ? CON_UDP : CON_TCP,
 							walk == (void *)1 ? NULL : walk,
-							queuesize, batchsize);
+							queuesize, batchsize, iotimeout);
 					if (newserver == NULL) {
 						logerr("failed to add server %s:%d (%s) "
 								"to cluster %s: %s\n", ip, port, proto,

@@ -30,7 +30,8 @@ server *server_new(
 		serv_ctype ctype,
 		struct addrinfo *saddr,
 		size_t queuesize,
-		size_t batchsize);
+		size_t batchsize,
+		unsigned short iotimeout);
 void server_add_secondaries(server *d, server **sec, size_t cnt);
 void server_set_failover(server *d);
 void server_set_instance(server *d, char *inst);

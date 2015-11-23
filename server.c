@@ -43,6 +43,7 @@ struct _server {
 	int fd;
 	queue *queue;
 	size_t bsize;
+	short iotimeout;
 	const char **batch;
 	serv_ctype ctype;
 	pthread_t tid;
@@ -80,6 +81,7 @@ server_queuereader(void *d)
 	const char **metric = self->batch;
 	struct timeval start, stop;
 	struct timeval timeout;
+	int timeoutms;
 	queue *queue;
 	char idle = 0;
 
@@ -251,8 +253,9 @@ server_queuereader(void *d)
 					fd_set fds;
 					FD_ZERO(&fds);
 					FD_SET(self->fd, &fds);
-					timeout.tv_sec = 0;
-					timeout.tv_usec = (600 + (rand() % 100)) * 1000;
+					timeoutms = self->iotimeout + (rand() % 100);
+					timeout.tv_sec = timeoutms / 1000;
+					timeout.tv_usec = (timeoutms % 1000) * 1000;
 					ret = select(self->fd + 1, NULL, &fds, NULL, &timeout);
 					if (ret == 0) {
 						/* time limit expired */
@@ -317,8 +320,9 @@ server_queuereader(void *d)
 			}
 
 			/* ensure we will break out of connections being stuck */
-			timeout.tv_sec = 0;
-			timeout.tv_usec = (600 + (rand() % 100)) * 1000;
+			timeoutms = self->iotimeout + (rand() % 100);
+			timeout.tv_sec = timeoutms / 1000;
+			timeout.tv_usec = (timeoutms % 1000) * 1000;
 			setsockopt(self->fd, SOL_SOCKET, SO_SNDTIMEO,
 					&timeout, sizeof(timeout));
 #ifdef SO_NOSIGPIPE
@@ -408,7 +412,8 @@ server_new(
 		serv_ctype ctype,
 		struct addrinfo *saddr,
 		size_t qsize,
-		size_t bsize)
+		size_t bsize,
+		unsigned short iotimeout)
 {
 	server *ret;
 
@@ -423,6 +428,7 @@ server_new(
 	ret->port = port;
 	ret->instance = NULL;
 	ret->bsize = bsize;
+	ret->iotimeout = iotimeout < 250 ? 600 : iotimeout;
 	if ((ret->batch = malloc(sizeof(char *) * (bsize + 1))) == NULL) {
 		free(ret);
 		return NULL;

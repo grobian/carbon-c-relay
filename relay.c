@@ -43,6 +43,7 @@ enum rmode mode = NORMAL;
 static char *config = NULL;
 static int batchsize = 2500;
 static int queuesize = 25000;
+static unsigned short iotimeout = 600;
 static dispatcher **workers = NULL;
 static char workercnt = 0;
 static cluster *clusters = NULL;
@@ -161,7 +162,7 @@ hup_handler(int sig)
 	logout("reloading config from '%s'...\n", config);
 
 	if (router_readconfig(&newclusters, &newroutes,
-				config, queuesize, batchsize) == 0)
+				config, queuesize, batchsize, iotimeout) == 0)
 	{
 		logerr("failed to read configuration '%s', aborting reload\n",
 				config);
@@ -226,6 +227,7 @@ do_usage(int exitcode)
 	printf("  -b  server send batch size, defaults to 2500\n");
 	printf("  -q  server queue size, defaults to 25000\n");
 	printf("  -S  statistics sending interval in seconds, defaults to 60\n");
+	printf("  -T  IO timeout in milliseconds for server connections, defaults to 600\n");
 	printf("  -m  send statistics like carbon-cache.py, e.g. not cumulative\n");
 	printf("  -c  characters to allow next to [A-Za-z0-9], defaults to -_:#\n");
 	printf("  -d  debug mode: currently writes statistics to log, prints hash\n"
@@ -260,7 +262,7 @@ main(int argc, char * const argv[])
 	if (gethostname(relay_hostname, sizeof(relay_hostname)) < 0)
 		snprintf(relay_hostname, sizeof(relay_hostname), "127.0.0.1");
 
-	while ((ch = getopt(argc, argv, ":hvdmstf:i:l:p:w:b:q:S:c:H:")) != -1) {
+	while ((ch = getopt(argc, argv, ":hvdmstf:i:l:p:w:b:q:S:T:c:H:")) != -1) {
 		switch (ch) {
 			case 'v':
 				do_version();
@@ -330,6 +332,17 @@ main(int argc, char * const argv[])
 					do_usage(1);
 				}
 				break;
+			case 'T': {
+				int val = atoi(optarg);
+				if (val <= 0) {
+					fprintf(stderr, "error: server IO timeout needs to be a number >0\n");
+					do_usage(1);
+				} else if (val >= 60000) {
+					fprintf(stderr, "error: server IO timeout needs to be less than one minute\n");
+					do_usage(1);
+				}
+				iotimeout = (unsigned short)val;
+			}	break;
 			case 'c':
 				allowed_chars = optarg;
 				break;
@@ -389,6 +402,8 @@ main(int argc, char * const argv[])
 	fprintf(relay_stdout, "    server queue size = %d\n", queuesize);
 	fprintf(relay_stdout, "    statistics submission interval = %ds\n",
 			collector_interval);
+	fprintf(relay_stdout, "    server connection IO timeout = %dms\n",
+			iotimeout);
 	if (allowed_chars != NULL)
 		fprintf(relay_stdout, "    extra allowed characters = %s\n",
 				allowed_chars);
@@ -400,7 +415,7 @@ main(int argc, char * const argv[])
 	fprintf(relay_stdout, "\n");
 
 	if (router_readconfig(&clusters, &routes,
-				config, queuesize, batchsize) == 0)
+				config, queuesize, batchsize, iotimeout) == 0)
 	{
 		logerr("failed to read configuration '%s'\n", config);
 		return 1;
@@ -505,7 +520,8 @@ main(int argc, char * const argv[])
 	/* server used for delivering metrics produced inside the relay,
 	 * that is collector (statistics) and aggregator (aggregations) */
 	if ((internal_submission = server_new("internal", listenport, CON_PIPE,
-					NULL, 3000 + (numcomputes * 3), batchsize)) == NULL)
+					NULL, 3000 + (numcomputes * 3),
+					batchsize, iotimeout)) == NULL)
 	{
 		logerr("failed to create internal submission queue, shutting down\n");
 		keep_running = 0;

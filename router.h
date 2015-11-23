@@ -34,7 +34,7 @@ typedef struct _route route;
 
 #define RE_MAX_MATCHES     64
 
-int router_readconfig(cluster **clret, route **rret, const char *path, size_t queuesize, size_t batchsize);
+int router_readconfig(cluster **clret, route **rret, const char *path, size_t queuesize, size_t batchsize, unsigned short iotimeout);
 void router_optimise(route **routes);
 size_t router_rewrite_metric(char (*newmetric)[METRIC_BUFSIZ], char **newfirstspace, const char *metric, const char *firstspace, const char *replacement, const size_t nmatch, const regmatch_t *pmatch);
 void router_printconfig(FILE *f, char mode, cluster *clusters, route *routes);
