@@ -717,7 +717,7 @@ router_readconfig(cluster **clret, route **rret,
 				size_t i = 0;
 				for (w = cl->members.ch->servers; w != NULL; w = w->next)
 					i++;
-				if (i <= cl->members.ch->repl_factor) {
+				if (i < cl->members.ch->repl_factor) {
 					logerr("invalid cluster '%s': replication count (%zd) is "
 							"larger than the number of servers (%zd)\n",
 							name, cl->members.ch->repl_factor, i);
