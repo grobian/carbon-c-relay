@@ -84,6 +84,7 @@ server_queuereader(void *d)
 	int timeoutms;
 	queue *queue;
 	char idle = 0;
+	size_t *secpos = NULL;
 
 	*metric = NULL;
 	self->metrics = 0;
@@ -118,6 +119,34 @@ server_queuereader(void *d)
 				 (!self->failover && LEN_CRITICAL(self->queue))))
 		{
 			size_t i;
+
+			if (self->secondariescnt > 0) {
+				if (secpos == NULL) {
+					secpos = malloc(sizeof(size_t) * self->secondariescnt);
+					if (secpos == NULL) {
+						logerr("server: failed to allocate memory "
+								"for secpos\n");
+						continue;
+					}
+					for (i = 0; i < self->secondariescnt; i++)
+						secpos[i] = i;
+				}
+				if (!self->failover) {
+					/* randomise the failover list such that in the
+					 * grand scheme of things we don't punish the first
+					 * working server in the list to deal with all
+					 * traffic meant for a now failing server */
+					for (i = 0; i < self->secondariescnt; i++) {
+						size_t n = rand() % (self->secondariescnt - i);
+						if (n != i) {
+							size_t t = secpos[n];
+							secpos[n] = secpos[i];
+							secpos[i] = t;
+						}
+					}
+				}
+			}
+
 			/* offload data from our queue to our secondaries
 			 * when doing so, observe the following:
 			 * - avoid nodes that are in failure mode
@@ -131,9 +160,9 @@ server_queuereader(void *d)
 			queue = NULL;
 			for (i = 0; i < self->secondariescnt; i++) {
 				/* both conditions below make sure we skip ourself */
-				if (self->secondaries[i]->failure)
+				if (self->secondaries[secpos[i]]->failure)
 					continue;
-				queue = self->secondaries[i]->queue;
+				queue = self->secondaries[secpos[i]]->queue;
 				if (!self->failover && LEN_CRITICAL(queue)) {
 					queue = NULL;
 					continue;
