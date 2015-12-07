@@ -19,13 +19,14 @@
  * https://github.com/graphite-project/carbon/issues/485
  *
  * compile using something like this:
- * clang -o distributiontest issues/distributiontest.c consistent-hash.c \
+ * clang -o distributiontest -I. issues/distributiontest.c consistent-hash.c \
  * server.c queue.c md5.c dispatcher.c router.c aggregator.c */
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <strings.h>
 #include <sys/time.h>
+#include <math.h>
 #include <errno.h>
 
 #include "consistent-hash.h"
