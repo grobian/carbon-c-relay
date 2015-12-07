@@ -58,6 +58,7 @@ int main(int argc, char *argv[]) {
 	size_t metrics;
 	time_t start, stop;
 	size_t min, max;
+	double mean, stddev;
 
 	if (argc < 2) {
 		fprintf(stderr, "need file argument\n");
@@ -125,6 +126,8 @@ int main(int argc, char *argv[]) {
 	}
 	stop = time(NULL);
 
+	mean = 0.0;
+	stddev = 0.0;
 	printf("total metrics processed: %zd, time spent: ~%ds (~%d/s)\n",
 			metrics, (int)(stop - start), (int)(metrics / (stop - start)));
 	printf("replication count: %d, server count: %d\n", REPLCNT, SRVCNT);
@@ -139,8 +142,16 @@ int main(int argc, char *argv[]) {
 				min = scnt[i];
 			if (scnt[i] > max)
 				max = scnt[i];
+			mean += (double)scnt[i];
 		}
 	}
-	printf("band: %zd - %zd (%zd, %.2f%%)\n", min, max, max - min,
-			(((double)(max - min) * 100.0) / (double)metrics));
+	mean /= (double)SRVCNT;
+	for (i = 0; i < SRVCNT; i++) {
+		stddev += pow((double)scnt[i] - mean, 2);
+	}
+	stddev = sqrt(stddev / (double)SRVCNT);
+	printf("band: %zd - %zd (diff %zd, %.1f%%), mean: %.2f, stddev: %.2f\n",
+			min, max, max - min,
+			(double)(max-min) * 100.0 / (mean * SRVCNT),
+			mean, stddev);
 }
