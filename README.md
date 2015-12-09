@@ -51,7 +51,7 @@ The route file syntax is as follows:
 # comments are allowed in any place and start with a hash (#)
 
 cluster <name>
-    <forward | any_of [useall] | failover | <carbon_ch | fnv1a_ch> [replication <count>]>
+    <forward | any_of [useall] | failover | <carbon_ch | fnv1a_ch | jump_fnv1a_ch> [replication <count>]>
         <host[:port][=instance] [proto <udp | tcp>]> ...
     ;
 cluster <name>
@@ -120,7 +120,20 @@ key.  For example, usage like
 `10.0.0.1:2003=4d79d13554fa1301476c1f9fe968b0ac` would allow to change
 port and/or ip address of the server that receives data for the instance
 key.  Obviously, this way migration of data can be dealt with much more
-conveniently.
+conveniently.  The `jump_fnv1a_ch` cluster is also a consistent hash
+cluster like the previous two, but it does not take the server
+information into account at all.  Whether this is useful to you depends
+on your scenario.  The jump hash has a much better balancing over the
+servers defined in the cluster, at the expense of not being able to
+remove any server but the last in order.  What this means is that this
+hash is fine to use with ever growing clusters where older nodes are
+also replaced at some point.  If you have a cluster where removal of old
+nodes takes place often, the jump hash is not suitable for you.  Jump
+hash works with servers in an ordered list without gaps.  To influence
+the ordering, the instance given to the server will be used as sorting
+key.  Without, the order will be as given in the file.  It is a good
+practice to fix the order of the servers with instances such that it is
+explicit what the right nodes for the jump hash are.
 
 DNS hostnames are resolved to a single address, according to the preference
 rules in [RFC 3484](https://www.ietf.org/rfc/rfc3484.txt).  The `any_of`
