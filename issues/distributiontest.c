@@ -142,8 +142,8 @@ int main(int argc, char *argv[]) {
 				min = scnt[i];
 			if (scnt[i] > max)
 				max = scnt[i];
-			mean += (double)scnt[i];
 		}
+		mean += (double)scnt[i];
 	}
 	mean /= (double)SRVCNT;
 	for (i = 0; i < SRVCNT; i++) {
