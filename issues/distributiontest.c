@@ -75,7 +75,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	/* build hash-ring */
-	r = ch_new(FNV1a);  /* or CARBON */
+	r = ch_new(JUMP_FNV1a);  /* or CARBON, FNV1a */
 	for (i = 0; i < SRVCNT; i++) {
 		char ip[24];
 		unsigned char md5[MD5_DIGEST_LENGTH];
