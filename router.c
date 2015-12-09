@@ -44,6 +44,7 @@ enum clusttype {
 	FILELOGIP,  /* like forward, write ip metric to file */
 	CARBON_CH,  /* original carbon-relay.py consistent-hash */
 	FNV1A_CH,   /* FNV1a-based consistent-hash */
+	JUMP_CH,    /* jump consistent hash with fnv1a input */
 	ANYOF,      /* FNV1a-based hash, but with backup by others */
 	FAILOVER,   /* ordered attempt delivery list */
 	AGGREGATION,
@@ -218,7 +219,7 @@ determine_if_regex(route *r, char *pat, int flags)
  * Config file supports the following:
  *
  * cluster (name)
- *     (forward | any_of [useall] | failover | (carbon|fnv1a)_ch [replication (count)])
+ *     (forward | any_of [useall] | failover | (carbon|fnv1a|jump_fnv1a)_ch [replication (count)])
  *         (ip:port[=instance] [proto (tcp | udp)] ...)
  *     ;
  * cluster (name)
@@ -328,13 +329,17 @@ router_readconfig(cluster **clret, route **rret,
 			*p++ = '\0';
 			for (; *p != '\0' && isspace(*p); p++)
 				;
-			if ((strncmp(p, "carbon_ch", 9) == 0 && isspace(*(p + 9))) ||
-					(strncmp(p, "fnv1a_ch", 8) == 0 && isspace(*(p + 8))))
+			if (
+					(strncmp(p, "carbon_ch", 9) == 0 && isspace(*(p + 9))) ||
+					(strncmp(p, "fnv1a_ch", 8) == 0 && isspace(*(p + 8))) ||
+					(strncmp(p, "jump_fnv1a_ch", 13) == 0 && isspace(*(p + 13)))
+			   )
 			{
 				int replcnt = 1;
-				enum clusttype chtype = *p == 'c' ? CARBON_CH : FNV1A_CH;
+				enum clusttype chtype =
+					*p == 'c' ? CARBON_CH : *p == 'f' ? FNV1A_CH : JUMP_CH;
 
-				p += chtype == CARBON_CH ? 10 : 9;
+				p += chtype == CARBON_CH ? 10 : chtype == FNV1A_CH ? 9 : 14;
 				for (; *p != '\0' && isspace(*p); p++)
 					;
 				if (strncmp(p, "replication", 11) == 0 && isspace(*(p + 11))) {
@@ -367,7 +372,8 @@ router_readconfig(cluster **clret, route **rret,
 				cl->members.ch = malloc(sizeof(chashring));
 				cl->members.ch->repl_factor = (unsigned char)replcnt;
 				cl->members.ch->ring =
-					ch_new(chtype == CARBON_CH ? CARBON : FNV1a);
+					ch_new(chtype == CARBON_CH ? CARBON :
+							chtype == FNV1A_CH ? FNV1a : JUMP_FNV1a);
 			} else if (strncmp(p, "forward", 7) == 0 && isspace(*(p + 7))) {
 				p += 8;
 
@@ -474,7 +480,10 @@ router_readconfig(cluster **clret, route **rret,
 				termchr = *p;
 				*p = '\0';
 
-				if (cl->type == CARBON_CH || cl->type == FNV1A_CH) {
+				if (cl->type == CARBON_CH ||
+						cl->type == FNV1A_CH ||
+						cl->type == JUMP_CH)
+				{
 					if (inst != NULL) {
 						*inst = '\0';
 						p = inst++;
@@ -620,7 +629,10 @@ router_readconfig(cluster **clret, route **rret,
 						return 0;
 					}
 
-					if (cl->type == CARBON_CH || cl->type == FNV1A_CH) {
+					if (cl->type == CARBON_CH ||
+							cl->type == FNV1A_CH ||
+							cl->type == JUMP_CH)
+					{
 						if (w == NULL) {
 							cl->members.ch->servers = w =
 								malloc(sizeof(servers));
@@ -629,14 +641,15 @@ router_readconfig(cluster **clret, route **rret,
 						}
 						if (w == NULL) {
 							logerr("malloc failed for %s_ch %s\n",
-									cl->type == CARBON_CH ? "carbon" : "fnv1a", ip);
+									cl->type == CARBON_CH ? "carbon" :
+									cl->type == FNV1A_CH ? "fnv1a" :
+									"jump_fnv1a", ip);
 							free(cl);
 							free(buf);
 							return 0;
 						}
 						w->next = NULL;
-						if ((cl->type == CARBON_CH || cl->type == FNV1A_CH)
-								&& inst != NULL)
+						if (inst != NULL)
 							server_set_instance(newserver, inst);
 						w->server = newserver;
 						cl->members.ch->ring = ch_addnode(
@@ -711,7 +724,10 @@ router_readconfig(cluster **clret, route **rret,
 					if (cl->type == FAILOVER)
 						server_set_failover(w->server);
 				}
-			} else if (cl->type == CARBON_CH || cl->type == FNV1A_CH) {
+			} else if (cl->type == CARBON_CH ||
+					cl->type == FNV1A_CH ||
+					cl->type == JUMP_CH)
+			{
 				/* check that replication count is actually <= the
 				 * number of servers */
 				size_t i = 0;
@@ -1749,7 +1765,10 @@ router_getservers(cluster *clusters)
 		} else if (c->type == ANYOF || c->type == FAILOVER) {
 			for (s = c->members.anyof->list; s != NULL; s = s->next)
 				add_server(s->server);
-		} else if (c->type == CARBON_CH || c->type == FNV1A_CH) {
+		} else if (c->type == CARBON_CH ||
+				c->type == FNV1A_CH ||
+				c->type == JUMP_CH)
+		{
 			for (s = c->members.ch->servers; s != NULL; s = s->next)
 				add_server(s->server);
 		}
@@ -1795,9 +1814,13 @@ router_printconfig(FILE *f, char mode, cluster *clusters, route *routes)
 			for (s = c->members.anyof->list; s != NULL; s = s->next)
 				fprintf(f, "        %s:%d%s\n",
 						server_ip(s->server), server_port(s->server), PPROTO);
-		} else if (c->type == CARBON_CH || c->type == FNV1A_CH) {
+		} else if (c->type == CARBON_CH ||
+				c->type == FNV1A_CH ||
+				c->type == JUMP_CH)
+		{
 			fprintf(f, "    %s_ch replication %d\n",
-					c->type == CARBON_CH ? "carbon" : "fnv1a",
+					c->type == CARBON_CH ? "carbon" : 
+					c->type == FNV1A_CH ? "fnv1a" : "jump_fnv1a",
 					c->members.ch->repl_factor);
 			for (s = c->members.ch->servers; s != NULL; s = s->next)
 				fprintf(f, "        %s:%d%s%s%s\n",
@@ -1808,7 +1831,10 @@ router_printconfig(FILE *f, char mode, cluster *clusters, route *routes)
 		}
 		fprintf(f, "    ;\n");
 		if (mode & 2) {
-			if (c->type == CARBON_CH || c->type == FNV1A_CH) {
+			if (c->type == CARBON_CH ||
+					c->type == FNV1A_CH ||
+					c->type == JUMP_CH)
+			{
 				fprintf(f, "# hash ring for %s follows\n", c->name);
 				ch_printhashring(c->members.ch->ring, f);
 			}
@@ -1984,6 +2010,7 @@ router_free(cluster *clusters, route *routes)
 		switch (clusters->type) {
 			case CARBON_CH:
 			case FNV1A_CH:
+			case JUMP_CH:
 				assert(clusters->members.ch != NULL);
 				ch_free(clusters->members.ch->ring);
 				free(clusters->members.ch);
@@ -2323,7 +2350,8 @@ router_route_intern(
 						*blackholed = 0;
 					}	break;
 					case CARBON_CH:
-					case FNV1A_CH: {
+					case FNV1A_CH:
+					case JUMP_CH: {
 						/* let the ring(bearer) decide */
 						failif(retsize,
 								*curlen + d->cl->members.ch->repl_factor);
@@ -2597,13 +2625,15 @@ router_test_intern(char *metric, char *firstspace, route *routes)
 									server_ip(s->server), server_port(s->server));
 					}	break;
 					case CARBON_CH:
-					case FNV1A_CH: {
+					case FNV1A_CH:
+					case JUMP_CH: {
 						destination dst[CONN_DESTS_SIZE];
 						int i;
 
 						fprintf(stdout, "    %s_ch(%s)\n",
-								d->cl->type == FNV1A_CH ? "fnv1a" : "carbon",
-								d->cl->name);
+								d->cl->type == CARBON_CH ? "carbon" :
+								d->cl->type == FNV1A_CH ? "fnv1a" :
+								"jump_fnv1a", d->cl->name);
 						if (mode == DEBUGTEST) {
 							fprintf(stdout, "        hash_pos(%d)\n",
 									ch_gethashpos(d->cl->members.ch->ring,
