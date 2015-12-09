@@ -454,6 +454,11 @@ ch_gethashpos(ch_ring *ring, const char *key, const char *end)
 			return carbon_hashpos(key, end);
 		case FNV1a:
 			return fnv1a_hashpos(key, end);
+		case JUMP_FNV1a: {
+			unsigned long long int hash;
+			fnv1a_64(hash, key, key, end);
+			return jump_bucketpos(hash, ring->entrycnt);
+		}
 		default:
 			assert(0);  /* this shouldn't happen */
 	}
