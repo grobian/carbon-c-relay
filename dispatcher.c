@@ -51,7 +51,8 @@ typedef struct _connection {
 	char metric[METRIC_BUFSIZ];
 	destination dests[CONN_DESTS_SIZE];
 	size_t destlen;
-	time_t wait;
+	struct timeval lastwork;
+	char hadwork:1;
 } connection;
 
 struct _dispatcher {
@@ -234,7 +235,8 @@ dispatch_addconnection(int sock)
 	connections[c].needmore = 0;
 	connections[c].noexpire = 0;
 	connections[c].destlen = 0;
-	connections[c].wait = 0;
+	gettimeofday(&connections[c].lastwork, NULL);
+	connections[c].hadwork = 1;  /* force first iteration before stalling */
 	connections[c].takenby = 0;  /* now dispatchers will pick this one up */
 	acceptedconnections++;
 
@@ -263,10 +265,10 @@ dispatch_addlistener_udp(int sock)
 
 
 inline static char
-dispatch_process_dests(connection *conn, dispatcher *self)
+dispatch_process_dests(connection *conn, dispatcher *self, struct timeval now)
 {
 	int i;
-	char force = time(NULL) - conn->wait > 1;  /* 1 sec timeout */
+	char force = timediff(conn->lastwork, now) > 1 * 1000 * 1000;  /* 1 sec timeout */
 
 	if (conn->destlen > 0) {
 		for (i = 0; i < conn->destlen; i++) {
@@ -281,14 +283,15 @@ dispatch_process_dests(connection *conn, dispatcher *self)
 		} else {
 			/* finally "complete" this metric */
 			conn->destlen = 0;
-			conn->wait = 0;
+			conn->lastwork = now;
+			conn->hadwork = 1;
 		}
 	}
 
 	return 1;
 }
 
-#define IDLE_DISCONNECT_TIME  (10 * 60)  /* 10 minutes */
+#define IDLE_DISCONNECT_TIME  (10 * 60 * 1000 * 1000)  /* 10 minutes */
 /**
  * Look at conn and see if works needs to be done.  If so, do it.  This
  * function operates on an (exclusive) lock on the connection it serves.
@@ -318,7 +321,7 @@ dispatch_connection(connection *conn, dispatcher *self)
 
 	gettimeofday(&start, NULL);
 	/* first try to resume any work being blocked */
-	if (dispatch_process_dests(conn, self) == 0) {
+	if (dispatch_process_dests(conn, self, start) == 0) {
 		gettimeofday(&stop, NULL);
 		self->ticks += timediff(start, stop);
 		conn->takenby = 0;
@@ -326,6 +329,14 @@ dispatch_connection(connection *conn, dispatcher *self)
 	}
 	gettimeofday(&stop, NULL);
 	self->ticks += timediff(start, stop);
+
+	/* don't poll (read) when the last time we ran nothing happened,
+	 * this is to avoid excessive CPU usage, issue #126 */
+	if (!conn->hadwork && timediff(conn->lastwork, start) < 100 * 1000) {
+		conn->takenby = 0;
+		return 0;
+	}
+	conn->hadwork = 0;
 
 	gettimeofday(&start, NULL);
 	len = -2;
@@ -375,9 +386,10 @@ dispatch_connection(connection *conn, dispatcher *self)
 				q = conn->metric;
 				firstspace = NULL;
 
-				conn->wait = time(NULL);
+				conn->hadwork = 1;
+				gettimeofday(&conn->lastwork, NULL);
 				/* send the metric to where it is supposed to go */
-				if (dispatch_process_dests(conn, self) == 0)
+				if (dispatch_process_dests(conn, self, conn->lastwork) == 0)
 					break;
 			} else if (*p == ' ' || *p == '\t' || *p == '.') {
 				/* separator */
@@ -428,12 +440,8 @@ dispatch_connection(connection *conn, dispatcher *self)
 				errno == EWOULDBLOCK))
 	{
 		/* nothing available/no work done */
-		if (conn->wait == 0) {
-			conn->wait = time(NULL);
-			conn->takenby = 0;
-			return 0;
-		} else if (!conn->noexpire &&
-				time(NULL) - conn->wait > IDLE_DISCONNECT_TIME)
+		if (!conn->noexpire &&
+				timediff(conn->lastwork, stop) > IDLE_DISCONNECT_TIME)
 		{
 			/* force close connection below */
 			len = 0;
