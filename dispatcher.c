@@ -44,6 +44,7 @@ typedef struct _connection {
 	int sock;
 	char takenby;   /* -2: being setup, -1: free, 0: not taken, >0: tid */
 	char srcaddr[24];  /* string representation of source address */
+	struct timeval lastprocessed;
 	char buf[METRIC_BUFSIZ];
 	int buflen;
 	char needmore:1;
@@ -121,6 +122,8 @@ dispatch_addlistener(int sock)
 	newconn->sock = sock;
 	newconn->takenby = 0;
 	newconn->buflen = 0;
+	newconn->lastprocessed.tv_sec = 0;
+	newconn->lastprocessed.tv_usec = 0;
 	for (c = 0; c < sizeof(listeners) / sizeof(connection *); c++)
 		if (__sync_bool_compare_and_swap(&(listeners[c]), NULL, newconn))
 			break;
@@ -489,8 +492,9 @@ dispatch_runner(void *arg)
 {
 	dispatcher *self = (dispatcher *)arg;
 	connection *conn;
-	int work;
+	int work, finished;
 	int c;
+	struct timeval now;
 
 	self->metrics = 0;
 	self->blackholes = 0;
@@ -551,14 +555,21 @@ dispatch_runner(void *arg)
 				self->route_refresh_pending = 0;
 			}
 
+			gettimeofday(&now, NULL);
+
 			pthread_rwlock_rdlock(&connectionslock);
 			for (c = 0; c < connectionslen; c++) {
 				conn = &(connections[c]);
 				/* atomically try to "claim" this connection */
-				if (!__sync_bool_compare_and_swap(&(conn->takenby), 0, self->id))
+				if ((timediff(conn->lastprocessed, now) < 100000)
+					|| (!__sync_bool_compare_and_swap(&(conn->takenby), 0, self->id)))
 					continue;
 				self->state = RUNNING;
-				work += dispatch_connection(conn, self);
+				finished = dispatch_connection(conn, self);
+				work += finished;
+				gettimeofday(&now, NULL);
+				if (!finished) 
+					conn->lastprocessed = now;
 			}
 			pthread_rwlock_unlock(&connectionslock);
 
