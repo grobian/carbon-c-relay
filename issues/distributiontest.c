@@ -25,7 +25,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/time.h>
+#include <time.h>
 #include <math.h>
 #include <errno.h>
 
@@ -112,7 +112,7 @@ int main(int argc, char *argv[]) {
 				r,
 				REPLCNT,
 				buf,
-				buf + strlen(buf)
+				buf + strlen(buf) - 1
 				);
 		for (i = 0; i < REPLCNT; i++) {
 			free((void *)dst[i].metric);
@@ -128,6 +128,9 @@ int main(int argc, char *argv[]) {
 
 	mean = 0.0;
 	stddev = 0.0;
+        if (stop == start) {
+            stop++;
+        }
 	printf("total metrics processed: %zd, time spent: ~%ds (~%d/s)\n",
 			metrics, (int)(stop - start), (int)(metrics / (stop - start)));
 	printf("replication count: %d, server count: %d\n", REPLCNT, SRVCNT);
