@@ -128,6 +128,9 @@ int main(int argc, char *argv[]) {
 
 	mean = 0.0;
 	stddev = 0.0;
+        if (stop == start) {
+            stop++;
+        }
 	printf("total metrics processed: %zd, time spent: ~%ds (~%d/s)\n",
 			metrics, (int)(stop - start), (int)(metrics / (stop - start)));
 	printf("replication count: %d, server count: %d\n", REPLCNT, SRVCNT);
