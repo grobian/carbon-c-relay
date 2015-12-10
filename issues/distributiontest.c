@@ -112,7 +112,7 @@ int main(int argc, char *argv[]) {
 				r,
 				REPLCNT,
 				buf,
-				buf + strlen(buf)
+				buf + strlen(buf) - 1
 				);
 		for (i = 0; i < REPLCNT; i++) {
 			free((void *)dst[i].metric);
