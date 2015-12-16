@@ -364,12 +364,13 @@ ch_get_nodes(
 			 * us a bucket immediately */
 			unsigned long long int hash;
 			ch_ring_entry *bcklst[CONN_DESTS_SIZE];
+			const char *p;
 
 			i = ring->entrycnt;
 			pos = replcnt;
 
 			memcpy(bcklst, ring->entrylist, sizeof(bcklst[0]) * i);
-			fnv1a_64(hash, metric, metric, firstspace);
+			fnv1a_64(hash, p, metric, firstspace);
 
 			while (i > 0) {
 				j = jump_bucketpos(hash, i);
