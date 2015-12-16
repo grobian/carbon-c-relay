@@ -586,6 +586,7 @@ main(int argc, char * const argv[])
 	logout("routing stopped\n");
 
 	router_free(clusters, routes);
+	free(servers);
 	free(workers);
 	return 0;
 }
