@@ -99,12 +99,15 @@ server_queuereader(void *d)
 			/* if we're idling, close the TCP connection, this allows us
 			 * to reduce connections, while keeping the connection alive
 			 * if we're writing a lot */
+			gettimeofday(&start, NULL);
 			if (self->ctype == CON_TCP && self->fd >= 0 &&
 					idle++ > DISCONNECT_WAIT_TIME)
 			{
 				close(self->fd);
 				self->fd = -1;
 			}
+			gettimeofday(&stop, NULL);
+			self->ticks += timediff(start, stop);
 			if (!self->keep_running)
 				break;
 			/* nothing to do, so slow down for a bit */
@@ -120,12 +123,15 @@ server_queuereader(void *d)
 		{
 			size_t i;
 
+			gettimeofday(&start, NULL);
 			if (self->secondariescnt > 0) {
 				if (secpos == NULL) {
 					secpos = malloc(sizeof(size_t) * self->secondariescnt);
 					if (secpos == NULL) {
 						logerr("server: failed to allocate memory "
 								"for secpos\n");
+						gettimeofday(&stop, NULL);
+						self->ticks += timediff(start, stop);
 						continue;
 					}
 					for (i = 0; i < self->secondariescnt; i++)
@@ -189,6 +195,8 @@ server_queuereader(void *d)
 				free((char *)*metric);
 				self->dropped++;
 			}
+			gettimeofday(&stop, NULL);
+			self->ticks += timediff(start, stop);
 			if (queue == NULL) {
 				/* we couldn't do anything, take it easy for a bit */
 				if (self->failure)
