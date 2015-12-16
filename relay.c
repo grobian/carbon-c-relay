@@ -572,21 +572,17 @@ main(int argc, char * const argv[])
 		fflush(relay_stdout);
 	}
 	fprintf(relay_stdout, "\n");
+	free(workers);
+
 	router_shutdown();
 	servers = router_getservers(clusters);
-	logout("stopped server");
 	for (i = 0; servers[i] != NULL; i++)
 		server_stop(servers[i]);
-	for (i = 0; servers[i] != NULL; i++) {
-		server_shutdown(servers[i]);
-		fprintf(relay_stdout, " %d", i + 1);
-		fflush(relay_stdout);
-	}
-	fprintf(relay_stdout, "\n");
-	logout("routing stopped\n");
-
-	router_free(clusters, routes);
 	free(servers);
-	free(workers);
+	router_free(clusters, routes);
+	logout("servers stopped\n");
+
+	logout("carbon-c-relay v%s (%s) stopped\n", VERSION, GIT_VERSION);
+
 	return 0;
 }

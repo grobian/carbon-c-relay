@@ -2021,6 +2021,7 @@ router_free(cluster *clusters, route *routes)
 			case BLACKHOLE:
 				while (clusters->members.forward) {
 					server_shutdown(clusters->members.forward->server);
+					free(clusters->members.forward->server);
 
 					s = clusters->members.forward->next;
 					free(clusters->members.forward);
@@ -2031,6 +2032,7 @@ router_free(cluster *clusters, route *routes)
 			case FAILOVER:
 				while (clusters->members.anyof->list) {
 					server_shutdown(clusters->members.anyof->list->server);
+					free(clusters->members.anyof->list->server);
 
 					s = clusters->members.anyof->list->next;
 					free(clusters->members.anyof->list);

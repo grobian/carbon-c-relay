@@ -478,6 +478,7 @@ ch_free(ch_ring *ring)
 
 	for (; ring->entries != NULL; ring->entries = ring->entries->next) {
 		server_shutdown(ring->entries->server);
+		free(ring->entries->server);
 
 		if (ring->entries->malloced) {
 			if (deletes == NULL) {
