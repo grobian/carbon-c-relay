@@ -454,7 +454,7 @@ aggregator_expire(void *sub)
 												"%s %f %lld\n",
 												inv->metric,
 												values[n - 1],
-												b->start + s->interval);
+												ts);
 									}	break;
 									case VAR:
 									case SDEV: {
@@ -469,7 +469,7 @@ aggregator_expire(void *sub)
 												inv->metric,
 												c->type == VAR ? ksum :
 													sqrt(ksum),
-												b->start + s->interval);
+												ts);
 									}	break;
 								}
 								server_send(submission, strdup(metric), 1);
