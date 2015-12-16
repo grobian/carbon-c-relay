@@ -534,6 +534,35 @@ aggregator_expire(void *sub)
 		}
 	}
 
+	/* free up value buckets */
+	for (s = aggregators; s != NULL; s = s->next) {
+		while (s->computes != NULL) {
+			c = s->computes;
+
+			free((void *)c->metric);
+			for (i = 0; i < 1 << AGGR_HT_POW_SIZE; i++) {
+				inv = c->invocations_ht[i];
+
+				while (inv != NULL) {
+					struct _aggr_invocations *invocation = inv;
+
+					free(inv->metric);
+					if (c->entries_needed)
+						for (j = 0; j < s->bucketcnt; j++)
+							if (inv->buckets[j].entries.values)
+								free(inv->buckets[j].entries.values);
+					free(inv->buckets);
+
+					inv = invocation->next;
+					free(inv);
+				}
+			}
+
+			s->computes = c->next;
+			free(c);
+		}
+	}
+
 	return NULL;
 }
 
