@@ -558,6 +558,7 @@ main(int argc, char * const argv[])
 		logout("aggregator stopped\n");
 	}
 	server_shutdown(internal_submission);
+	free(internal_submission);
 	/* give a little time for whatever the collector/aggregator wrote,
 	 * to be delivered by the dispatchers */
 	usleep(500 * 1000);  /* 500ms */
