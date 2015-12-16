@@ -589,13 +589,13 @@ dispatch_new(char id, enum conntype type, route *routes, char *allowed_chars)
 	ret->id = id;
 	ret->type = type;
 	ret->keep_running = 1;
+	ret->routes = routes;
+	ret->route_refresh_pending = 0;
+	ret->allowed_chars = allowed_chars;
 	if (pthread_create(&ret->tid, NULL, dispatch_runner, ret) != 0) {
 		free(ret);
 		return NULL;
 	}
-	ret->routes = routes;
-	ret->route_refresh_pending = 0;
-	ret->allowed_chars = allowed_chars;
 
 	return ret;
 }
