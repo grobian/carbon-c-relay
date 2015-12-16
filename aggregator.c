@@ -320,7 +320,8 @@ aggregator_putmetric(
 		if (compute->entries_needed) {
 			if (bucket->cnt == entries->size) {
 #define E_I_SZ 64
-				double *new = realloc(entries->values, entries->size + E_I_SZ);
+				double *new = realloc(entries->values,
+						sizeof(double) * (entries->size + E_I_SZ));
 				if (new == NULL) {
 					logerr("aggregator: out of memory creating entry bucket "
 							"(%s from %s)", ometric, metric);
