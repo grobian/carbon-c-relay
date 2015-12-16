@@ -255,6 +255,9 @@ collector_runner(void *s)
 			fflush(stdout);
 	}
 
+	if (srvs != NULL)
+		free(srvs);
+
 	return NULL;
 }
 
