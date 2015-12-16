@@ -2038,6 +2038,7 @@ router_free(cluster *clusters, route *routes)
 				}
 				if (clusters->members.anyof->servers)
 					free(clusters->members.anyof->servers);
+				free(clusters->members.anyof);
 				break;
 			case GROUP:
 			case AGGRSTUB:
