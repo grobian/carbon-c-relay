@@ -471,6 +471,7 @@ server_new(
 		return NULL;
 	}
 
+	ret->failover = 0;
 	ret->failure = 0;
 	ret->running = 0;
 	ret->keep_running = 1;
