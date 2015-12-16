@@ -278,6 +278,8 @@ aggregator_putmetric(
 			for (i = 0; i < s->bucketcnt; i++) {
 				invocation->buckets[i].start = now + (i * s->interval);
 				invocation->buckets[i].cnt = 0;
+				invocation->buckets[i].entries.size = 0;
+				invocation->buckets[i].entries.values = NULL;
 			}
 
 			invocation->next = compute->invocations_ht[omhtbucket];
