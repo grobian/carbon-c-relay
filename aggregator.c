@@ -364,6 +364,7 @@ aggregator_expire(void *sub)
 	struct _aggr_invocations *inv;
 	struct _aggr_invocations *lastinv;
 	double *values;
+	size_t len;
 	int i;
 	unsigned char j;
 	int work;
@@ -478,13 +479,18 @@ aggregator_expire(void *sub)
 							/* move the bucket to the end, to make room for
 							 * new ones */
 							pthread_mutex_lock(&s->bucketlock);
-							memmove(&inv->buckets[0], &inv->buckets[1],
+							b = &inv->buckets[0];
+							len = b->entries.size;
+							values = b->entries.values;
+							memmove(b, &inv->buckets[1],
 									sizeof(*b) * (s->bucketcnt - 1));
 							b = &inv->buckets[s->bucketcnt - 1];
 							b->cnt = 0;
 							b->start =
 								inv->buckets[s->bucketcnt - 2].start +
 								s->interval;
+							b->entries.size = len;
+							b->entries.values = values;
 							pthread_mutex_unlock(&s->bucketlock);
 
 							work++;
