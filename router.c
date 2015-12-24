@@ -2013,6 +2013,11 @@ router_free(cluster *clusters, route *routes)
 			case JUMP_CH:
 				assert(clusters->members.ch != NULL);
 				ch_free(clusters->members.ch->ring);
+				while (clusters->members.ch->servers) {
+					s = clusters->members.ch->servers->next;
+					free(clusters->members.ch->servers);
+					clusters->members.ch->servers = s;
+				}
 				free(clusters->members.ch);
 				break;
 			case FORWARD:
