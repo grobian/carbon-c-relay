@@ -2030,16 +2030,18 @@ router_free(cluster *clusters, route *routes)
 				break;
 			case ANYOF:
 			case FAILOVER:
+				/* in case of secondaries, make sure nothing references
+				 * the servers anymore */
+				for (s = clusters->members.anyof->list; s != NULL; s = s->next)
+					server_shutdown(s->server);
 				while (clusters->members.anyof->list) {
-					server_shutdown(clusters->members.anyof->list->server);
 					free(clusters->members.anyof->list->server);
 
 					s = clusters->members.anyof->list->next;
 					free(clusters->members.anyof->list);
 					clusters->members.anyof->list = s;
 				}
-				if (clusters->members.anyof->servers)
-					free(clusters->members.anyof->servers);
+				free(clusters->members.anyof->servers);
 				free(clusters->members.anyof);
 				break;
 			case GROUP:
