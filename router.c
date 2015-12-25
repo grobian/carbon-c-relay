@@ -1892,7 +1892,7 @@ router_printconfig(FILE *f, char mode, cluster *clusters, route *routes)
 						"<unknown>",
 						ac->metric + strlen(stubname));
 			}
-			if (r->dests->next != NULL) {
+			if (!(mode & 2) && r->dests->next != NULL) {
 				destinations *dn = r->dests->next;
 				fprintf(f, "    send to");
 				if (dn->next == NULL) {
