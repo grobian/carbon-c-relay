@@ -42,6 +42,7 @@ size_t dispatch_get_blackholes_sub(dispatcher *self);
 char dispatch_busy(dispatcher *self);
 size_t dispatch_get_accepted_connections(void);
 size_t dispatch_get_closed_connections(void);
+void dispatch_hold(dispatcher *d);
 void dispatch_schedulereload(dispatcher *d, route *r);
 char dispatch_reloadcomplete(dispatcher *d);
 

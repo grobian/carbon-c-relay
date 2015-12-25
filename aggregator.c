@@ -613,6 +613,7 @@ aggregator_numcomputes(void)
 int
 aggregator_start(server *submission)
 {
+	keep_running = 1;
 	if (pthread_create(&aggregatorid, NULL, aggregator_expire, submission) != 0)
 		return 0;
 

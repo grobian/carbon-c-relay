@@ -48,6 +48,7 @@ static dispatcher **workers = NULL;
 static char workercnt = 0;
 static cluster *clusters = NULL;
 static route *routes = NULL;
+static server *internal_submission = NULL;
 static char *relay_logfile = NULL;
 static FILE *relay_stdout = NULL;
 static FILE *relay_stderr = NULL;
@@ -170,16 +171,29 @@ hup_handler(int sig)
 	}
 	router_optimise(&newroutes);
 
-	logout("reloading worker");
+	/* During aggregator final expiry, the dispatchers should not put
+	 * new metrics, so we have to temporarily stop them.  Doing so, also
+	 * means that we can reload the config atomicly, which disrupts the
+	 * service seemingly for a bit, but results in less confusing output
+	 * in the end. */
+	logout("interrupting workers\n");
 	for (id = 1; id < 1 + workercnt; id++)
-		dispatch_schedulereload(workers[id + 0], newroutes);
+		dispatch_hold(workers[id + 0]);
+
+	logout("expiring aggregations\n");
+	aggregator_stop();
+	if (!aggregator_start(internal_submission)) {
+		logerr("failed to start aggregator, aggregations will no "
+				"longer produce output!\n");
+	}
+
+	logout("reloading workers\n");
+	for (id = 1; id < 1 + workercnt; id++)
+		dispatch_schedulereload(workers[id + 0], newroutes); /* un-holds */
 	for (id = 1; id < 1 + workercnt; id++) {
 		while (!dispatch_reloadcomplete(workers[id + 0]))
 			usleep((100 + (rand() % 200)) * 1000);  /* 100ms - 300ms */
-		fprintf(relay_stdout, " %d", id + 1);
-		fflush(relay_stdout);
 	}
-	fprintf(relay_stdout, "\n");
 
 	logout("reloading collector\n");
 	collector_schedulereload(newclusters);
@@ -252,7 +266,6 @@ main(int argc, char * const argv[])
 	int ch;
 	size_t numaggregators;
 	size_t numcomputes;
-	server *internal_submission;
 	char *listeninterface = NULL;
 	server **servers;
 	char *allowed_chars = NULL;

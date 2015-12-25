@@ -70,6 +70,7 @@ struct _dispatcher {
 	route *routes;
 	route *pending_routes;
 	char route_refresh_pending:1;
+	char hold:1;
 	char *allowed_chars;
 };
 
@@ -549,10 +550,11 @@ dispatch_runner(void *arg)
 				self->routes = self->pending_routes;
 				self->pending_routes = NULL;
 				self->route_refresh_pending = 0;
+				self->hold = 0;
 			}
 
 			pthread_rwlock_rdlock(&connectionslock);
-			for (c = 0; c < connectionslen; c++) {
+			for (c = 0; !self->hold && c < connectionslen; c++) {
 				conn = &(connections[c]);
 				/* atomically try to "claim" this connection */
 				if (!__sync_bool_compare_and_swap(&(conn->takenby), 0, self->id))
@@ -591,6 +593,7 @@ dispatch_new(char id, enum conntype type, route *routes, char *allowed_chars)
 	ret->keep_running = 1;
 	ret->routes = routes;
 	ret->route_refresh_pending = 0;
+	ret->hold = 0;
 	ret->allowed_chars = allowed_chars;
 	if (pthread_create(&ret->tid, NULL, dispatch_runner, ret) != 0) {
 		free(ret);
@@ -643,6 +646,21 @@ dispatch_shutdown(dispatcher *d)
 	dispatch_stop(d);
 	pthread_join(d->tid, NULL);
 	free(d);
+}
+
+/**
+ * Requests this dispatcher to stop processing connections.  As soon as
+ * schedulereload finishes reloading the routes, this dispatcher will
+ * un-hold and continue processing connections.
+ * Returns when the dispatcher is no longer doing work.
+ */
+
+inline void
+dispatch_hold(dispatcher *d)
+{
+	d->hold = 1;
+	while (d->state != SLEEPING)
+		usleep((50 + (rand() % 75)) * 1000);  /* 50ms - 125ms */
 }
 
 /**
