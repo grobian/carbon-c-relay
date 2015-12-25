@@ -445,6 +445,8 @@ ch_printhashring(ch_ring *ring, FILE *f)
 			column = 0;
 		}
 	}
+	if (column != 0)
+		fprintf(f, "\n");
 }
 
 unsigned short
