@@ -48,6 +48,7 @@ static dispatcher **workers = NULL;
 static char workercnt = 0;
 static cluster *clusters = NULL;
 static route *routes = NULL;
+static aggregator *aggrs = NULL;
 static server *internal_submission = NULL;
 static char *relay_logfile = NULL;
 static FILE *relay_stdout = NULL;
@@ -140,6 +141,7 @@ hup_handler(int sig)
 {
 	route *newroutes;
 	cluster *newclusters;
+	aggregator *newaggrs;
 	int id;
 	FILE *newfd;
 
@@ -160,16 +162,20 @@ hup_handler(int sig)
 			logout("reopening logfile\n");
 		}
 	}
-	logout("reloading config from '%s'...\n", config);
+	logout("reloading config from '%s'\n", config);
 
-	if (router_readconfig(&newclusters, &newroutes,
+	if (router_readconfig(&newclusters, &newroutes, &newaggrs,
 				config, queuesize, batchsize, iotimeout) == 0)
 	{
-		logerr("failed to read configuration '%s', aborting reload\n",
-				config);
+		logerr("failed to read configuration '%s', aborting reload\n", config);
 		return;
 	}
 	router_optimise(&newroutes);
+
+	logout("reloading collector\n");
+	collector_schedulereload(newclusters, newaggrs);
+	while (!collector_reloadcomplete())
+		usleep((100 + (rand() % 200)) * 1000);  /* 100ms - 300ms */
 
 	/* During aggregator final expiry, the dispatchers should not put
 	 * new metrics, so we have to temporarily stop them.  Doing so, also
@@ -181,8 +187,8 @@ hup_handler(int sig)
 		dispatch_hold(workers[id + 0]);
 
 	logout("expiring aggregations\n");
-	aggregator_stop();
-	if (!aggregator_start(internal_submission)) {
+	aggregator_stop();  /* frees aggrs */
+	if (!aggregator_start(internal_submission, newaggrs)) {
 		logerr("failed to start aggregator, aggregations will no "
 				"longer produce output!\n");
 	}
@@ -195,15 +201,11 @@ hup_handler(int sig)
 			usleep((100 + (rand() % 200)) * 1000);  /* 100ms - 300ms */
 	}
 
-	logout("reloading collector\n");
-	collector_schedulereload(newclusters);
-	while (!collector_reloadcomplete())
-		usleep((100 + (rand() % 200)) * 1000);  /* 100ms - 300ms */
-
 	router_free(clusters, routes);
 
 	routes = newroutes;
 	clusters = newclusters;
+	aggrs = newaggrs;
 
 	logout("SIGHUP handler complete\n");
 }
@@ -427,7 +429,7 @@ main(int argc, char * const argv[])
 	fprintf(relay_stdout, "    routes configuration = %s\n", config);
 	fprintf(relay_stdout, "\n");
 
-	if (router_readconfig(&clusters, &routes,
+	if (router_readconfig(&clusters, &routes, &aggrs,
 				config, queuesize, batchsize, iotimeout) == 0)
 	{
 		logerr("failed to read configuration '%s'\n", config);
@@ -435,8 +437,8 @@ main(int argc, char * const argv[])
 	}
 	router_optimise(&routes);
 
-	numaggregators = aggregator_numaggregators();
-	numcomputes = aggregator_numcomputes();
+	numaggregators = aggregator_numaggregators(aggrs);
+	numcomputes = aggregator_numcomputes(aggrs);
 #define dbg (mode == DEBUG || mode == DEBUGTEST ? 2 : 0)
 	if (numaggregators > 10 && !dbg) {
 		fprintf(relay_stdout, "parsed configuration follows:\n"
@@ -542,14 +544,15 @@ main(int argc, char * const argv[])
 
 	if (numaggregators > 0) {
 		logout("starting aggregator\n");
-		if (!aggregator_start(internal_submission)) {
+		if (!aggregator_start(internal_submission, aggrs)) {
 			logerr("shutting down due to failure to start aggregator\n");
 			keep_running = 0;
 		}
 	}
 
 	logout("starting statistics collector\n");
-	collector_start(&workers[1], clusters, internal_submission, smode == CUM);
+	collector_start(&workers[1], clusters, aggrs, internal_submission,
+			smode == CUM);
 
 	logout("startup sequence complete\n");
 

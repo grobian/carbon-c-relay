@@ -33,8 +33,6 @@
 #include "fnv1a.h"
 
 static pthread_t aggregatorid;
-static aggregator *aggregators = NULL;
-static aggregator *lastaggr = NULL;
 static size_t prevreceived = 0;
 static size_t prevsent = 0;
 static size_t prevdropped = 0;
@@ -58,12 +56,6 @@ aggregator_new(
 
 	assert(interval != 0);
 	assert(interval < expire);
-
-	if (aggregators == NULL) {
-		aggregators = lastaggr = ret;
-	} else {
-		lastaggr = lastaggr->next = ret;
-	}
 
 	ret->interval = interval;
 	ret->expire = expire;
@@ -348,6 +340,11 @@ cmp_entry(const void *l, const void *r)
 	return *(const double *)l - *(const double *)r;
 }
 
+typedef struct {
+	server *submission;
+	aggregator *aggrs;
+} _aggr_expire_thread;
+
 /**
  * Checks if the oldest bucket should be expired, if so, sends out
  * computed aggregate metrics and moves the bucket to the end of the
@@ -357,6 +354,7 @@ cmp_entry(const void *l, const void *r)
 static void *
 aggregator_expire(void *sub)
 {
+	_aggr_expire_thread *aet = (_aggr_expire_thread *)sub;
 	time_t now;
 	aggregator *s;
 	struct _aggr_bucket *b;
@@ -368,7 +366,6 @@ aggregator_expire(void *sub)
 	int i;
 	unsigned char j;
 	int work;
-	server *submission = (server *)sub;
 	char metric[METRIC_BUFSIZ];
 	char isempty;
 	long long int ts = 0;
@@ -376,7 +373,7 @@ aggregator_expire(void *sub)
 	while (1) {
 		work = 0;
 
-		for (s = aggregators; s != NULL; s = s->next) {
+		for (s = aet->aggrs; s != NULL; s = s->next) {
 			/* send metrics for buckets that are completely past the
 			 * expiry time, unless we are shutting down, then send
 			 * metrics for all buckets that have completed */
@@ -472,7 +469,7 @@ aggregator_expire(void *sub)
 												ts);
 									}	break;
 								}
-								server_send(submission, strdup(metric), 1);
+								server_send(aet->submission, strdup(metric), 1);
 								s->sent++;
 							}
 
@@ -543,7 +540,7 @@ aggregator_expire(void *sub)
 	}
 
 	/* free up value buckets */
-	for (s = aggregators; s != NULL; s = s->next) {
+	while ((s = aet->aggrs) != NULL) {
 		while (s->computes != NULL) {
 			c = s->computes;
 
@@ -569,7 +566,10 @@ aggregator_expire(void *sub)
 			s->computes = c->next;
 			free(c);
 		}
+		aet->aggrs = aet->aggrs->next;
+		free(s);
 	}
+	free(aet);
 
 	return NULL;
 }
@@ -578,12 +578,12 @@ aggregator_expire(void *sub)
  * Returns the number of aggregators defined.
  */
 size_t
-aggregator_numaggregators(void)
+aggregator_numaggregators(aggregator *aggrs)
 {
 	size_t totaggregators = 0;
 	aggregator *a;
 
-	for (a = aggregators; a != NULL; a = a->next)
+	for (a = aggrs; a != NULL; a = a->next)
 		totaggregators++;
 
 	return totaggregators;
@@ -593,13 +593,13 @@ aggregator_numaggregators(void)
  * Returns the total number of computations defined.
  */
 size_t
-aggregator_numcomputes(void)
+aggregator_numcomputes(aggregator *aggrs)
 {
 	size_t totcomputes = 0;
 	aggregator *a;
 	struct _aggr_computes *c;
 
-	for (a = aggregators; a != NULL; a = a->next)
+	for (a = aggrs; a != NULL; a = a->next)
 		for (c = a->computes; c != NULL; c = c->next)
 			totcomputes++;
 
@@ -611,10 +611,14 @@ aggregator_numcomputes(void)
  * failed, true otherwise.
  */
 int
-aggregator_start(server *submission)
+aggregator_start(server *submission, aggregator *aggrs)
 {
+	_aggr_expire_thread *aet = malloc(sizeof(_aggr_expire_thread));
+
+	aet->submission = submission;
+	aet->aggrs = aggrs;
 	keep_running = 1;
-	if (pthread_create(&aggregatorid, NULL, aggregator_expire, submission) != 0)
+	if (pthread_create(&aggregatorid, NULL, aggregator_expire, aet) != 0)
 		return 0;
 
 	return 1;
@@ -634,12 +638,11 @@ aggregator_stop(void)
  * Returns an approximate number of received metrics by all aggregators.
  */
 size_t
-aggregator_get_received(void)
+aggregator_get_received(aggregator *a)
 {
 	size_t totreceived = 0;
-	aggregator *a;
 
-	for (a = aggregators; a != NULL; a = a->next)
+	for ( ; a != NULL; a = a->next)
 		totreceived += a->received;
 
 	return totreceived;
@@ -650,9 +653,9 @@ aggregator_get_received(void)
  * since the last call to this function.
  */
 inline size_t
-aggregator_get_received_sub()
+aggregator_get_received_sub(aggregator *aggrs)
 {
-	size_t d = aggregator_get_received();
+	size_t d = aggregator_get_received(aggrs);
 	size_t r = d - prevreceived;
 	prevreceived += d;
 	return r;
@@ -662,12 +665,11 @@ aggregator_get_received_sub()
  * Returns an approximate number of metrics sent by all aggregators.
  */
 size_t
-aggregator_get_sent(void)
+aggregator_get_sent(aggregator *a)
 {
 	size_t totsent = 0;
-	aggregator *a;
 
-	for (a = aggregators; a != NULL; a = a->next)
+	for ( ; a != NULL; a = a->next)
 		totsent += a->sent;
 
 	return totsent;
@@ -678,9 +680,9 @@ aggregator_get_sent(void)
  * since the last call to this function.
  */
 inline size_t
-aggregator_get_sent_sub()
+aggregator_get_sent_sub(aggregator *aggrs)
 {
-	size_t d = aggregator_get_sent();
+	size_t d = aggregator_get_sent(aggrs);
 	size_t r = d - prevsent;
 	prevsent += d;
 	return r;
@@ -692,12 +694,11 @@ aggregator_get_sent_sub()
  * time) or if they are too much in the future.
  */
 size_t
-aggregator_get_dropped(void)
+aggregator_get_dropped(aggregator *a)
 {
 	size_t totdropped = 0;
-	aggregator *a;
 
-	for (a = aggregators; a != NULL; a = a->next)
+	for ( ; a != NULL; a = a->next)
 		totdropped += a->dropped;
 
 	return totdropped;
@@ -708,9 +709,9 @@ aggregator_get_dropped(void)
  * since the last call to this function.
  */
 inline size_t
-aggregator_get_dropped_sub()
+aggregator_get_dropped_sub(aggregator *aggrs)
 {
-	size_t d = aggregator_get_dropped();
+	size_t d = aggregator_get_dropped(aggrs);
 	size_t r = d - prevdropped;
 	prevdropped += d;
 	return r;

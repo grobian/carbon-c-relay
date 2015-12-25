@@ -65,15 +65,15 @@ aggregator *aggregator_new(unsigned int interval, unsigned int expire, enum _agg
 char aggregator_add_compute(aggregator *s, const char *metric, const char *type);
 void aggregator_set_stub(aggregator *s, const char *stubname);
 void aggregator_putmetric(aggregator *s, const char *metric, const char *firstspace, size_t nmatch, regmatch_t *pmatch);
-int aggregator_start(server *submission);
+int aggregator_start(server *submission, aggregator *aggrs);
 void aggregator_stop(void);
-size_t aggregator_numaggregators(void);
-size_t aggregator_numcomputes(void);
-size_t aggregator_get_received(void);
-size_t aggregator_get_sent(void);
-size_t aggregator_get_dropped(void);
-size_t aggregator_get_received_sub(void);
-size_t aggregator_get_sent_sub(void);
-size_t aggregator_get_dropped_sub(void);
+size_t aggregator_numaggregators(aggregator *agrs);
+size_t aggregator_numcomputes(aggregator *aggrs);
+size_t aggregator_get_received(aggregator *aggrs);
+size_t aggregator_get_sent(aggregator *aggrs);
+size_t aggregator_get_dropped(aggregator *aggrs);
+size_t aggregator_get_received_sub(aggregator *aggrs);
+size_t aggregator_get_sent_sub(aggregator *aggrs);
+size_t aggregator_get_dropped_sub(aggregator *aggrs);
 
 #endif

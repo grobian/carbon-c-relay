@@ -35,6 +35,7 @@ static char keep_running = 1;
 int collector_interval = 60;
 static char cluster_refresh_pending = 0;
 static cluster *pending_clusters = NULL;
+static aggregator *pending_aggrs = NULL;
 
 /**
  * Collects metrics from dispatchers and servers and emits them.
@@ -61,7 +62,8 @@ collector_runner(void *s)
 	time_t nextcycle;
 	char ipbuf[32];
 	char *p;
-	size_t numaggregators = aggregator_numaggregators();
+	size_t numaggregators = 0;
+	aggregator *aggrs = NULL;
 	server *submission = (server *)s;
 	server **srvs = NULL;
 	char metric[METRIC_BUFSIZ];
@@ -74,9 +76,9 @@ collector_runner(void *s)
 	size_t (*d_ticks)(dispatcher *);
 	size_t (*d_metrics)(dispatcher *);
 	size_t (*d_blackholes)(dispatcher *);
-	size_t (*a_received)(void);
-	size_t (*a_sent)(void);
-	size_t (*a_dropped)(void);
+	size_t (*a_received)(aggregator *);
+	size_t (*a_sent)(aggregator *);
+	size_t (*a_dropped)(aggregator *);
 
 	/* prepare hostname for graphite metrics */
 	snprintf(metric, sizeof(metric), "carbon.relays.%s", relay_hostname);
@@ -125,6 +127,8 @@ collector_runner(void *s)
 			if (srvs != NULL)
 				free(srvs);
 			srvs = newservers;
+			aggrs = pending_aggrs;
+			numaggregators = aggregator_numaggregators(aggrs);
 			cluster_refresh_pending = 0;
 		}
 		assert(srvs != NULL);
@@ -241,13 +245,13 @@ collector_runner(void *s)
 
 		if (numaggregators > 0) {
 			snprintf(m, sizem, "aggregators.metricsReceived %zd %zd\n",
-					a_received(), (size_t)now);
+					a_received(aggrs), (size_t)now);
 			send(metric);
 			snprintf(m, sizem, "aggregators.metricsSent %zd %zd\n",
-					a_sent(), (size_t)now);
+					a_sent(aggrs), (size_t)now);
 			send(metric);
 			snprintf(m, sizem, "aggregators.metricsDropped %zd %zd\n",
-					a_dropped(), (size_t)now);
+					a_dropped(aggrs), (size_t)now);
 			send(metric);
 		}
 
@@ -274,8 +278,9 @@ collector_writer(void *unused)
 	size_t queuesize;
 	double queueusage;
 	size_t totdropped;
-	size_t numaggregators = aggregator_numaggregators();
+	size_t numaggregators = 0;
 	server **srvs = NULL;
+	aggregator *aggrs = NULL;
 
 	while (keep_running) {
 		if (cluster_refresh_pending) {
@@ -283,6 +288,8 @@ collector_writer(void *unused)
 			if (srvs != NULL)
 				free(srvs);
 			srvs = newservers;
+			aggrs = pending_aggrs;
+			numaggregators = aggregator_numaggregators(aggrs);
 			cluster_refresh_pending = 0;
 		}
 		assert(srvs != NULL);
@@ -307,7 +314,7 @@ collector_writer(void *unused)
 			logout("warning: dropped %zd metrics\n", totdropped - lastdropped);
 		lastdropped = totdropped;
 		if (numaggregators > 0) {
-			totdropped = aggregator_get_dropped();
+			totdropped = aggregator_get_dropped(aggrs);
 			if (totdropped - lastaggrdropped > 0)
 				logout("warning: aggregator dropped %zd metrics\n",
 						totdropped - lastaggrdropped);
@@ -324,9 +331,10 @@ collector_writer(void *unused)
  * replacement is performed at the next cycle of the collector.
  */
 inline void
-collector_schedulereload(cluster *c)
+collector_schedulereload(cluster *c, aggregator *a)
 {
 	pending_clusters = c;
+	pending_aggrs = a;
 	cluster_refresh_pending = 1;
 }
 
@@ -344,10 +352,10 @@ collector_reloadcomplete(void)
  * Initialises and starts the collector.
  */
 void
-collector_start(dispatcher **d, cluster *c, server *submission, char cum)
+collector_start(dispatcher **d, cluster *c, aggregator *a, server *submission, char cum)
 {
 	dispatchers = d;
-	collector_schedulereload(c);
+	collector_schedulereload(c, a);
 
 	if (mode == DEBUG || mode == DEBUGTEST)
 		debug = 1;

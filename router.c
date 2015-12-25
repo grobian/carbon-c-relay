@@ -262,7 +262,7 @@ determine_if_regex(route *r, char *pat, int flags)
  *    stop;
  */
 int
-router_readconfig(cluster **clret, route **rret,
+router_readconfig(cluster **clret, route **rret, aggregator **aret,
 		const char *path, size_t queuesize, size_t batchsize,
 		unsigned short iotimeout)
 {
@@ -275,6 +275,8 @@ router_readconfig(cluster **clret, route **rret,
 	struct stat st;
 	route *r = NULL;
 	route *topr = NULL;
+	aggregator *a = NULL;
+	aggregator *topa = NULL;
 	struct addrinfo *saddrs;
 	char matchcatchallfound = 0;
 
@@ -1150,6 +1152,11 @@ router_readconfig(cluster **clret, route **rret,
 				free(buf);
 				return 0;
 			}
+			if (a == NULL) {
+				topa = a = w->members.aggregation;
+			} else {
+				a = a->next = w->members.aggregation;
+			}
 			do {
 				if (strncmp(p, "compute", 7) != 0 || !isspace(*(p + 7))) {
 					logerr("expected 'compute' at: %.20s\n", p);
@@ -1467,6 +1474,7 @@ router_readconfig(cluster **clret, route **rret,
 	free(buf);
 	*clret = topcl;
 	*rret = topr;
+	*aret = topa;
 	return 1;
 }
 
