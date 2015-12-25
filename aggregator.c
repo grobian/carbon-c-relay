@@ -559,7 +559,7 @@ aggregator_expire(void *sub)
 					free(inv->buckets);
 
 					inv = invocation->next;
-					free(inv);
+					free(invocation);
 				}
 			}
 
