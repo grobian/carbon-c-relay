@@ -2542,7 +2542,7 @@ router_test_intern(char *metric, char *firstspace, route *routes)
 							x = "!impossible?";
 							break;
 					}
-					fprintf(stdout, "    %s [%s: %s]\n    -> %s\n",
+					fprintf(stdout, "    %s [%s: %s] -> %s\n",
 							w->pattern, x, w->strmatch, metric);
 				}	break;
 			}
@@ -2582,7 +2582,7 @@ router_test_intern(char *metric, char *firstspace, route *routes)
 									break;
 								}
 								snprintf(newmetric, sizeof(newmetric),
-										"%s", ac->metric + stublen);
+										"%s%s", ac->metric + stublen, firstspace);
 							}
 
 							snprintf(percentile, sizeof(percentile),
@@ -2598,14 +2598,7 @@ router_test_intern(char *metric, char *firstspace, route *routes)
 									w->nmatch > 0 ? "(" : "",
 									w->nmatch > 0 ? ac->metric + stublen : "",
 									w->nmatch > 0 ? ")" : "",
-									newmetric + stublen);
-						}
-						if (stublen > 0) {
-							gotmatch |= router_test_intern(
-									newmetric,
-									newfirstspace,
-									routes);
-							return gotmatch;
+									w->nmatch > 0 ? (newmetric + stublen) : newmetric);
 						}
 					}	break;
 					case BLACKHOLE: {
