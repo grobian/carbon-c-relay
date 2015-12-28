@@ -2581,8 +2581,11 @@ router_test_intern(char *metric, char *firstspace, route *routes)
 											metric, ac->metric);
 									break;
 								}
-								snprintf(newmetric, sizeof(newmetric),
-										"%s", ac->metric + stublen);
+								len = snprintf(newmetric, sizeof(newmetric),
+										"%s", ac->metric);
+								if (len >= sizeof(newmetric))
+										len = sizeof(newmetric) - 1;
+								newfirstspace = newmetric + len;
 							}
 
 							snprintf(percentile, sizeof(percentile),
@@ -2602,7 +2605,7 @@ router_test_intern(char *metric, char *firstspace, route *routes)
 						}
 						if (stublen > 0) {
 							gotmatch |= router_test_intern(
-									newmetric,
+									newmetric + stublen,
 									newfirstspace,
 									routes);
 							return gotmatch;
