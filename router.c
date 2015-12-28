@@ -2602,13 +2602,18 @@ router_test_intern(char *metric, char *firstspace, route *routes)
 									w->nmatch > 0 ? ac->metric + stublen : "",
 									w->nmatch > 0 ? ")" : "",
 									newmetric + stublen);
+
+							if (mode == DEBUGTEST && d->next != NULL) {
+								gotmatch |= router_test_intern(
+										newmetric,
+										newfirstspace,
+										routes);
+							}
 						}
-						if (stublen > 0) {
-							gotmatch |= router_test_intern(
-									newmetric + stublen,
-									newfirstspace,
-									routes);
+						if (mode == DEBUGTEST) {
 							return gotmatch;
+						} else {
+							gotmatch |= 4;
 						}
 					}	break;
 					case BLACKHOLE: {
@@ -2655,6 +2660,8 @@ router_test_intern(char *metric, char *firstspace, route *routes)
 								d->cl->type == CARBON_CH ? "carbon" :
 								d->cl->type == FNV1A_CH ? "fnv1a" :
 								"jump_fnv1a", d->cl->name);
+						if (gotmatch & 4)
+							break;
 						if (mode == DEBUGTEST) {
 							fprintf(stdout, "        hash_pos(%d)\n",
 									ch_gethashpos(d->cl->members.ch->ring,
@@ -2679,6 +2686,8 @@ router_test_intern(char *metric, char *firstspace, route *routes)
 						fprintf(stdout, "    %s(%s)\n",
 								d->cl->type == ANYOF ? "any_of" : "failover",
 								d->cl->name);
+						if (gotmatch & 4)
+							break;
 						if (d->cl->type == ANYOF) {
 							const char *p;
 							fnv1a_32(hash, p, metric, firstspace);
