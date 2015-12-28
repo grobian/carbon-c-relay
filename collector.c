@@ -278,6 +278,8 @@ collector_writer(void *unused)
 	size_t queuesize;
 	double queueusage;
 	size_t totdropped;
+	size_t lastconn = 0;
+	size_t lastdisc = 0;
 	size_t numaggregators = 0;
 	server **srvs = NULL;
 	aggregator *aggrs = NULL;
@@ -294,6 +296,72 @@ collector_writer(void *unused)
 		}
 		assert(srvs != NULL);
 		sleep(1);
+		if (debug & 1) {
+			size_t mpsout;
+			size_t totout;
+			size_t mpsdrop;
+			size_t totdrop;
+			size_t totqueue;
+			size_t mpsin;
+			size_t totin;
+			size_t totconn;
+			size_t totdisc;
+			short widle;
+			short wbusy;
+			int j;
+			/* Solaris iostat like output:
+ metrics in     metrics out    metrics drop  queue    conns     disconn   workr
+  mps     tot    mps     tot    dps     tot    cur  cps   tot  dps   tot  id bs
+99999 9999999  99999 9999999  99999 9999999  99999  999 99999  999 99999  99 99
+			 */
+			if (i % 24 == 0)
+				printf(" metrics in     metrics out    metrics drop  queue    conns     disconn   workr\n"
+						"  mps     tot    mps     tot    dps     tot    cur  cps   tot  dps   tot  id bs\n");
+
+			mpsout = totout = 0;
+			mpsdrop = totdrop = 0;
+			totqueue = 0;
+			for (j = 0; srvs[j] != NULL; j++) {
+				mpsout += server_get_metrics_sub(srvs[j]);
+				totout += server_get_metrics(srvs[j]);
+
+				mpsdrop += server_get_dropped_sub(srvs[j]);
+				totdrop += server_get_dropped(srvs[j]);
+
+				totqueue += server_get_queue_len(srvs[j]);
+			}
+			mpsin = totin = 0;
+			widle = wbusy = 0;
+			for (j = 0; dispatchers[j] != NULL; j++) {
+				mpsin += dispatch_get_metrics_sub(dispatchers[j]);
+				totin += dispatch_get_metrics(dispatchers[j]);
+
+				if (dispatch_busy(dispatchers[j])) {
+					wbusy++;
+				} else {
+					widle++;
+				}
+			}
+			totconn = dispatch_get_accepted_connections();
+			totdisc = dispatch_get_closed_connections();
+			printf("%5zd %7zd  "   /* metrics in */
+					"%5zd %7zd  "  /* metrics out */
+					"%5zd %7zd  "  /* metrics dropped */
+					"%5zd  "        /* queue */
+					"%3zd %5zd  "  /* conns */
+					"%3zd %5zd  "  /* disconns */
+					"%2d %2d\n",   /* workers */
+					mpsin, totin,
+					mpsout, totout,
+					mpsdrop, totdrop,
+					totqueue,
+					totconn - lastconn, totconn,
+					totdisc - lastdisc, totdisc,
+					widle, wbusy
+				  );
+			lastconn = totconn;
+			lastdisc = totdisc;
+		}
 		i++;
 		if (i < collector_interval)
 			continue;
@@ -357,11 +425,11 @@ collector_start(dispatcher **d, cluster *c, aggregator *a, server *submission, c
 	dispatchers = d;
 	collector_schedulereload(c, a);
 
-	if (mode == DEBUG || mode == DEBUGTEST)
+	if (mode == DEBUG || mode == DEBUGTEST || mode == DEBUGSUBMISSION)
 		debug = 1;
 	debug |= (cum ? 0 : 2);
 
-	if (mode != SUBMISSION) {
+	if (mode != SUBMISSION && mode != DEBUGSUBMISSION) {
 		if (pthread_create(&collectorid, NULL, collector_runner, submission) != 0)
 			logerr("failed to start collector!\n");
 	} else {

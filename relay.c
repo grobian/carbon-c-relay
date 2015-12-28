@@ -285,6 +285,8 @@ main(int argc, char * const argv[])
 			case 'd':
 				if (mode == TEST) {
 					mode = DEBUGTEST;
+				} else if (mode == SUBMISSION) {
+					mode = DEBUGSUBMISSION;
 				} else {
 					mode = DEBUG;
 				}
@@ -293,7 +295,11 @@ main(int argc, char * const argv[])
 				smode = SUB;
 				break;
 			case 's':
-				mode = SUBMISSION;
+				if (mode == DEBUG) {
+					mode = DEBUGSUBMISSION;
+				} else {
+					mode = SUBMISSION;
+				}
 				break;
 			case 't':
 				if (mode == DEBUG) {
@@ -382,7 +388,7 @@ main(int argc, char * const argv[])
 	srand(time(NULL));
 
 	if (workercnt == 0)
-		workercnt = mode == SUBMISSION ? 2 : get_cores();
+		workercnt = (mode == SUBMISSION || mode == DEBUGSUBMISSION) ? 2 : get_cores();
 
 	/* any_of failover maths need batchsize to be smaller than queuesize */
 	if (batchsize > queuesize) {
@@ -422,9 +428,9 @@ main(int argc, char * const argv[])
 	if (allowed_chars != NULL)
 		fprintf(relay_stdout, "    extra allowed characters = %s\n",
 				allowed_chars);
-	if (mode == DEBUG || mode == DEBUGTEST)
+	if (mode == DEBUG || mode == DEBUGTEST || mode == DEBUGSUBMISSION)
 		fprintf(relay_stdout, "    debug = true\n");
-	else if (mode == SUBMISSION)
+	else if (mode == SUBMISSION || mode == DEBUGSUBMISSION)
 		fprintf(relay_stdout, "    submission = true\n");
 	fprintf(relay_stdout, "    routes configuration = %s\n", config);
 	fprintf(relay_stdout, "\n");
