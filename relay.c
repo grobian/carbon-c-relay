@@ -144,6 +144,7 @@ hup_handler(int sig)
 	aggregator *newaggrs;
 	int id;
 	FILE *newfd;
+	size_t numaggregators;
 
 	logout("caught SIGHUP...\n");
 	if (relay_stderr != stderr) {
@@ -162,8 +163,8 @@ hup_handler(int sig)
 			logout("reopening logfile\n");
 		}
 	}
-	logout("reloading config from '%s'\n", config);
 
+	logout("reloading config from '%s'\n", config);
 	if (router_readconfig(&newclusters, &newroutes, &newaggrs,
 				config, queuesize, batchsize, iotimeout) == 0)
 	{
@@ -186,11 +187,17 @@ hup_handler(int sig)
 	for (id = 1; id < 1 + workercnt; id++)
 		dispatch_hold(workers[id + 0]);
 
-	logout("expiring aggregations\n");
-	aggregator_stop();  /* frees aggrs */
-	if (!aggregator_start(internal_submission, newaggrs)) {
-		logerr("failed to start aggregator, aggregations will no "
-				"longer produce output!\n");
+	numaggregators = aggregator_numaggregators(aggrs);
+	if (numaggregators > 0) {
+		logout("expiring aggregations\n");
+		aggregator_stop();  /* frees aggrs */
+	}
+	numaggregators = aggregator_numaggregators(newaggrs);
+	if (numaggregators > 0) {
+		if (!aggregator_start(internal_submission, newaggrs)) {
+			logerr("failed to start aggregator, aggregations will no "
+					"longer produce output!\n");
+		}
 	}
 
 	logout("reloading workers\n");
