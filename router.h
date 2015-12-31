@@ -22,6 +22,7 @@
 #include <regex.h>
 
 #include "server.h"
+#include "aggregator.h"
 
 #define CONN_DESTS_SIZE    64
 typedef struct {
@@ -31,7 +32,6 @@ typedef struct {
 
 typedef struct _cluster cluster;
 typedef struct _route route;
-typedef struct _aggregator aggregator;
 
 #define RE_MAX_MATCHES     64
 
