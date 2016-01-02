@@ -96,7 +96,7 @@ relaylog(enum logdst dest, const char *fmt, ...)
 	len = strftime(prefix, sizeof(prefix), "[%Y-%m-%d %H:%M:%S]", tm_now);
 
 	if (!console)
-		len += snprintf(prefix + len, sizeof(prefix) - len, " (%s)", dest == LOGOUT ? "MSG" : "ERR");
+		(void)snprintf(prefix + len, sizeof(prefix) - len, " (%s)", dest == LOGOUT ? "MSG" : "ERR");
 
 	fprintf(dst, "%s ", prefix);
 
