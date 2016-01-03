@@ -145,6 +145,7 @@ hup_handler(int sig)
 	int id;
 	FILE *newfd;
 	size_t numaggregators;
+	int conn;
 
 	logout("caught SIGHUP...\n");
 	if (relay_stderr != stderr) {
@@ -185,12 +186,27 @@ hup_handler(int sig)
 	 * in the end. */
 	logout("interrupting workers\n");
 	for (id = 1; id < 1 + workercnt; id++)
-		dispatch_hold(workers[id + 0]);
+		dispatch_hold(workers[id]);
 
 	numaggregators = aggregator_numaggregators(aggrs);
 	if (numaggregators > 0) {
 		logout("expiring aggregations\n");
 		aggregator_stop();  /* frees aggrs */
+
+		/* Now the aggregator has written everything to the
+		 * internal_submission server, which tries to deliver to the relay
+		 * itself, but the dispatchers are holding.  "Steal" the first
+		 * dispatcher and make it serve the internal_submission connection
+		 * until the server queue is drained such that the aggregations are
+		 * sent to the targets they were meant for.  This is in particular
+		 * necessary for the stub targets we create. */
+		do {
+			usleep((100 + (rand() % 200)) * 1000);  /* 100ms - 300ms */
+		} while ((conn = server_disp_conn(internal_submission)) == -1);
+		do {
+			logout("draining aggregation queue\n");
+			id = dispatch_run_connection(workers[1], conn);
+		} while (id > 0 || server_get_queue_len(internal_submission) > 0);
 	}
 	numaggregators = aggregator_numaggregators(newaggrs);
 	if (numaggregators > 0) {
@@ -202,7 +218,7 @@ hup_handler(int sig)
 
 	logout("reloading workers\n");
 	for (id = 1; id < 1 + workercnt; id++)
-		dispatch_schedulereload(workers[id + 0], newroutes); /* un-holds */
+		dispatch_schedulereload(workers[id], newroutes); /* un-holds */
 	for (id = 1; id < 1 + workercnt; id++) {
 		while (!dispatch_reloadcomplete(workers[id + 0]))
 			usleep((100 + (rand() % 200)) * 1000);  /* 100ms - 300ms */

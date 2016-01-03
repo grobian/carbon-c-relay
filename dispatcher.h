@@ -43,6 +43,7 @@ char dispatch_busy(dispatcher *self);
 size_t dispatch_get_accepted_connections(void);
 size_t dispatch_get_closed_connections(void);
 void dispatch_hold(dispatcher *d);
+int dispatch_run_connection(dispatcher *d, int conn_id);
 void dispatch_schedulereload(dispatcher *d, route *r);
 char dispatch_reloadcomplete(dispatcher *d);
 

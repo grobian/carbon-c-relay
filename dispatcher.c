@@ -577,6 +577,33 @@ dispatch_runner(void *arg)
 }
 
 /**
+ * Runs dispatch_connection for the given conn.  This is a wrapper to
+ * check if noone else is serving conn at the moment, if not claim it,
+ * and to set the busy states for this dispatcher accordingly.  This
+ * function can only be called when the dispatcher is on hold.
+ */
+int
+dispatch_run_connection(dispatcher *self, int conn_id)
+{
+	connection *conn;
+	int ret = 0;
+
+	if (!self->hold)
+		return ret;
+
+	conn = &(connections[conn_id]);
+	/* atomically try to "claim" this connection */
+	if (!__sync_bool_compare_and_swap(&(conn->takenby), 0, self->id))
+		return ret;
+	self->state = RUNNING;
+	ret = dispatch_connection(conn, self);
+
+	self->state = SLEEPING;
+
+	return ret;
+}
+
+/**
  * Starts a new dispatcher for the given type and with the given id.
  * Returns its handle.
  */
