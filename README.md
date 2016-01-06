@@ -55,7 +55,7 @@ cluster <name>
         <host[:port][=instance] [proto <udp | tcp>]> ...
     ;
 cluster <name>
-    file
+    file [ip]
         </path/to/file> ...
     ;
 match

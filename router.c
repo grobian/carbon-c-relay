@@ -223,7 +223,7 @@ determine_if_regex(route *r, char *pat, int flags)
  *         (ip:port[=instance] [proto (tcp | udp)] ...)
  *     ;
  * cluster (name)
- *     log [ip]
+ *     file [ip]
  *         (/path/to/file ...)
  *     ;
  * match
