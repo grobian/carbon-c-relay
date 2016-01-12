@@ -211,27 +211,16 @@ collector_runner(void *s)
 		send_server_metrics(ipbuf, ticks, metrics, queued, stalls, dropped);
 
 		for (i = 0; srvs[i] != NULL; i++) {
-			if (server_ctype(srvs[i]) == CON_PIPE) {
-				strncpy(ipbuf, "internal", sizeof(ipbuf));
-
-				ticks = s_ticks(srvs[i]);
-				metrics = s_metrics(srvs[i]);
-				queued = server_get_queue_len(srvs[i]);
-				stalls = s_stalls(srvs[i]);
-				dropped = s_dropped(srvs[i]);
+			if (server_ctype(srvs[i]) == CON_FILE) {
+				strncpy(ipbuf, server_ip(srvs[i]), sizeof(ipbuf));
 			} else {
 				snprintf(ipbuf, sizeof(ipbuf), "%s:%u",
 						server_ip(srvs[i]), server_port(srvs[i]));
-				for (p = ipbuf; *p != '\0'; p++)
-					if (*p == '.')
-						*p = '_';
-
-				totticks += ticks = s_ticks(srvs[i]);
-				totmetrics += metrics = s_metrics(srvs[i]);
-				totqueued += queued = server_get_queue_len(srvs[i]);
-				totstalls += stalls = s_stalls(srvs[i]);
-				totdropped += dropped = s_dropped(srvs[i]);
 			}
+			for (p = ipbuf; *p != '\0'; p++)
+				if (*p == '.')
+					*p = '_';
+
 			totticks += ticks = s_ticks(srvs[i]);
 			totmetrics += metrics = s_metrics(srvs[i]);
 			totqueued += queued = server_get_queue_len(srvs[i]);
