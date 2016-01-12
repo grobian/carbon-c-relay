@@ -177,11 +177,39 @@ collector_runner(void *s)
 				dispatchers_idle, (size_t)now);
 		send(metric);
 
+#define send_server_metrics(ipbuf, ticks, metrics, queued, stalls, dropped) \
+			snprintf(m, sizem, "destinations.%s.sent %zd %zd\n", \
+					ipbuf, metrics, (size_t)now); \
+			send(metric); \
+			snprintf(m, sizem, "destinations.%s.queued %zd %zd\n", \
+					ipbuf, queued, (size_t)now); \
+			send(metric); \
+			snprintf(m, sizem, "destinations.%s.stalls %zd %zd\n", \
+					ipbuf, stalls, (size_t)now); \
+			send(metric); \
+			snprintf(m, sizem, "destinations.%s.dropped %zd %zd\n", \
+					ipbuf, dropped, (size_t)now); \
+			send(metric); \
+			snprintf(m, sizem, "destinations.%s.wallTime_us %zd %zd\n", \
+					ipbuf, ticks, (size_t)now); \
+			send(metric);
+
 		totticks = 0;
 		totmetrics = 0;
 		totqueued = 0;
 		totstalls = 0;
 		totdropped = 0;
+
+		/* exclude internal_submission metrics from the totals to avoid
+		 * artificial doubles due to internal routing details */
+		strncpy(ipbuf, "internal", sizeof(ipbuf));
+		ticks = s_ticks(submission);
+		metrics = s_metrics(submission);
+		queued = server_get_queue_len(submission);
+		stalls = s_stalls(submission);
+		dropped = s_dropped(submission);
+		send_server_metrics(ipbuf, ticks, metrics, queued, stalls, dropped);
+
 		for (i = 0; srvs[i] != NULL; i++) {
 			if (server_ctype(srvs[i]) == CON_PIPE) {
 				strncpy(ipbuf, "internal", sizeof(ipbuf));
@@ -204,21 +232,12 @@ collector_runner(void *s)
 				totstalls += stalls = s_stalls(srvs[i]);
 				totdropped += dropped = s_dropped(srvs[i]);
 			}
-			snprintf(m, sizem, "destinations.%s.sent %zd %zd\n",
-					ipbuf, metrics, (size_t)now);
-			send(metric);
-			snprintf(m, sizem, "destinations.%s.queued %zd %zd\n",
-					ipbuf, queued, (size_t)now);
-			send(metric);
-			snprintf(m, sizem, "destinations.%s.stalls %zd %zd\n",
-					ipbuf, stalls, (size_t)now);
-			send(metric);
-			snprintf(m, sizem, "destinations.%s.dropped %zd %zd\n",
-					ipbuf, dropped, (size_t)now);
-			send(metric);
-			snprintf(m, sizem, "destinations.%s.wallTime_us %zd %zd\n",
-					ipbuf, ticks, (size_t)now);
-			send(metric);
+			totticks += ticks = s_ticks(srvs[i]);
+			totmetrics += metrics = s_metrics(srvs[i]);
+			totqueued += queued = server_get_queue_len(srvs[i]);
+			totstalls += stalls = s_stalls(srvs[i]);
+			totdropped += dropped = s_dropped(srvs[i]);
+			send_server_metrics(ipbuf, ticks, metrics, queued, stalls, dropped);
 		}
 
 		snprintf(m, sizem, "metricsSent %zd %zd\n",
