@@ -53,6 +53,7 @@ typedef struct _connection {
 	size_t destlen;
 	struct timeval lastwork;
 	char hadwork:1;
+	char isaggr:1;
 } connection;
 
 struct _dispatcher {
@@ -235,6 +236,7 @@ dispatch_addconnection(int sock)
 	connections[c].buflen = 0;
 	connections[c].needmore = 0;
 	connections[c].noexpire = 0;
+	connections[c].isaggr = 0;
 	connections[c].destlen = 0;
 	gettimeofday(&connections[c].lastwork, NULL);
 	connections[c].hadwork = 1;  /* force first iteration before stalling */
@@ -242,6 +244,27 @@ dispatch_addconnection(int sock)
 	acceptedconnections++;
 
 	return c;
+}
+
+/**
+ * Adds a connection which we know is from an aggregator, so direct
+ * pipe.  This is different from normal connections that we don't want
+ * to count them, never expire them, and want to recognise them when
+ * we're doing reloads.
+ */
+int
+dispatch_addconnection_aggr(int sock)
+{
+	int conn = dispatch_addconnection(sock);
+
+	if (conn == -1)
+		return 1;
+
+	connections[conn].noexpire = 1;
+	connections[conn].isaggr = 1;
+	acceptedconnections--;
+
+	return 0;
 }
 
 /**
@@ -554,11 +577,15 @@ dispatch_runner(void *arg)
 			}
 
 			pthread_rwlock_rdlock(&connectionslock);
-			for (c = 0; !self->hold && c < connectionslen; c++) {
+			for (c = 0; c < connectionslen; c++) {
 				conn = &(connections[c]);
 				/* atomically try to "claim" this connection */
 				if (!__sync_bool_compare_and_swap(&(conn->takenby), 0, self->id))
 					continue;
+				if (self->hold && !conn->isaggr) {
+					conn->takenby = 0;
+					continue;
+				}
 				self->state = RUNNING;
 				work += dispatch_connection(conn, self);
 			}
@@ -574,33 +601,6 @@ dispatch_runner(void *arg)
 	}
 
 	return NULL;
-}
-
-/**
- * Runs dispatch_connection for the given conn.  This is a wrapper to
- * check if noone else is serving conn at the moment, if not claim it,
- * and to set the busy states for this dispatcher accordingly.  This
- * function can only be called when the dispatcher is on hold.
- */
-int
-dispatch_run_connection(dispatcher *self, int conn_id)
-{
-	connection *conn;
-	int ret = 0;
-
-	if (!self->hold)
-		return ret;
-
-	conn = &(connections[conn_id]);
-	/* atomically try to "claim" this connection */
-	if (!__sync_bool_compare_and_swap(&(conn->takenby), 0, self->id))
-		return ret;
-	self->state = RUNNING;
-	ret = dispatch_connection(conn, self);
-
-	self->state = SLEEPING;
-
-	return ret;
 }
 
 /**
@@ -686,8 +686,6 @@ inline void
 dispatch_hold(dispatcher *d)
 {
 	d->hold = 1;
-	while (d->state != SLEEPING)
-		usleep((50 + (rand() % 75)) * 1000);  /* 50ms - 125ms */
 }
 
 /**

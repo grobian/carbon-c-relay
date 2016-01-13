@@ -23,6 +23,7 @@
 #include <math.h>
 #include <regex.h>
 #include <pthread.h>
+#include <errno.h>
 #include <assert.h>
 
 #include "relay.h"
@@ -50,12 +51,21 @@ aggregator_new(
 		enum _aggr_timestamp tswhen)
 {
 	aggregator *ret = malloc(sizeof(aggregator));
+	int intconn[2];
 
 	if (ret == NULL)
 		return ret;
 
 	assert(interval != 0);
 	assert(interval < expire);
+
+	if (pipe(intconn) < 0) {
+		logerr("failed to create pipe for aggregator: %s\n",
+				strerror(errno));
+		return NULL;
+	}
+	ret->disp_conn = dispatch_addconnection_aggr(intconn[0]);
+	ret->fd = intconn[1];
 
 	ret->interval = interval;
 	ret->expire = expire;
@@ -340,11 +350,6 @@ cmp_entry(const void *l, const void *r)
 	return *(const double *)l - *(const double *)r;
 }
 
-typedef struct {
-	server *submission;
-	aggregator *aggrs;
-} _aggr_expire_thread;
-
 /**
  * Checks if the oldest bucket should be expired, if so, sends out
  * computed aggregate metrics and moves the bucket to the end of the
@@ -354,7 +359,7 @@ typedef struct {
 static void *
 aggregator_expire(void *sub)
 {
-	_aggr_expire_thread *aet = (_aggr_expire_thread *)sub;
+	aggregator *aggrs = (aggregator *)sub;
 	time_t now;
 	aggregator *s;
 	struct _aggr_bucket *b;
@@ -373,7 +378,7 @@ aggregator_expire(void *sub)
 	while (1) {
 		work = 0;
 
-		for (s = aet->aggrs; s != NULL; s = s->next) {
+		for (s = aggrs; s != NULL; s = s->next) {
 			/* send metrics for buckets that are completely past the
 			 * expiry time, unless we are shutting down, then send
 			 * metrics for all buckets that have completed */
@@ -406,27 +411,27 @@ aggregator_expire(void *sub)
 								}
 								switch (c->type) {
 									case SUM:
-										snprintf(metric, sizeof(metric),
+										len = snprintf(metric, sizeof(metric),
 												"%s %f %lld\n",
 												inv->metric, b->sum, ts);
 										break;
 									case CNT:
-										snprintf(metric, sizeof(metric),
+										len = snprintf(metric, sizeof(metric),
 												"%s %zd %lld\n",
 												inv->metric, b->cnt, ts);
 										break;
 									case MAX:
-										snprintf(metric, sizeof(metric),
+										len = snprintf(metric, sizeof(metric),
 												"%s %f %lld\n",
 												inv->metric, b->max, ts);
 										break;
 									case MIN:
-										snprintf(metric, sizeof(metric),
+										len = snprintf(metric, sizeof(metric),
 												"%s %f %lld\n",
 												inv->metric, b->min, ts);
 										break;
 									case AVG:
-										snprintf(metric, sizeof(metric),
+										len = snprintf(metric, sizeof(metric),
 												"%s %f %lld\n",
 												inv->metric,
 												b->sum / (double)b->cnt, ts);
@@ -447,7 +452,7 @@ aggregator_expire(void *sub)
 										 * iso sorting the full array */
 										qsort(values, b->cnt,
 												sizeof(double), cmp_entry);
-										snprintf(metric, sizeof(metric),
+										len = snprintf(metric, sizeof(metric),
 												"%s %f %lld\n",
 												inv->metric,
 												values[n - 1],
@@ -461,16 +466,21 @@ aggregator_expire(void *sub)
 										for (i = 0; i < b->cnt; i++)
 											ksum += pow(values[i] - avg, 2);
 										ksum /= (double)b->cnt;
-										snprintf(metric, sizeof(metric),
+										len = snprintf(metric, sizeof(metric),
 												"%s %f %lld\n",
 												inv->metric,
 												c->type == VAR ? ksum :
 													sqrt(ksum),
 												ts);
 									}	break;
+									default:
+									   assert(0);  /* for compiler (len) */
 								}
-								server_send(aet->submission, strdup(metric), 1);
-								s->sent++;
+								if (write(s->fd, metric, len) != len) {
+									s->dropped++;
+								} else {
+									s->sent++;
+								}
 							}
 
 							/* move the bucket to the end, to make room for
@@ -540,7 +550,7 @@ aggregator_expire(void *sub)
 	}
 
 	/* free up value buckets */
-	while ((s = aet->aggrs) != NULL) {
+	while ((s = aggrs) != NULL) {
 		while (s->computes != NULL) {
 			c = s->computes;
 
@@ -566,10 +576,9 @@ aggregator_expire(void *sub)
 			s->computes = c->next;
 			free(c);
 		}
-		aet->aggrs = aet->aggrs->next;
+		aggrs = aggrs->next;
 		free(s);
 	}
-	free(aet);
 
 	return NULL;
 }
@@ -611,14 +620,10 @@ aggregator_numcomputes(aggregator *aggrs)
  * failed, true otherwise.
  */
 int
-aggregator_start(server *submission, aggregator *aggrs)
+aggregator_start(aggregator *aggrs)
 {
-	_aggr_expire_thread *aet = malloc(sizeof(_aggr_expire_thread));
-
-	aet->submission = submission;
-	aet->aggrs = aggrs;
 	keep_running = 1;
-	if (pthread_create(&aggregatorid, NULL, aggregator_expire, aet) != 0)
+	if (pthread_create(&aggregatorid, NULL, aggregator_expire, aggrs) != 0)
 		return 0;
 
 	return 1;

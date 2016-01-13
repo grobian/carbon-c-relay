@@ -145,7 +145,6 @@ hup_handler(int sig)
 	int id;
 	FILE *newfd;
 	size_t numaggregators;
-	int conn;
 
 	logout("caught SIGHUP...\n");
 	if (relay_stderr != stderr) {
@@ -180,7 +179,10 @@ hup_handler(int sig)
 		usleep((100 + (rand() % 200)) * 1000);  /* 100ms - 300ms */
 
 	/* During aggregator final expiry, the dispatchers should not put
-	 * new metrics, so we have to temporarily stop them.  Doing so, also
+	 * new metrics, so we have to temporarily stop them processing
+	 * connections.  However, we still need to handle aggregations that
+	 * we will stop next, so this call results in the dispatchers only
+	 * dealing with connections from aggregators.  Doing this, also
 	 * means that we can reload the config atomicly, which disrupts the
 	 * service seemingly for a bit, but results in less confusing output
 	 * in the end. */
@@ -194,23 +196,12 @@ hup_handler(int sig)
 		aggregator_stop();  /* frees aggrs */
 
 		/* Now the aggregator has written everything to the
-		 * internal_submission server, which tries to deliver to the relay
-		 * itself, but the dispatchers are holding.  "Steal" the first
-		 * dispatcher and make it serve the internal_submission connection
-		 * until the server queue is drained such that the aggregations are
-		 * sent to the targets they were meant for.  This is in particular
-		 * necessary for the stub targets we create. */
-		do {
-			usleep((100 + (rand() % 200)) * 1000);  /* 100ms - 300ms */
-		} while ((conn = server_disp_conn(internal_submission)) == -1);
-		do {
-			logout("draining aggregation queue\n");
-			id = dispatch_run_connection(workers[1], conn);
-		} while (id > 0 || server_get_queue_len(internal_submission) > 0);
+		 * dispatchers, which will hand over to the servers with proper
+		 * metric adjustments (stubs). */
 	}
 	numaggregators = aggregator_numaggregators(newaggrs);
 	if (numaggregators > 0) {
-		if (!aggregator_start(internal_submission, newaggrs)) {
+		if (!aggregator_start(newaggrs)) {
 			logerr("failed to start aggregator, aggregations will no "
 					"longer produce output!\n");
 		}
@@ -290,7 +281,6 @@ main(int argc, char * const argv[])
 	unsigned short listenport = 2003;
 	int ch;
 	size_t numaggregators;
-	size_t numcomputes;
 	char *listeninterface = NULL;
 	server **servers;
 	char *allowed_chars = NULL;
@@ -467,12 +457,12 @@ main(int argc, char * const argv[])
 	router_optimise(&routes);
 
 	numaggregators = aggregator_numaggregators(aggrs);
-	numcomputes = aggregator_numcomputes(aggrs);
 #define dbg (mode == DEBUG || mode == DEBUGTEST ? 2 : 0)
 	if (numaggregators > 10 && !dbg) {
 		fprintf(relay_stdout, "parsed configuration follows:\n"
 				"(%zd aggregations with %zd computations omitted "
-				"for brevity)\n", numaggregators, numcomputes);
+				"for brevity)\n",
+				numaggregators, aggregator_numcomputes(aggrs));
 		router_printconfig(relay_stdout, 0, clusters, routes);
 	} else {
 		fprintf(relay_stdout, "parsed configuration follows:\n");
@@ -562,10 +552,9 @@ main(int argc, char * const argv[])
 	}
 
 	/* server used for delivering metrics produced inside the relay,
-	 * that is collector (statistics) and aggregator (aggregations) */
+	 * that is, the collector (statistics) */
 	if ((internal_submission = server_new("internal", listenport, CON_PIPE,
-					NULL, 3000 + (numcomputes * 3),
-					batchsize, iotimeout)) == NULL)
+					NULL, 3000, batchsize, iotimeout)) == NULL)
 	{
 		logerr("failed to create internal submission queue, shutting down\n");
 		keep_running = 0;
@@ -573,7 +562,7 @@ main(int argc, char * const argv[])
 
 	if (numaggregators > 0) {
 		logout("starting aggregator\n");
-		if (!aggregator_start(internal_submission, aggrs)) {
+		if (!aggregator_start(aggrs)) {
 			logerr("shutting down due to failure to start aggregator\n");
 			keep_running = 0;
 		}
@@ -597,13 +586,13 @@ main(int argc, char * const argv[])
 	logout("listeners for port %u closed\n", listenport);
 	/* since workers will be freed, stop querying the structures */
 	collector_stop();
+	server_shutdown(internal_submission);
+	free(internal_submission);
 	logout("collector stopped\n");
 	if (numaggregators > 0) {
 		aggregator_stop();
 		logout("aggregator stopped\n");
 	}
-	server_shutdown(internal_submission);
-	free(internal_submission);
 	/* give a little time for whatever the collector/aggregator wrote,
 	 * to be delivered by the dispatchers */
 	usleep(500 * 1000);  /* 500ms */

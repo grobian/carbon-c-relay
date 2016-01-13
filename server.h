@@ -42,7 +42,6 @@ const char *server_ip(server *s);
 unsigned short server_port(server *s);
 char *server_instance(server *s);
 serv_ctype server_ctype(server *s);
-int server_disp_conn(server *s);
 char server_failed(server *s);
 size_t server_get_ticks(server *s);
 size_t server_get_metrics(server *s);

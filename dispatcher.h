@@ -29,6 +29,7 @@ int dispatch_addlistener(int sock);
 int dispatch_addlistener_udp(int sock);
 void dispatch_removelistener(int sock);
 int dispatch_addconnection(int sock);
+int dispatch_addconnection_aggr(int sock);
 dispatcher *dispatch_new_listener(void);
 dispatcher *dispatch_new_connection(route *routes, char *allowed_chars);
 void dispatch_stop(dispatcher *d);
@@ -43,7 +44,6 @@ char dispatch_busy(dispatcher *self);
 size_t dispatch_get_accepted_connections(void);
 size_t dispatch_get_closed_connections(void);
 void dispatch_hold(dispatcher *d);
-int dispatch_run_connection(dispatcher *d, int conn_id);
 void dispatch_schedulereload(dispatcher *d, route *r);
 char dispatch_reloadcomplete(dispatcher *d);
 

@@ -41,7 +41,6 @@ struct _server {
 	char *instance;
 	struct addrinfo *saddr;
 	int fd;
-	int disp_conn;
 	queue *queue;
 	size_t bsize;
 	short iotimeout;
@@ -228,7 +227,7 @@ server_queuereader(void *d)
 					self->failure += self->failure >= FAIL_WAIT_TIME ? 0 : 1;
 					continue;
 				}
-				self->disp_conn = dispatch_addconnection(intconn[0]);
+				dispatch_addconnection(intconn[0]);
 				self->fd = intconn[1];
 			} else if (self->ctype == CON_UDP) {
 				if ((self->fd = socket(self->saddr->ai_family,
@@ -303,7 +302,6 @@ server_queuereader(void *d)
 									self->ip, self->port);
 						close(self->fd);
 						self->fd = -1;
-						self->disp_conn = -1;
 						self->failure += self->failure >= FAIL_WAIT_TIME ? 0 : 1;
 						continue;
 					} else if (ret < 0) {
@@ -313,7 +311,6 @@ server_queuereader(void *d)
 									self->ip, self->port, strerror(errno));
 						close(self->fd);
 						self->fd = -1;
-						self->disp_conn = -1;
 						self->failure += self->failure >= FAIL_WAIT_TIME ? 0 : 1;
 						continue;
 					} else {
@@ -327,7 +324,6 @@ server_queuereader(void *d)
 										self->ip, self->port, strerror(errno));
 							close(self->fd);
 							self->fd = -1;
-							self->disp_conn = -1;
 							self->failure += self->failure >= FAIL_WAIT_TIME ? 0 : 1;
 							continue;
 						}
@@ -340,7 +336,6 @@ server_queuereader(void *d)
 							}
 							close(self->fd);
 							self->fd = -1;
-							self->disp_conn = -1;
 							self->failure += self->failure >= FAIL_WAIT_TIME ? 0 : 1;
 							continue;
 						}
@@ -353,7 +348,6 @@ server_queuereader(void *d)
 					}
 					close(self->fd);
 					self->fd = -1;
-					self->disp_conn = -1;
 					self->failure += self->failure >= FAIL_WAIT_TIME ? 0 : 1;
 					continue;
 				}
@@ -410,7 +404,6 @@ server_queuereader(void *d)
 							(slen < 0 ? strerror(errno) : "uncomplete write"));
 				close(self->fd);
 				self->fd = -1;
-				self->disp_conn = -1;
 				self->failure += self->failure >= FAIL_WAIT_TIME ? 0 : 1;
 				/* put back stuff we couldn't process */
 				for (; *metric != NULL; metric++) {
@@ -478,7 +471,6 @@ server_new(
 		return NULL;
 	}
 	ret->fd = -1;
-	ret->disp_conn = -1;
 	ret->saddr = saddr;
 	ret->queue = queue_new(qsize);
 	if (ret->queue == NULL) {
@@ -693,19 +685,6 @@ server_ctype(server *s)
 	if (s == NULL)
 		return CON_PIPE;
 	return s->ctype;
-}
-
-/**
- * Returns the dispatcher connection handle for this server or -1.  The
- * handle is valid when this server is of type CON_PIPE, and -1 in that
- * case means no connection is currently present.
- */
-inline int
-server_disp_conn(server *s)
-{
-	if (s == NULL)
-		return -1;
-	return s->disp_conn;
 }
 
 /**
