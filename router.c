@@ -1763,8 +1763,6 @@ router_getservers(cluster *clusters)
 }
 
 	for (c = clusters; c != NULL; c = c->next) {
-		if (c->type == BLACKHOLE || c->type == REWRITE)
-			continue;
 		if (c->type == FORWARD ||
 				c->type == FILELOG || c->type == FILELOGIP)
 		{
