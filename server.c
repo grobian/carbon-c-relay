@@ -375,7 +375,7 @@ server_queuereader(void *d)
 		if (len != 0 && !self->keep_running) {
 			/* be noisy during shutdown so we can track any slowing down
 			 * servers, possibly preventing us to shut down */
-			logerr("shutting down %s:%u: waiting for %zd metrics\n",
+			logerr("shutting down %s:%u: waiting for %zu metrics\n",
 					self->ip, self->port, len + queue_len(self->queue));
 		}
 
@@ -612,8 +612,8 @@ server_shutdown(server *s)
 			/* loop until we all failed, or nothing is in the queues */
 		} while (failures != s->secondariescnt &&
 				inqueue != 0 &&
-				logerr("any_of cluster pending %zd metrics "
-					"(with %zd failed nodes)\n", inqueue, failures) >= -1 &&
+				logerr("any_of cluster pending %zu metrics "
+					"(with %zu failed nodes)\n", inqueue, failures) >= -1 &&
 				usleep((200 + (rand() % 100)) * 1000) <= 0);
 		/* shut down entire cluster */
 		for (i = 0; i < s->secondariescnt; i++)
@@ -632,7 +632,7 @@ server_shutdown(server *s)
 	if (s->ctype == CON_TCP) {
 		size_t qlen = queue_len(s->queue);
 		if (qlen > 0)
-			logerr("dropping %zd metrics for %s:%u\n",
+			logerr("dropping %zu metrics for %s:%u\n",
 					qlen, s->ip, s->port);
 	}
 	queue_destroy(s->queue);

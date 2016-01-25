@@ -736,8 +736,8 @@ router_readconfig(cluster **clret, route **rret, aggregator **aret,
 				for (w = cl->members.ch->servers; w != NULL; w = w->next)
 					i++;
 				if (i < cl->members.ch->repl_factor) {
-					logerr("invalid cluster '%s': replication count (%zd) is "
-							"larger than the number of servers (%zd)\n",
+					logerr("invalid cluster '%s': replication count (%zu) is "
+							"larger than the number of servers (%zu)\n",
 							name, cl->members.ch->repl_factor, i);
 					free(cl);
 					free(buf);
@@ -1927,7 +1927,7 @@ router_printconfig(FILE *f, char mode, cluster *clusters, route *routes)
 			for (p = r->dests->cl->name; *p != '\0' && b > blockname; p++)
 				*b-- = *p;
 			fprintf(f, "# common pattern group '%s' "
-					"contains %zd aggregations/matches\n",
+					"contains %zu aggregations/matches\n",
 					++b, cnt);
 		} else if (r->dests->cl->type == AGGRSTUB) {
 			if (mode & 2) {

@@ -417,7 +417,7 @@ aggregator_expire(void *sub)
 										break;
 									case CNT:
 										len = snprintf(metric, sizeof(metric),
-												"%s %zd %lld\n",
+												"%s %zu %lld\n",
 												inv->metric, b->cnt, ts);
 										break;
 									case MAX:

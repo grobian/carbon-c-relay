@@ -151,46 +151,46 @@ collector_runner(void *s)
 			totticks += ticks = d_ticks(dispatchers[i]);
 			totmetrics += metrics = d_metrics(dispatchers[i]);
 			totblackholes += blackholes = d_blackholes(dispatchers[i]);
-			snprintf(m, sizem, "dispatcher%d.metricsReceived %zd %zd\n",
+			snprintf(m, sizem, "dispatcher%d.metricsReceived %zu %zu\n",
 					i + 1, metrics, (size_t)now);
 			send(metric);
-			snprintf(m, sizem, "dispatcher%d.metricsBlackholed %zd %zd\n",
+			snprintf(m, sizem, "dispatcher%d.metricsBlackholed %zu %zu\n",
 					i + 1, blackholes, (size_t)now);
 			send(metric);
-			snprintf(m, sizem, "dispatcher%d.wallTime_us %zd %zd\n",
+			snprintf(m, sizem, "dispatcher%d.wallTime_us %zu %zu\n",
 					i + 1, ticks, (size_t)now);
 			send(metric);
 		}
-		snprintf(m, sizem, "metricsReceived %zd %zd\n",
+		snprintf(m, sizem, "metricsReceived %zu %zu\n",
 				totmetrics, (size_t)now);
 		send(metric);
-		snprintf(m, sizem, "metricsBlackholed %zd %zd\n",
+		snprintf(m, sizem, "metricsBlackholed %zu %zu\n",
 				totblackholes, (size_t)now);
 		send(metric);
-		snprintf(m, sizem, "dispatch_wallTime_us %zd %zd\n",
+		snprintf(m, sizem, "dispatch_wallTime_us %zu %zu\n",
 				totticks, (size_t)now);
 		send(metric);
-		snprintf(m, sizem, "dispatch_busy %zd %zd\n",
+		snprintf(m, sizem, "dispatch_busy %zu %zu\n",
 				dispatchers_busy, (size_t)now);
 		send(metric);
-		snprintf(m, sizem, "dispatch_idle %zd %zd\n",
+		snprintf(m, sizem, "dispatch_idle %zu %zu\n",
 				dispatchers_idle, (size_t)now);
 		send(metric);
 
 #define send_server_metrics(ipbuf, ticks, metrics, queued, stalls, dropped) \
-			snprintf(m, sizem, "destinations.%s.sent %zd %zd\n", \
+			snprintf(m, sizem, "destinations.%s.sent %zu %zu\n", \
 					ipbuf, metrics, (size_t)now); \
 			send(metric); \
-			snprintf(m, sizem, "destinations.%s.queued %zd %zd\n", \
+			snprintf(m, sizem, "destinations.%s.queued %zu %zu\n", \
 					ipbuf, queued, (size_t)now); \
 			send(metric); \
-			snprintf(m, sizem, "destinations.%s.stalls %zd %zd\n", \
+			snprintf(m, sizem, "destinations.%s.stalls %zu %zu\n", \
 					ipbuf, stalls, (size_t)now); \
 			send(metric); \
-			snprintf(m, sizem, "destinations.%s.dropped %zd %zd\n", \
+			snprintf(m, sizem, "destinations.%s.dropped %zu %zu\n", \
 					ipbuf, dropped, (size_t)now); \
 			send(metric); \
-			snprintf(m, sizem, "destinations.%s.wallTime_us %zd %zd\n", \
+			snprintf(m, sizem, "destinations.%s.wallTime_us %zu %zu\n", \
 					ipbuf, ticks, (size_t)now); \
 			send(metric);
 
@@ -229,36 +229,36 @@ collector_runner(void *s)
 			send_server_metrics(ipbuf, ticks, metrics, queued, stalls, dropped);
 		}
 
-		snprintf(m, sizem, "metricsSent %zd %zd\n",
+		snprintf(m, sizem, "metricsSent %zu %zu\n",
 				totmetrics, (size_t)now);
 		send(metric);
-		snprintf(m, sizem, "metricsQueued %zd %zd\n",
+		snprintf(m, sizem, "metricsQueued %zu %zu\n",
 				totqueued, (size_t)now);
 		send(metric);
-		snprintf(m, sizem, "metricStalls %zd %zd\n",
+		snprintf(m, sizem, "metricStalls %zu %zu\n",
 				totstalls, (size_t)now);
 		send(metric);
-		snprintf(m, sizem, "metricsDropped %zd %zd\n",
+		snprintf(m, sizem, "metricsDropped %zu %zu\n",
 				totdropped, (size_t)now);
 		send(metric);
-		snprintf(m, sizem, "server_wallTime_us %zd %zd\n",
+		snprintf(m, sizem, "server_wallTime_us %zu %zu\n",
 				totticks, (size_t)now);
 		send(metric);
-		snprintf(m, sizem, "connections %zd %zd\n",
+		snprintf(m, sizem, "connections %zu %zu\n",
 				dispatch_get_accepted_connections(), (size_t)now);
 		send(metric);
-		snprintf(m, sizem, "disconnects %zd %zd\n",
+		snprintf(m, sizem, "disconnects %zu %zu\n",
 				dispatch_get_closed_connections(), (size_t)now);
 		send(metric);
 
 		if (numaggregators > 0) {
-			snprintf(m, sizem, "aggregators.metricsReceived %zd %zd\n",
+			snprintf(m, sizem, "aggregators.metricsReceived %zu %zu\n",
 					a_received(aggrs), (size_t)now);
 			send(metric);
-			snprintf(m, sizem, "aggregators.metricsSent %zd %zd\n",
+			snprintf(m, sizem, "aggregators.metricsSent %zu %zu\n",
 					a_sent(aggrs), (size_t)now);
 			send(metric);
-			snprintf(m, sizem, "aggregators.metricsDropped %zd %zd\n",
+			snprintf(m, sizem, "aggregators.metricsDropped %zu %zu\n",
 					a_dropped(aggrs), (size_t)now);
 			send(metric);
 		}
@@ -352,12 +352,12 @@ collector_writer(void *unused)
 			}
 			totconn = dispatch_get_accepted_connections();
 			totdisc = dispatch_get_closed_connections();
-			printf("%5zd %7zd  "   /* metrics in */
-					"%5zd %7zd  "  /* metrics out */
-					"%5zd %7zd  "  /* metrics dropped */
-					"%5zd  "        /* queue */
-					"%3zd %5zd  "  /* conns */
-					"%3zd %5zd  "  /* disconns */
+			printf("%5zu %7zu  "   /* metrics in */
+					"%5zu %7zu  "  /* metrics out */
+					"%5zu %7zu  "  /* metrics dropped */
+					"%5zu  "        /* queue */
+					"%3zu %5zu  "  /* conns */
+					"%3zu %5zu  "  /* disconns */
 					"%2d %2d\n",   /* workers */
 					mpsin, totin,
 					mpsout, totout,
@@ -382,17 +382,17 @@ collector_writer(void *unused)
 
 			if (queueusage >= 0.75)
 				logout("warning: metrics queuing up "
-						"for %s:%u: %zd metrics (%d%% of queue size)\n",
+						"for %s:%u: %zu metrics (%d%% of queue size)\n",
 						server_ip(srvs[i]), server_port(srvs[i]), queued,
 						(int)(queueusage * 100));
 		}
 		if (totdropped - lastdropped > 0)
-			logout("warning: dropped %zd metrics\n", totdropped - lastdropped);
+			logout("warning: dropped %zu metrics\n", totdropped - lastdropped);
 		lastdropped = totdropped;
 		if (numaggregators > 0) {
 			totdropped = aggregator_get_dropped(aggrs);
 			if (totdropped - lastaggrdropped > 0)
-				logout("warning: aggregator dropped %zd metrics\n",
+				logout("warning: aggregator dropped %zu metrics\n",
 						totdropped - lastaggrdropped);
 			lastaggrdropped = totdropped;
 		}

@@ -129,7 +129,7 @@ dispatch_addlistener(int sock)
 	if (c == sizeof(listeners) / sizeof(connection *)) {
 		free(newconn);
 		logerr("cannot add new listener: "
-				"no more free listener slots (max = %zd)\n",
+				"no more free listener slots (max = %zu)\n",
 				sizeof(listeners) / sizeof(connection *));
 		return 1;
 	}
@@ -195,7 +195,7 @@ dispatch_addconnection(int sock)
 				sizeof(connection) * (connectionslen + CONNGROWSZ));
 		if (newlst == NULL) {
 			logerr("cannot add new connection: "
-					"out of memory allocating more slots (max = %zd)\n",
+					"out of memory allocating more slots (max = %zu)\n",
 					connectionslen);
 
 			pthread_rwlock_unlock(&connectionslock);
