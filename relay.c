@@ -127,10 +127,10 @@ exit_handler(int sig)
 			break;
 	}
 	if (keep_running) {
-		logout("caught %s, terminating...\n", signal);
+		logout("caught %s\n", signal);
 	} else {
 		logerr("caught %s while already shutting down, "
-				"forcing exit...\n", signal);
+				"forcing exit!\n", signal);
 		exit(1);
 	}
 	keep_running = 0;
