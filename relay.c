@@ -606,6 +606,7 @@ main(int argc, char * const argv[])
 		fflush(relay_stdout);
 	}
 	fprintf(relay_stdout, "\n");
+	fflush(relay_stdout);
 	free(workers);
 
 	router_shutdown();
