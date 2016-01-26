@@ -583,15 +583,15 @@ main(int argc, char * const argv[])
 	for (ch = 0; ch < stream_socklen; ch++)
 		dispatch_removelistener(stream_sock[ch]);
 	destroy_usock(listenport);
-	logout("listeners for port %u closed\n", listenport);
+	logout("closed listeners for port %u\n", listenport);
 	/* since workers will be freed, stop querying the structures */
 	collector_stop();
 	server_shutdown(internal_submission);
 	free(internal_submission);
-	logout("collector stopped\n");
+	logout("stopped collector\n");
 	if (numaggregators > 0) {
 		aggregator_stop();
-		logout("aggregator stopped\n");
+		logout("stopped aggregator\n");
 	}
 	/* give a little time for whatever the collector/aggregator wrote,
 	 * to be delivered by the dispatchers */
@@ -615,9 +615,9 @@ main(int argc, char * const argv[])
 		server_stop(servers[i]);
 	free(servers);
 	router_free(clusters, routes);
-	logout("servers stopped\n");
+	logout("stopped servers\n");
 
-	logout("carbon-c-relay v%s (%s) stopped\n", VERSION, GIT_VERSION);
+	logout("stopped carbon-c-relay v%s (%s)\n", VERSION, GIT_VERSION);
 
 	return 0;
 }
