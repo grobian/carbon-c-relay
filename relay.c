@@ -24,7 +24,7 @@
 #include <time.h>
 #include <errno.h>
 #include <assert.h>
-#if defined(_OPENMP)
+#if defined(ENABLE_OPENMP)
 # include <omp.h>
 #endif
 
@@ -227,7 +227,7 @@ hup_handler(int sig)
 static int
 get_cores(void)
 {
-#if defined(_OPENMP)
+#if defined(ENABLE_OPENMP)
 	return omp_get_num_procs();
 #else
 	return 5;
