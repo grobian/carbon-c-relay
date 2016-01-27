@@ -145,6 +145,8 @@ hup_handler(int sig)
 	int id;
 	FILE *newfd;
 	size_t numaggregators;
+	server **servers;
+	size_t i;
 
 	logout("caught SIGHUP...\n");
 	if (relay_stderr != stderr) {
@@ -215,6 +217,10 @@ hup_handler(int sig)
 			usleep((100 + (rand() % 200)) * 1000);  /* 100ms - 300ms */
 	}
 
+	servers = router_getservers(clusters);
+	for (i = 0; servers[i] != NULL; i++)
+		server_stop(servers[i]);
+	free(servers);
 	router_free(clusters, routes);
 
 	routes = newroutes;
