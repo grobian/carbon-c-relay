@@ -20,6 +20,7 @@
 #include <string.h>
 #include <fcntl.h>
 #include <pthread.h>
+#include <poll.h>
 #include <errno.h>
 #include <sys/time.h>
 #include <sys/types.h>
@@ -278,7 +279,7 @@ server_queuereader(void *d)
 				}
 
 				/* put socket in non-blocking mode such that we can
-				 * select() (time-out) on the connect() call */
+				 * poll() (time-out) on the connect() call */
 				args = fcntl(self->fd, F_GETFL, NULL);
 				(void) fcntl(self->fd, F_SETFL, args | O_NONBLOCK);
 				ret = connect(self->fd,
@@ -287,13 +288,10 @@ server_queuereader(void *d)
 				if (ret < 0 && errno == EINPROGRESS) {
 					/* wait for connection to succeed if the OS thinks
 					 * it can succeed */
-					fd_set fds;
-					FD_ZERO(&fds);
-					FD_SET(self->fd, &fds);
-					timeoutms = self->iotimeout + (rand() % 100);
-					timeout.tv_sec = timeoutms / 1000;
-					timeout.tv_usec = (timeoutms % 1000) * 1000;
-					ret = select(self->fd + 1, NULL, &fds, NULL, &timeout);
+					struct pollfd ufds[1];
+					ufds[0].fd = self->fd;
+					ufds[0].events = POLLIN | POLLOUT;
+					ret = poll(ufds, 1, self->iotimeout + (rand() % 100));
 					if (ret == 0) {
 						/* time limit expired */
 						if (!self->failure)
@@ -307,33 +305,17 @@ server_queuereader(void *d)
 					} else if (ret < 0) {
 						/* some select error occurred */
 						if (!self->failure)
-							logerr("failed to select() for %s:%u: %s\n",
+							logerr("failed to poll() for %s:%u: %s\n",
 									self->ip, self->port, strerror(errno));
 						close(self->fd);
 						self->fd = -1;
 						self->failure += self->failure >= FAIL_WAIT_TIME ? 0 : 1;
 						continue;
 					} else {
-						int serr = 0;
-						socklen_t serrlen = sizeof(serr);
-						if (getsockopt(self->fd, SOL_SOCKET, SO_ERROR,
-									(void *)(&serr), &serrlen) < 0)
-						{
+						if (ufds[0].revents & POLLHUP) {
 							if (!self->failure)
-								logerr("failed to getsockopt() for %s:%u: %s\n",
-										self->ip, self->port, strerror(errno));
-							close(self->fd);
-							self->fd = -1;
-							self->failure += self->failure >= FAIL_WAIT_TIME ? 0 : 1;
-							continue;
-						}
-						if (serr != 0) {
-							if (!self->failure) {
-								logerr("failed to connect() to %s:%u: %s "
-										"(after select())\n",
-										self->ip, self->port, strerror(serr));
-								dispatch_check_rlimit_and_warn();
-							}
+								logerr("failed to connect() for %s:%u: "
+										"Hangup\n", self->ip, self->port);
 							close(self->fd);
 							self->fd = -1;
 							self->failure += self->failure >= FAIL_WAIT_TIME ? 0 : 1;
