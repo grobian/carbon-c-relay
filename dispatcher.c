@@ -20,6 +20,7 @@
 #include <fcntl.h>
 #include <string.h>
 #include <errno.h>
+#include <poll.h>
 #include <pthread.h>
 #include <sys/uio.h>
 #include <sys/time.h>
@@ -525,32 +526,22 @@ dispatch_runner(void *arg)
 	self->state = SLEEPING;
 
 	if (self->type == LISTENER) {
-		fd_set fds;
-		int maxfd = -1;
-		struct timeval tv;
+		struct pollfd ufds[sizeof(listeners) / sizeof(connection *)];
 		while (self->keep_running) {
-			FD_ZERO(&fds);
-			tv.tv_sec = 0;
-			tv.tv_usec = 250 * 1000;  /* 250 ms */
 			for (c = 0; c < sizeof(listeners) / sizeof(connection *); c++) {
-				conn = listeners[c];
-				if (conn == NULL)
+				if (listeners[c] == NULL)
 					break;
-				FD_SET(conn->sock, &fds);
-				if (conn->sock > maxfd)
-					maxfd = conn->sock;
+				ufds[c].fd = listeners[c]->sock;
+				ufds[c].events = POLLIN;
 			}
-			if (select(maxfd + 1, &fds, NULL, NULL, &tv) > 0) {
-				for (c = 0; c < sizeof(listeners) / sizeof(connection *); c++) {
-					conn = listeners[c];
-					if (conn == NULL)
-						break;
-					if (FD_ISSET(conn->sock, &fds)) {
+			if (poll(ufds, c, 1000) > 0) {
+				for (--c; c >= 0; c--) {
+					if (ufds[c].revents & POLLIN) {
 						int client;
 						struct sockaddr addr;
 						socklen_t addrlen = sizeof(addr);
 
-						if ((client = accept(conn->sock, &addr, &addrlen)) < 0)
+						if ((client = accept(ufds[c].fd, &addr, &addrlen)) < 0)
 						{
 							logerr("dispatch: failed to "
 									"accept() new connection: %s\n",
