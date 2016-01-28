@@ -368,7 +368,7 @@ aggregator_expire(void *sub)
 	struct _aggr_invocations *inv;
 	struct _aggr_invocations *lastinv;
 	double *values;
-	size_t len;
+	size_t len = 0;
 	int i;
 	unsigned char j;
 	int work;
