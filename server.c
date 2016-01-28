@@ -632,9 +632,12 @@ server_shutdown(server *s)
 
 	if (s->ctype == CON_TCP) {
 		size_t qlen = queue_len(s->queue);
+		const char *p;
 		if (qlen > 0)
 			logerr("dropping %zu metrics for %s:%u\n",
 					qlen, s->ip, s->port);
+		while ((p = queue_dequeue(s->queue)) != NULL)
+			free((char *)p);
 	}
 	queue_destroy(s->queue);
 	free(s->batch);
