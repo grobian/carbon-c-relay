@@ -494,6 +494,7 @@ server_new(
 
 	if (pthread_create(&ret->tid, NULL, &server_queuereader, ret) != 0) {
 		free((char *)ret->ip);
+		queue_destroy(ret->queue);
 		free(ret);
 		return NULL;
 	}
