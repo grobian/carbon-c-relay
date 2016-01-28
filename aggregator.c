@@ -62,6 +62,7 @@ aggregator_new(
 	if (pipe(intconn) < 0) {
 		logerr("failed to create pipe for aggregator: %s\n",
 				strerror(errno));
+		free(ret);
 		return NULL;
 	}
 	ret->disp_conn = dispatch_addconnection_aggr(intconn[0]);
