@@ -46,7 +46,7 @@ int
 bindlisten(
 		int ret_stream[], int *retlen_stream,
 		int ret_dgram[], int *retlen_dgram,
-		const char *interface, unsigned short port)
+		const char *interface, unsigned short port, unsigned int backlog)
 {
 	int sock;
 	int optval;
@@ -115,7 +115,7 @@ bindlisten(
 			}
 
 			if (resw->ai_protocol == IPPROTO_TCP) {
-				if (listen(sock, 3) < 0) {  /* backlog of 3, enough? */
+				if (listen(sock, backlog) < 0) {
 					close(sock);
 					continue;
 				}
@@ -161,7 +161,7 @@ bindlisten(
 			break;
 		}
 
-		if (listen(sock, 3) < 0) {  /* backlog of 3, enough? */
+		if (listen(sock, backlog) < 0) {
 			close(sock);
 			break;
 		}

@@ -263,6 +263,7 @@ do_usage(int exitcode)
 	printf("  -b  server send batch size, defaults to 2500\n");
 	printf("  -q  server queue size, defaults to 25000\n");
 	printf("  -S  statistics sending interval in seconds, defaults to 60\n");
+	printf("  -B  connection listen backlog, defaults to 3\n");
 	printf("  -T  IO timeout in milliseconds for server connections, defaults to 600\n");
 	printf("  -m  send statistics like carbon-cache.py, e.g. not cumulative\n");
 	printf("  -c  characters to allow next to [A-Za-z0-9], defaults to -_:#\n");
@@ -285,6 +286,7 @@ main(int argc, char * const argv[])
 	int dgram_socklen = sizeof(dgram_sock) / sizeof(dgram_sock[0]);
 	char id;
 	unsigned short listenport = 2003;
+	unsigned int listenbacklog = 3;
 	int ch;
 	size_t numaggregators;
 	char *listeninterface = NULL;
@@ -296,7 +298,7 @@ main(int argc, char * const argv[])
 	if (gethostname(relay_hostname, sizeof(relay_hostname)) < 0)
 		snprintf(relay_hostname, sizeof(relay_hostname), "127.0.0.1");
 
-	while ((ch = getopt(argc, argv, ":hvdmstf:i:l:p:w:b:q:S:T:c:H:")) != -1) {
+	while ((ch = getopt(argc, argv, ":hvdmstf:i:l:p:w:b:q:S:T:c:H:B:")) != -1) {
 		switch (ch) {
 			case 'v':
 				do_version();
@@ -389,6 +391,14 @@ main(int argc, char * const argv[])
 			case 'H':
 				snprintf(relay_hostname, sizeof(relay_hostname), "%s", optarg);
 				break;
+			case 'B': {
+				int val = atoi(optarg);
+				if (val <= 0) {
+					fprintf(stderr, "error: backlog needs to be a number >0\n");
+					do_usage(1);
+				}
+				listenbacklog = (unsigned int)val;
+			}	break;
 			case '?':
 			case ':':
 				do_usage(1);
@@ -442,6 +452,7 @@ main(int argc, char * const argv[])
 	fprintf(relay_stdout, "    server queue size = %d\n", queuesize);
 	fprintf(relay_stdout, "    statistics submission interval = %ds\n",
 			collector_interval);
+	fprintf(relay_stdout, "    listen backlog = %u\n", listenbacklog);
 	fprintf(relay_stdout, "    server connection IO timeout = %dms\n",
 			iotimeout);
 	if (allowed_chars != NULL)
@@ -520,7 +531,7 @@ main(int argc, char * const argv[])
 
 	if (bindlisten(stream_sock, &stream_socklen,
 				dgram_sock, &dgram_socklen,
-				listeninterface, listenport) < 0) {
+				listeninterface, listenport, listenbacklog) < 0) {
 		logerr("failed to bind on port %s:%d: %s\n",
 				listeninterface == NULL ? "" : listeninterface,
 				listenport, strerror(errno));
