@@ -596,7 +596,7 @@ server_shutdown(server *s)
 			/* loop until we all failed, or nothing is in the queues */
 		} while (failures != s->secondariescnt &&
 				inqueue != 0 &&
-				logerr("any_of cluster pending %zu metrics "
+				logout("any_of cluster pending %zu metrics "
 					"(with %zu failed nodes)\n", inqueue, failures) >= -1 &&
 				usleep((200 + (rand() % 100)) * 1000) <= 0);
 		/* shut down entire cluster */
