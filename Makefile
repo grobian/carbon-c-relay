@@ -16,7 +16,7 @@
 CFLAGS ?= -O2 -Wall
 # if your compiler doesn't support OpenMP, comment out this line, or
 # define OPENMP_FLAGS to be empty
-OPENMP_FLAGS ?= -fopenmp
+OPENMP_FLAGS ?= -D ENABLE_OPENMP=1 -fopenmp
 override CC += $(OPENMP_FLAGS)
 
 GIT_VERSION := $(shell git describe --abbrev=6 --dirty --always || date +%F)
