@@ -24,8 +24,10 @@
 #include <time.h>
 #include <errno.h>
 #include <assert.h>
-#if defined(ENABLE_OPENMP)
-# include <omp.h>
+
+#if defined(__MACH__) || defined(BSD)
+# include <sys/types.h>
+# include <sys/sysctl.h>
 #endif
 
 #include "relay.h"
@@ -233,11 +235,16 @@ hup_handler(int sig)
 static int
 get_cores(void)
 {
-#if defined(ENABLE_OPENMP)
-	return omp_get_num_procs();
-#else
-	return 5;
+	int cpus = 5;
+
+#if defined(__MACH__) || defined(BSD)
+	size_t len = sizeof(cpus);
+	sysctlbyname("hw.ncpu", &cpus, &len, NULL, 0);
+#else /* Linux and Solaris */
+	cpus = sysconf(_SC_NPROCESSORS_ONLN);
 #endif
+
+	return cpus;
 }
 
 static void
