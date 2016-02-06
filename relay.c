@@ -280,6 +280,8 @@ do_usage(int exitcode)
 	       "      statistics, report drop counts and queue pressure to log\n");
 	printf("  -t  config test mode: prints rule matches from input on stdin\n");
 	printf("  -H  hostname: override hostname (used in statistics)\n");
+	printf("  -D  daemonize: run in a background\n");
+	printf("  -P  pidfile: write a pid to a specified pidfile\n");
 
 	exit(exitcode);
 }
@@ -301,11 +303,14 @@ main(int argc, char * const argv[])
 	char *allowed_chars = NULL;
 	int i;
 	enum { SUB, CUM } smode = CUM;
+	char daemonize = 0;
+	char *pidfile = NULL;
+	FILE *pidfile_handle = NULL;
 
 	if (gethostname(relay_hostname, sizeof(relay_hostname)) < 0)
 		snprintf(relay_hostname, sizeof(relay_hostname), "127.0.0.1");
 
-	while ((ch = getopt(argc, argv, ":hvdmstf:i:l:p:w:b:q:S:T:c:H:B:")) != -1) {
+	while ((ch = getopt(argc, argv, ":hvdmstf:i:l:p:w:b:q:S:T:c:H:B:DP:")) != -1) {
 		switch (ch) {
 			case 'v':
 				do_version();
@@ -406,6 +411,13 @@ main(int argc, char * const argv[])
 				}
 				listenbacklog = (unsigned int)val;
 			}	break;
+
+			case 'D':
+				daemonize = 1;
+				break;
+			case 'P':
+				pidfile = optarg;
+				break;
 			case '?':
 			case ':':
 				do_usage(1);
@@ -446,6 +458,38 @@ main(int argc, char * const argv[])
 		relay_stderr = stderr;
 	}
 	relay_can_log = 1;
+
+	if (!relay_logfile && daemonize) {
+		logerr("You must specify logfile if you want daemonization!\n");
+		exit(-1);
+	}
+
+	if (pidfile) {
+		pidfile_handle = fopen("pidfile", "w");
+		if (!pidfile_handle) {
+			logerr("failed to open pidfile '%s': %s\n", pidfile, strerror(errno));
+			exit(1);
+		}
+	}
+
+	if (daemonize) {
+		pid_t p;
+		p = fork();
+		if (p != 0) {
+			exit(0);
+		} else {
+			p = fork();
+			if (p != 0) {
+				exit(0);
+			}
+		}
+	}
+
+	if (pidfile_handle) {
+		fprintf(pidfile_handle, "%d\n", getpid());
+		fclose(pidfile_handle);
+	}
+
 
 	logout("starting carbon-c-relay v%s (%s), pid=%d\n",
 			VERSION, GIT_VERSION, getpid());
