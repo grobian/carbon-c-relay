@@ -280,7 +280,7 @@ do_usage(int exitcode)
 	       "      statistics, report drop counts and queue pressure to log\n");
 	printf("  -t  config test mode: prints rule matches from input on stdin\n");
 	printf("  -H  hostname: override hostname (used in statistics)\n");
-	printf("  -D  daemonize: run in a background\n");
+	printf("  -D  daemonise: run in a background\n");
 	printf("  -P  pidfile: write a pid to a specified pidfile\n");
 
 	exit(exitcode);
@@ -303,7 +303,7 @@ main(int argc, char * const argv[])
 	char *allowed_chars = NULL;
 	int i;
 	enum { SUB, CUM } smode = CUM;
-	char daemonize = 0;
+	char daemonise = 0;
 	char *pidfile = NULL;
 	FILE *pidfile_handle = NULL;
 
@@ -413,7 +413,7 @@ main(int argc, char * const argv[])
 			}	break;
 
 			case 'D':
-				daemonize = 1;
+				daemonise = 1;
 				break;
 			case 'P':
 				pidfile = optarg;
@@ -459,7 +459,7 @@ main(int argc, char * const argv[])
 	}
 	relay_can_log = 1;
 
-	if (!relay_logfile && daemonize) {
+	if (!relay_logfile && daemonise) {
 		logerr("You must specify logfile if you want daemonization!\n");
 		exit(-1);
 	}
@@ -472,16 +472,18 @@ main(int argc, char * const argv[])
 		}
 	}
 
-	if (daemonize) {
+	if (daemonise) {
 		pid_t p;
 		p = fork();
 		if (p != 0) {
 			exit(0);
 		} else {
 			p = fork();
-			if (p != 0) {
+			if (p != 0 || setsid() < 0)
 				exit(0);
-			}
+			close(0);
+			close(1);
+			close(2);
 		}
 	}
 
