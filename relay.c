@@ -460,31 +460,86 @@ main(int argc, char * const argv[])
 	relay_can_log = 1;
 
 	if (relay_logfile == NULL && daemonise) {
-		logerr("You must specify logfile if you want daemonization!\n");
+		fprintf(stderr,
+				"You must specify logfile if you want daemonization!\n");
 		exit(-1);
 	}
 
 	if (pidfile) {
 		pidfile_handle = fopen("pidfile", "w");
 		if (pidfile_handle == NULL) {
-			logerr("failed to open pidfile '%s': %s\n",
+			fprintf(stderr, "failed to open pidfile '%s': %s\n",
 					pidfile, strerror(errno));
-			exit(1);
+			exit(-1);
 		}
 	}
 
 	if (daemonise) {
 		pid_t p;
+		int fds[2];
+
+		if (pipe(fds) < 0) {
+			fprintf(stderr, 
+					"failed to create pipe to talk to child process: %s\n",
+					strerror(errno));
+			exit(1);
+		}
+
 		p = fork();
-		if (p != 0) {
-			exit(0);
-		} else {
+		if (p < 0) {
+			fprintf(stderr, "failed to fork intermediate process: %s\n",
+					strerror(errno));
+			exit(1);
+		} else if (p == 0) {
+			char msg[1024];
+			/* child, for again so our intermediate process can die and
+			 * its child becomes an orphan to init */
 			p = fork();
-			if (p != 0 || setsid() < 0)
+			if (p < 0) {
+				snprintf(msg, sizeof(msg), "failed to fork daemon process: %s",
+						strerror(errno));
+				write(fds[1], msg, strlen(msg) + 1);
+				exit(1); /* not that it matters */
+			} else if (p == 0) {
+				/* child, this is the final daemon process */
+				if (setsid() < 0) {
+					snprintf(msg, sizeof(msg), "failed to setsid(): %s",
+							strerror(errno));
+					write(fds[1], msg, strlen(msg) + 1);
+					exit(1); /* not that it matters */
+				}
+				/* close descriptors, we won't need them ever since
+				 * we're detached from the controlling terminal */
+				close(0);
+				close(1);
+				close(2);
+
+				/* we're fine, flag our grandparent (= the original
+				 * process being called) it can terminate */
+				write(fds[1], "OK", 3);
+			} else {
+				/* parent, die */
 				exit(0);
-			close(0);
-			close(1);
-			close(2);
+			}
+		} else {
+			/* parent: wait for child to report success */
+			char msg[1024];
+			int len = read(fds[0], msg, sizeof(msg));
+			if (len < 0) {
+				fprintf(stderr, "unable to read from child, "
+						"assuming daemonisation failed\n");
+				exit(1);
+			} else if (len == 0) {
+				fprintf(stderr, "got unexpected EOF from child, "
+						"assuming daemonisation failed\n");
+				exit(1);
+			} else if (strncmp(msg, "OK", len) == 0) {
+				/* child is happy, so can we */
+				exit(0);
+			} else {
+				fprintf(stderr, "%s\n", msg);
+				exit(1);
+			}
 		}
 	}
 
