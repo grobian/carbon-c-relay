@@ -459,15 +459,16 @@ main(int argc, char * const argv[])
 	}
 	relay_can_log = 1;
 
-	if (!relay_logfile && daemonise) {
+	if (relay_logfile == NULL && daemonise) {
 		logerr("You must specify logfile if you want daemonization!\n");
 		exit(-1);
 	}
 
 	if (pidfile) {
 		pidfile_handle = fopen("pidfile", "w");
-		if (!pidfile_handle) {
-			logerr("failed to open pidfile '%s': %s\n", pidfile, strerror(errno));
+		if (pidfile_handle == NULL) {
+			logerr("failed to open pidfile '%s': %s\n",
+					pidfile, strerror(errno));
 			exit(1);
 		}
 	}
