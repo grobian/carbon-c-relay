@@ -743,6 +743,9 @@ main(int argc, char * const argv[])
 	router_free(clusters, routes);
 	logout("stopped servers\n");
 
+	if (pidfile != NULL)
+		unlink(pidfile);
+
 	logout("stopped carbon-c-relay v%s (%s)\n", VERSION, GIT_VERSION);
 
 	return 0;
