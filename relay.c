@@ -465,8 +465,8 @@ main(int argc, char * const argv[])
 		exit(-1);
 	}
 
-	if (pidfile) {
-		pidfile_handle = fopen("pidfile", "w");
+	if (pidfile != NULL) {
+		pidfile_handle = fopen(pidfile, "w");
 		if (pidfile_handle == NULL) {
 			fprintf(stderr, "failed to open pidfile '%s': %s\n",
 					pidfile, strerror(errno));
