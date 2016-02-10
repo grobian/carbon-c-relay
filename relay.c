@@ -459,10 +459,18 @@ main(int argc, char * const argv[])
 	}
 	relay_can_log = 1;
 
-	if (relay_logfile == NULL && daemonise) {
-		fprintf(stderr,
-				"You must specify logfile if you want daemonization!\n");
-		exit(-1);
+	if (daemonise) {
+		if (relay_logfile == NULL) {
+			fprintf(stderr,
+					"You must specify logfile if you want daemonisation!\n");
+			exit(-1);
+		}
+
+		if (mode == TEST || mode == DEBUGTEST) {
+			fprintf(stderr,
+					"You cannot use test mode if you want daemonisation!\n");
+			exit(-1);
+		}
 	}
 
 	if (pidfile != NULL) {
