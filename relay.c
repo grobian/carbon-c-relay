@@ -40,7 +40,7 @@
 
 int keep_running = 1;
 char relay_hostname[256];
-enum rmode mode = NORMAL;
+unsigned char mode = 0;
 
 static char *config = NULL;
 static int batchsize = 2500;
@@ -303,7 +303,6 @@ main(int argc, char * const argv[])
 	char *allowed_chars = NULL;
 	int i;
 	enum { SUB, CUM } smode = CUM;
-	char daemonise = 0;
 	char *pidfile = NULL;
 	FILE *pidfile_handle = NULL;
 
@@ -316,30 +315,16 @@ main(int argc, char * const argv[])
 				do_version();
 				break;
 			case 'd':
-				if (mode == TEST) {
-					mode = DEBUGTEST;
-				} else if (mode == SUBMISSION) {
-					mode = DEBUGSUBMISSION;
-				} else {
-					mode = DEBUG;
-				}
+				mode &= MODE_DEBUG;
 				break;
 			case 'm':
 				smode = SUB;
 				break;
 			case 's':
-				if (mode == DEBUG) {
-					mode = DEBUGSUBMISSION;
-				} else {
-					mode = SUBMISSION;
-				}
+				mode &= MODE_SUBMISSION;
 				break;
 			case 't':
-				if (mode == DEBUG) {
-					mode = DEBUGTEST;
-				} else {
-					mode = TEST;
-				}
+				mode &= MODE_TEST;
 				break;
 			case 'f':
 				config = optarg;
@@ -413,7 +398,7 @@ main(int argc, char * const argv[])
 			}	break;
 
 			case 'D':
-				daemonise = 1;
+				mode &= MODE_DAEMON;
 				break;
 			case 'P':
 				pidfile = optarg;
@@ -436,7 +421,7 @@ main(int argc, char * const argv[])
 	srand(time(NULL));
 
 	if (workercnt == 0)
-		workercnt = (mode == SUBMISSION || mode == DEBUGSUBMISSION) ? 2 : get_cores();
+		workercnt = mode & MODE_SUBMISSION ? 2 : get_cores();
 
 	/* any_of failover maths need batchsize to be smaller than queuesize */
 	if (batchsize > queuesize) {
@@ -444,7 +429,7 @@ main(int argc, char * const argv[])
 		exit(-1);
 	}
 
-	if (relay_logfile != NULL && mode != TEST && mode != DEBUGTEST) {
+	if (relay_logfile != NULL && (mode & MODE_TEST) == 0) {
 		FILE *f = fopen(relay_logfile, "a");
 		if (f == NULL) {
 			fprintf(stderr, "error: failed to open logfile '%s': %s\n",
@@ -459,14 +444,14 @@ main(int argc, char * const argv[])
 	}
 	relay_can_log = 1;
 
-	if (daemonise) {
+	if (mode & MODE_DAEMON) {
 		if (relay_logfile == NULL) {
 			fprintf(stderr,
 					"You must specify logfile if you want daemonisation!\n");
 			exit(-1);
 		}
 
-		if (mode == TEST || mode == DEBUGTEST) {
+		if (mode & MODE_TEST) {
 			fprintf(stderr,
 					"You cannot use test mode if you want daemonisation!\n");
 			exit(-1);
@@ -482,7 +467,7 @@ main(int argc, char * const argv[])
 		}
 	}
 
-	if (daemonise) {
+	if (mode & MODE_DAEMON) {
 		pid_t p;
 		int fds[2];
 
@@ -575,10 +560,12 @@ main(int argc, char * const argv[])
 	if (allowed_chars != NULL)
 		fprintf(relay_stdout, "    extra allowed characters = %s\n",
 				allowed_chars);
-	if (mode == DEBUG || mode == DEBUGTEST || mode == DEBUGSUBMISSION)
+	if (mode & MODE_DEBUG)
 		fprintf(relay_stdout, "    debug = true\n");
-	else if (mode == SUBMISSION || mode == DEBUGSUBMISSION)
+	else if (mode & MODE_SUBMISSION)
 		fprintf(relay_stdout, "    submission = true\n");
+	else if (mode & MODE_DAEMON)
+		fprintf(relay_stdout, "    daemon = true\n");
 	fprintf(relay_stdout, "    routes configuration = %s\n", config);
 	fprintf(relay_stdout, "\n");
 
@@ -591,8 +578,7 @@ main(int argc, char * const argv[])
 	router_optimise(&routes);
 
 	numaggregators = aggregator_numaggregators(aggrs);
-#define dbg (mode == DEBUG || mode == DEBUGTEST ? 2 : 0)
-	if (numaggregators > 10 && !dbg) {
+	if (numaggregators > 10 && mode & MODE_DEBUG) {
 		fprintf(relay_stdout, "parsed configuration follows:\n"
 				"(%zu aggregations with %zu computations omitted "
 				"for brevity)\n",
@@ -600,12 +586,14 @@ main(int argc, char * const argv[])
 		router_printconfig(relay_stdout, 0, clusters, routes);
 	} else {
 		fprintf(relay_stdout, "parsed configuration follows:\n");
-		router_printconfig(relay_stdout, 1 + dbg, clusters, routes);
+		router_printconfig(relay_stdout,
+				1 + (mode & MODE_DEBUG ? 2 : 0),
+				clusters, routes);
 	}
 	fprintf(relay_stdout, "\n");
 
 	/* shortcut for rule testing mode */
-	if (mode == TEST || mode == DEBUGTEST) {
+	if (mode & MODE_TEST) {
 		char metricbuf[METRIC_BUFSIZ];
 		char *p;
 

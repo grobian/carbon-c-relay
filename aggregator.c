@@ -197,7 +197,7 @@ aggregator_putmetric(
 	/* get value */
 	if ((v = strchr(firstspace + 1, ' ')) == NULL) {
 		/* metric includes \n */
-		if (mode == DEBUG || mode == DEBUGTEST)
+		if (mode & MODE_DEBUG)
 			logerr("aggregator: dropping incorrect metric: %s",
 					metric);
 		return;
@@ -300,7 +300,7 @@ aggregator_putmetric(
 
 		slot = itime / s->interval;
 		if (slot >= s->bucketcnt) {
-			if (mode == DEBUG || mode == DEBUGTEST)
+			if (mode & MODE_DEBUG)
 				logerr("aggregator: dropping metric too far in the "
 						"future (%lld > %lld): %s from %s", epoch,
 						invocation->buckets[s->bucketcnt - 1].start,

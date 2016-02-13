@@ -2554,7 +2554,7 @@ router_test_intern(char *metric, char *firstspace, route *routes)
 						int stublen = 0;
 						char percentile[16];
 
-						if (mode == DEBUGTEST || d->next == NULL) {
+						if (mode & MODE_DEBUG || d->next == NULL) {
 							stublen = 0;
 						} else {
 							char x;
@@ -2601,14 +2601,14 @@ router_test_intern(char *metric, char *firstspace, route *routes)
 									w->nmatch > 0 ? ")" : "",
 									newmetric + stublen);
 
-							if (mode == DEBUGTEST && d->next != NULL) {
+							if (mode & MODE_DEBUG && d->next != NULL) {
 								gotmatch |= router_test_intern(
 										newmetric,
 										newfirstspace,
 										routes);
 							}
 						}
-						if (mode == DEBUGTEST) {
+						if (mode & MODE_DEBUG) {
 							return gotmatch;
 						} else {
 							gotmatch |= 4;
@@ -2660,7 +2660,7 @@ router_test_intern(char *metric, char *firstspace, route *routes)
 								"jump_fnv1a", d->cl->name);
 						if (gotmatch & 4)
 							break;
-						if (mode == DEBUGTEST) {
+						if (mode & MODE_DEBUG) {
 							fprintf(stdout, "        hash_pos(%d)\n",
 									ch_gethashpos(d->cl->members.ch->ring,
 										metric, firstspace));

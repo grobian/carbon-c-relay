@@ -191,7 +191,7 @@ server_queuereader(void *d)
 						break;
 			}
 			for (; *metric != NULL; metric++) {
-				if (mode == DEBUG)
+				if (mode & MODE_DEBUG)
 					logerr("dropping metric: %s", *metric);
 				free((char *)*metric);
 				self->dropped++;
@@ -390,7 +390,7 @@ server_queuereader(void *d)
 				/* put back stuff we couldn't process */
 				for (; *metric != NULL; metric++) {
 					if (!queue_putback(self->queue, *metric)) {
-						if (mode == DEBUG)
+						if (mode & MODE_DEBUG)
 							logerr("server %s:%u: dropping metric: %s",
 									self->ip, self->port, *metric);
 						free((char *)*metric);

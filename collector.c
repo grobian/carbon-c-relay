@@ -433,15 +433,15 @@ collector_start(dispatcher **d, cluster *c, aggregator *a, server *submission, c
 	dispatchers = d;
 	collector_schedulereload(c, a);
 
-	if (mode == DEBUG || mode == DEBUGTEST || mode == DEBUGSUBMISSION)
+	if (mode & MODE_DEBUG)
 		debug = 1;
 	debug |= (cum ? 0 : 2);
 
-	if (mode != SUBMISSION && mode != DEBUGSUBMISSION) {
-		if (pthread_create(&collectorid, NULL, collector_runner, submission) != 0)
+	if (mode & MODE_SUBMISSION) {
+		if (pthread_create(&collectorid, NULL, collector_writer, NULL) != 0)
 			logerr("failed to start collector!\n");
 	} else {
-		if (pthread_create(&collectorid, NULL, collector_writer, NULL) != 0)
+		if (pthread_create(&collectorid, NULL, collector_runner, submission) != 0)
 			logerr("failed to start collector!\n");
 	}
 }

@@ -22,12 +22,16 @@
 
 #define METRIC_BUFSIZ 8192
 
-enum rmode { NORMAL, DEBUG, SUBMISSION, DEBUGSUBMISSION, TEST, DEBUGTEST };
+/* these are the various modes in which the relay runs */
+#define MODE_DEBUG      (1 << 0)
+#define MODE_SUBMISSION (1 << 1)
+#define MODE_TEST       (1 << 2)
+#define MODE_DAEMON     (1 << 3)
+extern unsigned char mode;
 
 typedef enum { CON_TCP, CON_UDP, CON_PIPE, CON_FILE } serv_ctype;
 
 extern char relay_hostname[];
-extern enum rmode mode;
 
 enum logdst { LOGOUT, LOGERR };
 
