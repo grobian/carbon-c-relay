@@ -315,16 +315,16 @@ main(int argc, char * const argv[])
 				do_version();
 				break;
 			case 'd':
-				mode &= MODE_DEBUG;
+				mode |= MODE_DEBUG;
 				break;
 			case 'm':
 				smode = SUB;
 				break;
 			case 's':
-				mode &= MODE_SUBMISSION;
+				mode |= MODE_SUBMISSION;
 				break;
 			case 't':
-				mode &= MODE_TEST;
+				mode |= MODE_TEST;
 				break;
 			case 'f':
 				config = optarg;
@@ -398,7 +398,7 @@ main(int argc, char * const argv[])
 			}	break;
 
 			case 'D':
-				mode &= MODE_DAEMON;
+				mode |= MODE_DAEMON;
 				break;
 			case 'P':
 				pidfile = optarg;
