@@ -71,7 +71,7 @@ struct _server {
  * batched, but sent one by one to reduce loss on sending failure.
  * A connection with the server is maintained for as long as there is
  * data to be written.  As soon as there is none, the connection is
- * dropped.
+ * dropped if a timeout of DISCONNECT_WAIT_TIME exceeds.
  */
 static void *
 server_queuereader(void *d)
