@@ -82,7 +82,6 @@ server_queuereader(void *d)
 	const char **metric = self->batch;
 	struct timeval start, stop;
 	struct timeval timeout;
-	int timeoutms;
 	queue *queue;
 	char idle = 0;
 	size_t *secpos = NULL;
@@ -338,10 +337,10 @@ server_queuereader(void *d)
 				(void) fcntl(self->fd, F_SETFL, args);
 			}
 
-			/* ensure we will break out of connections being stuck */
-			timeoutms = self->iotimeout + (rand() % 100);
-			timeout.tv_sec = timeoutms / 1000;
-			timeout.tv_usec = (timeoutms % 1000) * 1000;
+			/* ensure we will break out of connections being stuck more
+			 * quickly than the kernel would give up */
+			timeout.tv_sec = 10;
+			timeout.tv_usec = (rand() % 300) * 1000;
 			setsockopt(self->fd, SOL_SOCKET, SO_SNDTIMEO,
 					&timeout, sizeof(timeout));
 #ifdef SO_NOSIGPIPE
