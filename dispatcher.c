@@ -53,6 +53,7 @@ typedef struct _connection {
 	destination dests[CONN_DESTS_SIZE];
 	size_t destlen;
 	struct timeval lastwork;
+	unsigned int maxsenddelay;
 	char hadwork:1;
 	char isaggr:1;
 } connection;
@@ -296,8 +297,10 @@ dispatch_process_dests(connection *conn, dispatcher *self, struct timeval now)
 	char force;
 
 	if (conn->destlen > 0) {
-		/* force after 1 sec timeout */
-		force = timediff(conn->lastwork, now) > 1 * 1000 * 1000;
+		if (conn->maxsenddelay == 0)
+			conn->maxsenddelay = ((rand() % 750) + 250) * 1000;
+		/* force after timeout */
+		force = timediff(conn->lastwork, now) > conn->maxsenddelay;
 		for (i = 0; i < conn->destlen; i++) {
 			if (server_send(conn->dests[i].dest, conn->dests[i].metric, force) == 0)
 				break;
@@ -415,6 +418,7 @@ dispatch_connection(connection *conn, dispatcher *self)
 
 				conn->hadwork = 1;
 				gettimeofday(&conn->lastwork, NULL);
+				conn->maxsenddelay = 0;
 				/* send the metric to where it is supposed to go */
 				if (dispatch_process_dests(conn, self, conn->lastwork) == 0)
 					break;
