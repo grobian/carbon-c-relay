@@ -293,9 +293,11 @@ inline static char
 dispatch_process_dests(connection *conn, dispatcher *self, struct timeval now)
 {
 	int i;
-	char force = timediff(conn->lastwork, now) > 1 * 1000 * 1000;  /* 1 sec timeout */
+	char force;
 
 	if (conn->destlen > 0) {
+		/* force after 1 sec timeout */
+		force = timediff(conn->lastwork, now) > 1 * 1000 * 1000;
 		for (i = 0; i < conn->destlen; i++) {
 			if (server_send(conn->dests[i].dest, conn->dests[i].metric, force) == 0)
 				break;
