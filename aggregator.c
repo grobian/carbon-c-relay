@@ -661,9 +661,8 @@ aggregator_get_received(aggregator *a)
 inline size_t
 aggregator_get_received_sub(aggregator *aggrs)
 {
-	size_t d = aggregator_get_received(aggrs);
-	size_t r = d - prevreceived;
-	prevreceived += d;
+	size_t r = aggregator_get_received(aggrs) - prevreceived;
+	prevreceived += r;
 	return r;
 }
 
@@ -688,9 +687,8 @@ aggregator_get_sent(aggregator *a)
 inline size_t
 aggregator_get_sent_sub(aggregator *aggrs)
 {
-	size_t d = aggregator_get_sent(aggrs);
-	size_t r = d - prevsent;
-	prevsent += d;
+	size_t r = aggregator_get_sent(aggrs) - prevsent;
+	prevsent += r;
 	return r;
 }
 
@@ -717,8 +715,7 @@ aggregator_get_dropped(aggregator *a)
 inline size_t
 aggregator_get_dropped_sub(aggregator *aggrs)
 {
-	size_t d = aggregator_get_dropped(aggrs);
-	size_t r = d - prevdropped;
-	prevdropped += d;
+	size_t r = aggregator_get_dropped(aggrs) - prevdropped;
+	prevdropped += r;
 	return r;
 }
