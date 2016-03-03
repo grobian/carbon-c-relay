@@ -566,6 +566,8 @@ dispatch_runner(void *arg)
 	} else if (self->type == CONNECTION) {
 		while (self->keep_running) {
 			work = 0;
+			self->state = RUNNING;
+
 			if (self->route_refresh_pending) {
 				self->routes = self->pending_routes;
 				self->pending_routes = NULL;
@@ -583,7 +585,6 @@ dispatch_runner(void *arg)
 					conn->takenby = 0;
 					continue;
 				}
-				self->state = RUNNING;
 				work += dispatch_connection(conn, self);
 			}
 			pthread_rwlock_unlock(&connectionslock);
