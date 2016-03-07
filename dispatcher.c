@@ -65,10 +65,15 @@ struct _dispatcher {
 	size_t metrics;
 	size_t blackholes;
 	size_t ticks;
+	size_t probes;
+	size_t work;
+	size_t sleeps;
 	size_t prevmetrics;
 	size_t prevblackholes;
 	size_t prevticks;
-	enum { RUNNING, SLEEPING } state;
+	size_t prevprobes;
+	size_t prevwork;
+	size_t prevsleeps;
 	char keep_running:1;
 	route *routes;
 	route *pending_routes;
@@ -520,16 +525,20 @@ dispatch_runner(void *arg)
 {
 	dispatcher *self = (dispatcher *)arg;
 	connection *conn;
-	int work;
 	int c;
 
 	self->metrics = 0;
 	self->blackholes = 0;
 	self->ticks = 0;
+	self->probes = 0;
+	self->work = 0;
+	self->sleeps = 0;
 	self->prevmetrics = 0;
 	self->prevblackholes = 0;
 	self->prevticks = 0;
-	self->state = SLEEPING;
+	self->prevprobes = 0;
+	self->prevwork = 0;
+	self->prevsleeps = 0;
 
 	if (self->type == LISTENER) {
 		struct pollfd ufds[sizeof(listeners) / sizeof(connection *)];
@@ -564,9 +573,10 @@ dispatch_runner(void *arg)
 			}
 		}
 	} else if (self->type == CONNECTION) {
+		int work;
+
 		while (self->keep_running) {
 			work = 0;
-			self->state = RUNNING;
 
 			if (self->route_refresh_pending) {
 				self->routes = self->pending_routes;
@@ -585,14 +595,17 @@ dispatch_runner(void *arg)
 					conn->takenby = 0;
 					continue;
 				}
+				self->probes++;
 				work += dispatch_connection(conn, self);
 			}
 			pthread_rwlock_unlock(&connectionslock);
 
-			self->state = SLEEPING;
+			self->work += work;
 			/* nothing done, avoid spinlocking */
-			if (self->keep_running && work == 0)
+			if (self->keep_running && work == 0) {
+				self->sleeps++;
 				usleep((100 + (rand() % 200)) * 1000);  /* 100ms - 300ms */
+			}
 		}
 	} else {
 		logerr("huh? unknown self type!\n");
@@ -772,15 +785,69 @@ dispatch_get_blackholes_sub(dispatcher *self)
 }
 
 /**
- * Returns whether this dispatcher is currently running, or not.  A
- * dispatcher is running when it is actively handling a connection, and
- * all tasks related to getting the data received in the place where it
- * should be.
+ * Returns the number of probes on connections that this dispatcher made
+ * since start.
  */
-inline char
-dispatch_busy(dispatcher *self)
+inline size_t
+dispatch_get_probes(dispatcher *self)
 {
-	return self->state == RUNNING;
+	return self->probes;
+}
+
+/**
+ * Returns the number of probes on connections that this dispatcher made
+ * since last call to this function.
+ */
+inline size_t
+dispatch_get_probes_sub(dispatcher *self)
+{
+	size_t d = self->probes - self->prevprobes;
+	self->prevprobes += d;
+	return d;
+}
+
+/**
+ * Returns the times that actual work on a connections was done by this
+ * dispatcher since start.
+ */
+inline size_t
+dispatch_get_work(dispatcher *self)
+{
+	return self->work;
+}
+
+/**
+ * Returns the times that actual work on a connections was done by this
+ * dispatcher since last call to this function.
+ */
+inline size_t
+dispatch_get_work_sub(dispatcher *self)
+{
+	size_t d = self->work - self->prevwork;
+	self->prevwork += d;
+	return d;
+}
+
+/**
+ * Returns the times that this dispatcher went to sleep due to
+ * insufficient work since start.
+ */
+inline size_t
+dispatch_get_sleeps(dispatcher *self)
+{
+	return self->sleeps;
+}
+
+/**
+ * Returns the times that this dispatcher went to sleep due to
+ * insufficient work since last call to this function.
+ */
+inline size_t
+dispatch_get_sleeps_sub(dispatcher *self)
+{
+	size_t d = self->sleeps - self->prevsleeps;
+	self->prevsleeps += d;
+	return d;
 }
 
 /**
