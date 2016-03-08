@@ -370,6 +370,7 @@ aggregator_expire(void *sub)
 	double *values;
 	size_t len = 0;
 	int i;
+	size_t k;
 	unsigned char j;
 	int work;
 	char metric[METRIC_BUFSIZ];
@@ -464,8 +465,8 @@ aggregator_expire(void *sub)
 										double avg = b->sum / (double)b->cnt;
 										double ksum = 0;
 										values = b->entries.values;
-										for (i = 0; i < b->cnt; i++)
-											ksum += pow(values[i] - avg, 2);
+										for (k = 0; k < b->cnt; k++)
+											ksum += pow(values[k] - avg, 2);
 										ksum /= (double)b->cnt;
 										len = snprintf(metric, sizeof(metric),
 												"%s %f %lld\n",
