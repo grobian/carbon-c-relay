@@ -115,24 +115,24 @@ relaylog(enum logdst dest, const char *fmt, ...)
 static void
 exit_handler(int sig)
 {
-	char *signal = "unknown signal";
+	char *sign = "unknown signal";
 
 	switch (sig) {
 		case SIGTERM:
-			signal = "SIGTERM";
+			sign = "SIGTERM";
 			break;
 		case SIGINT:
-			signal = "SIGINT";
+			sign = "SIGINT";
 			break;
 		case SIGQUIT:
-			signal = "SIGQUIT";
+			sign = "SIGQUIT";
 			break;
 	}
 	if (keep_running) {
-		logout("caught %s\n", signal);
+		logout("caught %s\n", sign);
 	} else {
 		logerr("caught %s while already shutting down, "
-				"forcing exit!\n", signal);
+				"forcing exit!\n", sign);
 		exit(1);
 	}
 	keep_running = 0;

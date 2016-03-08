@@ -82,7 +82,7 @@ server_queuereader(void *d)
 	const char **metric = self->batch;
 	struct timeval start, stop;
 	struct timeval timeout;
-	queue *queue;
+	queue *squeue;
 	char idle = 0;
 	size_t *secpos = NULL;
 
@@ -163,14 +163,14 @@ server_queuereader(void *d)
 			 * - do nothing (we will overflow, since we can't send
 			 *   anywhere) */
 			*metric = NULL;
-			queue = NULL;
+			squeue = NULL;
 			for (i = 0; i < self->secondariescnt; i++) {
 				/* both conditions below make sure we skip ourself */
 				if (self->secondaries[secpos[i]]->failure)
 					continue;
-				queue = self->secondaries[secpos[i]]->queue;
-				if (!self->failover && LEN_CRITICAL(queue)) {
-					queue = NULL;
+				squeue = self->secondaries[secpos[i]]->queue;
+				if (!self->failover && LEN_CRITICAL(squeue)) {
+					squeue = NULL;
 					continue;
 				}
 				if (*metric == NULL) {
@@ -182,7 +182,7 @@ server_queuereader(void *d)
 				}
 
 				for (; *metric != NULL; metric++)
-					if (!queue_putback(queue, *metric))
+					if (!queue_putback(squeue, *metric))
 						break;
 				/* try to put back stuff that didn't fit */
 				for (; *metric != NULL; metric++)
@@ -197,7 +197,7 @@ server_queuereader(void *d)
 			}
 			gettimeofday(&stop, NULL);
 			self->ticks += timediff(start, stop);
-			if (queue == NULL) {
+			if (squeue == NULL) {
 				/* we couldn't do anything, take it easy for a bit */
 				if (self->failure)
 					self->failure = 1;

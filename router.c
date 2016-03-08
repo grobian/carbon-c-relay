@@ -1790,7 +1790,7 @@ router_getservers(cluster *clusters)
  * thousands.
  */
 void
-router_printconfig(FILE *f, char mode, cluster *clusters, route *routes)
+router_printconfig(FILE *f, char pmode, cluster *clusters, route *routes)
 {
 	cluster *c;
 	route *r;
@@ -1836,7 +1836,7 @@ router_printconfig(FILE *f, char mode, cluster *clusters, route *routes)
 						PPROTO);
 		}
 		fprintf(f, "    ;\n");
-		if (mode & 2) {
+		if (pmode & 2) {
 			if (c->type == CARBON_CH ||
 					c->type == FNV1A_CH ||
 					c->type == JUMP_CH)
@@ -1854,10 +1854,10 @@ router_printconfig(FILE *f, char mode, cluster *clusters, route *routes)
 			char stubname[48];
 			char percentile[16];
 
-			if (!(mode & 1))
+			if (!(pmode & 1))
 				continue;
 
-			if (mode & 2 || r->dests->next == NULL) {
+			if (pmode & 2 || r->dests->next == NULL) {
 				stubname[0] = '\0';
 			} else {
 				snprintf(stubname, sizeof(stubname),
@@ -1898,7 +1898,7 @@ router_printconfig(FILE *f, char mode, cluster *clusters, route *routes)
 						"<unknown>",
 						ac->metric + strlen(stubname));
 			}
-			if (!(mode & 2) && r->dests->next != NULL) {
+			if (!(pmode & 2) && r->dests->next != NULL) {
 				destinations *dn = r->dests->next;
 				fprintf(f, "    send to");
 				if (dn->next == NULL) {
@@ -1930,7 +1930,7 @@ router_printconfig(FILE *f, char mode, cluster *clusters, route *routes)
 					"contains %zu aggregations/matches\n",
 					++b, cnt);
 		} else if (r->dests->cl->type == AGGRSTUB) {
-			if (mode & 2) {
+			if (pmode & 2) {
 				fprintf(f, "# stub match for aggregate rule with send to\n");
 				fprintf(f, "match ^%s\n    send to", r->pattern);
 				if (r->dests->cl->members.routes->dests->next == NULL) {
@@ -2549,8 +2549,6 @@ router_test_intern(char *metric, char *firstspace, route *routes)
 				switch (d->cl->type) {
 					case AGGREGATION: {
 						struct _aggr_computes *ac;
-						char newmetric[METRIC_BUFSIZ];
-						char *newfirstspace = NULL;
 						int stublen = 0;
 						char percentile[16];
 
