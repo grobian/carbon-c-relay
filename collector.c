@@ -50,8 +50,6 @@ collector_runner(void *s)
 	size_t totqueued;
 	size_t totstalls;
 	size_t totdropped;
-	size_t totprobes;
-	size_t totwork;
 	size_t totsleeps;
 	size_t ticks;
 	size_t metrics;
@@ -59,8 +57,6 @@ collector_runner(void *s)
 	size_t queued;
 	size_t stalls;
 	size_t dropped;
-	size_t probes;
-	size_t work;
 	size_t sleeps;
 	time_t now;
 	time_t nextcycle;
@@ -80,8 +76,6 @@ collector_runner(void *s)
 	size_t (*d_ticks)(dispatcher *);
 	size_t (*d_metrics)(dispatcher *);
 	size_t (*d_blackholes)(dispatcher *);
-	size_t (*d_probes)(dispatcher *);
-	size_t (*d_work)(dispatcher *);
 	size_t (*d_sleeps)(dispatcher *);
 	size_t (*a_received)(aggregator *);
 	size_t (*a_sent)(aggregator *);
@@ -105,8 +99,6 @@ collector_runner(void *s)
 		d_ticks = dispatch_get_ticks_sub;
 		d_metrics = dispatch_get_metrics_sub;
 		d_blackholes = dispatch_get_blackholes_sub;
-		d_probes = dispatch_get_probes_sub;
-		d_work = dispatch_get_work_sub;
 		d_sleeps = dispatch_get_sleeps_sub;
 		a_received = aggregator_get_received_sub;
 		a_sent = aggregator_get_sent_sub;
@@ -119,8 +111,6 @@ collector_runner(void *s)
 		d_ticks = dispatch_get_ticks;
 		d_metrics = dispatch_get_metrics;
 		d_blackholes = dispatch_get_blackholes;
-		d_probes = dispatch_get_probes;
-		d_work = dispatch_get_work;
 		d_sleeps = dispatch_get_sleeps;
 		a_received = aggregator_get_received;
 		a_sent = aggregator_get_sent;
@@ -153,12 +143,8 @@ collector_runner(void *s)
 		totticks = 0;
 		totmetrics = 0;
 		totblackholes = 0;
-		totprobes = 0;
-		totwork = 0;
 		totsleeps = 0;
 		for (i = 0; dispatchers[i] != NULL; i++) {
-			totprobes += probes = d_probes(dispatchers[i]);
-			totwork += work = d_work(dispatchers[i]);
 			totsleeps += sleeps = d_sleeps(dispatchers[i]);
 			totticks += ticks = d_ticks(dispatchers[i]);
 			totmetrics += metrics = d_metrics(dispatchers[i]);
@@ -172,13 +158,7 @@ collector_runner(void *s)
 			snprintf(m, sizem, "dispatcher%d.wallTime_us %zu %zu\n",
 					i + 1, ticks, (size_t)now);
 			send(metric);
-			snprintf(m, sizem, "dispatcher%d.probes %zu %zu\n",
-					i + 1, probes, (size_t)now);
-			send(metric);
-			snprintf(m, sizem, "dispatcher%d.work %zu %zu\n",
-					i + 1, work, (size_t)now);
-			send(metric);
-			snprintf(m, sizem, "dispatcher%d.sleeps %zu %zu\n",
+			snprintf(m, sizem, "dispatcher%d.sleepTime_us %zu %zu\n",
 					i + 1, sleeps, (size_t)now);
 			send(metric);
 		}
@@ -191,13 +171,7 @@ collector_runner(void *s)
 		snprintf(m, sizem, "dispatch_wallTime_us %zu %zu\n",
 				totticks, (size_t)now);
 		send(metric);
-		snprintf(m, sizem, "dispatch_probes %zu %zu\n",
-				totprobes, (size_t)now);
-		send(metric);
-		snprintf(m, sizem, "dispatch_work %zu %zu\n",
-				totwork, (size_t)now);
-		send(metric);
-		snprintf(m, sizem, "dispatch_sleeps %zu %zu\n",
+		snprintf(m, sizem, "dispatch_sleepTime_us %zu %zu\n",
 				totsleeps, (size_t)now);
 		send(metric);
 
@@ -338,13 +312,13 @@ collector_writer(void *unused)
 			size_t totin;
 			size_t totconn;
 			size_t totdisc;
-			size_t dprobes;
-			size_t dwork;
+			size_t dticks;
+			size_t dsleeps;
 			int j;
 			/* Solaris iostat like output:
  metrics in     metrics out    metrics drop  queue    conns     disconn   workr
   mps     tot    mps     tot    dps     tot    cur  cps   tot  dps   tot  act
-99999 9999999  99999 9999999  99999 9999999  99999  999 99999  999 99999  999%
+99999 9999999  99999 9999999  99999 9999999  99999  999 99999  999 99999  99%
 			 */
 			if (i % 24 == 0)
 				printf(" metrics in     metrics out    metrics drop  queue    conns     disconn   workr\n"
@@ -363,13 +337,13 @@ collector_writer(void *unused)
 				totqueue += server_get_queue_len(srvs[j]);
 			}
 			mpsin = totin = 0;
-			dprobes = dwork = 0;
+			dticks = dsleeps = 0;
 			for (j = 0; dispatchers[j] != NULL; j++) {
 				mpsin += dispatch_get_metrics_sub(dispatchers[j]);
 				totin += dispatch_get_metrics(dispatchers[j]);
 
-				dprobes += dispatch_get_probes_sub(dispatchers[j]);
-				dwork += dispatch_get_work_sub(dispatchers[j]);
+				dticks += dispatch_get_ticks_sub(dispatchers[j]);
+				dsleeps += dispatch_get_sleeps_sub(dispatchers[j]);
 			}
 			totconn = dispatch_get_accepted_connections();
 			totdisc = dispatch_get_closed_connections();
@@ -379,14 +353,14 @@ collector_writer(void *unused)
 					"%5zu  "       /* queue */
 					"%3zu %5zu  "  /* conns */
 					"%3zu %5zu  "  /* disconns */
-					"%3d%%\n",     /* workers */
+					"%2d%%\n",     /* workers */
 					mpsin, totin,
 					mpsout, totout,
 					mpsdrop, totdrop,
 					totqueue,
 					totconn - lastconn, totconn,
 					totdisc - lastdisc, totdisc,
-					(int)(((double)dwork * 100.0) / (double)dprobes)
+					(int)(((double)dticks * 100.0) / (double)(dticks + dsleeps))
 				  );
 			lastconn = totconn;
 			lastdisc = totdisc;

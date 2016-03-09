@@ -65,14 +65,10 @@ struct _dispatcher {
 	size_t metrics;
 	size_t blackholes;
 	size_t ticks;
-	size_t probes;
-	size_t work;
 	size_t sleeps;
 	size_t prevmetrics;
 	size_t prevblackholes;
 	size_t prevticks;
-	size_t prevprobes;
-	size_t prevwork;
 	size_t prevsleeps;
 	char keep_running:1;
 	route *routes;
@@ -348,22 +344,16 @@ dispatch_process_dests(connection *conn, dispatcher *self, struct timeval now)
  *      block reads
  */
 static int
-dispatch_connection(connection *conn, dispatcher *self)
+dispatch_connection(connection *conn, dispatcher *self, struct timeval start)
 {
 	char *p, *q, *firstspace, *lastnl;
 	int len;
-	struct timeval start, stop;
 
-	gettimeofday(&start, NULL);
 	/* first try to resume any work being blocked */
 	if (dispatch_process_dests(conn, self, start) == 0) {
-		gettimeofday(&stop, NULL);
-		self->ticks += timediff(start, stop);
 		conn->takenby = 0;
 		return 0;
 	}
-	gettimeofday(&stop, NULL);
-	self->ticks += timediff(start, stop);
 
 	/* don't poll (read) when the last time we ran nothing happened,
 	 * this is to avoid excessive CPU usage, issue #126 */
@@ -373,7 +363,6 @@ dispatch_connection(connection *conn, dispatcher *self)
 	}
 	conn->hadwork = 0;
 
-	gettimeofday(&start, NULL);
 	len = -2;
 	/* try to read more data, if that succeeds, or we still have data
 	 * left in the buffer, try to process the buffer */
@@ -469,13 +458,13 @@ dispatch_connection(connection *conn, dispatcher *self)
 			memmove(conn->buf, lastnl + 1, conn->buflen);
 		}
 	}
-	gettimeofday(&stop, NULL);
-	self->ticks += timediff(start, stop);
 	if (len == -1 && (errno == EINTR ||
 				errno == EAGAIN ||
 				errno == EWOULDBLOCK))
 	{
 		/* nothing available/no work done */
+		struct timeval stop;
+		gettimeofday(&stop, NULL);
 		if (!conn->noexpire &&
 				timediff(conn->lastwork, stop) > IDLE_DISCONNECT_TIME)
 		{
@@ -530,14 +519,10 @@ dispatch_runner(void *arg)
 	self->metrics = 0;
 	self->blackholes = 0;
 	self->ticks = 0;
-	self->probes = 0;
-	self->work = 0;
 	self->sleeps = 0;
 	self->prevmetrics = 0;
 	self->prevblackholes = 0;
 	self->prevticks = 0;
-	self->prevprobes = 0;
-	self->prevwork = 0;
 	self->prevsleeps = 0;
 
 	if (self->type == LISTENER) {
@@ -574,6 +559,7 @@ dispatch_runner(void *arg)
 		}
 	} else if (self->type == CONNECTION) {
 		int work;
+		struct timeval start, stop;
 
 		while (self->keep_running) {
 			work = 0;
@@ -595,16 +581,19 @@ dispatch_runner(void *arg)
 					conn->takenby = 0;
 					continue;
 				}
-				self->probes++;
-				work += dispatch_connection(conn, self);
+				gettimeofday(&start, NULL);
+				work += dispatch_connection(conn, self, start);
+				gettimeofday(&stop, NULL);
+				self->ticks += timediff(start, stop);
 			}
 			pthread_rwlock_unlock(&connectionslock);
 
-			self->work += work;
 			/* nothing done, avoid spinlocking */
 			if (self->keep_running && work == 0) {
-				self->sleeps++;
+				gettimeofday(&start, NULL);
 				usleep((100 + (rand() % 200)) * 1000);  /* 100ms - 300ms */
+				gettimeofday(&stop, NULL);
+				self->sleeps += timediff(start, stop);
 			}
 		}
 	} else {
@@ -742,6 +731,28 @@ dispatch_get_ticks_sub(dispatcher *self)
 }
 
 /**
+ * Returns the wall-clock time in milliseconds consumed while sleeping
+ * by this dispatcher.
+ */
+inline size_t
+dispatch_get_sleeps(dispatcher *self)
+{
+	return self->sleeps;
+}
+
+/**
+ * Returns the wall-clock time consumed while sleeping since last call
+ * to this function.
+ */
+inline size_t
+dispatch_get_sleeps_sub(dispatcher *self)
+{
+	size_t d = self->sleeps - self->prevsleeps;
+	self->prevsleeps += d;
+	return d;
+}
+
+/**
  * Returns the number of metrics dispatched since start.
  */
 inline size_t
@@ -781,72 +792,6 @@ dispatch_get_blackholes_sub(dispatcher *self)
 {
 	size_t d = self->blackholes - self->prevblackholes;
 	self->prevblackholes += d;
-	return d;
-}
-
-/**
- * Returns the number of probes on connections that this dispatcher made
- * since start.
- */
-inline size_t
-dispatch_get_probes(dispatcher *self)
-{
-	return self->probes;
-}
-
-/**
- * Returns the number of probes on connections that this dispatcher made
- * since last call to this function.
- */
-inline size_t
-dispatch_get_probes_sub(dispatcher *self)
-{
-	size_t d = self->probes - self->prevprobes;
-	self->prevprobes += d;
-	return d;
-}
-
-/**
- * Returns the times that actual work on a connections was done by this
- * dispatcher since start.
- */
-inline size_t
-dispatch_get_work(dispatcher *self)
-{
-	return self->work;
-}
-
-/**
- * Returns the times that actual work on a connections was done by this
- * dispatcher since last call to this function.
- */
-inline size_t
-dispatch_get_work_sub(dispatcher *self)
-{
-	size_t d = self->work - self->prevwork;
-	self->prevwork += d;
-	return d;
-}
-
-/**
- * Returns the times that this dispatcher went to sleep due to
- * insufficient work since start.
- */
-inline size_t
-dispatch_get_sleeps(dispatcher *self)
-{
-	return self->sleeps;
-}
-
-/**
- * Returns the times that this dispatcher went to sleep due to
- * insufficient work since last call to this function.
- */
-inline size_t
-dispatch_get_sleeps_sub(dispatcher *self)
-{
-	size_t d = self->sleeps - self->prevsleeps;
-	self->prevsleeps += d;
 	return d;
 }
 
