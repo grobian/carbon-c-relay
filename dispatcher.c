@@ -571,6 +571,7 @@ dispatch_runner(void *arg)
 				self->hold = 0;
 			}
 
+			gettimeofday(&start, NULL);
 			pthread_rwlock_rdlock(&connectionslock);
 			for (c = 0; c < connectionslen; c++) {
 				conn = &(connections[c]);
@@ -581,12 +582,11 @@ dispatch_runner(void *arg)
 					conn->takenby = 0;
 					continue;
 				}
-				gettimeofday(&start, NULL);
 				work += dispatch_connection(conn, self, start);
-				gettimeofday(&stop, NULL);
-				self->ticks += timediff(start, stop);
 			}
 			pthread_rwlock_unlock(&connectionslock);
+			gettimeofday(&stop, NULL);
+			self->ticks += timediff(start, stop);
 
 			/* nothing done, avoid spinlocking */
 			if (self->keep_running && work == 0) {
