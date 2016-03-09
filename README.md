@@ -567,21 +567,6 @@ namespace:
   client.  The idle connections disconnect in the relay here is to guard
   against resource drain in such scenarios.
 
-* dispatch\_busy
-
-  The number of dispatchers actively doing work at the moment of the
-  sample.  This is just an indication of the work pressure on the relay.
-
-* dispatch\_idle
-
-  The number of dispatchers sleeping at the moment of the sample.  When
-  this number nears 0, dispatch\_busy should be high.  When the
-  configured number of worker threads is low, this might mean more
-  worker threads should be added (if the system allows it) or the relay
-  is reaching its limits with regard to how much it can process.  A
-  relay with no idle dispatchers will likely appear slow for clients,
-  for the relay has too much work to serve them instantly.
-
 * dispatch\_wallTime\_us
 
   The number of microseconds spent by the dispatchers to do their work.
@@ -591,7 +576,20 @@ namespace:
   from a socket, cleaning up the input metric, to adding the metric to
   the appropriate queues.  The larger the configuration, and more
   complex in terms of matches, the more time the dispatchers will spend
-  on the cpu.
+  on the cpu.  But also time they do /not/ spend on the cpu is included
+  in this number.  It is the pure wallclock time the dispatcher was
+  serving a client.
+
+* dispatch\_sleepTime\_us
+
+  The number of microseconds spent by the dispatchers sleeping waiting
+  for work.  When this value gets small (or even zero) the dispatcher
+  has so much work that it doesn't sleep any more, and likely can't
+  process the work in a timely fashion any more.  This value plus the
+  wallTime from above sort of sums up to the total uptime taken by this
+  dispatcher.  Therefore, expressing the wallTime as percentage of this
+  sum gives the busyness percentage draining all the way up to 100% if
+  sleepTime goes to 0.
 
 * server\_wallTime\_us
 
