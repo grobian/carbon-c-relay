@@ -477,7 +477,15 @@ aggregator_expire(void *sub)
 									default:
 									   assert(0);  /* for compiler (len) */
 								}
-								if (write(s->fd, metric, len) != len) {
+								ts = write(s->fd, metric, len);
+								if (ts < 0) {
+									logerr("aggregator: failed to write to "
+											"pipe (fd=%d): %s\n",
+											s->fd, strerror(errno));
+									s->dropped++;
+								} else if (ts < len) {
+									logerr("aggregator: uncomplete write on "
+											"pipe (fd=%d)\n", s->fd);
 									s->dropped++;
 								} else {
 									s->sent++;
