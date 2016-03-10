@@ -440,10 +440,9 @@ aggregator_expire(void *sub)
 										break;
 									case MEDN:
 										/* median == 50th percentile */
-									case PCTL: {
+									case PCTL:
 										/* nearest rank method */
-										size_t n =
-											(int)(((double)c->percentile/100.0 *
+										k = (int)(((double)c->percentile/100.0 *
 														(double)b->cnt) + 0.9);
 										values = b->entries.values;
 										/* TODO: lazy approach, in case
@@ -457,9 +456,9 @@ aggregator_expire(void *sub)
 										len = snprintf(metric, sizeof(metric),
 												"%s %f %lld\n",
 												inv->metric,
-												values[n - 1],
+												values[k - 1],
 												ts);
-									}	break;
+										break;
 									case VAR:
 									case SDEV: {
 										double avg = b->sum / (double)b->cnt;
