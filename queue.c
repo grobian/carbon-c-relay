@@ -65,6 +65,10 @@ queue_new(size_t size)
 void
 queue_destroy(queue *q)
 {
+	const char *p
+	/* drain queue not to leak the memory consumed by pending metrics */
+	while ((p = queue_dequeue(q)) != NULL)
+		free((char *)p);
 	q->len = 0;
 	pthread_mutex_destroy(&q->lock);
 	free(q->queue);

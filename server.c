@@ -618,9 +618,6 @@ server_shutdown(server *s)
 			logerr("dropping %zu metrics for %s:%u\n",
 					qlen, s->ip, s->port);
 	}
-	/* drain queue not to leak the memory consumed by pending metrics */
-	while ((p = queue_dequeue(s->queue)) != NULL)
-		free((char *)p);
 	queue_destroy(s->queue);
 	free(s->batch);
 	if (s->instance)
