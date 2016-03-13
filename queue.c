@@ -65,7 +65,8 @@ queue_new(size_t size)
 void
 queue_destroy(queue *q)
 {
-	const char *p
+	const char *p;
+
 	/* drain queue not to leak the memory consumed by pending metrics */
 	while ((p = queue_dequeue(q)) != NULL)
 		free((char *)p);
