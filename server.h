@@ -37,6 +37,7 @@ void server_set_failover(server *d);
 void server_set_instance(server *d, char *inst);
 char server_send(server *s, const char *d, char force);
 void server_shutdown(server *s);
+void server_free(server *s);
 const char *server_ip(server *s);
 unsigned short server_port(server *s);
 char *server_instance(server *s);

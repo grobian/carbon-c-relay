@@ -703,7 +703,7 @@ main(int argc, char * const argv[])
 	/* since workers will be freed, stop querying the structures */
 	collector_stop();
 	server_shutdown(internal_submission);
-	free(internal_submission);
+	server_free(internal_submission);
 	logout("stopped collector\n");
 	if (numaggregators > 0) {
 		aggregator_stop();

@@ -608,6 +608,13 @@ server_shutdown(server *s)
 			logerr("dropping %zu metrics for %s:%u\n",
 					qlen, s->ip, s->port);
 	}
+}
+
+/**
+ * Frees this server and associated resources.
+ */
+void
+server_free(server *s) {
 	queue_destroy(s->queue);
 	free(s->batch);
 	if (s->instance)
@@ -616,6 +623,7 @@ server_shutdown(server *s)
 		freeaddrinfo(s->saddr);
 	free((char *)s->ip);
 	s->ip = NULL;
+	free(s);
 }
 
 /**

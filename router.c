@@ -2020,7 +2020,7 @@ router_free(cluster *clusters, route *routes)
 				while (clusters->members.ch->servers) {
 					s = clusters->members.ch->servers->next;
 					server_shutdown(clusters->members.ch->servers);
-					free(clusters->members.ch->servers);
+					server_free(clusters->members.ch->servers);
 					clusters->members.ch->servers = s;
 				}
 				free(clusters->members.ch);
@@ -2031,7 +2031,7 @@ router_free(cluster *clusters, route *routes)
 			case BLACKHOLE:
 				while (clusters->members.forward) {
 					server_shutdown(clusters->members.forward->server);
-					free(clusters->members.forward->server);
+					server_free(clusters->members.forward->server);
 
 					s = clusters->members.forward->next;
 					free(clusters->members.forward);
@@ -2045,7 +2045,7 @@ router_free(cluster *clusters, route *routes)
 				for (s = clusters->members.anyof->list; s != NULL; s = s->next)
 					server_shutdown(s->server);
 				while (clusters->members.anyof->list) {
-					free(clusters->members.anyof->list->server);
+					server_free(clusters->members.anyof->list->server);
 
 					s = clusters->members.anyof->list->next;
 					free(clusters->members.anyof->list);
