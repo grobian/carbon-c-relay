@@ -724,6 +724,7 @@ main(int argc, char * const argv[])
 		dispatch_stop(workers[id + 0]);
 	for (id = 0; id < 1 + workercnt; id++) {
 		dispatch_shutdown(workers[id + 0]);
+		dispatch_free(workers[id + 0]);
 		fprintf(relay_stdout, " %d", id + 1);
 		fflush(relay_stdout);
 	}

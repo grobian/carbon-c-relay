@@ -34,6 +34,7 @@ dispatcher *dispatch_new_listener(void);
 dispatcher *dispatch_new_connection(route *routes, char *allowed_chars);
 void dispatch_stop(dispatcher *d);
 void dispatch_shutdown(dispatcher *d);
+void dispatch_free(dispatcher *d);
 size_t dispatch_get_ticks(dispatcher *self);
 size_t dispatch_get_metrics(dispatcher *self);
 size_t dispatch_get_blackholes(dispatcher *self);

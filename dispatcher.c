@@ -664,14 +664,22 @@ dispatch_stop(dispatcher *d)
 }
 
 /**
- * Shuts down and frees up dispatcher d.  Returns when the dispatcher
- * has terminated.
+ * Shuts down dispatcher d.  Returns when the dispatcher has terminated.
  */
 void
 dispatch_shutdown(dispatcher *d)
 {
 	dispatch_stop(d);
 	pthread_join(d->tid, NULL);
+}
+
+/**
+ * Free up resources taken by dispatcher d.  The caller should make sure
+ * the dispatcher has been shut down at this point.
+ */
+void
+dispatch_free(dispatcher *d)
+{
 	free(d);
 }
 
