@@ -200,13 +200,13 @@ collector_runner(void *s)
 
 		/* exclude internal_submission metrics from the totals to avoid
 		 * artificial doubles due to internal routing details */
-		strncpy(ipbuf, "internal", sizeof(ipbuf));
 		ticks = s_ticks(submission);
 		metrics = s_metrics(submission);
 		queued = server_get_queue_len(submission);
 		stalls = s_stalls(submission);
 		dropped = s_dropped(submission);
-		send_server_metrics(ipbuf, ticks, metrics, queued, stalls, dropped);
+		send_server_metrics(server_ip(submission),
+				ticks, metrics, queued, stalls, dropped);
 
 		for (i = 0; srvs[i] != NULL; i++) {
 			if (server_ctype(srvs[i]) == CON_FILE) {
