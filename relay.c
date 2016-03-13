@@ -147,7 +147,6 @@ hup_handler(int sig)
 	int id;
 	FILE *newfd;
 	size_t numaggregators;
-	size_t i;
 
 	logout("caught SIGHUP...\n");
 	if (relay_stderr != stderr) {
@@ -295,7 +294,6 @@ main(int argc, char * const argv[])
 	size_t numaggregators;
 	char *listeninterface = NULL;
 	char *allowed_chars = NULL;
-	int i;
 	enum { SUB, CUM } smode = CUM;
 	char *pidfile = NULL;
 	FILE *pidfile_handle = NULL;
