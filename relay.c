@@ -147,7 +147,6 @@ hup_handler(int sig)
 	int id;
 	FILE *newfd;
 	size_t numaggregators;
-	server **servers;
 	size_t i;
 
 	logout("caught SIGHUP...\n");
@@ -295,7 +294,6 @@ main(int argc, char * const argv[])
 	int ch;
 	size_t numaggregators;
 	char *listeninterface = NULL;
-	server **servers;
 	char *allowed_chars = NULL;
 	int i;
 	enum { SUB, CUM } smode = CUM;
