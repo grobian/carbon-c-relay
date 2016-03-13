@@ -209,11 +209,19 @@ collector_runner(void *s)
 				ticks, metrics, queued, stalls, dropped);
 
 		for (i = 0; srvs[i] != NULL; i++) {
-			if (server_ctype(srvs[i]) == CON_FILE) {
-				strncpy(ipbuf, server_ip(srvs[i]), sizeof(ipbuf));
-			} else {
-				snprintf(ipbuf, sizeof(ipbuf), "%s:%u",
-						server_ip(srvs[i]), server_port(srvs[i]));
+			switch (server_ctype(srvs[i])) {
+				case CON_FILE:
+				case CON_PIPE:
+					strncpy(ipbuf, server_ip(srvs[i]), sizeof(ipbuf));
+					break;
+				case CON_TCP:
+					snprintf(ipbuf, sizeof(ipbuf), "%s:%u",
+							server_ip(srvs[i]), server_port(srvs[i]));
+					break;
+				case CON_UDP:
+					snprintf(ipbuf, sizeof(ipbuf), "%s:%u-udp",
+							server_ip(srvs[i]), server_port(srvs[i]));
+					break;
 			}
 			for (p = ipbuf; *p != '\0'; p++)
 				if (*p == '.')
