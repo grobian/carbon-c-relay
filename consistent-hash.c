@@ -470,7 +470,8 @@ ch_gethashpos(ch_ring *ring, const char *key, const char *end)
 }
 
 /**
- * Frees the ring structure and its added nodes.
+ * Frees the ring structure and its added nodes, leaves the referenced
+ * servers untouched.
  */
 void
 ch_free(ch_ring *ring)
@@ -480,7 +481,6 @@ ch_free(ch_ring *ring)
 
 	for (; ring->entries != NULL; ring->entries = ring->entries->next) {
 		if (ring->entries->malloced) {
-			server_shutdown(ring->entries->server);
 			free(ring->entries->server);
 
 			if (deletes == NULL) {

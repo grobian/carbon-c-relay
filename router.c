@@ -2019,6 +2019,7 @@ router_free(cluster *clusters, route *routes)
 				ch_free(clusters->members.ch->ring);
 				while (clusters->members.ch->servers) {
 					s = clusters->members.ch->servers->next;
+					server_shutdown(clusters->members.ch->servers);
 					free(clusters->members.ch->servers);
 					clusters->members.ch->servers = s;
 				}
