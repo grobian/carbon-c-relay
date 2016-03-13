@@ -561,7 +561,6 @@ server_shutdown(server *s)
 	size_t failures;
 	size_t inqueue;
 	int err;
-	const char *p;
 
 	/* this function should only be called once for each server */
 	assert(s->tid != 0);
