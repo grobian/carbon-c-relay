@@ -487,8 +487,7 @@ server_new(
 /**
  * Adds a list of secondary servers to this server.  A secondary server
  * is a server which' queue will be checked when this server has nothing
- * to do.  This is different from a backup server in that all servers
- * involved have their own queue which they are supposed to deal with.
+ * to do.
  */
 void
 server_add_secondaries(server *self, server **secondaries, size_t count)
