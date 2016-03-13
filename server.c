@@ -551,16 +551,6 @@ server_send(server *s, const char *d, char force)
 }
 
 /**
- * Signals this server to stop whatever it's doing.
- */
-void
-server_stop(server *s)
-{
-	if (s->secondariescnt == 0)
-		s->keep_running = 0;
-}
-
-/**
  * Waits for this server to finish sending pending items from its queue.
  */
 void

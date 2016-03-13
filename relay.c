@@ -219,10 +219,6 @@ hup_handler(int sig)
 			usleep((100 + (rand() % 200)) * 1000);  /* 100ms - 300ms */
 	}
 
-	servers = router_getservers(clusters);
-	for (i = 0; servers[i] != NULL; i++)
-		server_stop(servers[i]);
-	free(servers);
 	router_free(clusters, routes);
 
 	routes = newroutes;
@@ -732,10 +728,6 @@ main(int argc, char * const argv[])
 	fflush(relay_stdout);
 	free(workers);
 
-	servers = router_getservers(clusters);
-	for (i = 0; servers[i] != NULL; i++)
-		server_stop(servers[i]);
-	free(servers);
 	router_free(clusters, routes);
 	logout("stopped servers\n");
 
