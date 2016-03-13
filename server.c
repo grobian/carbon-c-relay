@@ -29,6 +29,7 @@
 #include <netdb.h>
 #include <arpa/inet.h>
 #include <sys/resource.h>
+#include <assert.h>
 
 #include "relay.h"
 #include "queue.h"
@@ -557,17 +558,13 @@ void
 server_shutdown(server *s)
 {
 	int i;
-	pthread_t tid;
 	size_t failures;
 	size_t inqueue;
 	int err;
 	const char *p;
 
-	if (s->tid == 0)
-		return;
-
-	tid = s->tid;
-	s->tid = 0;
+	/* this function should only be called once for each server */
+	assert(s->tid != 0);
 
 	if (s->secondariescnt > 0) {
 		/* if we have a working connection, or we still have stuff in
@@ -598,9 +595,10 @@ server_shutdown(server *s)
 	}
 
 	s->keep_running = 0;
-	if ((err = pthread_join(tid, NULL)) != 0)
+	if ((err = pthread_join(s->tid, NULL)) != 0)
 		logerr("%s:%u: failed to join server thread: %s\n",
 				s->ip, s->port, strerror(err));
+	s->tid = 0;
 
 	if (s->ctype == CON_TCP) {
 		size_t qlen = queue_len(s->queue);
