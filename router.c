@@ -105,8 +105,6 @@ struct _route {
 	struct _route *next;
 };
 
-static char keep_running = 1;
-
 /* custom constant, meant to force regex mode matching */
 #define REG_FORCE   01000000
 
@@ -2268,7 +2266,7 @@ router_route_intern(
 	}
 
 
-	for (w = r; w != NULL && keep_running; w = w->next) {
+	for (w = r; w != NULL; w = w->next) {
 		if (w->dests->cl->type == GROUP) {
 			/* strrstr doesn't exist, grrr
 			 * therefore the pattern in the group is stored in reverse,
@@ -2724,10 +2722,4 @@ router_test(char *metric, route *routes)
 		fprintf(stdout, "nothing matched %s\n", metric);
 	}
 	fflush(stdout);
-}
-
-void
-router_shutdown(void)
-{
-	keep_running = 0;
 }

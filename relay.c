@@ -731,7 +731,6 @@ main(int argc, char * const argv[])
 	fflush(relay_stdout);
 	free(workers);
 
-	router_shutdown();
 	servers = router_getservers(clusters);
 	for (i = 0; servers[i] != NULL; i++)
 		server_stop(servers[i]);

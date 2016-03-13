@@ -42,7 +42,6 @@ void router_printconfig(FILE *f, char mode, cluster *clusters, route *routes);
 char router_route(destination ret[], size_t *retcnt, size_t retsize, char *srcaddr, char *metric, char *firstspace, route *routes);
 void router_test(char *metric_path, route *routes);
 server **router_getservers(cluster *clusters);
-void router_shutdown(void);
 void router_free(cluster *clusters, route *r);
 
 #endif
