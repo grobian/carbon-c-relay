@@ -5,23 +5,25 @@
 ### Breaking Changes
 
 ### Enhancements
+* **collector** UDP connections are now suffixed with `-udp` in
+  destination target
 
 ### Bugfixes
 
 # 1.10 (09-03-2016)
 
 ### Breaking Changes
-* **statistics** dispatch_busy and dispatch_idle have been replaced with
-  wallTime_us and sleepTime_us
+* **statistics** dispatch\_busy and dispatch\_idle have been replaced with
+  wallTime\_us and sleepTime\_us
 
 ### Bugfixes
 * [Issue #152](https://github.com/grobian/carbon-c-relay/issues/152)
-  crash in aggregator_expire for data-contained aggregations
+  crash in aggregator\_expire for data-contained aggregations
 
 # 1.9 (07-03-2016)
 
 ### Enhancements
-* **statistics** dispatch_busy is slightly more realistic now
+* **statistics** dispatch\_busy is slightly more realistic now
 
 ### Bugfixes
 * [Issue #153](https://github.com/grobian/carbon-c-relay/issues/153)
@@ -64,7 +66,7 @@
 
 ### Enhancements
 * **aggregator** metrics are now written directly to dispatchers to
-  avoid overload of the internal_submission queue, which is likely to to
+  avoid overload of the internal\_submission queue, which is likely to to
   happen with many aggregates
 * **collector** properly report file-based servers in statistics
 * **collector** re-introduce the interal destination in statistics
@@ -88,7 +90,7 @@
 # 1.3 (16-12-2015)
 
 ### Enhancements
-* **consistent-hash** fix jump_fnv1a_ch metric submission, it didn''t
+* **consistent-hash** fix jump\_fnv1a\_ch metric submission, it didn''t
   work at all
 
 ### Bugfixes
@@ -102,7 +104,7 @@
 # 1.2 (10-12-2015)
 
 ### New Features
-* **consistent-hash** new algorithm jump_fnv1a_ch for near perfect
+* **consistent-hash** new algorithm jump\_fnv1a\_ch for near perfect
   distribution of metrics
 * **distributiontest** test program used to see unbalancedness of
   clusters for a given input metric see
@@ -119,7 +121,7 @@
 # 1.1 (25-11-2015)
 
 ### Enhancements
-* **router** fix distribution of any_of cluster if members have failed
+* **router** fix distribution of any\_of cluster if members have failed
 
 # 1.0 (23-11-2015)
 
@@ -131,11 +133,11 @@
 
 # 0.44 (13-08-2015)
 
-* Feature to set hash-keys for fnv1a_ch.
+* Feature to set hash-keys for fnv1a\_ch.
 
 # 0.43 (27-07-2015)
 
-* Bugfix release for segfault when using any_of clusters.
+* Bugfix release for segfault when using any\_of clusters.
 
 # 0.42 (24-07-2015)
 
