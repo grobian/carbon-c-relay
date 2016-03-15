@@ -9,6 +9,8 @@
   destination target
 
 ### Bugfixes
+* [Issue #159](https://github.com/grobian/carbon-c-relay/issues/159)
+  corrupted statistics for file clusters
 
 # 1.10 (09-03-2016)
 

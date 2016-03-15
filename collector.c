@@ -60,7 +60,7 @@ collector_runner(void *s)
 	size_t sleeps;
 	time_t now;
 	time_t nextcycle;
-	char ipbuf[32];
+	char destbuf[1024];  /* sort of POSIX_MAX_PATH */
 	char *p;
 	size_t numaggregators = 0;
 	aggregator *aggrs = NULL;
@@ -212,18 +212,19 @@ collector_runner(void *s)
 			switch (server_ctype(srvs[i])) {
 				case CON_FILE:
 				case CON_PIPE:
-					strncpy(ipbuf, server_ip(srvs[i]), sizeof(ipbuf));
+					snprintf(destbuf, sizeof(destbuf), "%s",
+							server_ip(srvs[i]));
 					break;
 				case CON_TCP:
-					snprintf(ipbuf, sizeof(ipbuf), "%s:%u",
+					snprintf(destbuf, sizeof(destbuf), "%s:%u",
 							server_ip(srvs[i]), server_port(srvs[i]));
 					break;
 				case CON_UDP:
-					snprintf(ipbuf, sizeof(ipbuf), "%s:%u-udp",
+					snprintf(destbuf, sizeof(destbuf), "%s:%u-udp",
 							server_ip(srvs[i]), server_port(srvs[i]));
 					break;
 			}
-			for (p = ipbuf; *p != '\0'; p++)
+			for (p = destbuf; *p != '\0'; p++)
 				if (*p == '.')
 					*p = '_';
 
@@ -232,7 +233,8 @@ collector_runner(void *s)
 			totqueued += queued = server_get_queue_len(srvs[i]);
 			totstalls += stalls = s_stalls(srvs[i]);
 			totdropped += dropped = s_dropped(srvs[i]);
-			send_server_metrics(ipbuf, ticks, metrics, queued, stalls, dropped);
+			send_server_metrics(destbuf,
+					ticks, metrics, queued, stalls, dropped);
 		}
 
 		snprintf(m, sizem, "metricsSent %zu %zu\n",
