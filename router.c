@@ -2252,6 +2252,7 @@ router_route_intern(
 	const route *w;
 	destinations *d;
 	char stop = 0;
+	char wassent = 0;
 	const char *p;
 	const char *q = NULL;  /* pacify compiler, won't happen in reality */
 	const char *t;
@@ -2301,6 +2302,7 @@ router_route_intern(
 			for (d = w->dests; d != NULL; d = d->next) {
 				switch (d->cl->type) {
 					case BLACKHOLE:
+						*blackholed = 1;
 						break;
 					case FILELOGIP: {
 						servers *s;
@@ -2312,7 +2314,7 @@ router_route_intern(
 							ret[*curlen].dest = s->server;
 							ret[(*curlen)++].metric = strdup(newmetric);
 						}
-						*blackholed = 0;
+						wassent = 1;
 					}	break;
 					case FILELOG:
 					case FORWARD: {
@@ -2324,7 +2326,7 @@ router_route_intern(
 							ret[*curlen].dest = s->server;
 							ret[(*curlen)++].metric = strdup(metric);
 						}
-						*blackholed = 0;
+						wassent = 1;
 					}	break;
 					case ANYOF: {
 						/* we queue the same metrics at the same server */
@@ -2343,7 +2345,7 @@ router_route_intern(
 						ret[*curlen].dest =
 							d->cl->members.anyof->servers[hash];
 						ret[(*curlen)++].metric = strdup(metric);
-						*blackholed = 0;
+						wassent = 1;
 					}	break;
 					case FAILOVER: {
 						/* queue at the first non-failing server */
@@ -2363,7 +2365,7 @@ router_route_intern(
 							ret[*curlen].dest =
 								d->cl->members.anyof->servers[0];
 						ret[(*curlen)++].metric = strdup(metric);
-						*blackholed = 0;
+						wassent = 1;
 					}	break;
 					case CARBON_CH:
 					case FNV1A_CH:
@@ -2378,7 +2380,7 @@ router_route_intern(
 								metric,
 								firstspace);
 						*curlen += d->cl->members.ch->repl_factor;
-						*blackholed = 0;
+						wassent = 1;
 					}	break;
 					case AGGREGATION: {
 						/* aggregation rule */
@@ -2387,7 +2389,7 @@ router_route_intern(
 								metric,
 								firstspace,
 								w->nmatch, pmatch);
-						*blackholed = 0;
+						wassent = 1;
 						/* we need to break out of the inner loop. since
 						 * the rest of dests are meant for the stub, and
 						 * we should certainly not process it now */
@@ -2437,6 +2439,8 @@ router_route_intern(
 				break;
 		}
 	}
+	if (!wassent)
+		*blackholed = 1;
 
 	return stop;
 }
@@ -2458,7 +2462,7 @@ router_route(
 		route *routes)
 {
 	size_t curlen = 0;
-	char blackholed = 1;
+	char blackholed = 0;
 
 	(void)router_route_intern(&blackholed, ret, &curlen, retsize, srcaddr,
 			metric, firstspace, routes);

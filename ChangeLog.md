@@ -11,6 +11,8 @@
 ### Bugfixes
 * [Issue #159](https://github.com/grobian/carbon-c-relay/issues/159)
   corrupted statistics for file clusters
+* [Issue #160](https://github.com/grobian/carbon-c-relay/issues/160)
+  metricsBlackholed stays zero when blackhole target is used
 
 # 1.10 (09-03-2016)
 
