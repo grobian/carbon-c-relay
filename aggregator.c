@@ -308,8 +308,8 @@ aggregator_putmetric(
 		/* finally, try to do the maths */
 
 		itime = epoch - invocation->buckets[0].start;
-		if (itime < s->interval) {
-			/* drop too old metric, first bucket may be expired right now */
+		if (itime < 0) {
+			/* drop too old metric */
 			s->dropped++;
 			pthread_rwlock_unlock(&compute->invlock);
 			continue;
