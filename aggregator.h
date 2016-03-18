@@ -57,9 +57,9 @@ typedef struct _aggregator {
 		} *invocations_ht[1 << AGGR_HT_POW_SIZE];
 		unsigned char entries_needed:1;
 		unsigned char percentile:7;
+		pthread_rwlock_t invlock;
 		struct _aggr_computes *next;
 	} *computes;
-	pthread_mutex_t bucketlock;
 	struct _aggregator *next;
 } aggregator;
 

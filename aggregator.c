@@ -78,8 +78,6 @@ aggregator_new(
 	ret->computes = NULL;
 	ret->next = NULL;
 
-	pthread_mutex_init(&ret->bucketlock, NULL);
-
 	return ret;
 }
 
@@ -143,6 +141,7 @@ aggregator_add_compute(
 	ac->metric = strdup(metric);
 	memset(ac->invocations_ht, 0, sizeof(ac->invocations_ht));
 	ac->entries_needed = store;
+	pthread_rwlock_init(&ac->invlock, NULL);
 	ac->next = NULL;
 
 	return 0;
@@ -208,7 +207,6 @@ aggregator_putmetric(
 	val = atof(firstspace + 1);
 	epoch = atoll(v + 1);
 
-	pthread_mutex_lock(&s->bucketlock);
 	for (compute = s->computes; compute != NULL; compute = compute->next) {
 		if (nmatch == 0) {
 			ometric = compute->metric;
@@ -232,11 +230,26 @@ aggregator_putmetric(
 		omhtbucket =
 			((omhash >> AGGR_HT_POW_SIZE) ^ omhash) &
 			(((unsigned int)1 << AGGR_HT_POW_SIZE) - 1);
-		invocation = compute->invocations_ht[omhtbucket];
-		for (; invocation != NULL; invocation = invocation->next)
-			if (invocation->hash == omhash &&
-					strcmp(ometric, invocation->metric) == 0)  /* match */
+
+#define find_invocation(o) \
+		invocation = compute->invocations_ht[omhtbucket]; \
+		for (; invocation != NULL; invocation = invocation->next) \
+			if (invocation->hash == omhash && \
+					strcmp(o, invocation->metric) == 0)  /* match */ \
 				break;
+		pthread_rwlock_rdlock(&compute->invlock);
+		find_invocation(ometric);
+		/* switch to a write lock from here, since we've found what we
+		 * were looking for (or are going to create it) and modify it */
+		pthread_rwlock_unlock(&compute->invlock);
+		pthread_rwlock_wrlock(&compute->invlock);
+
+		if (invocation == NULL) {
+			/* we need to recheck there wasn't someone else who did the
+			 * same thing we want to do below */
+			find_invocation(ometric);
+		}
+
 		if (invocation == NULL) {  /* no match, add */
 			int i;
 			time_t now;
@@ -244,12 +257,14 @@ aggregator_putmetric(
 			if ((invocation = malloc(sizeof(*invocation))) == NULL) {
 				logerr("aggregator: out of memory creating %s from %s",
 						ometric, metric);
+				pthread_rwlock_unlock(&compute->invlock);
 				continue;
 			}
 			if ((invocation->metric = strdup(ometric)) == NULL) {
 				logerr("aggregator: out of memory creating %s from %s",
 						ometric, metric);
 				free(invocation);
+				pthread_rwlock_unlock(&compute->invlock);
 				continue;
 			}
 			invocation->hash = omhash;
@@ -276,6 +291,7 @@ aggregator_putmetric(
 						ometric, metric);
 				free(invocation->metric);
 				free(invocation);
+				pthread_rwlock_unlock(&compute->invlock);
 				continue;
 			}
 			for (i = 0; i < s->bucketcnt; i++) {
@@ -292,9 +308,10 @@ aggregator_putmetric(
 		/* finally, try to do the maths */
 
 		itime = epoch - invocation->buckets[0].start;
-		if (itime < 0) {
-			/* drop too old metric */
+		if (itime < s->interval) {
+			/* drop too old metric, first bucket may be expired right now */
 			s->dropped++;
+			pthread_rwlock_unlock(&compute->invlock);
 			continue;
 		}
 
@@ -306,6 +323,7 @@ aggregator_putmetric(
 						invocation->buckets[s->bucketcnt - 1].start,
 						ometric, metric);
 			s->dropped++;
+			pthread_rwlock_unlock(&compute->invlock);
 			continue;
 		}
 
@@ -339,8 +357,9 @@ aggregator_putmetric(
 				entries->values[bucket->cnt] = val;
 		}
 		bucket->cnt++;
+
+		pthread_rwlock_unlock(&compute->invlock);
 	}
-	pthread_mutex_unlock(&s->bucketlock);
 
 	return;
 }
@@ -494,7 +513,7 @@ aggregator_expire(void *sub)
 
 							/* move the bucket to the end, to make room for
 							 * new ones */
-							pthread_mutex_lock(&s->bucketlock);
+							pthread_rwlock_wrlock(&c->invlock);
 							b = &inv->buckets[0];
 							len = b->entries.size;
 							values = b->entries.values;
@@ -507,23 +526,22 @@ aggregator_expire(void *sub)
 								s->interval;
 							b->entries.size = len;
 							b->entries.values = values;
-							pthread_mutex_unlock(&s->bucketlock);
+							pthread_rwlock_unlock(&c->invlock);
 
 							work++;
 						}
 
 						if (isempty) {
 							/* see if the remaining buckets are empty too */
-							pthread_mutex_lock(&s->bucketlock);
 							for (j = 0; j < s->bucketcnt; j++) {
 								if (inv->buckets[j].cnt != 0) {
 									isempty = 0;
-									pthread_mutex_unlock(&s->bucketlock);
 									break;
 								}
 							}
 						}
 						if (isempty) {
+							pthread_rwlock_wrlock(&c->invlock);
 							/* free and unlink */
 							if (c->entries_needed)
 								for (j = 0; j < s->bucketcnt; j++)
@@ -540,7 +558,7 @@ aggregator_expire(void *sub)
 								free(inv);
 								inv = c->invocations_ht[i];
 							}
-							pthread_mutex_unlock(&s->bucketlock);
+							pthread_rwlock_unlock(&c->invlock);
 						} else {
 							lastinv = inv;
 							inv = inv->next;
@@ -581,6 +599,8 @@ aggregator_expire(void *sub)
 					free(invocation);
 				}
 			}
+
+			pthread_rwlock_destroy(&c->invlock);
 
 			s->computes = c->next;
 			free(c);
