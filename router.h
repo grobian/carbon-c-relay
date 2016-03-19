@@ -30,18 +30,18 @@ typedef struct {
 	server *dest;
 } destination;
 
-typedef struct _cluster cluster;
-typedef struct _route route;
+typedef struct _router router;
 
 #define RE_MAX_MATCHES     64
 
-int router_readconfig(cluster **clret, route **rret, aggregator **aret, const char *path, size_t queuesize, size_t batchsize, unsigned short iotimeout);
-void router_optimise(route **routes);
+router *router_readconfig(const char *path, size_t queuesize, size_t batchsize, unsigned short iotimeout);
+void router_optimise(router *r);
 size_t router_rewrite_metric(char (*newmetric)[METRIC_BUFSIZ], char **newfirstspace, const char *metric, const char *firstspace, const char *replacement, const size_t nmatch, const regmatch_t *pmatch);
-void router_printconfig(FILE *f, char mode, cluster *clusters, route *routes);
-char router_route(destination ret[], size_t *retcnt, size_t retsize, char *srcaddr, char *metric, char *firstspace, route *routes);
-void router_test(char *metric_path, route *routes);
-server **router_getservers(cluster *clusters);
-void router_free(cluster *clusters, route *r);
+void router_printconfig(router *r, FILE *f, char mode);
+char router_route(router *r, destination ret[], size_t *retcnt, size_t retsize, char *srcaddr, char *metric, char *firstspace);
+void router_test(router *r, char *metric_path);
+server **router_getservers(router *r);
+aggregator *router_getaggregators(router *r);
+void router_free(router *r);
 
 #endif

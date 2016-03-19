@@ -71,8 +71,8 @@ struct _dispatcher {
 	size_t prevticks;
 	size_t prevsleeps;
 	char keep_running:1;
-	route *routes;
-	route *pending_routes;
+	router *rtr;
+	router *pending_rtr;
 	char route_refresh_pending:1;
 	char hold:1;
 	char *allowed_chars;
@@ -401,10 +401,10 @@ dispatch_connection(connection *conn, dispatcher *self, struct timeval start)
 				*q = '\0';  /* can do this because we substract one from buf */
 
 				/* perform routing of this metric */
-				self->blackholes += router_route(
+				self->blackholes += router_route(self->rtr,
 						conn->dests, &conn->destlen, CONN_DESTS_SIZE,
 						conn->srcaddr,
-						conn->metric, firstspace, self->routes);
+						conn->metric, firstspace);
 
 				/* restart building new one from the start */
 				q = conn->metric;
@@ -565,8 +565,8 @@ dispatch_runner(void *arg)
 			work = 0;
 
 			if (self->route_refresh_pending) {
-				self->routes = self->pending_routes;
-				self->pending_routes = NULL;
+				self->rtr = self->pending_rtr;
+				self->pending_rtr = NULL;
 				self->route_refresh_pending = 0;
 				self->hold = 0;
 			}
@@ -608,7 +608,7 @@ dispatch_runner(void *arg)
  * Returns its handle.
  */
 static dispatcher *
-dispatch_new(char id, enum conntype type, route *routes, char *allowed_chars)
+dispatch_new(char id, enum conntype type, router *r, char *allowed_chars)
 {
 	dispatcher *ret = malloc(sizeof(dispatcher));
 
@@ -618,7 +618,7 @@ dispatch_new(char id, enum conntype type, route *routes, char *allowed_chars)
 	ret->id = id;
 	ret->type = type;
 	ret->keep_running = 1;
-	ret->routes = routes;
+	ret->rtr = r;
 	ret->route_refresh_pending = 0;
 	ret->hold = 0;
 	ret->allowed_chars = allowed_chars;
@@ -648,10 +648,10 @@ dispatch_new_listener(void)
  * existing connections.
  */
 dispatcher *
-dispatch_new_connection(route *routes, char *allowed_chars)
+dispatch_new_connection(router *r, char *allowed_chars)
 {
 	char id = globalid++;
-	return dispatch_new(id, CONNECTION, routes, allowed_chars);
+	return dispatch_new(id, CONNECTION, r, allowed_chars);
 }
 
 /**
@@ -701,9 +701,9 @@ dispatch_hold(dispatcher *d)
  * replacement is performed at the next cycle of the dispatcher.
  */
 inline void
-dispatch_schedulereload(dispatcher *d, route *r)
+dispatch_schedulereload(dispatcher *d, router *r)
 {
-	d->pending_routes = r;
+	d->pending_rtr = r;
 	d->route_refresh_pending = 1;
 }
 

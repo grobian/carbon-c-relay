@@ -29,9 +29,9 @@ extern int collector_interval;
 #define timediff(X, Y) \
 	(Y.tv_sec > X.tv_sec ? (Y.tv_sec - X.tv_sec) * 1000 * 1000 + ((Y.tv_usec - X.tv_usec)) : Y.tv_usec - X.tv_usec)
 
-void collector_start(dispatcher **d, cluster *c, aggregator *a, server *submission, char cum);
+void collector_start(dispatcher **d, router *rtr, server *submission, char cum);
 void collector_stop(void);
-void collector_schedulereload(cluster *c, aggregator *a);
+void collector_schedulereload(router *rtr);
 char collector_reloadcomplete(void);
 
 #endif

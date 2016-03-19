@@ -48,9 +48,7 @@ static int queuesize = 25000;
 static unsigned short iotimeout = 600;
 static dispatcher **workers = NULL;
 static char workercnt = 0;
-static cluster *clusters = NULL;
-static route *routes = NULL;
-static aggregator *aggrs = NULL;
+static router *rtr = NULL;
 static server *internal_submission = NULL;
 static char *relay_logfile = NULL;
 static FILE *relay_stdout = NULL;
@@ -141,8 +139,7 @@ exit_handler(int sig)
 static void
 hup_handler(int sig)
 {
-	route *newroutes;
-	cluster *newclusters;
+	router *newrtr;
 	aggregator *newaggrs;
 	int id;
 	FILE *newfd;
@@ -167,16 +164,16 @@ hup_handler(int sig)
 	}
 
 	logout("reloading config from '%s'\n", config);
-	if (router_readconfig(&newclusters, &newroutes, &newaggrs,
-				config, queuesize, batchsize, iotimeout) == 0)
+	if ((newrtr = router_readconfig(config,
+					queuesize, batchsize, iotimeout)) == NULL)
 	{
 		logerr("failed to read configuration '%s', aborting reload\n", config);
 		return;
 	}
-	router_optimise(&newroutes);
+	router_optimise(newrtr);
 
 	logout("reloading collector\n");
-	collector_schedulereload(newclusters, newaggrs);
+	collector_schedulereload(newrtr);
 	while (!collector_reloadcomplete())
 		usleep((100 + (rand() % 200)) * 1000);  /* 100ms - 300ms */
 
@@ -192,7 +189,7 @@ hup_handler(int sig)
 	for (id = 1; id < 1 + workercnt; id++)
 		dispatch_hold(workers[id]);
 
-	numaggregators = aggregator_numaggregators(aggrs);
+	numaggregators = aggregator_numaggregators(router_getaggregators(rtr));
 	if (numaggregators > 0) {
 		logout("expiring aggregations\n");
 		aggregator_stop();  /* frees aggrs */
@@ -201,6 +198,7 @@ hup_handler(int sig)
 		 * dispatchers, which will hand over to the servers with proper
 		 * metric adjustments (stubs). */
 	}
+	newaggrs = router_getaggregators(newrtr);
 	numaggregators = aggregator_numaggregators(newaggrs);
 	if (numaggregators > 0) {
 		if (!aggregator_start(newaggrs)) {
@@ -211,17 +209,15 @@ hup_handler(int sig)
 
 	logout("reloading workers\n");
 	for (id = 1; id < 1 + workercnt; id++)
-		dispatch_schedulereload(workers[id], newroutes); /* un-holds */
+		dispatch_schedulereload(workers[id], newrtr); /* un-holds */
 	for (id = 1; id < 1 + workercnt; id++) {
 		while (!dispatch_reloadcomplete(workers[id + 0]))
 			usleep((100 + (rand() % 200)) * 1000);  /* 100ms - 300ms */
 	}
 
-	router_free(clusters, routes);
+	router_free(rtr);
 
-	routes = newroutes;
-	clusters = newclusters;
-	aggrs = newaggrs;
+	rtr = newrtr;
 
 	logout("SIGHUP handler complete\n");
 }
@@ -297,6 +293,7 @@ main(int argc, char * const argv[])
 	enum { SUB, CUM } smode = CUM;
 	char *pidfile = NULL;
 	FILE *pidfile_handle = NULL;
+	aggregator *aggrs = NULL;
 
 	if (gethostname(relay_hostname, sizeof(relay_hostname)) < 0)
 		snprintf(relay_hostname, sizeof(relay_hostname), "127.0.0.1");
@@ -561,26 +558,26 @@ main(int argc, char * const argv[])
 	fprintf(relay_stdout, "    routes configuration = %s\n", config);
 	fprintf(relay_stdout, "\n");
 
-	if (router_readconfig(&clusters, &routes, &aggrs,
-				config, queuesize, batchsize, iotimeout) == 0)
+	if ((rtr = router_readconfig(config,
+					queuesize, batchsize, iotimeout)) == NULL)
 	{
 		logerr("failed to read configuration '%s'\n", config);
 		return 1;
 	}
-	router_optimise(&routes);
+	router_optimise(rtr);
 
+	aggrs = router_getaggregators(rtr);
 	numaggregators = aggregator_numaggregators(aggrs);
 	if (numaggregators > 10 && mode & MODE_DEBUG) {
 		fprintf(relay_stdout, "parsed configuration follows:\n"
 				"(%zu aggregations with %zu computations omitted "
 				"for brevity)\n",
 				numaggregators, aggregator_numcomputes(aggrs));
-		router_printconfig(relay_stdout, 0, clusters, routes);
+		router_printconfig(rtr, relay_stdout, 0);
 	} else {
 		fprintf(relay_stdout, "parsed configuration follows:\n");
-		router_printconfig(relay_stdout,
-				1 + (mode & MODE_DEBUG ? 2 : 0),
-				clusters, routes);
+		router_printconfig(rtr, relay_stdout,
+				1 + (mode & MODE_DEBUG ? 2 : 0));
 	}
 	fprintf(relay_stdout, "\n");
 
@@ -593,7 +590,7 @@ main(int argc, char * const argv[])
 		while (fgets(metricbuf, sizeof(metricbuf), stdin) != NULL) {
 			if ((p = strchr(metricbuf, '\n')) != NULL)
 				*p = '\0';
-			router_test(metricbuf, routes);
+			router_test(rtr, metricbuf);
 		}
 
 		exit(0);
@@ -653,7 +650,7 @@ main(int argc, char * const argv[])
 		allowed_chars = "-_:#";
 	logout("starting %d workers\n", workercnt);
 	for (id = 1; id < 1 + workercnt; id++) {
-		workers[id + 0] = dispatch_new_connection(routes, allowed_chars);
+		workers[id + 0] = dispatch_new_connection(rtr, allowed_chars);
 		if (workers[id + 0] == NULL) {
 			logerr("failed to add worker %d\n", id);
 			break;
@@ -683,8 +680,7 @@ main(int argc, char * const argv[])
 	}
 
 	logout("starting statistics collector\n");
-	collector_start(&workers[1], clusters, aggrs, internal_submission,
-			smode == CUM);
+	collector_start(&workers[1], rtr, internal_submission, smode == CUM);
 
 	logout("startup sequence complete\n");
 
@@ -724,7 +720,7 @@ main(int argc, char * const argv[])
 	fflush(relay_stdout);
 	free(workers);
 
-	router_free(clusters, routes);
+	router_free(rtr);
 	logout("stopped servers\n");
 
 	if (pidfile != NULL)

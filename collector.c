@@ -34,8 +34,7 @@ static pthread_t collectorid;
 static char keep_running = 1;
 int collector_interval = 60;
 static char cluster_refresh_pending = 0;
-static cluster *pending_clusters = NULL;
-static aggregator *pending_aggrs = NULL;
+static router *pending_router = NULL;
 
 /**
  * Collects metrics from dispatchers and servers and emits them.
@@ -126,11 +125,11 @@ collector_runner(void *s)
 	nextcycle = time(NULL) + collector_interval;
 	while (keep_running) {
 		if (cluster_refresh_pending) {
-			server **newservers = router_getservers(pending_clusters);
+			server **newservers = router_getservers(pending_router);
 			if (srvs != NULL)
 				free(srvs);
 			srvs = newservers;
-			aggrs = pending_aggrs;
+			aggrs = router_getaggregators(pending_router);
 			numaggregators = aggregator_numaggregators(aggrs);
 			cluster_refresh_pending = 0;
 		}
@@ -302,11 +301,11 @@ collector_writer(void *unused)
 
 	while (keep_running) {
 		if (cluster_refresh_pending) {
-			server **newservers = router_getservers(pending_clusters);
+			server **newservers = router_getservers(pending_router);
 			if (srvs != NULL)
 				free(srvs);
 			srvs = newservers;
-			aggrs = pending_aggrs;
+			aggrs = router_getaggregators(pending_router);
 			numaggregators = aggregator_numaggregators(aggrs);
 			cluster_refresh_pending = 0;
 		}
@@ -412,10 +411,9 @@ collector_writer(void *unused)
  * replacement is performed at the next cycle of the collector.
  */
 inline void
-collector_schedulereload(cluster *c, aggregator *a)
+collector_schedulereload(router *rtr)
 {
-	pending_clusters = c;
-	pending_aggrs = a;
+	pending_router = rtr;
 	cluster_refresh_pending = 1;
 }
 
@@ -433,10 +431,10 @@ collector_reloadcomplete(void)
  * Initialises and starts the collector.
  */
 void
-collector_start(dispatcher **d, cluster *c, aggregator *a, server *submission, char cum)
+collector_start(dispatcher **d, router *rtr, server *submission, char cum)
 {
 	dispatchers = d;
-	collector_schedulereload(c, a);
+	collector_schedulereload(rtr);
 
 	if (mode & MODE_DEBUG)
 		debug = 1;
