@@ -114,6 +114,9 @@ struct _router {
 /* custom constant, meant to force regex mode matching */
 #define REG_FORCE   01000000
 
+/* catch string used for aggrgator destinations */
+#define STUB_AGGR   "_aggregator_stub_"
+
 /**
  * Frees routes and clusters.
  */
@@ -1467,7 +1470,7 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize,
 				d->next = NULL;
 
 				snprintf(stubname, sizeof(stubname),
-						"_stub_aggregator_%p__", w->members.aggregation);
+						STUB_AGGR "%p__", w->members.aggregation);
 				m = malloc(sizeof(route));
 				m->pattern = strdup(stubname);
 				m->strmatch = strdup(stubname);
@@ -1988,7 +1991,7 @@ router_printconfig(router *rtr, FILE *f, char pmode)
 				stubname[0] = '\0';
 			} else {
 				snprintf(stubname, sizeof(stubname),
-						"_stub_aggregator_%p__", aggr->members.aggregation);
+						STUB_AGGR "%p__", aggr->members.aggregation);
 			}
 
 			fprintf(f, "aggregate");
@@ -2594,7 +2597,7 @@ router_test_intern(char *metric, char *firstspace, route *routes)
 						} else {
 							char x;
 							stublen = snprintf(&x, 1,
-									"_stub_aggregator_%p__",
+									STUB_AGGR "%p__",
 									d->cl->members.aggregation);
 						}
 
