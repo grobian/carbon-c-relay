@@ -2295,6 +2295,16 @@ router_printconfig(router *rtr, FILE *f, char pmode)
 						fprintf(f, "\n        %s", d->cl->name);
 				}
 				fprintf(f, "%s\n    ;\n", r->stop ? "\n    stop" : "");
+			} else if (r->dests->cl->type == STATSTUB) {
+				destinations *d = r->dests->cl->members.routes->dests;
+				fprintf(f, "send statistics to");
+				if (d->next == NULL) {
+					fprintf(f, " %s", d->cl->name);
+				} else {
+					for ( ; d != NULL; d = d->next)
+						fprintf(f, "\n        %s", d->cl->name);
+				}
+				fprintf(f, "\n    stop\n    ;\n");
 			}
 		} else {
 			route *or = r;
