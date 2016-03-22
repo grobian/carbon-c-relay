@@ -2332,8 +2332,6 @@ router_free(router *rtr)
 {
 	router_free_intern(rtr->clusters, rtr->routes);
 
-	if (rtr->collector_stub != NULL)
-		free(rtr->collector_stub);
 	free(rtr);
 }
 
