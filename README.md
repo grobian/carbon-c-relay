@@ -78,6 +78,9 @@ aggregate
     [send to <cluster ...>]
     [stop]
     ;
+send statistics to <cluster ...>
+	[stop]
+	;
 ```
 
 Multiple clusters can be defined, and need not to be referenced by a
@@ -197,6 +200,12 @@ the `send to` clause is encouraged, to direct the output traffic where
 possible.  Like for match rules, it is possible to define multiple
 cluster targets.  Also, like match rules, the `stop` keyword applies to
 control the flow of metrics in the matching process.
+
+The special `send statistics to` construct is much like a `match` rule
+which matches the (internal) statistics produced by the relay.  It can
+be used to avoid router loops when sending the statistics to a certain
+destination.  The `send statistics` construct can only be used once, but
+multiple destinations can be used then required.
 
 
 Examples

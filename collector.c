@@ -66,7 +66,7 @@ collector_runner(void *s)
 	server *submission = (server *)s;
 	server **srvs = NULL;
 	char metric[METRIC_BUFSIZ];
-	char *m;
+	char *m = NULL;
 	size_t sizem = 0;
 	size_t (*s_ticks)(server *);
 	size_t (*s_metrics)(server *);
@@ -79,15 +79,6 @@ collector_runner(void *s)
 	size_t (*a_received)(aggregator *);
 	size_t (*a_sent)(aggregator *);
 	size_t (*a_dropped)(aggregator *);
-
-	/* prepare hostname for graphite metrics */
-	snprintf(metric, sizeof(metric), "carbon.relays.%s", relay_hostname);
-	for (m = metric + strlen("carbon.relays."); *m != '\0'; m++)
-		if (*m == '.')
-			*m = '_';
-	*m++ = '.';
-	*m = '\0';
-	sizem = sizeof(metric) - (m - metric);
 
 	/* setup functions to target what the user wants */
 	if (debug & 2) {
@@ -125,12 +116,24 @@ collector_runner(void *s)
 	nextcycle = time(NULL) + collector_interval;
 	while (keep_running) {
 		if (cluster_refresh_pending) {
+			char *stub = router_getcollectorstub(pending_router);
 			server **newservers = router_getservers(pending_router);
 			if (srvs != NULL)
 				free(srvs);
 			srvs = newservers;
 			aggrs = router_getaggregators(pending_router);
 			numaggregators = aggregator_numaggregators(aggrs);
+
+			/* prepare hostname for graphite metrics */
+			snprintf(metric, sizeof(metric), "%scarbon.relays.%s",
+					stub == NULL ? "" : stub, relay_hostname);
+			for (m = metric + strlen("carbon.relays."); *m != '\0'; m++)
+				if (*m == '.')
+					*m = '_';
+			*m++ = '.';
+			*m = '\0';
+			sizem = sizeof(metric) - (m - metric);
+
 			cluster_refresh_pending = 0;
 		}
 		assert(srvs != NULL);

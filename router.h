@@ -42,6 +42,7 @@ char router_route(router *r, destination ret[], size_t *retcnt, size_t retsize, 
 void router_test(router *r, char *metric_path);
 server **router_getservers(router *r);
 aggregator *router_getaggregators(router *r);
+char *router_getcollectorstub(router *r);
 void router_free(router *r);
 
 #endif
