@@ -1787,6 +1787,8 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize,
 			m->next = topr;
 			/* enforce first match to avoid interference */
 			topr = m;
+			if (r == NULL)
+				r = topr;
 
 			ret->collector_stub = m->pattern;
 		} else {
