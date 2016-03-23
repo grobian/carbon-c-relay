@@ -5,6 +5,12 @@
 ### Breaking Changes
 
 ### Enhancements
+
+### Bugfixes
+
+# 1.11 (23-03-2016)
+
+### Enhancements
 * **collector** UDP connections are now suffixed with `-udp` in
   destination target
 * **router** `send statistics to` construct was added to direct internal
