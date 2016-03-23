@@ -111,6 +111,12 @@ struct _router {
 	route *routes;
 	aggregator *aggregators;
 	char *collector_stub;
+	struct _router_allocator {
+		char *memory_region;
+		char *nextp;
+		size_t sz;
+		struct _router_allocator *next;
+	} *allocator;
 };
 
 /* custom constant, meant to force regex mode matching */
@@ -122,21 +128,94 @@ struct _router {
 #define STUB_STATS  "_collector_stub_"
 
 /**
+ * Free the allocators associated to this router.
+ */
+static void
+ra_free(router *rtr)
+{
+	struct _router_allocator *ra;
+	struct _router_allocator *ra_next;
+
+	for (ra = rtr->allocator; ra != NULL; ra = ra_next) {
+		free(ra->memory_region);
+		ra_next = ra->next;
+		free(ra);
+		ra = NULL;
+	}
+}
+
+/**
+ * malloc() in one of the allocators for this router.  If insufficient
+ * memory is available in the allocator, a new one is allocated.  If
+ * that fails, NULL is returned, else a pointer that can be written to
+ * up to sz bytes.
+ */
+static void *
+ra_malloc(router *rtr, size_t sz)
+{
+	struct _router_allocator *ra;
+	void *retp = NULL;
+	size_t nsz;
+
+#define ra_alloc(RA, SZ) { \
+		nsz = 256 * 1024; \
+		if (SZ > nsz) \
+			nsz = SZ; \
+		RA = malloc(sizeof(struct _router_allocator)); \
+		if (RA == NULL) \
+			return NULL; \
+		RA->memory_region = malloc(sizeof(char) * nsz); \
+		if (RA->memory_region == NULL) { \
+			free(RA); \
+			RA = NULL; \
+			return NULL; \
+		} \
+		RA->nextp = RA->memory_region; \
+		RA->sz = nsz; \
+		RA->next = NULL; \
+	}
+
+	if (rtr->allocator == NULL)
+		ra_alloc(rtr->allocator, 0);
+
+	for (ra = rtr->allocator; ra != NULL; ra = ra->next) {
+		if (ra->sz - (ra->nextp - ra->memory_region) >= sz) {
+			retp = ra->nextp;
+			ra->nextp += sz;
+			return retp;
+		}
+		if (ra->next == NULL)
+			ra_alloc(ra->next, sz);
+	}
+
+	/* this should be unreachable code */
+	return NULL;
+}
+
+/**
+ * strdup using ra_malloc, e.g. get memory from the allocator associated
+ * to the given router.
+ */
+static char *
+ra_strdup(router *rtr, const char *s)
+{
+	size_t sz = strlen(s) + 1;
+	char *m = ra_malloc(rtr, sz);
+	if (m == NULL)
+		return m;
+	memcpy(m, s, sz);
+	return m;
+}
+
+/**
  * Frees routes and clusters.
  */
 static void
 router_free_intern(cluster *clusters, route *routes)
 {
-	cluster *c;
-	route *r;
 	servers *s;
-	destinations *d;
 
 	while (routes != NULL) {
-		if (routes->pattern)
-			free(routes->pattern);
-		if (routes->strmatch)
-			free(routes->strmatch);
 		if (routes->matchtype == REGEX)
 			regfree(&routes->rule);
 
@@ -147,20 +226,11 @@ router_free_intern(cluster *clusters, route *routes)
 						routes->dests->cl->type == STATSTUB)
 					router_free_intern(NULL, routes->dests->cl->members.routes);
 
-				/* avoid freeing pointer also in use by stub */
-				if (routes->dests->cl->type == AGGREGATION) {
-					d = NULL;
-				} else {
-					d = routes->dests->next;
-				}
-				free(routes->dests);
-				routes->dests = d;
+				routes->dests = routes->dests->next;
 			}
 		}
 
-		r = routes->next;
-		free(routes);
-		routes = r;
+		routes = routes->next;
 	}
 
 	while (clusters != NULL) {
@@ -171,13 +241,11 @@ router_free_intern(cluster *clusters, route *routes)
 				assert(clusters->members.ch != NULL);
 				ch_free(clusters->members.ch->ring);
 				while (clusters->members.ch->servers) {
-					s = clusters->members.ch->servers->next;
 					server_shutdown(clusters->members.ch->servers->server);
 					server_free(clusters->members.ch->servers->server);
-					free(clusters->members.ch->servers);
-					clusters->members.ch->servers = s;
+					clusters->members.ch->servers =
+						clusters->members.ch->servers->next;
 				}
-				free(clusters->members.ch);
 				break;
 			case FORWARD:
 			case FILELOG:
@@ -187,9 +255,8 @@ router_free_intern(cluster *clusters, route *routes)
 					server_shutdown(clusters->members.forward->server);
 					server_free(clusters->members.forward->server);
 
-					s = clusters->members.forward->next;
-					free(clusters->members.forward);
-					clusters->members.forward = s;
+					clusters->members.forward =
+						clusters->members.forward->next;
 				}
 				break;
 			case ANYOF:
@@ -201,12 +268,9 @@ router_free_intern(cluster *clusters, route *routes)
 				while (clusters->members.anyof->list) {
 					server_free(clusters->members.anyof->list->server);
 
-					s = clusters->members.anyof->list->next;
-					free(clusters->members.anyof->list);
-					clusters->members.anyof->list = s;
+					clusters->members.anyof->list =
+						clusters->members.anyof->list->next;
 				}
-				free(clusters->members.anyof->servers);
-				free(clusters->members.anyof);
 				break;
 			case GROUP:
 			case AGGRSTUB:
@@ -217,16 +281,11 @@ router_free_intern(cluster *clusters, route *routes)
 				/* aggregators starve when they get no more input */
 				break;
 			case REWRITE:
-				if (clusters->members.replacement)
-					free(clusters->members.replacement);
+				/* everything is in the allocators */
 				break;
 		}
-		if (clusters->name)
-			free(clusters->name);
 
-		c = clusters->next;
-		free(clusters);
-		clusters = c;
+		clusters = clusters->next;
 	}
 }
 
@@ -391,38 +450,52 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize,
 	size_t len = 0;
 	char *p;
 	cluster *cl;
-	cluster *topcl;
 	struct stat st;
 	route *r = NULL;
-	route *topr = NULL;
 	aggregator *a = NULL;
-	aggregator *topa = NULL;
 	struct addrinfo *saddrs;
 	char matchcatchallfound = 0;
 	router *ret = NULL;
 
-	if (stat(path, &st) == -1)
+	/* if there is no config, don't try anything */
+	if (stat(path, &st) == -1) {
+		logerr("unable to stat file '%s': %s\n", path, strerror(errno));
 		return NULL;
-	if ((buf = malloc(st.st_size + 1)) == NULL)
+	}
+
+	/* get a return structure (and allocator) in place */
+	if ((ret = malloc(sizeof(router))) == NULL) {
+		logerr("malloc failed for router return struct\n");
 		return NULL;
-	if ((cnf = fopen(path, "r")) == NULL)
+	}
+	ret->allocator = NULL;
+	ret->collector_stub = NULL;
+
+	if ((buf = ra_malloc(ret, st.st_size + 1)) == NULL) {
+		logerr("malloc failed for config file buffer\n");
 		return NULL;
+	}
+	if ((cnf = fopen(path, "r")) == NULL) {
+		logerr("failed to open config file '%s': %s\n", path, strerror(errno));
+		return NULL;
+	}
 	while ((len = fread(buf + len, 1, st.st_size - len, cnf)) != 0)
 		;
 	buf[st.st_size] = '\0';
 	fclose(cnf);
 
-	if ((ret = malloc(sizeof(router))) == NULL)
-		return NULL;
-	ret->collector_stub = NULL;
-
 	/* create virtual blackhole cluster */
-	cl = malloc(sizeof(cluster));
-	cl->name = strdup("blackhole");
+	cl = ra_malloc(ret, sizeof(cluster));
+	if (cl == NULL) {
+		logerr("malloc failed for blackhole cluster\n");
+		router_free(ret);
+		return NULL;
+	}
+	cl->name = ra_strdup(ret, "blackhole");
 	cl->type = BLACKHOLE;
 	cl->members.forward = NULL;
 	cl->next = NULL;
-	topcl = cl;
+	ret->clusters = cl;
 
 	/* remove all comments to ease parsing below */
 	p = buf;
@@ -451,8 +524,7 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize,
 				;
 			if (*p == '\0') {
 				logerr("unexpected end of file after 'cluster'\n");
-				free(buf);
-				free(ret);
+				router_free(ret);
 				return NULL;
 			}
 			*p++ = '\0';
@@ -484,8 +556,7 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize,
 						logerr("unexpected end of file after "
 								"'replication %s' for cluster %s\n",
 								repl, name);
-						free(buf);
-						free(ret);
+						router_free(ret);
 						return NULL;
 					}
 					*p++ = '\0';
@@ -493,14 +564,18 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize,
 						replcnt = 1;
 				}
 
-				if ((cl = cl->next = malloc(sizeof(cluster))) == NULL) {
-					logerr("malloc failed in cluster %s\n", name);
-					free(buf);
-					free(ret);
+				if ((cl = cl->next = ra_malloc(ret, sizeof(cluster))) == NULL) {
+					logerr("malloc failed in cluster '%s'\n", name);
+					router_free(ret);
 					return NULL;
 				}
 				cl->type = chtype;
-				cl->members.ch = malloc(sizeof(chashring));
+				cl->members.ch = ra_malloc(ret, sizeof(chashring));
+				if (cl->members.ch == NULL) {
+					logerr("malloc failed for ch in cluster '%s'\n", name);
+					router_free(ret);
+					return NULL;
+				}
 				cl->members.ch->repl_factor = (unsigned char)replcnt;
 				cl->members.ch->ring =
 					ch_new(chtype == CARBON_CH ? CARBON :
@@ -508,10 +583,9 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize,
 			} else if (strncmp(p, "forward", 7) == 0 && isspace(*(p + 7))) {
 				p += 8;
 
-				if ((cl = cl->next = malloc(sizeof(cluster))) == NULL) {
+				if ((cl = cl->next = ra_malloc(ret, sizeof(cluster))) == NULL) {
 					logerr("malloc failed in cluster forward\n");
-					free(buf);
-					free(ret);
+					router_free(ret);
 					return NULL;
 				}
 				cl->type = FORWARD;
@@ -526,10 +600,9 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize,
 					useall = 1;
 				}
 
-				if ((cl = cl->next = malloc(sizeof(cluster))) == NULL) {
+				if ((cl = cl->next = ra_malloc(ret, sizeof(cluster))) == NULL) {
 					logerr("malloc failed in cluster any_of\n");
-					free(buf);
-					free(ret);
+					router_free(ret);
 					return NULL;
 				}
 				cl->type = ANYOF;
@@ -539,10 +612,9 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize,
 
 				for (; *p != '\0' && isspace(*p); p++)
 					;
-				if ((cl = cl->next = malloc(sizeof(cluster))) == NULL) {
+				if ((cl = cl->next = ra_malloc(ret, sizeof(cluster))) == NULL) {
 					logerr("malloc failed in cluster failover\n");
-					free(buf);
-					free(ret);
+					router_free(ret);
 					return NULL;
 				}
 				cl->type = FAILOVER;
@@ -552,10 +624,9 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize,
 
 				for (; *p != '\0' && isspace(*p); p++)
 					;
-				if ((cl = cl->next = malloc(sizeof(cluster))) == NULL) {
+				if ((cl = cl->next = ra_malloc(ret, sizeof(cluster))) == NULL) {
 					logerr("malloc failed in cluster file\n");
-					free(buf);
-					free(ret);
+					router_free(ret);
 					return NULL;
 				}
 				if (strncmp(p, "ip", 2) == 0 && isspace(*(p + 2))) {
@@ -574,8 +645,7 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize,
 				*p = 0;
 				logerr("unknown cluster type '%s' for cluster %s\n",
 						type, name);
-				free(buf);
-				free(ret);
+				router_free(ret);
 				return NULL;
 			}
 
@@ -608,9 +678,7 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize,
 				if (*p == '\0') {
 					logerr("unexpected end of file at '%s' "
 							"for cluster %s\n", ip, name);
-					free(cl);
-					free(buf);
-					free(ret);
+					router_free(ret);
 					return NULL;
 				}
 
@@ -638,9 +706,7 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize,
 					if (port == 0 || endp != p) {
 						logerr("expected port, or unexpected data at "
 								"'%s' for cluster %s\n", lastcolon + 1, name);
-						free(cl);
-						free(buf);
-						free(ret);
+						router_free(ret);
 						return NULL;
 					}
 				}
@@ -653,9 +719,7 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize,
 					} else {
 						logerr("expected ']' at '%s' "
 								"for cluster %s\n", ip, name);
-						free(cl);
-						free(buf);
-						free(ret);
+						router_free(ret);
 						return NULL;
 					}
 				}
@@ -684,9 +748,7 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize,
 							logerr("expected 'udp' or 'tcp' after "
 									"'proto' at '%s' for cluster %s\n",
 									proto, name);
-							free(cl);
-							free(buf);
-							free(ret);
+							router_free(ret);
 							return NULL;
 						}
 					} else {
@@ -708,9 +770,7 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize,
 						logerr("failed to resolve server %s:%s (%s) "
 								"for cluster %s: %s\n",
 								ip, sport, proto, name, gai_strerror(err));
-						free(cl);
-						free(buf);
-						free(ret);
+						router_free(ret);
 						return NULL;
 					}
 
@@ -765,9 +825,7 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize,
 						logerr("failed to add server %s:%d (%s) "
 								"to cluster %s: %s\n", ip, port, proto,
 								name, strerror(errno));
-						free(cl);
-						free(buf);
-						free(ret);
+						router_free(ret);
 						return NULL;
 					}
 
@@ -777,18 +835,16 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize,
 					{
 						if (w == NULL) {
 							cl->members.ch->servers = w =
-								malloc(sizeof(servers));
+								ra_malloc(ret, sizeof(servers));
 						} else {
-							w = w->next = malloc(sizeof(servers));
+							w = w->next = ra_malloc(ret, sizeof(servers));
 						}
 						if (w == NULL) {
 							logerr("malloc failed for %s_ch %s\n",
 									cl->type == CARBON_CH ? "carbon" :
 									cl->type == FNV1A_CH ? "fnv1a" :
 									"jump_fnv1a", ip);
-							free(cl);
-							free(buf);
-							free(ret);
+							router_free(ret);
 							return NULL;
 						}
 						w->next = NULL;
@@ -802,9 +858,7 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize,
 							logerr("failed to add server %s:%d "
 									"to ring for cluster %s: out of memory\n",
 									ip, port, name);
-							free(cl);
-							free(buf);
-							free(ret);
+							router_free(ret);
 							return NULL;
 						}
 					} else if (cl->type == FORWARD ||
@@ -814,9 +868,9 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize,
 							cl->type == FILELOGIP)
 					{
 						if (w == NULL) {
-							w = malloc(sizeof(servers));
+							w = ra_malloc(ret, sizeof(servers));
 						} else {
-							w = w->next = malloc(sizeof(servers));
+							w = w->next = ra_malloc(ret, sizeof(servers));
 						}
 						if (w == NULL) {
 							logerr("malloc failed for %s %s\n",
@@ -825,9 +879,7 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize,
 									cl->type == FAILOVER ? "failover" :
 									"file",
 									ip);
-							free(cl);
-							free(buf);
-							free(ret);
+							router_free(ret);
 							return NULL;
 						}
 						w->next = NULL;
@@ -838,7 +890,14 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize,
 							cl->members.forward = w;
 						if (cl->type == ANYOF || cl->type == FAILOVER) {
 							if (cl->members.anyof == NULL) {
-								cl->members.anyof = malloc(sizeof(serverlist));
+								cl->members.anyof =
+									ra_malloc(ret, sizeof(serverlist));
+								if (cl->members.anyof == NULL) {
+									logerr("malloc failed for %s anyof list\n",
+											ip);
+									router_free(ret);
+									return NULL;
+								}
 								cl->members.anyof->count = 1;
 								cl->members.anyof->servers = NULL;
 								cl->members.anyof->list = w;
@@ -859,7 +918,12 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize,
 			if (cl->type == ANYOF || cl->type == FAILOVER) {
 				size_t i = 0;
 				cl->members.anyof->servers =
-					malloc(sizeof(server *) * cl->members.anyof->count);
+					ra_malloc(ret, sizeof(server *) * cl->members.anyof->count);
+				if (cl->members.anyof->servers == NULL) {
+					logerr("malloc failed for anyof servers\n");
+					router_free(ret);
+					return NULL;
+				}
 				for (w = cl->members.anyof->list; w != NULL; w = w->next)
 					cl->members.anyof->servers[i++] = w->server;
 				for (w = cl->members.anyof->list; w != NULL; w = w->next) {
@@ -882,13 +946,11 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize,
 					logerr("invalid cluster '%s': replication count (%zu) is "
 							"larger than the number of servers (%zu)\n",
 							name, cl->members.ch->repl_factor, i);
-					free(cl);
-					free(buf);
-					free(ret);
+					router_free(ret);
 					return NULL;
 				}
 			}
-			cl->name = strdup(name);
+			cl->name = ra_strdup(ret, name);
 			cl->next = NULL;
 		} else if (strncmp(p, "match", 5) == 0 && isspace(*(p + 5))) {
 			/* match rule */
@@ -900,24 +962,6 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize,
 			destinations *d = NULL;
 			destinations *dw = NULL;
 
-#define FREE_R \
-			{ \
-				route *lm; \
-				do { \
-					lm = m->next; \
-					free(m); \
-				} while (m != r && (m = lm) != NULL); \
-			}
-#define FREE_D \
-			{ \
-				destinations *ld; \
-				while (dw != NULL) { \
-					ld = dw->next; \
-					free(dw); \
-					dw = ld; \
-				} \
-			}
-
 			p += 6;
 			for (; *p != '\0' && isspace(*p); p++)
 				;
@@ -928,9 +972,7 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize,
 					;
 				if (*p == '\0') {
 					logerr("unexpected end of file after 'match'\n");
-					FREE_R;
-					free(buf);
-					free(ret);
+					router_free(ret);
 					return NULL;
 				}
 				*p++ = '\0';
@@ -938,9 +980,14 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize,
 					;
 
 				if (r == NULL) {
-					topr = r = malloc(sizeof(route));
+					ret->routes = r = ra_malloc(ret, sizeof(route));
 				} else {
-					r = r->next = malloc(sizeof(route));
+					r = r->next = ra_malloc(ret, sizeof(route));
+				}
+				if (r == NULL) {
+					logerr("malloc failed for match '%s'\n", pat);
+					router_free(ret);
+					return NULL;
 				}
 				if (m == NULL)
 					m = r;
@@ -956,9 +1003,7 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize,
 						regerror(err, &r->rule, ebuf, sizeof(ebuf));
 						logerr("invalid expression '%s' for match: %s\n",
 								pat, ebuf);
-						FREE_R;
-						free(buf);
-						free(ret);
+						router_free(ret);
 						return NULL;
 					}
 				}
@@ -969,9 +1014,7 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize,
 				;
 			if (strncmp(p, "to", 2) != 0 || !isspace(*(p + 2))) {
 				logerr("expected 'send to' after match %s\n", pat);
-				FREE_R;
-				free(buf);
-				free(ret);
+				router_free(ret);
 				return NULL;
 			}
 			p += 3;
@@ -988,7 +1031,7 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize,
 				*p = '\0';
 
 				/* lookup dest */
-				for (w = topcl; w != NULL; w = w->next) {
+				for (w = ret->clusters; w != NULL; w = w->next) {
 					if (w->type != GROUP &&
 							w->type != AGGRSTUB &&
 							w->type != STATSTUB &&
@@ -999,25 +1042,19 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize,
 				}
 				if (w == NULL) {
 					logerr("no such cluster '%s' for 'match %s'\n", dest, pat);
-					FREE_R;
-					FREE_D;
-					free(buf);
-					free(ret);
+					router_free(ret);
 					return NULL;
 				}
 
 				if (dw == NULL) {
-					dw = d = malloc(sizeof(destinations));
+					dw = d = ra_malloc(ret, sizeof(destinations));
 				} else {
-					d = d->next = malloc(sizeof(destinations));
+					d = d->next = ra_malloc(ret, sizeof(destinations));
 				}
 				if (d == NULL) {
 					logerr("out of memory allocating new destination '%s' "
 							"for 'match %s'\n", dest, pat);
-					FREE_R;
-					FREE_D;
-					free(buf);
-					free(ret);
+					router_free(ret);
 					return NULL;
 				}
 				d->cl = w;
@@ -1033,10 +1070,7 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize,
 			if (*p == '\0') {
 				logerr("unexpected end of file after 'send to %s'\n",
 						dest);
-				FREE_R;
-				FREE_D;
-				free(buf);
-				free(ret);
+				router_free(ret);
 				return NULL;
 			} else if (*p == ';') {
 				stop = 0;
@@ -1050,10 +1084,7 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize,
 				;
 			if (*p != ';') {
 				logerr("expected ';' after match %s\n", pat);
-				FREE_R;
-				FREE_D;
-				free(buf);
-				free(ret);
+				router_free(ret);
 				return NULL;
 			}
 			p++;
@@ -1090,7 +1121,12 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize,
 			for (; *p != '\0' && isspace(*p); p++)
 				;
 
-			w = malloc(sizeof(cluster));
+			w = ra_malloc(ret, sizeof(cluster));
+			if (w == NULL) {
+				logerr("malloc failed for aggregate\n");
+				router_free(ret);
+				return NULL;
+			}
 			w->name = NULL;
 			w->type = AGGREGATION;
 			w->next = NULL;
@@ -1101,8 +1137,7 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize,
 					;
 				if (*p == '\0') {
 					logerr("unexpected end of file after 'aggregate'\n");
-					free(buf);
-					free(ret);
+					router_free(ret);
 					return NULL;
 				}
 				*p++ = '\0';
@@ -1110,9 +1145,14 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize,
 					;
 
 				if (r == NULL) {
-					topr = r = malloc(sizeof(route));
+					ret->routes = r = ra_malloc(ret, sizeof(route));
 				} else {
-					r = r->next = malloc(sizeof(route));
+					r = r->next = ra_malloc(ret, sizeof(route));
+				}
+				if (r == NULL) {
+					logerr("malloc failed for aggregate route\n");
+					router_free(ret);
+					return NULL;
 				}
 				if (m == NULL)
 					m = r;
@@ -1122,10 +1162,7 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize,
 					regerror(err, &r->rule, ebuf, sizeof(ebuf));
 					logerr("invalid expression '%s' "
 							"for aggregation: %s\n", pat, ebuf);
-					FREE_R;
-					free(w);
-					free(buf);
-					free(ret);
+					router_free(ret);
 					return NULL;
 				}
 				r->next = NULL;
@@ -1138,19 +1175,13 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize,
 				;
 			if (*p == '\0') {
 				logerr("unexpected end of file after 'every %s'\n", num);
-				FREE_R;
-				free(w);
-				free(buf);
-				free(ret);
+				router_free(ret);
 				return NULL;
 			}
 			if (!isspace(*p)) {
 				logerr("unexpected character '%c', "
 						"expected number after 'every'\n", *p);
-				FREE_R;
-				free(w);
-				free(buf);
-				free(ret);
+				router_free(ret);
 				return NULL;
 			}
 			*p++ = '\0';
@@ -1158,20 +1189,14 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize,
 				;
 			if (strncmp(p, "seconds", 7) != 0 || !isspace(*(p + 7))) {
 				logerr("expected 'seconds' after 'every %s'\n", num);
-				FREE_R;
-				free(w);
-				free(buf);
-				free(ret);
+				router_free(ret);
 				return NULL;
 			}
 			p += 8;
 			intv = atoi(num);
 			if (intv == 0) {
 				logerr("interval must be non-zero\n");
-				FREE_R;
-				free(w);
-				free(buf);
-				free(ret);
+				router_free(ret);
 				return NULL;
 			}
 			for (; *p != '\0' && isspace(*p); p++)
@@ -1179,10 +1204,7 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize,
 			if (strncmp(p, "expire", 6) != 0 || !isspace(*(p + 6))) {
 				logerr("expected 'expire after' after 'every %s seconds\n",
 						num);
-				FREE_R;
-				free(w);
-				free(buf);
-				free(ret);
+				router_free(ret);
 				return NULL;
 			}
 			p += 7;
@@ -1190,10 +1212,7 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize,
 				;
 			if (strncmp(p, "after", 5) != 0 || !isspace(*(p + 5))) {
 				logerr("expected 'after' after 'expire'\n");
-				FREE_R;
-				free(w);
-				free(buf);
-				free(ret);
+				router_free(ret);
 				return NULL;
 			}
 			p += 6;
@@ -1205,19 +1224,13 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize,
 			if (*p == '\0') {
 				logerr("unexpected end of file after 'expire after %s'\n",
 						num);
-				FREE_R;
-				free(w);
-				free(buf);
-				free(ret);
+				router_free(ret);
 				return NULL;
 			}
 			if (!isspace(*p)) {
 				logerr("unexpected character '%c', "
 						"expected number after 'expire after'\n", *p);
-				FREE_R;
-				free(w);
-				free(buf);
-				free(ret);
+				router_free(ret);
 				return NULL;
 			}
 			*p++ = '\0';
@@ -1225,29 +1238,20 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize,
 				;
 			if (strncmp(p, "seconds", 7) != 0 || !isspace(*(p + 7))) {
 				logerr("expected 'seconds' after 'expire after %s'\n", num);
-				FREE_R;
-				free(w);
-				free(buf);
-				free(ret);
+				router_free(ret);
 				return NULL;
 			}
 			p += 8;
 			exp = atoi(num);
 			if (exp == 0) {
 				logerr("expire must be non-zero\n");
-				FREE_R;
-				free(w);
-				free(buf);
-				free(ret);
+				router_free(ret);
 				return NULL;
 			}
 			if (exp < intv) {
 				logerr("expire (%d) must be greater than interval (%d)\n",
 						exp, intv);
-				FREE_R;
-				free(w);
-				free(buf);
-				free(ret);
+				router_free(ret);
 				return NULL;
 			}
 			for (; *p != '\0' && isspace(*p); p++)
@@ -1260,10 +1264,7 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize,
 					;
 				if (strncmp(p, "at", 2) != 0 || !isspace(*(p + 2))) {
 					logerr("expected 'at' after 'timestamp'\n");
-					FREE_R;
-					free(w);
-					free(buf);
-					free(ret);
+					router_free(ret);
 					return NULL;
 				}
 				p += 3;
@@ -1281,20 +1282,14 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize,
 				} else {
 					logerr("expected 'start', 'middle' or 'end' "
 							"after 'timestamp at'\n");
-					FREE_R;
-					free(w);
-					free(buf);
-					free(ret);
+					router_free(ret);
 					return NULL;
 				}
 				for (; *p != '\0' && isspace(*p); p++)
 					;
 				if (strncmp(p, "of", 2) != 0 || !isspace(*(p + 2))) {
 					logerr("expected 'of' after 'timestamp at ...'\n");
-					FREE_R;
-					free(w);
-					free(buf);
-					free(ret);
+					router_free(ret);
 					return NULL;
 				}
 				p += 3;
@@ -1302,10 +1297,7 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize,
 					;
 				if (strncmp(p, "bucket", 6) != 0 || !isspace(*(p + 6))) {
 					logerr("expected 'bucket' after 'timestamp at ... of'\n");
-					FREE_R;
-					free(w);
-					free(buf);
-					free(ret);
+					router_free(ret);
 					return NULL;
 				}
 				p += 7;
@@ -1316,24 +1308,18 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize,
 			w->members.aggregation = aggregator_new(intv, exp, tswhen);
 			if (w->members.aggregation == NULL) {
 				logerr("out of memory while allocating new aggregator\n");
-				FREE_R;
-				free(w);
-				free(buf);
-				free(ret);
+				router_free(ret);
 				return NULL;
 			}
 			if (a == NULL) {
-				topa = a = w->members.aggregation;
+				ret->aggregators = a = w->members.aggregation;
 			} else {
 				a = a->next = w->members.aggregation;
 			}
 			do {
 				if (strncmp(p, "compute", 7) != 0 || !isspace(*(p + 7))) {
 					logerr("expected 'compute' at: %.20s\n", p);
-					FREE_R;
-					free(w);
-					free(buf);
-					free(ret);
+					router_free(ret);
 					return NULL;
 				}
 				p += 8;
@@ -1342,10 +1328,7 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize,
 					;
 				if (*p == '\0') {
 					logerr("unexpected end of file after 'compute'\n");
-					FREE_R;
-					free(w);
-					free(buf);
-					free(ret);
+					router_free(ret);
 					return NULL;
 				}
 				*p++ = '\0';
@@ -1354,10 +1337,7 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize,
 					;
 				if (strncmp(p, "write", 5) != 0 || !isspace(*(p + 5))) {
 					logerr("expected 'write to' after 'compute %s'\n", pat);
-					FREE_R;
-					free(w);
-					free(buf);
-					free(ret);
+					router_free(ret);
 					return NULL;
 				}
 				p += 6;
@@ -1365,10 +1345,7 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize,
 					;
 				if (strncmp(p, "to", 2) != 0 || !isspace(*(p + 2))) {
 					logerr("expected 'write to' after 'compute %s'\n", pat);
-					FREE_R;
-					free(w);
-					free(buf);
-					free(ret);
+					router_free(ret);
 					return NULL;
 				}
 				p += 3;
@@ -1379,10 +1356,7 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize,
 					;
 				if (*p == '\0') {
 					logerr("unexpected end of file after 'write to'\n");
-					FREE_R;
-					free(w);
-					free(buf);
-					free(ret);
+					router_free(ret);
 					return NULL;
 				}
 			 	*p++ = '\0';
@@ -1391,10 +1365,7 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize,
 					logerr("expected sum, count, max, min, average, "
 							"median, percentile<%>, variance or stddev "
 							"after 'compute', got '%s'\n", type);
-					FREE_R;
-					free(w);
-					free(buf);
-					free(ret);
+					router_free(ret);
 					return NULL;
 				}
 
@@ -1412,8 +1383,7 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize,
 					;
 				if (strncmp(p, "to", 2) != 0 || !isspace(*(p + 2))) {
 					logerr("expected 'to' after 'send' for aggregate\n");
-					free(buf);
-					free(ret);
+					router_free(ret);
 					return NULL;
 				}
 				p += 3;
@@ -1430,7 +1400,7 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize,
 					*p = '\0';
 
 					/* lookup dest */
-					for (cw = topcl; cw != NULL; cw = cw->next) {
+					for (cw = ret->clusters; cw != NULL; cw = cw->next) {
 						if (cw->type != GROUP &&
 								cw->type != AGGRSTUB &&
 								cw->type != STATSTUB &&
@@ -1441,27 +1411,19 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize,
 					}
 					if (cw == NULL) {
 						logerr("no such cluster '%s' for aggregate\n", dest);
-						FREE_D;
-						FREE_R;
-						free(w);
-						free(buf);
-						free(ret);
+						router_free(ret);
 						return NULL;
 					}
 
 					if (dw == NULL) {
-						dw = d = malloc(sizeof(destinations));
+						dw = d = ra_malloc(ret, sizeof(destinations));
 					} else {
-						d = d->next = malloc(sizeof(destinations));
+						d = d->next = ra_malloc(ret, sizeof(destinations));
 					}
 					if (d == NULL) {
 						logerr("out of memory allocating new destination '%s' "
 								"for aggregation\n", dest);
-						FREE_D;
-						FREE_R;
-						free(w);
-						free(buf);
-						free(ret);
+						router_free(ret);
 						return NULL;
 					}
 					d->cl = cw;
@@ -1487,20 +1449,12 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize,
 			if (*p == '\0') {
 				logerr("unexpected end of file after 'aggregate %s'\n",
 						r->pattern);
-				FREE_D;
-				FREE_R;
-				free(w);
-				free(buf);
-				free(ret);
+				router_free(ret);
 				return NULL;
 			}
 			if (*p != ';') {
 				logerr("expected ';' after aggregate %s\n", r->pattern);
-				FREE_D;
-				FREE_R;
-				free(w);
-				free(buf);
-				free(ret);
+				router_free(ret);
 				return NULL;
 			}
 			p++;
@@ -1511,7 +1465,12 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize,
 			/* fill in the destinations for all the routes, this is for
 			 * printing and free-ing */
 			do {
-				m->dests = malloc(sizeof(destinations));
+				m->dests = ra_malloc(ret, sizeof(destinations));
+				if (m->dests == NULL) {
+					logerr("malloc failed for aggregation destinations\n");
+					router_free(ret);
+					return NULL;
+				}
 				m->dests->cl = w;
 				m->dests->next = dw;
 				m->stop = stop;
@@ -1520,7 +1479,12 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize,
 			if (dw != NULL) {
 				char stubname[48];
 
-				m = malloc(sizeof(route));
+				m = ra_malloc(ret, sizeof(route));
+				if (m == NULL) {
+					logerr("malloc failed for aggregation destination stub\n");
+					router_free(ret);
+					return NULL;
+				}
 				m->pattern = NULL;
 				m->strmatch = NULL;
 				m->dests = dw;
@@ -1529,8 +1493,18 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize,
 				m->next = NULL;
 
 				/* inject stub route for dests */
-				d = malloc(sizeof(destinations));
-				cl = cl->next = d->cl = malloc(sizeof(cluster));
+				d = ra_malloc(ret, sizeof(destinations));
+				if (d == NULL) {
+					logerr("malloc failed for aggr stub route\n");
+					router_free(ret);
+					return NULL;
+				}
+				cl = cl->next = d->cl = ra_malloc(ret, sizeof(cluster));
+				if (cl == NULL) {
+					logerr("malloc failed for aggr stub destinations\n");
+					router_free(ret);
+					return NULL;
+				}
 				cl->name = NULL;
 				cl->type = AGGRSTUB;
 				cl->members.routes = m;
@@ -1539,15 +1513,25 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize,
 
 				snprintf(stubname, sizeof(stubname),
 						STUB_AGGR "%p__", w->members.aggregation);
-				m = malloc(sizeof(route));
-				m->pattern = strdup(stubname);
-				m->strmatch = strdup(stubname);
+				m = ra_malloc(ret, sizeof(route));
+				if (m == NULL) {
+					logerr("malloc failed for catch stub aggr route\n");
+					router_free(ret);
+					return NULL;
+				}
+				m->pattern = ra_strdup(ret, stubname);
+				m->strmatch = ra_strdup(ret, stubname);
+				if (m->pattern == NULL || m->strmatch == NULL) {
+					logerr("malloc failed for catch stub aggr route pattern\n");
+					router_free(ret);
+					return NULL;
+				}
 				m->dests = d;
 				m->stop = 1;
 				m->matchtype = STARTS_WITH;
-				m->next = topr;
+				m->next = ret->routes;
 				/* enforce first match to avoid interference */
-				topr = m;
+				ret->routes = m;
 
 				aggregator_set_stub(w->members.aggregation, stubname);
 			}
@@ -1571,8 +1555,7 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize,
 				;
 			if (*p == '\0') {
 				logerr("unexpected end of file after 'rewrite'\n");
-				free(buf);
-				free(ret);
+				router_free(ret);
 				return NULL;
 			}
 			*p++ = '\0';
@@ -1580,8 +1563,7 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize,
 				;
 			if (strncmp(p, "into", 4) != 0 || !isspace(*(p + 4))) {
 				logerr("expected 'into' after rewrite %s\n", pat);
-				free(buf);
-				free(ret);
+				router_free(ret);
 				return NULL;
 			}
 			p += 5;
@@ -1593,8 +1575,7 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize,
 			if (*p == '\0') {
 				logerr("unexpected end of file after 'into %s'\n",
 						replacement);
-				free(buf);
-				free(ret);
+				router_free(ret);
 				return NULL;
 			} else if (*p == ';') {
 				*p++ = '\0';
@@ -1604,42 +1585,52 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize,
 					;
 				if (*p != ';') {
 					logerr("expected ';' after %s\n", replacement);
-					free(buf);
-					free(ret);
+					router_free(ret);
 					return NULL;
 				}
 				p++;
 			}
 
 			if (r == NULL) {
-				topr = r = malloc(sizeof(route));
+				ret->routes = r = ra_malloc(ret, sizeof(route));
 			} else {
-				r = r->next = malloc(sizeof(route));
+				r = r->next = ra_malloc(ret, sizeof(route));
+			}
+			if (r == NULL) {
+				logerr("malloc failed for rewrite route\n");
+				router_free(ret);
+				return NULL;
 			}
 			err = determine_if_regex(r, pat, REG_EXTENDED | REG_FORCE);
 			if (err != 0) {
 				char ebuf[512];
 				regerror(err, &r->rule, ebuf, sizeof(ebuf));
 				logerr("invalid expression '%s' for rewrite: %s\n", pat, ebuf);
-				free(r);
-				free(buf);
-				free(ret);
+				router_free(ret);
 				return NULL;
 			}
 
-			if ((cl = cl->next = malloc(sizeof(cluster))) == NULL) {
+			if ((cl = cl->next = ra_malloc(ret, sizeof(cluster))) == NULL) {
 				logerr("malloc failed for rewrite destination\n");
-				free(r);
-				free(buf);
-				free(ret);
+				router_free(ret);
 				return NULL;
 			}
 			cl->type = REWRITE;
 			cl->name = NULL;
-			cl->members.replacement = strdup(replacement);
+			cl->members.replacement = ra_strdup(ret, replacement);
 			cl->next = NULL;
+			if (cl->members.replacement == NULL) {
+				logerr("malloc failed for rewrite cluster replacement\n");
+				router_free(ret);
+				return NULL;
+			}
 
-			r->dests = malloc(sizeof(destinations));
+			r->dests = ra_malloc(ret, sizeof(destinations));
+			if (r->dests) {
+				logerr("malloc failed for rewrite destinations\n");
+				router_free(ret);
+				return NULL;
+			}
 			r->dests->cl = cl;
 			r->dests->next = NULL;
 			r->stop = 0;
@@ -1662,9 +1653,7 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize,
 				;
 			if (strncmp(p, "statistics", 10) != 0 || !isspace(*(p + 10))) {
 				logerr("expected 'statistics' after 'send'\n");
-				free(buf);
-				router_free_intern(topcl, topr);
-				free(ret);
+				router_free(ret);
 				return NULL;
 			}
 			p += 10;
@@ -1672,18 +1661,14 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize,
 				;
 			if (strncmp(p, "to", 2) != 0 || !isspace(*(p + 2))) {
 				logerr("expected 'to' after 'send statistics'\n");
-				free(buf);
-				router_free_intern(topcl, topr);
-				free(ret);
+				router_free(ret);
 				return NULL;
 			}
 			p += 2;
 			if (ret->collector_stub != NULL) {
 				logerr("duplicate 'send statistics to' not allowed, "
 						"use multiple destinations instead\n");
-				free(buf);
-				router_free_intern(topcl, topr);
-				free(ret);
+				router_free(ret);
 				return NULL;
 			}
 			for (; *p != '\0' && isspace(*p); p++)
@@ -1699,7 +1684,7 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize,
 				*p = '\0';
 
 				/* lookup dest */
-				for (cw = topcl; cw != NULL; cw = cw->next) {
+				for (cw = ret->clusters; cw != NULL; cw = cw->next) {
 					if (cw->type != GROUP &&
 							cw->type != AGGRSTUB &&
 							cw->type != STATSTUB &&
@@ -1711,23 +1696,19 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize,
 				if (cw == NULL) {
 					logerr("no such cluster '%s' for send statistics to\n",
 							dest);
-					FREE_D;
-					free(buf);
-					free(ret);
+					router_free(ret);
 					return NULL;
 				}
 
 				if (dw == NULL) {
-					dw = d = malloc(sizeof(destinations));
+					dw = d = ra_malloc(ret, sizeof(destinations));
 				} else {
-					d = d->next = malloc(sizeof(destinations));
+					d = d->next = ra_malloc(ret, sizeof(destinations));
 				}
 				if (d == NULL) {
 					logerr("out of memory allocating new destination '%s' "
 							"for 'send statistics to'\n", dest);
-					FREE_D;
-					free(buf);
-					free(ret);
+					router_free(ret);
 					return NULL;
 				}
 				d->cl = cw;
@@ -1751,15 +1732,18 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize,
 
 			if (dw == NULL) {
 				logerr("expected cluster name after 'send statistics to'\n");
-				FREE_D;
-				free(buf);
-				free(ret);
+				router_free(ret);
 				return NULL;
 			}
 
 			/* create a top-rule with match for unique prefix and send
 			 * that to the defined targets */
-			m = malloc(sizeof(route));
+			m = ra_malloc(ret, sizeof(route));
+			if (m == NULL) {
+				logerr("malloc failed for send statistics route\n");
+				router_free(ret);
+				return NULL;
+			}
 			m->pattern = NULL;
 			m->strmatch = NULL;
 			m->dests = dw;
@@ -1768,8 +1752,18 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize,
 			m->next = NULL;
 
 			/* inject stub route for dests */
-			d = malloc(sizeof(destinations));
-			cl = cl->next = d->cl = malloc(sizeof(cluster));
+			d = ra_malloc(ret, sizeof(destinations));
+			if (d == NULL) {
+				logerr("malloc failed for send statistics stub\n");
+				router_free(ret);
+				return NULL;
+			}
+			cl = cl->next = d->cl = ra_malloc(ret, sizeof(cluster));
+			if (cl == NULL) {
+				logerr("malloc failed for send statistics cluster\n");
+				router_free(ret);
+				return NULL;
+			}
 			cl->name = NULL;
 			cl->type = STATSTUB;
 			cl->members.routes = m;
@@ -1778,34 +1772,37 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize,
 
 			snprintf(stubname, sizeof(stubname),
 					STUB_STATS "%p__", ret);
-			m = malloc(sizeof(route));
-			m->pattern = strdup(stubname);
-			m->strmatch = strdup(stubname);
+			m = ra_malloc(ret, sizeof(route));
+			if (m == NULL) {
+				logerr("malloc failed for send statistics route stub\n");
+				router_free(ret);
+				return NULL;
+			}
+			m->pattern = ra_strdup(ret, stubname);
+			m->strmatch = ra_strdup(ret, stubname);
+			if (m->pattern == NULL || m->strmatch == NULL) {
+				logerr("malloc failed for send statistics stub pattern\n");
+				router_free(ret);
+				return NULL;
+			}
 			m->dests = d;
 			m->stop = 1;
 			m->matchtype = STARTS_WITH;
-			m->next = topr;
+			m->next = ret->routes;
 			/* enforce first match to avoid interference */
-			topr = m;
+			ret->routes = m;
 			if (r == NULL)
-				r = topr;
+				r = ret->routes;
 
 			ret->collector_stub = m->pattern;
 		} else {
 			/* garbage? */
-			logerr("garbage in config: %s\n", p);
-			free(buf);
-			router_free_intern(topcl, topr);
-			free(ret);
+			logerr("unexpected input in config: %s\n", p);
+			router_free(ret);
 			return NULL;
 		}
 	} while (*p != '\0');
 
-	free(buf);
-
-	ret->clusters = topcl;
-	ret->routes = topr;
-	ret->aggregators = topa;
 	return ret;
 }
 
@@ -2341,7 +2338,7 @@ void
 router_free(router *rtr)
 {
 	router_free_intern(rtr->clusters, rtr->routes);
-
+	ra_free(rtr);
 	free(rtr);
 }
 
