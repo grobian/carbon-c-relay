@@ -481,8 +481,6 @@ ch_free(ch_ring *ring)
 
 	for (; ring->entries != NULL; ring->entries = ring->entries->next) {
 		if (ring->entries->malloced) {
-			free(ring->entries->server);
-
 			if (deletes == NULL) {
 				w = deletes = ring->entries;
 			} else {
