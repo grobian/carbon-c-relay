@@ -240,6 +240,7 @@ router_free_intern(cluster *clusters, route *routes)
 			case JUMP_CH:
 				assert(clusters->members.ch != NULL);
 				ch_free(clusters->members.ch->ring);
+				clusters->members.ch->ring = NULL;
 				while (clusters->members.ch->servers) {
 					server_shutdown(clusters->members.ch->servers->server);
 					server_free(clusters->members.ch->servers->server);
@@ -528,6 +529,15 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize,
 				return NULL;
 			}
 			*p++ = '\0';
+
+			if ((cl = cl->next = ra_malloc(ret, sizeof(cluster))) == NULL) {
+				logerr("malloc failed for cluster '%s'\n", name);
+				router_free(ret);
+				return NULL;
+			}
+			cl->name = ra_strdup(ret, name);
+			cl->next = NULL;
+
 			for (; *p != '\0' && isspace(*p); p++)
 				;
 			if (
@@ -564,11 +574,6 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize,
 						replcnt = 1;
 				}
 
-				if ((cl = cl->next = ra_malloc(ret, sizeof(cluster))) == NULL) {
-					logerr("malloc failed in cluster '%s'\n", name);
-					router_free(ret);
-					return NULL;
-				}
 				cl->type = chtype;
 				cl->members.ch = ra_malloc(ret, sizeof(chashring));
 				if (cl->members.ch == NULL) {
@@ -583,11 +588,6 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize,
 			} else if (strncmp(p, "forward", 7) == 0 && isspace(*(p + 7))) {
 				p += 8;
 
-				if ((cl = cl->next = ra_malloc(ret, sizeof(cluster))) == NULL) {
-					logerr("malloc failed in cluster forward\n");
-					router_free(ret);
-					return NULL;
-				}
 				cl->type = FORWARD;
 				cl->members.forward = NULL;
 			} else if (strncmp(p, "any_of", 6) == 0 && isspace(*(p + 6))) {
@@ -600,23 +600,11 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize,
 					useall = 1;
 				}
 
-				if ((cl = cl->next = ra_malloc(ret, sizeof(cluster))) == NULL) {
-					logerr("malloc failed in cluster any_of\n");
-					router_free(ret);
-					return NULL;
-				}
 				cl->type = ANYOF;
 				cl->members.anyof = NULL;
 			} else if (strncmp(p, "failover", 8) == 0 && isspace(*(p + 8))) {
 				p += 9;
 
-				for (; *p != '\0' && isspace(*p); p++)
-					;
-				if ((cl = cl->next = ra_malloc(ret, sizeof(cluster))) == NULL) {
-					logerr("malloc failed in cluster failover\n");
-					router_free(ret);
-					return NULL;
-				}
 				cl->type = FAILOVER;
 				cl->members.anyof = NULL;
 			} else if (strncmp(p, "file", 4) == 0 && isspace(*(p + 4))) {
@@ -624,11 +612,6 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize,
 
 				for (; *p != '\0' && isspace(*p); p++)
 					;
-				if ((cl = cl->next = ra_malloc(ret, sizeof(cluster))) == NULL) {
-					logerr("malloc failed in cluster file\n");
-					router_free(ret);
-					return NULL;
-				}
 				if (strncmp(p, "ip", 2) == 0 && isspace(*(p + 2))) {
 					p += 3;
 					for (; *p != '\0' && isspace(*p); p++)
@@ -950,8 +933,6 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize,
 					return NULL;
 				}
 			}
-			cl->name = ra_strdup(ret, name);
-			cl->next = NULL;
 		} else if (strncmp(p, "match", 5) == 0 && isspace(*(p + 5))) {
 			/* match rule */
 			char *pat;
@@ -989,6 +970,7 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize,
 					router_free(ret);
 					return NULL;
 				}
+				r->next = NULL;
 				if (m == NULL)
 					m = r;
 				if (strcmp(pat, "*") == 0) {
@@ -1007,7 +989,6 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize,
 						return NULL;
 					}
 				}
-				r->next = NULL;
 			} while (strncmp(p, "send", 4) != 0 || !isspace(*(p + 4)));
 			p += 5;
 			for (; *p != '\0' && isspace(*p); p++)
@@ -1154,6 +1135,7 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize,
 					router_free(ret);
 					return NULL;
 				}
+				r->next = NULL;
 				if (m == NULL)
 					m = r;
 				err = determine_if_regex(r, pat, REG_EXTENDED);
@@ -1165,7 +1147,6 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize,
 					router_free(ret);
 					return NULL;
 				}
-				r->next = NULL;
 			} while (strncmp(p, "every", 5) != 0 || !isspace(*(p + 5)));
 			p += 6;
 			for (; *p != '\0' && isspace(*p); p++)
@@ -1499,6 +1480,7 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize,
 					router_free(ret);
 					return NULL;
 				}
+				d->next = NULL;
 				cl = cl->next = d->cl = ra_malloc(ret, sizeof(cluster));
 				if (cl == NULL) {
 					logerr("malloc failed for aggr stub destinations\n");
@@ -1509,7 +1491,6 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize,
 				cl->type = AGGRSTUB;
 				cl->members.routes = m;
 				cl->next = NULL;
-				d->next = NULL;
 
 				snprintf(stubname, sizeof(stubname),
 						STUB_AGGR "%p__", w->members.aggregation);
@@ -1529,8 +1510,8 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize,
 				m->dests = d;
 				m->stop = 1;
 				m->matchtype = STARTS_WITH;
-				m->next = ret->routes;
 				/* enforce first match to avoid interference */
+				m->next = ret->routes;
 				ret->routes = m;
 
 				aggregator_set_stub(w->members.aggregation, stubname);
@@ -1601,6 +1582,7 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize,
 				router_free(ret);
 				return NULL;
 			}
+			r->next = NULL;
 			err = determine_if_regex(r, pat, REG_EXTENDED | REG_FORCE);
 			if (err != 0) {
 				char ebuf[512];
@@ -1758,6 +1740,7 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize,
 				router_free(ret);
 				return NULL;
 			}
+			d->next = NULL;
 			cl = cl->next = d->cl = ra_malloc(ret, sizeof(cluster));
 			if (cl == NULL) {
 				logerr("malloc failed for send statistics cluster\n");
@@ -1768,7 +1751,6 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize,
 			cl->type = STATSTUB;
 			cl->members.routes = m;
 			cl->next = NULL;
-			d->next = NULL;
 
 			snprintf(stubname, sizeof(stubname),
 					STUB_STATS "%p__", ret);
@@ -1788,8 +1770,8 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize,
 			m->dests = d;
 			m->stop = 1;
 			m->matchtype = STARTS_WITH;
-			m->next = ret->routes;
 			/* enforce first match to avoid interference */
+			m->next = ret->routes;
 			ret->routes = m;
 			if (r == NULL)
 				r = ret->routes;
