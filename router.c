@@ -54,6 +54,7 @@ enum clusttype {
 
 typedef struct _servers {
 	server *server;
+	int refcnt;
 	struct _servers *next;
 } servers;
 
@@ -824,7 +825,11 @@ router_readconfig(router *orig,
 								server_port(s->server) == port &&
 								(*proto != 't' || server_ctype(s->server) == CON_TCP) &&
 								(*proto != 'u' || server_ctype(s->server) == CON_UDP))
+						{
 							newserver = s->server;
+							s->refcnt++;
+							break;
+						}
 					}
 					if (newserver == NULL) {
 						newserver = server_new(ip, (unsigned short)port,
@@ -848,6 +853,7 @@ router_readconfig(router *orig,
 							s = s->next = ra_malloc(ret, sizeof(servers));
 						}
 						s->next = NULL;
+						s->refcnt = 1;
 						s->server = newserver;
 					}
 
