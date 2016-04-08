@@ -489,12 +489,13 @@ ch_free(ch_ring *ring)
 		}
 	}
 
-	assert(w != NULL);
-	w->next = NULL;
-	while (deletes != NULL) {
-		w = deletes->next;
-		free(deletes);
-		deletes = w;
+	if (w != NULL) {
+		w->next = NULL;
+		while (deletes != NULL) {
+			w = deletes->next;
+			free(deletes);
+			deletes = w;
+		}
 	}
 
 	if (ring->entrylist != NULL)
