@@ -1,6 +1,8 @@
 # 2.0 (unreleased master branch)
 
 ### New Features
+* **router** `include` directive was added to add content of another
+             file, see also [Issue #165](https://github.com/grobian/carbon-c-relay/issues/165)
 
 ### Breaking Changes
 
@@ -10,11 +12,13 @@
 
 # 1.11 (23-03-2016)
 
+### New Features
+* **router** `send statistics to` construct was added to direct internal
+  statistics to a specific cluster
+
 ### Enhancements
 * **collector** UDP connections are now suffixed with `-udp` in
   destination target
-* **router** `send statistics to` construct was added to direct internal
-  statistics to a specific cluster
 
 ### Bugfixes
 * [Issue #159](https://github.com/grobian/carbon-c-relay/issues/159)
