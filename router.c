@@ -876,6 +876,36 @@ router_readconfig(router *orig,
 							return NULL;
 						}
 						w->next = NULL;
+						if (s->refcnt > 1) {
+							char *sinst = server_instance(newserver);
+							if (sinst == NULL && inst != NULL) {
+								logerr("cannot set instance '%s' for "
+										"server %s:%d: server was previously "
+										"defined without instance\n",
+										inst, server_ip(newserver),
+										server_port(newserver));
+								router_free(ret);
+								return NULL;
+							} else if (sinst != NULL && inst == NULL) {
+								logerr("cannot define server %s:%d without "
+										"instance: server was previously "
+										"defined with instance '%s'\n",
+										server_ip(newserver),
+										server_port(newserver), sinst);
+								router_free(ret);
+								return NULL;
+							} else if (sinst != NULL && inst != NULL &&
+									strcmp(sinst, inst) != 0)
+							{
+								logerr("cannot set instance '%s' for "
+										"server %s:%d: server was previously "
+										"defined with instance '%s'\n",
+										inst, server_ip(newserver),
+										server_port(newserver), sinst);
+								router_free(ret);
+								return NULL;
+							} /* else: sinst == inst == NULL */
+						}
 						if (inst != NULL)
 							server_set_instance(newserver, inst);
 						w->server = newserver;
