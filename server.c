@@ -512,6 +512,8 @@ server_set_failover(server *self)
 void
 server_set_instance(server *self, char *instance)
 {
+	if (self->instance != NULL)
+		free(self->instance);
 	self->instance = strdup(instance);
 }
 
