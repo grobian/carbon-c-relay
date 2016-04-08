@@ -492,6 +492,11 @@ router_readconfig(router *orig,
 		ret->clusters = cl;
 	} else {
 		ret = orig;
+		/* position cl and r at the end of chains */
+		for (cl = ret->clusters; cl->next != NULL; cl = cl->next)
+			;
+		for (r = ret->routes; r != NULL && r->next != NULL; r = r->next)
+			;
 	}
 
 	if ((buf = ra_malloc(ret, st.st_size + 1)) == NULL) {
