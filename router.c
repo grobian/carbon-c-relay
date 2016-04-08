@@ -427,6 +427,7 @@ determine_if_regex(route *r, char *pat, int flags)
  *     [stop]
  *     ;
  * send statistics to (cluster ...) [stop];
+ * include (/path/to/file);
  *
  * Comments start with a #-char.
  *
@@ -1791,6 +1792,42 @@ router_readconfig(router *orig,
 				r = ret->routes;
 
 			ret->collector_stub = m->pattern;
+		} else if (strncmp(p, "include", 7) == 0 && isspace(*(p + 7))) {
+			char *name = NULL;
+			char endchar;
+
+			p += 7;
+			for (; *p != '\0' && isspace(*p); p++)
+				;
+			if (*p == '\0') {
+				logerr("unexpected end of input after 'include'\n");
+				router_free(ret);
+				return NULL;
+			}
+			name = p;
+			for (; *p != '\0' && !isspace(*p) && *p != ';'; p++)
+				;
+			if (*p == '\0') {
+				logerr("unexpected end of input after 'include %s' "
+						"(did you forget ';'?)\n", name);
+				router_free(ret);
+				return NULL;
+			}
+			endchar = *p;
+			*p = '\0';
+			ret = router_readconfig(ret, name, queuesize, batchsize, iotimeout);
+			if (ret == NULL)
+				/* router_readconfig already barked and freed ret */
+				return NULL;
+			*p = endchar;
+			for (; *p != '\0' && isspace(*p); p++)
+				;
+			if (*p != ';') {
+				logerr("expected ';' after 'include %s'\n", name);
+				router_free(ret);
+				return NULL;
+			}
+			p++;
 		} else {
 			/* garbage? */
 			logerr("unexpected input in config: %s\n", p);

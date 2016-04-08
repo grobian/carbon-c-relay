@@ -81,6 +81,8 @@ aggregate
 send statistics to <cluster ...>
 	[stop]
 	;
+include </path/to/file>
+	;
 ```
 
 Multiple clusters can be defined, and need not to be referenced by a
@@ -206,6 +208,17 @@ which matches the (internal) statistics produced by the relay.  It can
 be used to avoid router loops when sending the statistics to a certain
 destination.  The `send statistics` construct can only be used once, but
 multiple destinations can be used then required.
+
+In case configuration becomes very long, or is managed better in
+separate files, the `include` directive can be used to read another
+file.  The given file will be read in place and added to the router
+configuration at the time of inclusion.  The end result is one big route
+configuration.  Multiple `include` statements can be used throughout the
+configuration file.  The positioning will influence the order of rules
+as normal.  Beware that recursive inclusion (`include` from an included
+file) is supported, and currently no safeguards exist for an inclusion
+loop.  For what is worth, this feature likely is best used with simple
+configuration files (e.g. not having `include` in them).
 
 
 Examples
