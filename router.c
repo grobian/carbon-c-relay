@@ -443,7 +443,10 @@ determine_if_regex(route *r, char *pat, int flags)
  *    stop;
  */
 router *
-router_readconfig(const char *path, size_t queuesize, size_t batchsize,
+router_readconfig(router *orig,
+		const char *path,
+		size_t queuesize,
+		size_t batchsize,
 		unsigned short iotimeout)
 {
 	FILE *cnf;
@@ -464,13 +467,32 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize,
 		return NULL;
 	}
 
-	/* get a return structure (and allocator) in place */
-	if ((ret = malloc(sizeof(router))) == NULL) {
-		logerr("malloc failed for router return struct\n");
-		return NULL;
+	if (orig == NULL) {
+		/* get a return structure (and allocator) in place */
+		if ((ret = malloc(sizeof(router))) == NULL) {
+			logerr("malloc failed for router return struct\n");
+			return NULL;
+		}
+		ret->allocator = NULL;
+		ret->collector_stub = NULL;
+		ret->routes = NULL;
+		ret->aggregators = NULL;
+
+		/* create virtual blackhole cluster */
+		cl = ra_malloc(ret, sizeof(cluster));
+		if (cl == NULL) {
+			logerr("malloc failed for blackhole cluster\n");
+			router_free(ret);
+			return NULL;
+		}
+		cl->name = ra_strdup(ret, "blackhole");
+		cl->type = BLACKHOLE;
+		cl->members.forward = NULL;
+		cl->next = NULL;
+		ret->clusters = cl;
+	} else {
+		ret = orig;
 	}
-	ret->allocator = NULL;
-	ret->collector_stub = NULL;
 
 	if ((buf = ra_malloc(ret, st.st_size + 1)) == NULL) {
 		logerr("malloc failed for config file buffer\n");
@@ -484,19 +506,6 @@ router_readconfig(const char *path, size_t queuesize, size_t batchsize,
 		;
 	buf[st.st_size] = '\0';
 	fclose(cnf);
-
-	/* create virtual blackhole cluster */
-	cl = ra_malloc(ret, sizeof(cluster));
-	if (cl == NULL) {
-		logerr("malloc failed for blackhole cluster\n");
-		router_free(ret);
-		return NULL;
-	}
-	cl->name = ra_strdup(ret, "blackhole");
-	cl->type = BLACKHOLE;
-	cl->members.forward = NULL;
-	cl->next = NULL;
-	ret->clusters = cl;
 
 	/* remove all comments to ease parsing below */
 	p = buf;

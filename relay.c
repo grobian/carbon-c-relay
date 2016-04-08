@@ -164,7 +164,7 @@ hup_handler(int sig)
 	}
 
 	logout("reloading config from '%s'\n", config);
-	if ((newrtr = router_readconfig(config,
+	if ((newrtr = router_readconfig(NULL, config,
 					queuesize, batchsize, iotimeout)) == NULL)
 	{
 		logerr("failed to read configuration '%s', aborting reload\n", config);
@@ -558,7 +558,7 @@ main(int argc, char * const argv[])
 	fprintf(relay_stdout, "    routes configuration = %s\n", config);
 	fprintf(relay_stdout, "\n");
 
-	if ((rtr = router_readconfig(config,
+	if ((rtr = router_readconfig(NULL, config,
 					queuesize, batchsize, iotimeout)) == NULL)
 	{
 		logerr("failed to read configuration '%s'\n", config);
