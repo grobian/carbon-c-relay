@@ -110,6 +110,7 @@ struct _router {
 	cluster *clusters;
 	route *routes;
 	aggregator *aggregators;
+	servers *srvrs;
 	char *collector_stub;
 	struct _router_allocator {
 		void *memory_region;
@@ -478,6 +479,7 @@ router_readconfig(router *orig,
 		ret->collector_stub = NULL;
 		ret->routes = NULL;
 		ret->aggregators = NULL;
+		ret->srvrs = NULL;
 
 		/* create virtual blackhole cluster */
 		cl = ra_malloc(ret, sizeof(cluster));
@@ -786,6 +788,8 @@ router_readconfig(router *orig,
 
 				walk = saddrs;
 				while (walk != NULL) {
+					servers *s;
+
 					/* disconnect from the rest to avoid double
 					 * frees by freeaddrinfo() in server_destroy() */
 					if (walk != (void *)1) {
@@ -814,17 +818,37 @@ router_readconfig(router *orig,
 						}
 					}
 
-					newserver = server_new(ip, (unsigned short)port,
-							*proto == 'f' ? CON_FILE :
-							*proto == 'u' ? CON_UDP : CON_TCP,
-							walk == (void *)1 ? NULL : walk,
-							queuesize, batchsize, iotimeout);
+					newserver = NULL;
+					for (s = ret->srvrs; s != NULL; s = s->next) {
+						if (strcmp(server_ip(s->server), ip) == 0 &&
+								server_port(s->server) == port &&
+								(*proto != 't' || server_ctype(s->server) == CON_TCP) &&
+								(*proto != 'u' || server_ctype(s->server) == CON_UDP))
+							newserver = s->server;
+					}
 					if (newserver == NULL) {
-						logerr("failed to add server %s:%d (%s) "
-								"to cluster %s: %s\n", ip, port, proto,
-								name, strerror(errno));
-						router_free(ret);
-						return NULL;
+						newserver = server_new(ip, (unsigned short)port,
+								*proto == 'f' ? CON_FILE :
+								*proto == 'u' ? CON_UDP : CON_TCP,
+								walk == (void *)1 ? NULL : walk,
+								queuesize, batchsize, iotimeout);
+						if (newserver == NULL) {
+							logerr("failed to add server %s:%d (%s) "
+									"to cluster %s: %s\n", ip, port, proto,
+									name, strerror(errno));
+							router_free(ret);
+							return NULL;
+						}
+						if (ret->srvrs == NULL) {
+							s = ret->srvrs = ra_malloc(ret, sizeof(servers));
+						} else {
+							for (s = ret->srvrs; s != NULL; s = s->next)
+								if (s->next == NULL)
+									break;
+							s = s->next = ra_malloc(ret, sizeof(servers));
+						}
+						s->next = NULL;
+						s->server = newserver;
 					}
 
 					if (cl->type == CARBON_CH ||
