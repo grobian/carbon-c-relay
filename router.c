@@ -1617,7 +1617,7 @@ router_readconfig(router *orig,
 			}
 
 			r->dests = ra_malloc(ret, sizeof(destinations));
-			if (r->dests) {
+			if (r->dests == NULL) {
 				logerr("malloc failed for rewrite destinations\n");
 				router_free(ret);
 				return NULL;
