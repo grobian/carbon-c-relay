@@ -112,8 +112,8 @@ struct _router {
 	aggregator *aggregators;
 	char *collector_stub;
 	struct _router_allocator {
-		char *memory_region;
-		char *nextp;
+		void *memory_region;
+		void *nextp;
 		size_t sz;
 		struct _router_allocator *next;
 	} *allocator;
@@ -160,7 +160,7 @@ ra_malloc(router *rtr, size_t sz)
 #define ra_alloc(RA, SZ) { \
 		nsz = 256 * 1024; \
 		if (SZ > nsz) \
-			nsz = SZ; \
+			nsz = ((SZ / 1024) + 1) * 1024; \
 		RA = malloc(sizeof(struct _router_allocator)); \
 		if (RA == NULL) \
 			return NULL; \
