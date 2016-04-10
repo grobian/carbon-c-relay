@@ -213,7 +213,7 @@ ra_strdup(router *rtr, const char *s)
  * Frees routes and clusters.
  */
 static void
-router_free_intern(cluster *clusters, route *routes)
+router_free_intern(cluster *clusters, route *routes, servers *srvrs)
 {
 	servers *s;
 
@@ -226,7 +226,8 @@ router_free_intern(cluster *clusters, route *routes)
 				if (routes->dests->cl->type == GROUP ||
 						routes->dests->cl->type == AGGRSTUB ||
 						routes->dests->cl->type == STATSTUB)
-					router_free_intern(NULL, routes->dests->cl->members.routes);
+					router_free_intern(NULL,
+							routes->dests->cl->members.routes, srvrs);
 
 				routes->dests = routes->dests->next;
 			}
@@ -240,40 +241,15 @@ router_free_intern(cluster *clusters, route *routes)
 			case CARBON_CH:
 			case FNV1A_CH:
 			case JUMP_CH:
-				assert(clusters->members.ch != NULL);
 				ch_free(clusters->members.ch->ring);
-				clusters->members.ch->ring = NULL;
-				while (clusters->members.ch->servers) {
-					server_shutdown(clusters->members.ch->servers->server);
-					server_free(clusters->members.ch->servers->server);
-					clusters->members.ch->servers =
-						clusters->members.ch->servers->next;
-				}
 				break;
 			case FORWARD:
 			case FILELOG:
 			case FILELOGIP:
 			case BLACKHOLE:
-				while (clusters->members.forward) {
-					server_shutdown(clusters->members.forward->server);
-					server_free(clusters->members.forward->server);
-
-					clusters->members.forward =
-						clusters->members.forward->next;
-				}
-				break;
 			case ANYOF:
 			case FAILOVER:
-				/* in case of secondaries, make sure nothing references
-				 * the servers anymore */
-				for (s = clusters->members.anyof->list; s != NULL; s = s->next)
-					server_shutdown(s->server);
-				while (clusters->members.anyof->list) {
-					server_free(clusters->members.anyof->list->server);
-
-					clusters->members.anyof->list =
-						clusters->members.anyof->list->next;
-				}
+				/* no special structures to free */
 				break;
 			case GROUP:
 			case AGGRSTUB:
@@ -290,6 +266,13 @@ router_free_intern(cluster *clusters, route *routes)
 
 		clusters = clusters->next;
 	}
+
+	/* free all servers from the pool, in case of secondaries, make
+	 * sure nothing references the servers anymore */
+	for (s = srvrs; s != NULL; s = s->next)
+		server_shutdown(s->server);
+	for (s = srvrs; s != NULL; s = s->next)
+		server_free(s->server);
 }
 
 /**
@@ -847,9 +830,8 @@ router_readconfig(router *orig,
 						if (ret->srvrs == NULL) {
 							s = ret->srvrs = ra_malloc(ret, sizeof(servers));
 						} else {
-							for (s = ret->srvrs; s != NULL; s = s->next)
-								if (s->next == NULL)
-									break;
+							for (s = ret->srvrs; s->next != NULL; s = s->next)
+								;
 							s = s->next = ra_malloc(ret, sizeof(servers));
 						}
 						s->next = NULL;
@@ -2430,7 +2412,7 @@ router_printconfig(router *rtr, FILE *f, char pmode)
 void
 router_free(router *rtr)
 {
-	router_free_intern(rtr->clusters, rtr->routes);
+	router_free_intern(rtr->clusters, rtr->routes, rtr->srvrs);
 	ra_free(rtr);
 	free(rtr);
 }
