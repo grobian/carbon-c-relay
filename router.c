@@ -929,6 +929,15 @@ router_readconfig(router *orig,
 									&& cl->members.forward == NULL)
 							cl->members.forward = w;
 						if (cl->type == ANYOF || cl->type == FAILOVER) {
+							if (s->refcnt > 1) {
+								logerr("cannot share server %s:%d with "
+										"any_of/failover cluster '%s'\n",
+										server_ip(newserver),
+										server_port(newserver),
+										cl->name);
+								router_free(ret);
+								return NULL;
+							}
 							if (cl->members.anyof == NULL) {
 								cl->members.anyof =
 									ra_malloc(ret, sizeof(serverlist));
