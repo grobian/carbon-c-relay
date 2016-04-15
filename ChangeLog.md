@@ -9,6 +9,8 @@
 ### Enhancements
 
 ### Bugfixes
+* [Issue #154](https://github.com/grobian/carbon-c-relay/issues/159)
+  when a store becomes a bottleneck it shouldn't indefinitely stall
 
 # 1.11 (23-03-2016)
 

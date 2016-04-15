@@ -55,6 +55,7 @@ struct _server {
 	char failure:5;
 	char running:1;
 	char keep_running:1;
+	unsigned char stallseq:3;  /* align with MAX_STALLS */
 	size_t metrics;
 	size_t dropped;
 	size_t stalls;
@@ -465,6 +466,7 @@ server_new(
 	ret->failure = 0;
 	ret->running = 0;
 	ret->keep_running = 1;
+	ret->stallseq = 0;
 	ret->metrics = 0;
 	ret->dropped = 0;
 	ret->stalls = 0;
@@ -539,13 +541,17 @@ server_send(server *s, const char *d, char force)
 				}
 			}
 		}
-		if (failure || force) {
+#define MAX_STALLS   4  /* 4 * ~1s = 4s */
+		if (failure || force || s->stallseq > MAX_STALLS) {
 			s->dropped++;
 			/* excess event will be dropped by the enqueue below */
 		} else {
+			s->stallseq++;
 			s->stalls++;
 			return 0;
 		}
+	} else {
+		s->stallseq = 0;
 	}
 	queue_enqueue(s->queue, d);
 
