@@ -87,6 +87,8 @@ server_queuereader(void *d)
 	queue *squeue;
 	char idle = 0;
 	size_t *secpos = NULL;
+	unsigned char cnt;
+	const char *p;
 
 	*metric = NULL;
 	self->metrics = 0;
@@ -375,12 +377,24 @@ server_queuereader(void *d)
 
 		for (; *metric != NULL; metric++) {
 			len = strlen(*metric);
-			if ((slen = write(self->fd, *metric, len)) != len) {
-				/* not fully sent, or failure, close connection
-				 * regardless so we don't get synchonisation problems,
-				 * partially sent data is an error for us, since we use
-				 * blocking sockets, and hence partial sent is
-				 * indication of a failure */
+			/* Write to the stream, this may not succeed completely due
+			 * to flow control and whatnot, which the docs suggest need
+			 * resuming to complete.  So, use a loop, but to avoid
+			 * getting endlessly stuck on this, only try a limited
+			 * number of times for a single metric. */
+			for (cnt = 0, p = *metric;
+					cnt < 10 &&
+						(slen = write(self->fd, p, len)) != len &&
+						slen >= 0;
+					cnt++)
+			{
+				p += slen;
+				len -= slen;
+			}
+			if (slen != len) {
+				/* not fully sent (after tries), or failure
+				 * close connection regardless so we don't get
+				 * synchonisation problems */
 				if (self->ctype != CON_UDP && !self->failure)
 					logerr("failed to write() to %s:%u: %s\n",
 							self->ip, self->port,

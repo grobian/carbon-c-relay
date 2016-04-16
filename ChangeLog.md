@@ -7,6 +7,11 @@
 ### Breaking Changes
 
 ### Enhancements
+* **server** incomplete writes are now retried a couple of times before
+             they are considered fatal.  This should reduce the amount
+             of messages in the logs about them, and be more like the
+             consumer expects, e.g. less sudden disconnects for the
+             client.
 
 ### Bugfixes
 * [Issue #154](https://github.com/grobian/carbon-c-relay/issues/159)
