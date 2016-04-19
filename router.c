@@ -820,7 +820,7 @@ router_readconfig(router *orig,
 								*proto == 'u' ? CON_UDP : CON_TCP,
 								walk == (void *)1 ? NULL : walk,
 								queuesize, batchsize, iotimeout);
-						if (newserver == NULL) {
+						if (newserver == NULL || server_start(newserver) == 0) {
 							logerr("failed to add server %s:%d (%s) "
 									"to cluster %s: %s\n", ip, port, proto,
 									name, strerror(errno));

@@ -32,6 +32,7 @@ server *server_new(
 		size_t queuesize,
 		size_t batchsize,
 		unsigned short iotimeout);
+char server_start(server *s);
 void server_add_secondaries(server *d, server **sec, size_t cnt);
 void server_set_failover(server *d);
 void server_set_instance(server *d, char *inst);

@@ -489,15 +489,23 @@ server_new(
 	ret->prevdropped = 0;
 	ret->prevstalls = 0;
 	ret->prevticks = 0;
-
-	if (pthread_create(&ret->tid, NULL, &server_queuereader, ret) != 0) {
-		free((char *)ret->ip);
-		queue_destroy(ret->queue);
-		free(ret);
-		return NULL;
-	}
+	ret->tid = 0;
 
 	return ret;
+}
+
+/**
+ * Starts a previously created server using server_new().  Returns false
+ * if starting a thread failed, after which the caller should
+ * server_free() the given s pointer.
+ */
+char
+server_start(server *s)
+{
+	if (pthread_create(&s->tid, NULL, &server_queuereader, s) != 0)
+		return 0;
+	
+	return 1;
 }
 
 /**
@@ -583,8 +591,9 @@ server_shutdown(server *s)
 	size_t inqueue;
 	int err;
 
-	/* this function should only be called once for each server */
-	assert(s->tid != 0);
+	/* this function should only be called on a running server */
+	if (s->tid == 0)
+		return;
 
 	if (s->secondariescnt > 0) {
 		/* if we have a working connection, or we still have stuff in

@@ -670,6 +670,11 @@ main(int argc, char * const argv[])
 		logerr("failed to create internal submission queue, shutting down\n");
 		keep_running = 0;
 	}
+	if (server_start(internal_submission) == 0) {
+		logerr("failed to start submission queue thread, shutting down\n");
+		server_free(internal_submission);
+		keep_running = 0;
+	}
 
 	if (numaggregators > 0) {
 		logout("starting aggregator\n");
