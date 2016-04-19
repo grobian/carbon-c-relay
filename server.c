@@ -40,7 +40,6 @@
 struct _server {
 	const char *ip;
 	unsigned short port;
-	const char *sid;
 	char *instance;
 	struct addrinfo *saddr;
 	int fd;
@@ -451,7 +450,6 @@ server_new(
 		unsigned short iotimeout)
 {
 	server *ret;
-	size_t sidlen;
 
 	if ((ret = malloc(sizeof(server))) == NULL)
 		return NULL;
@@ -461,32 +459,11 @@ server_new(
 	ret->secondaries = NULL;
 	ret->secondariescnt = 0;
 	ret->ip = strdup(ip);
-	if (ret->ip == NULL) {
-		free(ret);
-		return NULL;
-	}
 	ret->port = port;
-	sidlen = strlen(ret->ip) + 1 + 5 + 1 + 3 + 1;
-	ret->sid = malloc(sizeof(char) * sidlen);
-	if (ret->sid == NULL) {
-		free((char *)ret->ip);
-		free(ret);
-		return NULL;
-	}
-	snprintf((char *)ret->sid, sidlen, "%s:%ud:%s",
-			ret->ip,
-			ret->port,
-			ret->ctype == CON_TCP ? "tcp" :
-			ret->ctype == CON_UDP ? "udp" :
-			ret->ctype == CON_PIPE ? "pip" :
-			ret->ctype == CON_FILE ? "fil" :
-			"unk");
 	ret->instance = NULL;
 	ret->bsize = bsize;
 	ret->iotimeout = iotimeout < 250 ? 600 : iotimeout;
 	if ((ret->batch = malloc(sizeof(char *) * (bsize + 1))) == NULL) {
-		free((char *)ret->ip);
-		free((char *)ret->sid);
 		free(ret);
 		return NULL;
 	}
@@ -495,7 +472,6 @@ server_new(
 	ret->queue = queue_new(qsize);
 	if (ret->queue == NULL) {
 		free((char *)ret->ip);
-		free((char *)ret->sid);
 		free(ret);
 		return NULL;
 	}
@@ -714,19 +690,6 @@ server_port(server *s)
 	if (s == NULL)
 		return 0;
 	return s->port;
-}
-
-/**
- * Returns the identifyable string for this server.  The identifyable
- * string isn't necessarily globally unique, but it is what the server
- * pool is built of.
- */
-inline const char *
-server_sid(server *s)
-{
-	if (s == NULL)
-		return NULL;
-	return s->sid;
 }
 
 /**
