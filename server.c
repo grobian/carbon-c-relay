@@ -619,13 +619,6 @@ server_shutdown(server *s)
 		logerr("%s:%u: failed to join server thread: %s\n",
 				s->ip, s->port, strerror(err));
 	s->tid = 0;
-
-	if (s->ctype == CON_TCP) {
-		size_t qlen = queue_len(s->queue);
-		if (qlen > 0)
-			logerr("dropping %zu metrics for %s:%u\n",
-					qlen, s->ip, s->port);
-	}
 }
 
 /**
@@ -633,6 +626,13 @@ server_shutdown(server *s)
  */
 void
 server_free(server *s) {
+	if (s->ctype == CON_TCP) {
+		size_t qlen = queue_len(s->queue);
+		if (qlen > 0)
+			logerr("dropping %zu metrics for %s:%u\n",
+					qlen, s->ip, s->port);
+	}
+
 	queue_destroy(s->queue);
 	free(s->batch);
 	if (s->instance)
