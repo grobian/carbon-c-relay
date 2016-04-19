@@ -267,10 +267,9 @@ router_free_intern(cluster *clusters, route *routes, servers *srvrs)
 		clusters = clusters->next;
 	}
 
-	/* free all servers from the pool, in case of secondaries, make
-	 * sure nothing references the servers anymore */
-	for (s = srvrs; s != NULL; s = s->next)
-		server_shutdown(s->server);
+	/* free all servers from the pool, in case of secondaries, the
+	 * previous call to router_shutdown made sure nothing references the
+	 * servers anymore */
 	for (s = srvrs; s != NULL; s = s->next)
 		server_free(s->server);
 }
@@ -2413,6 +2412,18 @@ router_printconfig(router *rtr, FILE *f, char pmode)
 		}
 	}
 	fflush(f);
+}
+
+/**
+ * Shuts down all resources (servers) associated to this router.
+ */
+void
+router_shutdown(router *rtr)
+{
+	servers *s;
+
+	for (s = rtr->srvrs; s != NULL; s = s->next)
+		server_shutdown(s->server);
 }
 
 /**

@@ -215,6 +215,7 @@ hup_handler(int sig)
 			usleep((100 + (rand() % 200)) * 1000);  /* 100ms - 300ms */
 	}
 
+	router_shutdown(rtr);
 	router_free(rtr);
 
 	rtr = newrtr;
@@ -725,6 +726,7 @@ main(int argc, char * const argv[])
 	fflush(relay_stdout);
 	free(workers);
 
+	router_shutdown(rtr);
 	router_free(rtr);
 	logout("stopped servers\n");
 

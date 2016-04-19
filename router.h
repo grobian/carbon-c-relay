@@ -43,6 +43,7 @@ void router_test(router *r, char *metric_path);
 server **router_getservers(router *r);
 aggregator *router_getaggregators(router *r);
 char *router_getcollectorstub(router *r);
+void router_shutdown(router *r);
 void router_free(router *r);
 
 #endif
