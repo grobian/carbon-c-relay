@@ -42,6 +42,7 @@ void server_free(server *s);
 void server_swap_queue(server *l, server *r);
 const char *server_ip(server *s);
 unsigned short server_port(server *s);
+const char *server_sid(server *s);
 char *server_instance(server *s);
 serv_ctype server_ctype(server *s);
 char server_failed(server *s);
