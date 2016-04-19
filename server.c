@@ -459,11 +459,16 @@ server_new(
 	ret->secondaries = NULL;
 	ret->secondariescnt = 0;
 	ret->ip = strdup(ip);
+	if (ret->ip == NULL) {
+		free(ret);
+		return NULL;
+	}
 	ret->port = port;
 	ret->instance = NULL;
 	ret->bsize = bsize;
 	ret->iotimeout = iotimeout < 250 ? 600 : iotimeout;
 	if ((ret->batch = malloc(sizeof(char *) * (bsize + 1))) == NULL) {
+		free((char *)ret->ip);
 		free(ret);
 		return NULL;
 	}
@@ -471,6 +476,7 @@ server_new(
 	ret->saddr = saddr;
 	ret->queue = queue_new(qsize);
 	if (ret->queue == NULL) {
+		free(ret->batch);
 		free((char *)ret->ip);
 		free(ret);
 		return NULL;
