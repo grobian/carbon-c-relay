@@ -39,6 +39,7 @@ void server_set_instance(server *d, char *inst);
 char server_send(server *s, const char *d, char force);
 void server_shutdown(server *s);
 void server_free(server *s);
+void server_swap_queue(server *l, server *r);
 const char *server_ip(server *s);
 unsigned short server_port(server *s);
 char *server_instance(server *s);

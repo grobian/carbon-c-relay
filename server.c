@@ -654,6 +654,23 @@ server_free(server *s) {
 }
 
 /**
+ * Swaps the queue between server l to r.  This is assumes both l and r
+ * are not running.
+ */
+void
+server_swap_queue(server *l, server *r)
+{
+	queue *t;
+
+	assert(l->tid == 0);
+	assert(r->tid == 0);
+
+	t = l->queue;
+	l->queue = r->queue;
+	r->queue = t;
+}
+
+/**
  * Returns the ip address this server points to.
  */
 inline const char *
