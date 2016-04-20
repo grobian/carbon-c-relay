@@ -213,10 +213,8 @@ ra_strdup(router *rtr, const char *s)
  * Frees routes and clusters.
  */
 static void
-router_free_intern(cluster *clusters, route *routes, servers *srvrs)
+router_free_intern(cluster *clusters, route *routes)
 {
-	servers *s;
-
 	while (routes != NULL) {
 		if (routes->matchtype == REGEX)
 			regfree(&routes->rule);
@@ -226,8 +224,7 @@ router_free_intern(cluster *clusters, route *routes, servers *srvrs)
 				if (routes->dests->cl->type == GROUP ||
 						routes->dests->cl->type == AGGRSTUB ||
 						routes->dests->cl->type == STATSTUB)
-					router_free_intern(NULL,
-							routes->dests->cl->members.routes, srvrs);
+					router_free_intern(NULL, routes->dests->cl->members.routes);
 
 				routes->dests = routes->dests->next;
 			}
@@ -266,12 +263,6 @@ router_free_intern(cluster *clusters, route *routes, servers *srvrs)
 
 		clusters = clusters->next;
 	}
-
-	/* free all servers from the pool, in case of secondaries, the
-	 * previous call to router_shutdown made sure nothing references the
-	 * servers anymore */
-	for (s = srvrs; s != NULL; s = s->next)
-		server_free(s->server);
 }
 
 /**
@@ -2432,7 +2423,16 @@ router_shutdown(router *rtr)
 void
 router_free(router *rtr)
 {
-	router_free_intern(rtr->clusters, rtr->routes, rtr->srvrs);
+	servers *s;
+
+	router_free_intern(rtr->clusters, rtr->routes);
+
+	/* free all servers from the pool, in case of secondaries, the
+	 * previous call to router_shutdown made sure nothing references the
+	 * servers anymore */
+	for (s = rtr->srvrs; s != NULL; s = s->next)
+		server_free(s->server);
+
 	ra_free(rtr);
 	free(rtr);
 }
