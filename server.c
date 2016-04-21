@@ -501,17 +501,14 @@ server_new(
 }
 
 /**
- * Starts a previously created server using server_new().  Returns false
- * if starting a thread failed, after which the caller should
+ * Starts a previously created server using server_new().  Returns
+ * errno if starting a thread failed, after which the caller should
  * server_free() the given s pointer.
  */
 char
 server_start(server *s)
 {
-	if (pthread_create(&s->tid, NULL, &server_queuereader, s) != 0)
-		return 0;
-	
-	return 1;
+	return pthread_create(&s->tid, NULL, &server_queuereader, s);
 }
 
 /**
