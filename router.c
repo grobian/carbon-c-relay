@@ -2406,6 +2406,29 @@ router_printconfig(router *rtr, FILE *f, char pmode)
 }
 
 /**
+ * Starts all resources (servers) associated to this router.
+ */
+char
+router_start(router *rtr)
+{
+	servers *s;
+	char ret = 0;
+	int err;
+
+	for (s = rtr->srvrs; s != NULL; s = s->next) {
+		if ((err = server_start(s->server)) != 0) {
+			logerr("failed to start server %s:%u: %s\n",
+					server_ip(s->server),
+					server_port(s->server),
+					strerror(err));
+			ret = 1;
+		}
+	}
+
+	return ret;
+}
+
+/**
  * Shuts down all resources (servers) associated to this router.
  */
 void
