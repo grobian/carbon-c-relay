@@ -17,6 +17,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <string.h>
 #include <ctype.h>
 #include <regex.h>
@@ -2403,6 +2404,74 @@ router_printconfig(router *rtr, FILE *f, char pmode)
 		}
 	}
 	fflush(f);
+}
+
+/**
+ * Prints the differences between old and new at the highest level of
+ * the change.  (When a cluster is gone, its servers are not
+ * considered.)  Returns whether there were changes found.
+ */
+char
+router_printdiffs(router *old, router *new, FILE *out)
+{
+	FILE *f;
+	int fd;
+	char *tmp = getenv("TMPDIR");
+	char patho[512];
+	char pathn[512];
+	char buf[1024];
+	size_t len;
+	int ret;
+
+	/* First idea was to printconfig both old and new, and run diff -u
+	 * on them.  Simple and effective.  Does require diff and two files
+	 * though.  For now, I guess we can live with that. */
+
+	if (tmp == NULL)
+		tmp = "/tmp";
+
+	snprintf(patho, sizeof(patho), "%s/carbon-c-relay_route.XXXXXX", tmp);
+	fd = mkstemp(patho);
+	if (fd < 0) {
+		logerr("failed to create temporary file: %s\n", strerror(errno));
+		return 1;
+	}
+	f = fdopen(fd, "r+");
+	if (f == NULL) {
+		logerr("failed to open stream for file '%s': %s\n",
+				patho, strerror(errno));
+		return 1;
+	}
+	router_printconfig(old, f, 1);
+	fclose(f);
+
+	snprintf(pathn, sizeof(pathn), "%s/carbon-c-relay_route.XXXXXX", tmp);
+	fd = mkstemp(pathn);
+	if (fd < 0) {
+		logerr("failed to create temporary file: %s\n", strerror(errno));
+		return 1;
+	}
+	f = fdopen(fd, "r+");
+	if (f == NULL) {
+		logerr("failed to open stream for file '%s': %s\n",
+				pathn, strerror(errno));
+		return 1;
+	}
+	router_printconfig(new, f, 1);
+	fclose(f);
+
+	/* diff and print its output */
+	snprintf(buf, sizeof(buf), "diff -u %s %s", patho, pathn);
+	f = popen(buf, "r");
+	while ((len = fread(buf, 1, sizeof(buf) - 1, f)) > 0) {
+		fwrite(buf, len, 1, out);
+	}
+	ret = pclose(f);
+
+	unlink(patho);
+	unlink(pathn);
+
+	return ret != 0;
 }
 
 /**

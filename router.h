@@ -36,6 +36,7 @@ typedef struct _router router;
 
 router *router_readconfig(router *orig, const char *path, size_t queuesize, size_t batchsize, unsigned short iotimeout);
 void router_optimise(router *r);
+char router_printdiffs(router *old, router *new, FILE *out);
 char router_start(router *r);
 size_t router_rewrite_metric(char (*newmetric)[METRIC_BUFSIZ], char **newfirstspace, const char *metric, const char *firstspace, const char *replacement, const size_t nmatch, const regmatch_t *pmatch);
 void router_printconfig(router *r, FILE *f, char mode);

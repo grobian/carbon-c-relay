@@ -172,6 +172,13 @@ hup_handler(int sig)
 	}
 	router_optimise(newrtr);
 
+	/* compare old and new router configs, then transplant the queues
+	 * for the same servers, so we keep it around while at the same time
+	 * print a diff between the old and the new config */
+	/* perhaps just compare the configs first, if there is no diff, then
+	 * just refrain from reloading anything */
+	router_printdiffs(rtr, newrtr, relay_stdout);
+
 	logout("reloading collector\n");
 	collector_schedulereload(newrtr);
 	while (!collector_reloadcomplete())

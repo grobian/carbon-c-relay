@@ -12,6 +12,8 @@
              of messages in the logs about them, and be more like the
              consumer expects, e.g. less sudden disconnects for the
              client.
+* **router** reloading the config now prints the difference between the
+             old and the new config in `diff -u` format.
 
 ### Bugfixes
 * [Issue #154](https://github.com/grobian/carbon-c-relay/issues/159)
