@@ -172,12 +172,19 @@ hup_handler(int sig)
 	}
 	router_optimise(newrtr);
 
-	/* compare old and new router configs, then transplant the queues
-	 * for the same servers, so we keep it around while at the same time
-	 * print a diff between the old and the new config */
-	/* perhaps just compare the configs first, if there is no diff, then
+	/* compare the configs first, if there is no diff, then
 	 * just refrain from reloading anything */
-	router_printdiffs(rtr, newrtr, relay_stdout);
+	if (!router_printdiffs(rtr, newrtr, relay_stdout)) {
+		/* no changes, shortcut */
+		logout("no config changes found\n");
+		router_free(newrtr);
+		logout("SIGHUP handler complete\n");
+	}
+
+	/* transplant the queues for the same servers, so we keep their
+	 * queues (potentially with data) around */
+	/* server_swap_queue()... */
+	/* router_start(newrtr); */
 
 	logout("reloading collector\n");
 	collector_schedulereload(newrtr);

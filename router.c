@@ -2471,6 +2471,12 @@ router_printdiffs(router *old, router *new, FILE *out)
 	unlink(patho);
 	unlink(pathn);
 
+	/* ret:
+	 * 0 - no diffs
+	 * 1 - diffs
+	 * 2 - some error (file not found?)
+	 * let's say that an error means potential difference
+	 */
 	return ret != 0;
 }
 
