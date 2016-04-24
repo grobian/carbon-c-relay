@@ -2481,6 +2481,29 @@ router_printdiffs(router *old, router *new, FILE *out)
 }
 
 /**
+ * Evaluates all servers in new and if an identical server exists in
+ * old, swaps their queues.
+ */
+void
+router_transplant_queues(router *new, router *old)
+{
+	servers *os;
+	servers *ns;
+
+	for (ns = new->srvrs; ns != NULL; ns = ns->next) {
+		for (os = old->srvrs; os != NULL; os = os->next) {
+			if (strcmp(server_ip(ns->server), server_ip(os->server)) &&
+					server_port(ns->server) == server_port(os->server) &&
+					server_ctype(ns->server) == server_ctype(os->server))
+			{
+				server_swap_queue(ns->server, os->server);
+				continue;
+			}
+		}
+	}
+}
+
+/**
  * Starts all resources (servers) associated to this router.
  */
 char

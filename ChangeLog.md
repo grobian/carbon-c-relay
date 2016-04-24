@@ -14,10 +14,15 @@
              client.
 * **router** reloading the config now prints the difference between the
              old and the new config in `diff -u` format.
+* **router** reloading the config now maintains the queues for the
+             servers, such that unavailable servers don't get metrics
+             dropped.
 
 ### Bugfixes
 * [Issue #154](https://github.com/grobian/carbon-c-relay/issues/159)
   when a store becomes a bottleneck it shouldn't indefinitely stall
+* [Issue #164](https://github.com/grobian/carbon-c-relay/issues/164)
+  config reload should re-use unmodified servers
 
 # 1.11 (23-03-2016)
 

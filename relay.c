@@ -181,11 +181,6 @@ hup_handler(int sig)
 		logout("SIGHUP handler complete\n");
 	}
 
-	/* transplant the queues for the same servers, so we keep their
-	 * queues (potentially with data) around */
-	/* server_swap_queue()... */
-	/* router_start(newrtr); */
-
 	logout("reloading collector\n");
 	collector_schedulereload(newrtr);
 	while (!collector_reloadcomplete())
@@ -221,6 +216,26 @@ hup_handler(int sig)
 		}
 	}
 
+	/* Transplant the queues for the same servers, so we keep their
+	 * queues (potentially with data) around.  To do so, we need to make
+	 * sure the servers aren't being operated on. */
+	router_shutdown(rtr);
+
+	/* Because we know that ip:port:prot is unique in both sets, when we
+	 * find a match, we can just swap the queue.  This comes with a
+	 * slight peculiarity, that if a server becomes part of an any_of
+	 * cluster (or failover), its pending queue can now be processed by
+	 * other servers.  While this feels wrong, it can be extremely
+	 * useful in case existing data needs to be migrated to another
+	 * server, e.g. the config on purpose added a failover to offload a
+	 * known dead server before removing it.  This is fairly specific
+	 * but in reality this happens to be desirable every once so often. */
+	router_transplant_queues(newrtr, rtr);
+
+	/* Before we start the workers sending traffic, start up the
+	 * servers now queues are transplanted. */
+	router_start(newrtr);
+
 	logout("reloading workers\n");
 	for (id = 1; id < 1 + workercnt; id++)
 		dispatch_schedulereload(workers[id], newrtr); /* un-holds */
@@ -229,7 +244,6 @@ hup_handler(int sig)
 			usleep((100 + (rand() % 200)) * 1000);  /* 100ms - 300ms */
 	}
 
-	router_shutdown(rtr);
 	router_free(rtr);
 
 	rtr = newrtr;
