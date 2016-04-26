@@ -509,15 +509,17 @@ main(int argc, char * const argv[])
 			if (p < 0) {
 				snprintf(msg, sizeof(msg), "failed to fork daemon process: %s",
 						strerror(errno));
-				write(fds[1], msg, strlen(msg) + 1);
-				exit(1); /* not that it matters */
+				/* fool compiler */
+				if (write(fds[1], msg, strlen(msg) + 1) > -2)
+					exit(1); /* not that retcode matters */
 			} else if (p == 0) {
 				/* child, this is the final daemon process */
 				if (setsid() < 0) {
 					snprintf(msg, sizeof(msg), "failed to setsid(): %s",
 							strerror(errno));
-					write(fds[1], msg, strlen(msg) + 1);
-					exit(1); /* not that it matters */
+					/* fool compiler */
+					if (write(fds[1], msg, strlen(msg) + 1) > -2)
+						exit(1); /* not that retcode matters */
 				}
 				/* close descriptors, we won't need them ever since
 				 * we're detached from the controlling terminal */
@@ -527,7 +529,8 @@ main(int argc, char * const argv[])
 
 				/* we're fine, flag our grandparent (= the original
 				 * process being called) it can terminate */
-				write(fds[1], "OK", 3);
+				if (write(fds[1], "OK", 3) < -2)
+					*msg = '\0';  /* unreachable dummy to fool compiler */
 			} else {
 				/* parent, die */
 				exit(0);
@@ -552,6 +555,9 @@ main(int argc, char * const argv[])
 				exit(1);
 			}
 		}
+
+		close(fds[0]);
+		close(fds[1]);
 	}
 
 	if (pidfile_handle) {
