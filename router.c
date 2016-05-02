@@ -20,6 +20,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <ctype.h>
+#include <glob.h>
 #include <regex.h>
 #include <sys/stat.h>
 #include <sys/socket.h>
@@ -1857,7 +1858,32 @@ router_readconfig(router *orig,
 			}
 			endchar = *p;
 			*p = '\0';
-			ret = router_readconfig(ret, name, queuesize, batchsize, iotimeout);
+			if (strchr(name, '*') || strchr(name, '?') || (strchr(name, '[') && strchr(name, ']'))) {
+				/* include path is a glob pattern */
+				glob_t globbuf;
+				char *globpath;
+				size_t i;
+
+				if (glob(name, 0, NULL, &globbuf) != 0 && errno != 0) {
+					logerr("unable to match any files from pattern '%s': %s\n",
+							name, strerror(errno));
+					router_free(ret);
+					return NULL;
+				}
+
+				/* read all files matched by glob */
+				for (i = 0; i < globbuf.gl_pathc; i++) {
+					globpath = globbuf.gl_pathv[i];
+					ret = router_readconfig(ret, globpath, queuesize, batchsize, iotimeout);
+					if (ret == NULL)
+						break;
+				}
+				globfree(&globbuf);
+			}
+			else {
+				/* include path is a regular file path */
+				ret = router_readconfig(ret, name, queuesize, batchsize, iotimeout);
+			}
 			if (ret == NULL)
 				/* router_readconfig already barked and freed ret */
 				return NULL;
