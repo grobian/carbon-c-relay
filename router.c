@@ -1858,7 +1858,9 @@ router_readconfig(router *orig,
 			}
 			endchar = *p;
 			*p = '\0';
-			if (strchr(name, '*') || strchr(name, '?') || (strchr(name, '[') && strchr(name, ']'))) {
+			if (strchr(name, '*') || strchr(name, '?') ||
+					(strchr(name, '[') && strchr(name, ']')))
+			{
 				/* include path is a glob pattern */
 				glob_t globbuf;
 				char *globpath;
@@ -1874,7 +1876,8 @@ router_readconfig(router *orig,
 				/* read all files matched by glob */
 				for (i = 0; i < globbuf.gl_pathc; i++) {
 					globpath = globbuf.gl_pathv[i];
-					ret = router_readconfig(ret, globpath, queuesize, batchsize, iotimeout);
+					ret = router_readconfig(ret, globpath, queuesize,
+							batchsize, iotimeout);
 					if (ret == NULL)
 						break;
 				}
@@ -1882,7 +1885,8 @@ router_readconfig(router *orig,
 			}
 			else {
 				/* include path is a regular file path */
-				ret = router_readconfig(ret, name, queuesize, batchsize, iotimeout);
+				ret = router_readconfig(ret, name, queuesize,
+						batchsize, iotimeout);
 			}
 			if (ret == NULL)
 				/* router_readconfig already barked and freed ret */
