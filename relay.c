@@ -179,6 +179,7 @@ hup_handler(int sig)
 		logout("no config changes found\n");
 		router_free(newrtr);
 		logout("SIGHUP handler complete\n");
+		return;
 	}
 
 	logout("reloading collector\n");
