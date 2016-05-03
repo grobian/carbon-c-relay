@@ -2,7 +2,7 @@
 
 ### New Features
 * **router** `include` directive was added to add content of another
-             file, see also [Issue #165](https://github.com/grobian/carbon-c-relay/issues/165)
+             file, see also [Issue #165](https://github.com/grobian/carbon-c-relay/issues/165).  The include can also use glob patterns, see [Pull #174](https://github.com/grobian/carbon-c-relay/pull/174)
 
 ### Breaking Changes
 
