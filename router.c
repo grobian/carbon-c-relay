@@ -1870,6 +1870,7 @@ router_readconfig(router *orig,
 					logerr("unable to match any files from pattern '%s': %s\n",
 							name, strerror(errno));
 					router_free(ret);
+					globfree(&globbuf);
 					return NULL;
 				}
 
