@@ -1866,25 +1866,46 @@ router_readconfig(router *orig,
 				char *globpath;
 				size_t i;
 
-				if (glob(name, 0, NULL, &globbuf) != 0 && errno != 0) {
-					logerr("unable to match any files from pattern '%s': %s\n",
-							name, strerror(errno));
-					router_free(ret);
-					globfree(&globbuf);
-					return NULL;
+				if ((i = glob(name, 0, NULL, &globbuf)) != 0) {
+					switch (i) {
+						case GLOB_NOSPACE:
+							/* since we don't set a limit, we won't
+							 * reach it either */
+							logerr("out of memory while globbing files for "
+									"pattern '%s'\n", name);
+							router_free(ret);
+							ret = NULL;
+							break;
+						case GLOB_ABORTED:
+							/* we don't use a call-back, so this is
+							 * a real error of some sort */
+							logerr("unable to match any files from "
+									"pattern '%s': %s\n",
+									name, strerror(errno));
+							router_free(ret);
+							ret = NULL;
+							break;
+						case GLOB_NOMATCH:
+							/* we don't want to abort on failing globs */
+							logout("warning: pattern '%s' did not match "
+									"any files\n", name);
+							break;
+					}
 				}
 
 				/* read all files matched by glob */
-				for (i = 0; i < globbuf.gl_pathc; i++) {
+				for (i = 0; i < globbuf.gl_matchc; i++) {
 					globpath = globbuf.gl_pathv[i];
 					ret = router_readconfig(ret, globpath, queuesize,
 							batchsize, iotimeout);
 					if (ret == NULL)
 						break;
 				}
+
+				/* also after errors the globbuf structure is
+				 * initialised and might need free-ing */
 				globfree(&globbuf);
-			}
-			else {
+			} else {
 				/* include path is a regular file path */
 				ret = router_readconfig(ret, name, queuesize,
 						batchsize, iotimeout);
