@@ -584,7 +584,7 @@ server_send(server *s, const char *d, char force)
 }
 
 /**
- * Waits for this server to finish sending pending items from its queue.
+ * Tells this server to finish sending pending items from its queue.
  */
 void
 server_shutdown(server *s)
@@ -592,7 +592,6 @@ server_shutdown(server *s)
 	int i;
 	size_t failures;
 	size_t inqueue;
-	int err;
 
 	/* this function should only be called on a running server */
 	if (s->tid == 0)
@@ -627,17 +626,21 @@ server_shutdown(server *s)
 	}
 
 	s->keep_running = 0;
+}
+
+/**
+ * Frees this server and associated resources.  This includes joining
+ * the server thread.
+ */
+void
+server_free(server *s) {
+	int err;
+
 	if ((err = pthread_join(s->tid, NULL)) != 0)
 		logerr("%s:%u: failed to join server thread: %s\n",
 				s->ip, s->port, strerror(err));
 	s->tid = 0;
-}
 
-/**
- * Frees this server and associated resources.
- */
-void
-server_free(server *s) {
 	if (s->ctype == CON_TCP) {
 		size_t qlen = queue_len(s->queue);
 		if (qlen > 0)
