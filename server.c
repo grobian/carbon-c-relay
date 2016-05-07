@@ -594,7 +594,7 @@ server_shutdown(server *s)
 	size_t inqueue;
 
 	/* this function should only be called on a running server */
-	if (s->tid == 0)
+	if (s->keep_running == 0)
 		return;
 
 	if (s->secondariescnt > 0) {
