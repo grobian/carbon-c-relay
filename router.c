@@ -1895,7 +1895,7 @@ router_readconfig(router *orig,
 				}
 
 				/* read all files matched by glob */
-				for (i = 0; i < globbuf.gl_matchc; i++) {
+				for (i = 0; i < globbuf.gl_pathc; i++) {
 					globpath = globbuf.gl_pathv[i];
 					ret = router_readconfig(ret, globpath, queuesize,
 							batchsize, maxstalls, iotimeout);
