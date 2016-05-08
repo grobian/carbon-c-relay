@@ -3,6 +3,9 @@
 ### New Features
 * **router** `include` directive was added to add content of another
              file, see also [Issue #165](https://github.com/grobian/carbon-c-relay/issues/165).  The include can also use glob patterns, see [Pull #174](https://github.com/grobian/carbon-c-relay/pull/174)
+* **server** the number of stalls performed on writes can now be
+             controlled (and also disabled) using the `-L` flag.
+             [Issue #172](https://github.com/grobian/carbon-c-relay/issues/172)
 
 ### Breaking Changes
 

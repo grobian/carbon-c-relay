@@ -22,6 +22,8 @@
 
 #include "relay.h"
 
+#define SERVER_STALL_BITS  4  /* 0 up to 15 */
+
 typedef struct _server server;
 
 server *server_new(
@@ -31,6 +33,7 @@ server *server_new(
 		struct addrinfo *saddr,
 		size_t queuesize,
 		size_t batchsize,
+		int maxstalls,
 		unsigned short iotimeout);
 char server_start(server *s);
 void server_add_secondaries(server *d, server **sec, size_t cnt);

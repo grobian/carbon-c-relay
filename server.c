@@ -46,6 +46,7 @@ struct _server {
 	queue *queue;
 	size_t bsize;
 	short iotimeout;
+	unsigned char maxstalls:SERVER_STALL_BITS;
 	const char **batch;
 	serv_ctype ctype;
 	pthread_t tid;
@@ -55,7 +56,7 @@ struct _server {
 	char failure:5;
 	char running:1;
 	char keep_running:1;
-	unsigned char stallseq:3;  /* align with MAX_STALLS */
+	unsigned char stallseq:SERVER_STALL_BITS;
 	size_t metrics;
 	size_t dropped;
 	size_t stalls;
@@ -447,6 +448,7 @@ server_new(
 		struct addrinfo *saddr,
 		size_t qsize,
 		size_t bsize,
+		int maxstalls,
 		unsigned short iotimeout)
 {
 	server *ret;
@@ -467,6 +469,7 @@ server_new(
 	ret->instance = NULL;
 	ret->bsize = bsize;
 	ret->iotimeout = iotimeout < 250 ? 600 : iotimeout;
+	ret->maxstalls = maxstalls;
 	if ((ret->batch = malloc(sizeof(char *) * (bsize + 1))) == NULL) {
 		free((char *)ret->ip);
 		free(ret);
@@ -566,8 +569,7 @@ server_send(server *s, const char *d, char force)
 				}
 			}
 		}
-#define MAX_STALLS   4  /* 4 * ~1s = 4s */
-		if (failure || force || s->stallseq > MAX_STALLS) {
+		if (failure || force || s->stallseq == s->maxstalls) {
 			s->dropped++;
 			/* excess event will be dropped by the enqueue below */
 		} else {

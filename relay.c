@@ -45,6 +45,7 @@ unsigned char mode = 0;
 static char *config = NULL;
 static int batchsize = 2500;
 static int queuesize = 25000;
+static int maxstalls = 4;
 static unsigned short iotimeout = 600;
 static dispatcher **workers = NULL;
 static char workercnt = 0;
@@ -165,7 +166,7 @@ hup_handler(int sig)
 
 	logout("reloading config from '%s'\n", config);
 	if ((newrtr = router_readconfig(NULL, config,
-					queuesize, batchsize, iotimeout)) == NULL)
+					queuesize, batchsize, maxstalls, iotimeout)) == NULL)
 	{
 		logerr("failed to read configuration '%s', aborting reload\n", config);
 		return;
@@ -289,6 +290,7 @@ do_usage(int exitcode)
 	printf("  -w  use <workers> worker threads, defaults to %d\n", get_cores());
 	printf("  -b  server send batch size, defaults to 2500\n");
 	printf("  -q  server queue size, defaults to 25000\n");
+	printf("  -L  server max stalls, defaults to %d\n", maxstalls);
 	printf("  -S  statistics sending interval in seconds, defaults to 60\n");
 	printf("  -B  connection listen backlog, defaults to 3\n");
 	printf("  -T  IO timeout in milliseconds for server connections, defaults to 600\n");
@@ -328,7 +330,7 @@ main(int argc, char * const argv[])
 	if (gethostname(relay_hostname, sizeof(relay_hostname)) < 0)
 		snprintf(relay_hostname, sizeof(relay_hostname), "127.0.0.1");
 
-	while ((ch = getopt(argc, argv, ":hvdmstf:i:l:p:w:b:q:S:T:c:H:B:DP:")) != -1) {
+	while ((ch = getopt(argc, argv, ":hvdmstf:i:l:p:w:b:q:L:S:T:c:H:B:DP:")) != -1) {
 		switch (ch) {
 			case 'v':
 				do_version();
@@ -379,6 +381,14 @@ main(int argc, char * const argv[])
 				queuesize = atoi(optarg);
 				if (queuesize <= 0) {
 					fprintf(stderr, "error: queue size needs to be a number >0\n");
+					do_usage(1);
+				}
+				break;
+			case 'L':
+				maxstalls = atoi(optarg);
+				if (maxstalls < 0 || maxstalls >= (1 << SERVER_STALL_BITS)) {
+					fprintf(stderr, "error: maxium stalls needs to be a number "
+							"between 0 and %d\n", (1 << SERVER_STALL_BITS) - 1);
 					do_usage(1);
 				}
 				break;
@@ -577,6 +587,7 @@ main(int argc, char * const argv[])
 	fprintf(relay_stdout, "    workers = %d\n", workercnt);
 	fprintf(relay_stdout, "    send batch size = %d\n", batchsize);
 	fprintf(relay_stdout, "    server queue size = %d\n", queuesize);
+	fprintf(relay_stdout, "    server max stalls = %d\n", maxstalls);
 	fprintf(relay_stdout, "    statistics submission interval = %ds\n",
 			collector_interval);
 	fprintf(relay_stdout, "    listen backlog = %u\n", listenbacklog);
@@ -595,7 +606,7 @@ main(int argc, char * const argv[])
 	fprintf(relay_stdout, "\n");
 
 	if ((rtr = router_readconfig(NULL, config,
-					queuesize, batchsize, iotimeout)) == NULL)
+					queuesize, batchsize, maxstalls, iotimeout)) == NULL)
 	{
 		logerr("failed to read configuration '%s'\n", config);
 		return 1;
@@ -701,7 +712,7 @@ main(int argc, char * const argv[])
 	/* server used for delivering metrics produced inside the relay,
 	 * that is, the collector (statistics) */
 	if ((internal_submission = server_new("internal", listenport, CON_PIPE,
-					NULL, 3000, batchsize, iotimeout)) == NULL)
+					NULL, 3000, batchsize, maxstalls, iotimeout)) == NULL)
 	{
 		logerr("failed to create internal submission queue, shutting down\n");
 		keep_running = 0;

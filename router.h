@@ -34,7 +34,7 @@ typedef struct _router router;
 
 #define RE_MAX_MATCHES     64
 
-router *router_readconfig(router *orig, const char *path, size_t queuesize, size_t batchsize, unsigned short iotimeout);
+router *router_readconfig(router *orig, const char *path, size_t queuesize, size_t batchsize, int maxstalls, unsigned short iotimeout);
 void router_optimise(router *r);
 char router_printdiffs(router *old, router *new, FILE *out);
 void router_transplant_queues(router *new, router *old);
