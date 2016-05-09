@@ -288,12 +288,12 @@ do_usage(int exitcode)
 	printf("  -i  listen on <interface> for connections, defaults to all\n");
 	printf("  -l  write output to <file>, defaults to stdout/stderr\n");
 	printf("  -w  use <workers> worker threads, defaults to %d\n", get_cores());
-	printf("  -b  server send batch size, defaults to 2500\n");
-	printf("  -q  server queue size, defaults to 25000\n");
+	printf("  -b  server send batch size, defaults to %d\n", batchsize);
+	printf("  -q  server queue size, defaults to %d\n", queuesize);
 	printf("  -L  server max stalls, defaults to %d\n", maxstalls);
 	printf("  -S  statistics sending interval in seconds, defaults to 60\n");
 	printf("  -B  connection listen backlog, defaults to 3\n");
-	printf("  -T  IO timeout in milliseconds for server connections, defaults to 600\n");
+	printf("  -T  IO timeout in milliseconds for server connections, defaults to %d\n", iotimeout);
 	printf("  -m  send statistics like carbon-cache.py, e.g. not cumulative\n");
 	printf("  -c  characters to allow next to [A-Za-z0-9], defaults to -_:#\n");
 	printf("  -d  debug mode: currently writes statistics to log, prints hash\n"
