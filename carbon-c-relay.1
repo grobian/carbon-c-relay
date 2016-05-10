@@ -1,0 +1,180 @@
+.\" Process this file with
+.\" groff -man -Tascii foo.1
+.\"
+.TH CARBON-C-RELAY 1 "MAY 2016" Graphite "Graphite data collection and visualisation"
+.SH NAME
+carbon-c-relay \- graphite relay, aggregator and rewriter
+.SH SYNOPSIS
+.B carbon-c-relay [-hvdmstD] -f
+.I config-file
+.B [ options ... ]
+.SH DESCRIPTION
+.B carbon-c-relay
+accepts, cleanses, matches, rewrites, forwards and aggregates graphite
+metrics by listening for incoming connections and relaying the messages
+to other servers defined in its configuration.  The core functionality
+is to route messages via flexible rules to the desired destinations.
+.SH OPTIONS
+.IP -v
+Print version string and exit.
+.IP -d
+Enable debug mode, this prints statistics to stdout and prints extra
+messages about some situations encountered by the relay that normally
+would be too verbose to be enabled.  When combined with
+.B -t
+(test mode) this also prints stub routes and consistent-hash ring
+contents.
+.IP -m
+Change statistics submission to be like carbon-cache.py, e.g. not
+cumulative.  After each submission, all counters are reset to 0.
+.IP -s
+Enable submission mode.  In this mode, internal statistics are not
+generated.  Instead, queue pressure and metrics drops are reported on
+stdout.  This mode is useful when used as submission relay which' job is
+just to forward to (a set of) main relays.  Statistics about the
+submission relays in this case are not needed, and could easily cause a
+non-desired flood of metrics e.g. when used on each and every host
+locally.
+.IP -t
+Test mode.  This mode doesn't do any routing at all, but instead reads
+input from stdin and prints what actions would be taken given the loaded
+configuration.  This mode is very useful for testing relay routes for
+regular expression syntax etc.  It also allows to give insight on how
+routing is applied in complex configurations, for it shows rewrites and
+aggregates taking place as well.
+.IP -D
+Deamonise into the background after startup.  This option requires
+.BR -l " and " -P
+flags to be set as well.
+.IP "-f config-file"
+Read configuration from
+.IR config-file .
+A configuration consists of clusters and routes.  See
+.B CONFIGURATION SYNTAX
+for more information on the options and syntax of this file.
+.IP "-i iface"
+Open up connections on interface
+.IR iface .
+Currently only one interface can be specified, and it is specified by
+its IP address, not the interface name.  By default, the relay opens
+listeners on all available interfaces (a.k.a.
+.BR 0.0.0.0 ).
+.IP "-l log-file"
+Use
+.I log-file
+for writing messages.  Without this option, the relay writes both to
+stdout and stderr.  When logging to file, all messages are prefixed with
+.B MSG
+when they were sent to stdout, and
+.N ERR
+when they were sent to stderr.
+.IP "-p port"
+Listen for connections on port
+.IR port .
+The port number is used for both
+.BR TCP ", " UDP " and " "UNIX sockets" .
+In the latter case, the socket file contains the port number.  The port
+defaults to
+.BR 2003 ,
+which is also used by the original
+.BR carbon-cache.py .
+.IP "-w workers"
+Use
+.I workers
+number of threads.  The default number of workers is equal to the amount
+of detected cpu cores.  It makes sense to reduce this number on
+many-core machines, or when the traffic is low.
+.IP "-b batchsize"
+Set the amount of metrics that sent to remote servers at once to
+.IR batchsize .
+When the relay sends metrics to servers, it will retrieve
+.I batchsize
+metrics from the pending queue of metrics waiting for that server and
+send those one by one.  The size of the batch will have minimal impact
+on sending performance, but it controls the amount of lock-contention on
+the queue.  The default is
+.BR 2500 .
+.IP "-q queuesize"
+Each server from the configuration where the relay will send metrics
+to, has a queue associated with it.  This queue allows for disruptions
+and bursts to be handled.  The size of this queue will be set to
+.I queuesize
+which allows for that amount of metrics to be stored in the queue before
+it overflows, and the relay starts dropping metrics.  The larger the
+queue, more metrics can be absorbed, but also more memory will be used
+by the relay.  The default queue size is
+.BR 25000 .
+.IP "-L stalls"
+Sets the max mount of stalls to
+.I stalls
+before the relay starts dropping metrics for a server.  When a queue
+fills up, the relay uses a mechanism called stalling to signal the
+client (writing to the relay) of this event.  In particular when the
+client sends a large amount of metrics in very short time (burst),
+stalling can help to avoid dropping metrics, since the client just needs
+to slow down for a bit, which in many cases is possible (e.g. when
+catting a file with netcat).  However, this behaviour can also obstruct,
+artificially stalling writers which cannot stop that easily.  For this
+the stalls can be set from
+.B 0
+to
+.BR 15 ,
+where each stall can take around 1 second on the client.  The default
+value is set to
+.BR 4 ,
+which is aimed at the occasional disruption scenario
+and max effort to not loose metrics with moderate slowing down of
+clients.
+.IP "-S interval"
+Set the interval in which statistics are being generated and sent by the
+relay to
+.I interval
+seconds.  The default is
+.BR 60 .
+.IP "-B backlog"
+Sets TCP connection listen backlog to
+.I backlog
+connections.  The default value is
+.B 3
+but on servers which receive many concurrent connections, this setting
+likely needs to be increased to avoid connection refused errors on the
+clients.
+.IP "-I timeout"
+Specifies the IO timeout in milliseconds used for server connections.
+The default is
+.B 600
+millisecond, but may need increasing when WAN links are used for target
+servers.  A relatively low value for connection timeout allows the relay
+to quickly establish a server is unreachable, and as such failover
+strategies to kick in before the queue runs high.
+.IP "-c chars"
+Defines the characters that are next to [A-Za-z0-9] allowed in metrics
+to
+.IR chars .
+Any character not in this list, is replaced by the relay with
+.B \_
+(underscore).  The default list of characters includes
+.BR -\_:# .
+.IP "-H hostname"
+Override hostname determined by a call to
+.BR gethostname (3)
+with
+.IR hostname .
+The hostname is used mainly in the statistics metrics
+.BI carbon.relays. hostname . ...
+send by the relay.
+.IP "-P pidfile"
+Write the pid of the relay process to a file called
+.IR pidfile .
+This is in particular useful when daemonised in combination with init
+managers.
+.SH "CONFIGURATION SYNTAX"
+For available clusters and routes, please review
+https://github.com/grobian/carbon-c-relay/blob/master/README.md
+.SH BUGS
+Please report them at:
+https://github.com/grobian/carbon-c-relay/issues
+.SH AUTHOR
+Fabian Groffen <grobian@gentoo.org>
+.SH "SEE ALSO"
+All other utilities from the graphite stack.
