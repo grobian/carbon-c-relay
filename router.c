@@ -372,53 +372,6 @@ determine_if_regex(route *r, char *pat, int flags)
 
 /**
  * Populates the routing tables by reading the config file.
- *
- * Config file supports the following:
- *
- * cluster (name)
- *     (forward | any_of [useall] | failover | (carbon|fnv1a|jump_fnv1a)_ch [replication (count)])
- *         (ip:port[=instance] [proto (tcp | udp)] ...)
- *     ;
- * cluster (name)
- *     file [ip]
- *         (/path/to/file ...)
- *     ;
- * match
- *         (* | regex[ regex ...])
- *     send to (cluster ... | blackhole)
- *     [stop]
- *     ;
- * rewrite (regex)
- *     into (replacement)
- *     ;
- * aggregate
- *         (regex[ regex ...])
- *     every (interval) seconds
- *     expire after (expiration) seconds
- *     [timestamp at (start | middle | end) of bucket]
- *     compute (sum | count | max | min | average |
- *              median | percentile<%> | variance | stddev) write to
- *         (metric)
- *     [compute ... write to ...]
- *     [send to (cluster ...)]
- *     [stop]
- *     ;
- * send statistics to (cluster ...) [stop];
- * include (/path/to/file);
- *
- * Comments start with a #-char.
- *
- * Example:
- *
- * cluster ams4
- *    carbon_ch replication 2
- *       10.0.0.1:2003
- *       10.0.0.2:2003
- *       10.0.0.3:2003
- *    ;
- * match *
- *    send to ams4
- *    stop;
  */
 router *
 router_readconfig(router *orig,

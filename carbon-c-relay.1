@@ -169,8 +169,73 @@ Write the pid of the relay process to a file called
 This is in particular useful when daemonised in combination with init
 managers.
 .SH "CONFIGURATION SYNTAX"
-For available clusters and routes, please review
-https://github.com/grobian/carbon-c-relay/blob/master/README.md
+The config file supports the following syntax, where comments start with
+a
+.B #
+character and can appear at any position on a line and suppress input
+until the end of that line:
+
+.Bd -literal -offset indent -compact
+cluster <name>
+    <forward | any_of [useall] | failover |
+	<carbon_ch | fnv1a_ch | jump_fnv1a_ch> [replication <count>]>
+        <host[:port][=instance] [proto <udp | tcp>]> ...
+    ;
+
+cluster <name>
+    file [ip]
+        </path/to/file> ...
+    ;
+
+match
+        <* | expression ...>
+    send to <cluster ... | blackhole>
+    [stop]
+    ;
+
+rewrite <expression>
+    into <replacement>
+    ;
+
+aggregate
+        <expression> ...
+    every <interval> seconds
+    expire after <expiration> seconds
+    [timestamp at <start | middle | end> of bucket]
+    compute <sum | count | max | min | average |
+             median | percentile<%> | variance | stddev> write to
+        <metric>
+    [compute ...]
+    [send to <cluster ...>]
+    [stop]
+    ;
+
+send statistics to <cluster ...>
+    [stop]
+    ;
+
+include </path/to/file/or/glob>
+    ;
+.Ed
+
+A simple example that would send all incoming metrics to a cluster of
+three servers could look like:
+
+.Bd -literal -offset indent -compact
+cluster ams4   # you can choose any other name here
+   jump_fnv1a_ch replication 2
+      10.0.0.1:2003
+      10.0.0.2:2003
+      10.0.0.3:2003
+   ;
+
+match *
+   send to ams4
+   stop;
+.Ed
+
+For more documentation about the available clusters and routes, please
+review https://github.com/grobian/carbon-c-relay/blob/master/README.md
 .SH BUGS
 Please report them at:
 https://github.com/grobian/carbon-c-relay/issues
