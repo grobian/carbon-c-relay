@@ -45,6 +45,13 @@ OBJS = \
 relay: $(OBJS)
 	$(CC) -o $@ $(LDFLAGS) $^ $(LIBS)
 
+man:
+	ronn \
+		--manual="Graphite data collection and visualisation" \
+		--organization=Graphite \
+		--roff \
+		carbon-c-relay.md
+
 VERSION = $(shell sed -n '/VERSION/s/^.*"\([0-9.]\+\)".*$$/\1/p' relay.h)
 dist:
 	git archive \

@@ -1,195 +1,121 @@
-.\" Process this file with
-.\" groff -man -Tascii foo.1
-.\"
-.TH CARBON-C-RELAY 1 "MAY 2016" Graphite "Graphite data collection and visualisation"
-.SH NAME
-carbon-c-relay \- graphite relay, aggregator and rewriter
-.SH SYNOPSIS
-.B carbon-c-relay [-hvdmstD] -f
-.I config-file
-.B [ options ... ]
-.SH DESCRIPTION
-.B carbon-c-relay
-accepts, cleanses, matches, rewrites, forwards and aggregates graphite
-metrics by listening for incoming connections and relaying the messages
-to other servers defined in its configuration.  The core functionality
-is to route messages via flexible rules to the desired destinations.
-.SH OPTIONS
-.IP -v
-Print version string and exit.
-.IP -d
-Enable debug mode, this prints statistics to stdout and prints extra
-messages about some situations encountered by the relay that normally
-would be too verbose to be enabled.  When combined with
-.B -t
-(test mode) this also prints stub routes and consistent-hash ring
-contents.
-.IP -m
-Change statistics submission to be like carbon-cache.py, e.g. not
-cumulative.  After each submission, all counters are reset to 0.
-.IP -s
-Enable submission mode.  In this mode, internal statistics are not
-generated.  Instead, queue pressure and metrics drops are reported on
-stdout.  This mode is useful when used as submission relay which' job is
-just to forward to (a set of) main relays.  Statistics about the
-submission relays in this case are not needed, and could easily cause a
-non-desired flood of metrics e.g. when used on each and every host
-locally.
-.IP -t
-Test mode.  This mode doesn't do any routing at all, but instead reads
-input from stdin and prints what actions would be taken given the loaded
-configuration.  This mode is very useful for testing relay routes for
-regular expression syntax etc.  It also allows to give insight on how
-routing is applied in complex configurations, for it shows rewrites and
-aggregates taking place as well.
-.IP -D
-Deamonise into the background after startup.  This option requires
-.BR -l " and " -P
-flags to be set as well.
-.IP "-f config-file"
-Read configuration from
-.IR config-file .
-A configuration consists of clusters and routes.  See
-.B CONFIGURATION SYNTAX
-for more information on the options and syntax of this file.
-.IP "-i iface"
-Open up connections on interface
-.IR iface .
-Currently only one interface can be specified, and it is specified by
-its IP address, not the interface name.  By default, the relay opens
-listeners on all available interfaces (a.k.a.
-.BR 0.0.0.0 ).
-.IP "-l log-file"
-Use
-.I log-file
-for writing messages.  Without this option, the relay writes both to
-stdout and stderr.  When logging to file, all messages are prefixed with
-.B MSG
-when they were sent to stdout, and
-.N ERR
-when they were sent to stderr.
-.IP "-p port"
-Listen for connections on port
-.IR port .
-The port number is used for both
-.BR TCP ", " UDP " and " "UNIX sockets" .
-In the latter case, the socket file contains the port number.  The port
-defaults to
-.BR 2003 ,
-which is also used by the original
-.BR carbon-cache.py .
-.IP "-w workers"
-Use
-.I workers
-number of threads.  The default number of workers is equal to the amount
-of detected cpu cores.  It makes sense to reduce this number on
-many-core machines, or when the traffic is low.
-.IP "-b batchsize"
-Set the amount of metrics that sent to remote servers at once to
-.IR batchsize .
-When the relay sends metrics to servers, it will retrieve
-.I batchsize
-metrics from the pending queue of metrics waiting for that server and
-send those one by one.  The size of the batch will have minimal impact
-on sending performance, but it controls the amount of lock-contention on
-the queue.  The default is
-.BR 2500 .
-.IP "-q queuesize"
-Each server from the configuration where the relay will send metrics
-to, has a queue associated with it.  This queue allows for disruptions
-and bursts to be handled.  The size of this queue will be set to
-.I queuesize
-which allows for that amount of metrics to be stored in the queue before
-it overflows, and the relay starts dropping metrics.  The larger the
-queue, more metrics can be absorbed, but also more memory will be used
-by the relay.  The default queue size is
-.BR 25000 .
-.IP "-L stalls"
-Sets the max mount of stalls to
-.I stalls
-before the relay starts dropping metrics for a server.  When a queue
-fills up, the relay uses a mechanism called stalling to signal the
-client (writing to the relay) of this event.  In particular when the
-client sends a large amount of metrics in very short time (burst),
-stalling can help to avoid dropping metrics, since the client just needs
-to slow down for a bit, which in many cases is possible (e.g. when
-catting a file with netcat).  However, this behaviour can also obstruct,
-artificially stalling writers which cannot stop that easily.  For this
-the stalls can be set from
-.B 0
-to
-.BR 15 ,
-where each stall can take around 1 second on the client.  The default
-value is set to
-.BR 4 ,
-which is aimed at the occasional disruption scenario
-and max effort to not loose metrics with moderate slowing down of
-clients.
-.IP "-S interval"
-Set the interval in which statistics are being generated and sent by the
-relay to
-.I interval
-seconds.  The default is
-.BR 60 .
-.IP "-B backlog"
-Sets TCP connection listen backlog to
-.I backlog
-connections.  The default value is
-.B 3
-but on servers which receive many concurrent connections, this setting
-likely needs to be increased to avoid connection refused errors on the
-clients.
-.IP "-I timeout"
-Specifies the IO timeout in milliseconds used for server connections.
-The default is
-.B 600
-millisecond, but may need increasing when WAN links are used for target
-servers.  A relatively low value for connection timeout allows the relay
-to quickly establish a server is unreachable, and as such failover
-strategies to kick in before the queue runs high.
-.IP "-c chars"
-Defines the characters that are next to [A-Za-z0-9] allowed in metrics
-to
-.IR chars .
-Any character not in this list, is replaced by the relay with
-.B \_
-(underscore).  The default list of characters includes
-.BR -\_:# .
-.IP "-H hostname"
-Override hostname determined by a call to
-.BR gethostname (3)
-with
-.IR hostname .
-The hostname is used mainly in the statistics metrics
-.BI carbon.relays. hostname . ...
-send by the relay.
-.IP "-P pidfile"
-Write the pid of the relay process to a file called
-.IR pidfile .
-This is in particular useful when daemonised in combination with init
-managers.
+.\" generated with Ronn/v0.7.3
+.\" http://github.com/rtomayko/ronn/tree/0.7.3
+.
+.TH "CARBON\-C\-RELAY" "1" "May 2016" "Graphite" "Graphite data collection and visualisation"
+.
+.SH "NAME"
+\fBcarbon\-c\-relay\fR \- graphite relay, aggregator and rewriter
+.
+.SH "SYNOPSIS"
+\fBcarbon\-c\-relay\fR \fB[\-hvdmstD]\fR \fB\-f\fR \fIconfig\-file\fR \fB[ options\fR \.\.\. \fB]\fR
+.
+.SH "DESCRIPTION"
+\fBcarbon\-c\-relay\fR accepts, cleanses, matches, rewrites, forwards and aggregates graphite metrics by listening for incoming connections and relaying the messages to other servers defined in its configuration\. The core functionality is to route messages via flexible rules to the desired destinations\.
+.
+.SH "OPTIONS"
+These options control the behaviour of \fBcarbon\-c\-relay\fR\.
+.
+.TP
+\fB\-v\fR
+Print version string and exit\.
+.
+.TP
+\fB\-d\fR
+Enable debug mode, this prints statistics to stdout and prints extra messages about some situations encountered by the relay that normally would be too verbose to be enabled\. When combined with \fB\-t\fR (test mode) this also prints stub routes and consistent\-hash ring contents\.
+.
+.TP
+\fB\-m\fR
+Change statistics submission to be like carbon\-cache\.py, e\.g\. not cumulative\. After each submission, all counters are reset to \fB0\fR\.
+.
+.TP
+\fB\-s\fR
+Enable submission mode\. In this mode, internal statistics are not generated\. Instead, queue pressure and metrics drops are reported on \fIstdout\fR\. This mode is useful when used as submission relay which\' job is just to forward to (a set of) main relays\. Statistics about the submission relays in this case are not needed, and could easily cause a non\-desired flood of metrics e\.g\. when used on each and every host locally\.
+.
+.TP
+\fB\-t\fR
+Test mode\. This mode doesn\'t do any routing at all, but instead reads input from stdin and prints what actions would be taken given the loaded configuration\. This mode is very useful for testing relay routes for regular expression syntax etc\. It also allows to give insight on how routing is applied in complex configurations, for it shows rewrites and aggregates taking place as well\.
+.
+.TP
+\fB\-D\fR
+Deamonise into the background after startup\. This option requires \fB\-l\fR and \fB\-P\fR flags to be set as well\.
+.
+.TP
+\fB\-f\fR \fIconfig\-file\fR
+Read configuration from \fIconfig\-file\fR\. A configuration consists of clusters and routes\. See \fICONFIGURATION SYNTAX\fR for more information on the options and syntax of this file\.
+.
+.TP
+\fB\-i\fR \fIiface\fR
+Open up connections on interface \fIiface\fR\. Currently only one interface can be specified, and it is specified by its IP address, not the interface name\. By default, the relay opens listeners on all available interfaces (a\.k\.a\. \fB0\.0\.0\.0\fR)\.
+.
+.TP
+\fB\-l\fR \fIlog\-file\fR
+Use \fIlog\-file\fR for writing messages\. Without this option, the relay writes both to \fIstdout\fR and \fIstderr\fR\. When logging to file, all messages are prefixed with \fBMSG\fR when they were sent to \fIstdout\fR, and \fBERR\fR when they were sent to \fIstderr\fR\.
+.
+.TP
+\fB\-p\fR \fIport\fR
+Listen for connections on port \fIport\fR\. The port number is used for both \fBTCP\fR, \fBUDP\fR and \fBUNIX sockets\fR\. In the latter case, the socket file contains the port number\. The port defaults to \fB2003\fR, which is also used by the original \fBcarbon\-cache\.py\fR\.
+.
+.TP
+\fB\-w\fR \fIworkers\fR
+Use \fIworkers\fR number of threads\. The default number of workers is equal to the amount of detected CPU cores\. It makes sense to reduce this number on many\-core machines, or when the traffic is low\.
+.
+.TP
+\fB\-b\fR \fIbatchsize\fR
+Set the amount of metrics that sent to remote servers at once to \fIbatchsize\fR\. When the relay sends metrics to servers, it will retrieve \fIbatchsize\fR metrics from the pending queue of metrics waiting for that server and send those one by one\. The size of the batch will have minimal impact on sending performance, but it controls the amount of lock\-contention on the queue\. The default is \fB2500\fR\.
+.
+.TP
+\fB\-q\fR \fIqueuesize\fR
+Each server from the configuration where the relay will send metrics to, has a queue associated with it\. This queue allows for disruptions and bursts to be handled\. The size of this queue will be set to \fIqueuesize\fR which allows for that amount of metrics to be stored in the queue before it overflows, and the relay starts dropping metrics\. The larger the queue, more metrics can be absorbed, but also more memory will be used by the relay\. The default queue size is \fB25000\fR\.
+.
+.TP
+\fB\-L\fR \fIstalls\fR
+Sets the max mount of stalls to \fIstalls\fR before the relay starts dropping metrics for a server\. When a queue fills up, the relay uses a mechanism called stalling to signal the client (writing to the relay) of this event\. In particular when the client sends a large amount of metrics in very short time (burst), stalling can help to avoid dropping metrics, since the client just needs to slow down for a bit, which in many cases is possible (e\.g\. when catting a file with \fBnc\fR(1))\. However, this behaviour can also obstruct, artificially stalling writers which cannot stop that easily\. For this the stalls can be set from \fB0\fR to \fB15\fR, where each stall can take around 1 second on the client\. The default value is set to \fB4\fR, which is aimed at the occasional disruption scenario and max effort to not loose metrics with moderate slowing down of clients\.
+.
+.TP
+\fB\-S\fR \fIinterval\fR
+Set the interval in which statistics are being generated and sent by the relay to \fIinterval\fR seconds\. The default is \fB60\fR\.
+.
+.TP
+\fB\-B\fR \fIbacklog\fR
+Sets TCP connection listen backlog to \fIbacklog\fR connections\. The default value is \fB3\fR but on servers which receive many concurrent connections, this setting likely needs to be increased to avoid connection refused errors on the clients\.
+.
+.TP
+\fB\-I\fR \fItimeout\fR
+Specifies the IO timeout in milliseconds used for server connections\. The default is \fB600\fR milliseconds, but may need increasing when WAN links are used for target servers\. A relatively low value for connection timeout allows the relay to quickly establish a server is unreachable, and as such failover strategies to kick in before the queue runs high\.
+.
+.TP
+\fB\-c\fR \fIchars\fR
+Defines the characters that are next to \fB[A\-Za\-z0\-9]\fR allowed in metrics to \fIchars\fR\. Any character not in this list, is replaced by the relay with \fB\e_\fR (underscore)\. The default list of allowed characters is \fB\-\e_:#\fR\.
+.
+.TP
+\fB\-H\fR \fIhostname\fR
+Override hostname determined by a call to \fBgethostname\fR(3) with \fIhostname\fR\. The hostname is used mainly in the statistics metrics \fBcarbon\.relays\.\fR\fIhostname\fR\fB\.\fR<\.\.\.> send by the relay\.
+.
+.TP
+\fB\-P\fR \fIpidfile\fR
+Write the pid of the relay process to a file called \fIpidfile\fR\. This is in particular useful when daemonised in combination with init managers\.
+.
 .SH "CONFIGURATION SYNTAX"
-The config file supports the following syntax, where comments start with
-a
-.B #
-character and can appear at any position on a line and suppress input
-until the end of that line:
+The config file supports the following syntax, where comments start with a \fB#\fR character and can appear at any position on a line and suppress input until the end of that line:
+.
+.IP "" 4
+.
+.nf
 
-.Bd -literal -offset indent -compact
 cluster <name>
     <forward | any_of [useall] | failover |
-	<carbon_ch | fnv1a_ch | jump_fnv1a_ch> [replication <count>]>
-        <host[:port][=instance] [proto <udp | tcp>]> ...
+    <carbon_ch | fnv1a_ch | jump_fnv1a_ch> [replication <count>]>
+        <host[:port][=instance] [proto <udp | tcp>]> \.\.\.
     ;
 
 cluster <name>
     file [ip]
-        </path/to/file> ...
+        </path/to/file> \.\.\.
     ;
 
 match
-        <* | expression ...>
-    send to <cluster ... | blackhole>
+        <* | expression \.\.\.>
+    send to <cluster \.\.\. | blackhole>
     [stop]
     ;
 
@@ -198,48 +124,59 @@ rewrite <expression>
     ;
 
 aggregate
-        <expression> ...
+        <expression> \.\.\.
     every <interval> seconds
     expire after <expiration> seconds
     [timestamp at <start | middle | end> of bucket]
     compute <sum | count | max | min | average |
              median | percentile<%> | variance | stddev> write to
         <metric>
-    [compute ...]
-    [send to <cluster ...>]
+    [compute \.\.\.]
+    [send to <cluster \.\.\.>]
     [stop]
     ;
 
-send statistics to <cluster ...>
+send statistics to <cluster \.\.\.>
     [stop]
     ;
 
 include </path/to/file/or/glob>
     ;
-.Ed
+.
+.fi
+.
+.IP "" 0
+.
+.P
+A simple example that would send all incoming metrics to a cluster of three servers could look like:
+.
+.IP "" 4
+.
+.nf
 
-A simple example that would send all incoming metrics to a cluster of
-three servers could look like:
-
-.Bd -literal -offset indent -compact
 cluster ams4   # you can choose any other name here
    jump_fnv1a_ch replication 2
-      10.0.0.1:2003
-      10.0.0.2:2003
-      10.0.0.3:2003
+      10\.0\.0\.1:2003
+      10\.0\.0\.2:2003
+      10\.0\.0\.3:2003
    ;
 
 match *
    send to ams4
    stop;
-.Ed
-
-For more documentation about the available clusters and routes, please
-review https://github.com/grobian/carbon-c-relay/blob/master/README.md
-.SH BUGS
-Please report them at:
-https://github.com/grobian/carbon-c-relay/issues
-.SH AUTHOR
-Fabian Groffen <grobian@gentoo.org>
+.
+.fi
+.
+.IP "" 0
+.
+.P
+For more documentation about the available clusters and routes, please review the README file \fIhttps://github\.com/grobian/carbon\-c\-relay/blob/master/README\.md\fR on GitHub\.
+.
+.SH "BUGS"
+Please report them at: \fIhttps://github\.com/grobian/carbon\-c\-relay/issues\fR
+.
+.SH "AUTHOR"
+Fabian Groffen <grobian@gentoo\.org>
+.
 .SH "SEE ALSO"
-All other utilities from the graphite stack.
+All other utilities from the graphite stack\.
