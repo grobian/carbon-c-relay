@@ -1,4 +1,14 @@
-# 2.0 (unreleased master branch)
+# 2.1 (unreleased master branch)
+
+### New Features
+
+### Breaking Changes
+
+### Enhancements
+
+### Bugfixes
+
+# 2.0 (30-05-2016)
 
 ### New Features
 * **router** `include` directive was added to add content of another
