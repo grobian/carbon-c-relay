@@ -225,6 +225,8 @@ collector_runner(void *s)
 					snprintf(destbuf, sizeof(destbuf), "%s:%u-udp",
 							server_ip(srvs[i]), server_port(srvs[i]));
 					break;
+				default:
+					assert(0);  /* help code analysis tools */
 			}
 			for (p = destbuf; *p != '\0'; p++)
 				if (*p == '.')
