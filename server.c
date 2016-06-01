@@ -432,6 +432,8 @@ server_queuereader(void *d)
 
 	if (self->fd >= 0)
 		close(self->fd);
+	if (secpos != NULL)
+		free(secpos);
 	return NULL;
 }
 
