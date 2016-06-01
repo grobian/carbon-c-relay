@@ -717,9 +717,10 @@ main(int argc, char * const argv[])
 		logerr("failed to create internal submission queue, shutting down\n");
 		keep_running = 0;
 	}
-	if (server_start(internal_submission) != 0) {
+	if (internal_submission != NULL && server_start(internal_submission) != 0) {
 		logerr("failed to start submission queue thread, shutting down\n");
 		server_free(internal_submission);
+		internal_submission = NULL;
 		keep_running = 0;
 	}
 
@@ -732,7 +733,8 @@ main(int argc, char * const argv[])
 	}
 
 	logout("starting statistics collector\n");
-	collector_start(&workers[1], rtr, internal_submission, smode == CUM);
+	if (internal_submission != NULL)
+		collector_start(&workers[1], rtr, internal_submission, smode == CUM);
 
 	logout("starting servers\n");
 	if (router_start(rtr) != 0) {
