@@ -425,7 +425,9 @@ router_readconfig(router *orig,
 		ret->clusters = cl;
 	} else {
 		ret = orig;
-		/* position cl and r at the end of chains */
+		/* position a, cl and r at the end of chains */
+		for (a = ret->aggregators; a != NULL && a->next != NULL; a = a->next)
+			;
 		for (cl = ret->clusters; cl->next != NULL; cl = cl->next)
 			;
 		for (r = ret->routes; r != NULL && r->next != NULL; r = r->next)
