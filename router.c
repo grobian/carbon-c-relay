@@ -1869,6 +1869,14 @@ router_readconfig(router *orig,
 			if (ret == NULL)
 				/* router_readconfig already barked and freed ret */
 				return NULL;
+			/* the included file could have added new aggregates, matches, or clusters,
+			 * so adjust these chains to point to the new end. */
+			for (; a != NULL && a->next != NULL; a = a->next)
+				;
+			for (; cl->next != NULL; cl = cl->next)
+				;
+			for (; r != NULL && r->next != NULL; r = r->next)
+				;
 			*p = endchar;
 			for (; *p != '\0' && isspace(*p); p++)
 				;
