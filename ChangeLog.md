@@ -8,6 +8,9 @@
 
 ### Bugfixes
 
+* [Issue #180](https://github.com/grobian/carbon-c-relay/issues/180)
+  include directive possibly overrides previous included components
+
 # 2.0 (30-05-2016)
 
 ### New Features
