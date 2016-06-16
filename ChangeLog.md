@@ -1,8 +1,14 @@
-# 2.1 (unreleased master branch)
+# 2.2 (unreleased master branch)
 
 ### New Features
 
 ### Breaking Changes
+
+### Enhancements
+
+### Bugfixes
+
+# 2.1 (16-06-2016)
 
 ### Enhancements
 
