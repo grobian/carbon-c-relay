@@ -2092,19 +2092,20 @@ router_optimise(router *r)
 		bwalk->lastroute = bwalk->lastroute->next = rwalk;
 		rnext = rwalk->next;
 		rwalk->next = NULL;
-		if (rwalk->stop) {
-			if (rlast == NULL || strcmp(rlast->pattern, b) == 0) {
+		if (rlast == NULL || strcmp(rlast->pattern, b) == 0) {
+			if (rwalk->stop) {
 				/* move this one to the end */
 				if (bwalk->next != NULL) {
 					bwalk->prev->next = bwalk->next;
 					blast = blast->next = bwalk;
 					bwalk->next = NULL;
 				}
-			} else {
-				bstart = blast;
-				seq++;
+				rlast = rwalk;
 			}
-			rlast = rwalk;
+		} else {
+			bstart = blast;
+			rlast = NULL;
+			seq++;
 		}
 	}
 	/* make loop below easier by appending a dummy (reuse the one from
