@@ -1900,7 +1900,6 @@ router_readconfig(router *orig,
 typedef struct _block {
 	char *pattern;
 	size_t hash;
-	char prio;
 	size_t refcnt;
 	size_t seqnr;
 	route *firstroute;
@@ -1929,6 +1928,7 @@ router_optimise(router *r)
 	char *b;
 	route *rwalk;
 	route *rnext;
+	route *rlast;
 	block *blocks;
 	block *bwalk;
 	block *bstart;
@@ -1954,9 +1954,12 @@ router_optimise(router *r)
 	seq = 0;
 	blast = bstart = blocks = malloc(sizeof(block));
 	blocks->refcnt = 0;
+	blocks->pattern = NULL;
+	blocks->hash = 0;
 	blocks->seqnr = seq++;
 	blocks->prev = NULL;
 	blocks->next = NULL;
+	rlast = NULL;
 	for (rwalk = r->routes; rwalk != NULL; rwalk = rnext) {
 		/* matchall rules cannot be in a group */
 		if (rwalk->matchtype == MATCHALL) {
@@ -1965,7 +1968,6 @@ router_optimise(router *r)
 			blast = blast->next;
 			blast->pattern = NULL;
 			blast->hash = 0;
-			blast->prio = 1;
 			blast->refcnt = 1;
 			blast->seqnr = seq++;
 			blast->firstroute = rwalk;
@@ -1974,6 +1976,7 @@ router_optimise(router *r)
 			rnext = rwalk->next;
 			rwalk->next = NULL;
 			bstart = blast;
+			rlast = NULL;
 			continue;
 		}
 
@@ -2010,18 +2013,15 @@ router_optimise(router *r)
 			blast = blast->next;
 			blast->pattern = NULL;
 			blast->hash = 0;
-			blast->prio = rwalk->stop ? 1 : 2;
 			blast->refcnt = 1;
-			blast->seqnr = seq;
+			blast->seqnr = seq++;
 			blast->firstroute = rwalk;
 			blast->lastroute = rwalk;
 			blast->next = NULL;
 			rnext = rwalk->next;
 			rwalk->next = NULL;
-			if (rwalk->stop) {
-				bstart = blast;
-				seq++;
-			}
+			bstart = blast;
+			rlast = NULL;
 			continue;
 		}
 		/* find the block */
@@ -2042,30 +2042,27 @@ router_optimise(router *r)
 		*b = '\0';
 		b = pblock;
 		if (strlen(b) < 3) {
-			/* this probably isn't selective enough */
+			/* this probably isn't selective enough, don't put in a group */
 			blast->next = malloc(sizeof(block));
 			blast->next->prev = blast;
 			blast = blast->next;
 			blast->pattern = NULL;
 			blast->hash = 0;
-			blast->prio = rwalk->stop ? 1 : 2;
 			blast->refcnt = 1;
-			blast->seqnr = seq;
+			blast->seqnr = seq++;
 			blast->firstroute = rwalk;
 			blast->lastroute = rwalk;
 			blast->next = NULL;
 			rnext = rwalk->next;
 			rwalk->next = NULL;
-			if (rwalk->stop) {
-				bstart = blast;
-				seq++;
-			}
+			bstart = blast;
+			rlast = NULL;
 			continue;
 		}
 
 		/* at this point, b points to the tail block in reverse, see if
 		 * we already had such tail in place */
-		for (bwalk = bstart->next; bwalk != NULL; bwalk = bwalk->next) {
+		for (bwalk = bstart; bwalk != NULL; bwalk = bwalk->next) {
 			if (bwalk->hash != bsum || strcmp(bwalk->pattern, b) != 0)
 				continue;
 			break;
@@ -2076,7 +2073,6 @@ router_optimise(router *r)
 			blast = blast->next;
 			blast->pattern = strdup(b);
 			blast->hash = bsum;
-			blast->prio = rwalk->stop ? 1 : 2;
 			blast->refcnt = 1;
 			blast->seqnr = seq;
 			blast->firstroute = rwalk;
@@ -2086,6 +2082,7 @@ router_optimise(router *r)
 			rwalk->next = NULL;
 			if (rwalk->stop) {
 				bstart = blast;
+				rlast = NULL;
 				seq++;
 			}
 			continue;
@@ -2096,15 +2093,18 @@ router_optimise(router *r)
 		rnext = rwalk->next;
 		rwalk->next = NULL;
 		if (rwalk->stop) {
-			/* move this one to the end */
-			if (bwalk->next != NULL) {
-				bwalk->prev->next = bwalk->next;
-				blast = blast->next = bwalk;
-				bwalk->next = NULL;
+			if (rlast == NULL || strcmp(rlast->pattern, b) == 0) {
+				/* move this one to the end */
+				if (bwalk->next != NULL) {
+					bwalk->prev->next = bwalk->next;
+					blast = blast->next = bwalk;
+					bwalk->next = NULL;
+				}
+			} else {
+				bstart = blast;
+				seq++;
 			}
-			bwalk->prio = 1;
-			bstart = blast;
-			seq++;
+			rlast = rwalk;
 		}
 	}
 	/* make loop below easier by appending a dummy (reuse the one from
@@ -2128,11 +2128,6 @@ router_optimise(router *r)
 				blast = bwalk;
 				continue;
 			}
-		} else if (bwalk->prio == 1) {
-			bstart = bwalk;
-			blast = bwalk->next;
-			bstart->next = NULL;
-			continue;
 		}
 
 		if (bwalk->refcnt == 0) {

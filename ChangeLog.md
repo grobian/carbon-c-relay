@@ -6,6 +6,9 @@
 
 ### Enhancements
 
+* **router** the optimiser now tries harder to form groups of
+  consecutive rules that have a matching common pattern
+
 ### Bugfixes
 
 * [Issue #180](https://github.com/grobian/carbon-c-relay/issues/180)
