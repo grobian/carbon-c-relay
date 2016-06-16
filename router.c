@@ -1979,13 +1979,30 @@ router_optimise(router *r)
 
 		p = rwalk->pattern + strlen(rwalk->pattern);
 		/* strip off chars that won't belong to a block */
+		bsum = 0;
 		while (
-				p > rwalk->pattern &&
-				(*p < 'a' || *p > 'z') &&
-				(*p < 'A' || *p > 'Z') &&
-				*p != '_'
+				p > rwalk->pattern && (
+					bsum > 0 || (
+						(*p < 'a' || *p > 'z') &&
+						(*p < 'A' || *p > 'Z') &&
+						*p != '_'
+					)
+				)
 			  )
+		{
+			if (*p == ')' || *p == '(') {
+				char esc = 0;
+				char oe = *p;
+				/* trim escapes, need to figure out if this is escaped
+				 * or not, in order to find the a matching open or not */
+				for (--p; p > rwalk->pattern && *p == '\\'; p--)
+					esc = !esc;
+				if (!esc) /* not escaped */
+					bsum += oe == ')' ? 1 : -1;
+				continue;  /* skip p-- */
+			}
 			p--;
+		}
 		if (p == rwalk->pattern) {
 			/* nothing we can do with a pattern like this */
 			blast->next = malloc(sizeof(block));
