@@ -2028,7 +2028,7 @@ router_optimise(router *r)
 		bsum = 0;
 		b = pblock;
 		while (
-				p > rwalk->pattern && b - pblock < sizeof(pblock) &&
+				p >= rwalk->pattern && b - pblock < sizeof(pblock) &&
 				(
 				(*p >= 'a' && *p <= 'z') ||
 				(*p >= 'A' && *p <= 'Z') ||
