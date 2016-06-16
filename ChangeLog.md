@@ -10,6 +10,8 @@
 
 * [Issue #180](https://github.com/grobian/carbon-c-relay/issues/180)
   include directive possibly overrides previous included components
+* [Issue #184](https://github.com/grobian/carbon-c-relay/issues/184)
+  router optimise doesn't work correctly with regex groups
 
 # 2.0 (30-05-2016)
 
