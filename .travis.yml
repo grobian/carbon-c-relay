@@ -11,7 +11,7 @@ matrix:
   exclude:
     # gcc is actually clang on OSX, so pointless to test twice
     - os: osx
-      compiler: clang
+      compiler: gcc
 
 env:
   global:
