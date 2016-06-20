@@ -10,7 +10,7 @@ compiler:
 matrix:
   exclude:
     # gcc is actually clang on OSX, so pointless to test twice
-    os: osx
+    - os: osx
       compiler: clang
 
 env:
