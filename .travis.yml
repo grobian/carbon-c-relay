@@ -1,8 +1,7 @@
-install: make get-deps
+script: make
 language: c
 compiler:
     - gcc
     - clang
 env:
     - CFLAGS="-O3 -Wall -Werror -Wshadow -pipe"
-script: make
