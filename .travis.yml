@@ -1,5 +1,8 @@
 script: make
 language: c
+os:
+    - linux
+    - osx
 compiler:
     - gcc
     - clang
