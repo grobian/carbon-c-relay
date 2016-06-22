@@ -164,6 +164,8 @@ do_reload(void)
 		} else {
 			logout("closing logfile\n");
 			relay_can_log = 0;
+			/* lame race avoidance for relaylog() usage */
+			usleep((100 + (rand() % 200)) * 1000);  /* 100ms - 300ms */
 			fclose(relay_stderr);
 			relay_stdout = newfd;
 			relay_stderr = newfd;
