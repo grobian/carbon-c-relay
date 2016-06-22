@@ -349,7 +349,9 @@ server_queuereader(void *d)
 			setsockopt(self->fd, SOL_SOCKET, SO_SNDTIMEO,
 					&timeout, sizeof(timeout));
 #ifdef SO_NOSIGPIPE
-			setsockopt(self->fd, SOL_SOCKET, SO_NOSIGPIPE, NULL, 0);
+			if (setsockopt(self->fd, SOL_SOCKET, SO_NOSIGPIPE, NULL, 0) != 0)
+				logout("warning: failed to ignore SIGPIPE on socket: %s\n",
+						strerror(errno));
 #endif
 		}
 
