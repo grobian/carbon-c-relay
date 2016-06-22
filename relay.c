@@ -570,6 +570,9 @@ main(int argc, char * const argv[])
 				/* child is happy, so can we */
 				exit(0);
 			} else {
+				if (len == 1024)
+					len--;
+				msg[len] = '\0';
 				fprintf(stderr, "%s\n", msg);
 				exit(1);
 			}
