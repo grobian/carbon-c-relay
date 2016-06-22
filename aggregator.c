@@ -251,7 +251,7 @@ aggregator_putmetric(
 		}
 
 		if (invocation == NULL) {  /* no match, add */
-			int i;
+			long long int i;
 			time_t now;
 
 			if ((invocation = malloc(sizeof(*invocation))) == NULL) {
@@ -295,7 +295,8 @@ aggregator_putmetric(
 				continue;
 			}
 			for (i = 0; i < s->bucketcnt; i++) {
-				invocation->buckets[i].start = now + (i * s->interval);
+				invocation->buckets[i].start =
+					now + (i * (long long int)s->interval);
 				invocation->buckets[i].cnt = 0;
 				invocation->buckets[i].entries.size = 0;
 				invocation->buckets[i].entries.values = NULL;
