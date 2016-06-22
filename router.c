@@ -773,6 +773,7 @@ router_readconfig(router *orig,
 									"to cluster %s: %s\n", ip, port, proto,
 									name, strerror(errno));
 							router_free(ret);
+							freeaddrinfo(saddrs);
 							return NULL;
 						}
 						if (ret->srvrs == NULL) {
@@ -803,6 +804,7 @@ router_readconfig(router *orig,
 									cl->type == FNV1A_CH ? "fnv1a" :
 									"jump_fnv1a", ip);
 							router_free(ret);
+							freeaddrinfo(saddrs);
 							return NULL;
 						}
 						w->next = NULL;
@@ -815,6 +817,7 @@ router_readconfig(router *orig,
 										inst, server_ip(newserver),
 										server_port(newserver));
 								router_free(ret);
+								freeaddrinfo(saddrs);
 								return NULL;
 							} else if (sinst != NULL && inst == NULL) {
 								logerr("cannot define server %s:%d without "
@@ -823,6 +826,7 @@ router_readconfig(router *orig,
 										server_ip(newserver),
 										server_port(newserver), sinst);
 								router_free(ret);
+								freeaddrinfo(saddrs);
 								return NULL;
 							} else if (sinst != NULL && inst != NULL &&
 									strcmp(sinst, inst) != 0)
@@ -833,6 +837,7 @@ router_readconfig(router *orig,
 										inst, server_ip(newserver),
 										server_port(newserver), sinst);
 								router_free(ret);
+								freeaddrinfo(saddrs);
 								return NULL;
 							} /* else: sinst == inst == NULL */
 						}
@@ -847,6 +852,7 @@ router_readconfig(router *orig,
 									"to ring for cluster %s: out of memory\n",
 									ip, port, name);
 							router_free(ret);
+							freeaddrinfo(saddrs);
 							return NULL;
 						}
 					} else if (cl->type == FORWARD ||
@@ -868,6 +874,7 @@ router_readconfig(router *orig,
 									"file",
 									ip);
 							router_free(ret);
+							freeaddrinfo(saddrs);
 							return NULL;
 						}
 						w->next = NULL;
@@ -884,6 +891,7 @@ router_readconfig(router *orig,
 										server_port(newserver),
 										cl->name);
 								router_free(ret);
+								freeaddrinfo(saddrs);
 								return NULL;
 							}
 							if (cl->members.anyof == NULL) {
@@ -893,6 +901,7 @@ router_readconfig(router *orig,
 									logerr("malloc failed for %s anyof list\n",
 											ip);
 									router_free(ret);
+									freeaddrinfo(saddrs);
 									return NULL;
 								}
 								cl->members.anyof->count = 1;
