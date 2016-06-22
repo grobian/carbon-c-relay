@@ -2126,18 +2126,12 @@ router_optimise(router *r)
 
 	rwalk = r->routes = NULL;
 	seq = 1;
-	bstart = NULL;
 	/* create groups, if feasible */
 	for (bwalk = blocks; bwalk != NULL; bwalk = blast) {
 		if (bwalk->seqnr != seq) {
 			seq++;
-			if (bstart != NULL) {
-				bstart->next = bwalk;
-				bwalk = bstart;
-			} else {
-				blast = bwalk;
-				continue;
-			}
+			blast = bwalk;
+			continue;
 		}
 
 		if (bwalk->refcnt == 0) {
@@ -2174,8 +2168,6 @@ router_optimise(router *r)
 			blast = bwalk->next;
 			free(bwalk);
 		}
-		if (bwalk == bstart)
-			bstart = NULL;
 	}
 }
 
