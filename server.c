@@ -640,7 +640,7 @@ void
 server_free(server *s) {
 	int err;
 
-	if ((err = pthread_join(s->tid, NULL)) != 0)
+	if (s->tid != 0 && (err = pthread_join(s->tid, NULL)) != 0)
 		logerr("%s:%u: failed to join server thread: %s\n",
 				s->ip, s->port, strerror(err));
 	s->tid = 0;

@@ -8,6 +8,9 @@
 
 ### Bugfixes
 
+* [Issue #188](https://github.com/grobian/carbon-c-relay/issues/188)
+  SIGHUP leads to SIGSEGV when config didn't change
+
 # 2.1 (16-06-2016)
 
 ### Enhancements
