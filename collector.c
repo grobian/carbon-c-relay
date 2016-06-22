@@ -361,6 +361,8 @@ collector_writer(void *unused)
 			}
 			totconn = dispatch_get_accepted_connections();
 			totdisc = dispatch_get_closed_connections();
+			if (dticks == 0)
+				dticks = 1;  /* for Coverity */
 			printf("%5zu %7zu  "   /* metrics in */
 					"%5zu %7zu  "  /* metrics out */
 					"%5zu %7zu  "  /* metrics dropped */
