@@ -55,6 +55,7 @@ static char *relay_logfile = NULL;
 static FILE *relay_stdout = NULL;
 static FILE *relay_stderr = NULL;
 static char relay_can_log = 0;
+static sig_atomic_t need_reload = 0;
 
 
 /**
@@ -140,6 +141,11 @@ exit_handler(int sig)
 static void
 hup_handler(int sig)
 {
+	need_reload = 1;
+}
+
+static void
+reload_relay() {
 	router *newrtr;
 	aggregator *newaggrs;
 	int id;
@@ -169,7 +175,7 @@ hup_handler(int sig)
 					queuesize, batchsize, maxstalls, iotimeout)) == NULL)
 	{
 		logerr("failed to read configuration '%s', aborting reload\n", config);
-		return;
+		goto reload_done;
 	}
 	router_optimise(newrtr);
 
@@ -179,8 +185,7 @@ hup_handler(int sig)
 		/* no changes, shortcut */
 		logout("no config changes found\n");
 		router_free(newrtr);
-		logout("SIGHUP handler complete\n");
-		return;
+		goto reload_done;
 	}
 
 	logout("reloading collector\n");
@@ -250,6 +255,8 @@ hup_handler(int sig)
 
 	rtr = newrtr;
 
+reload_done:
+	need_reload = 0;
 	logout("SIGHUP handler complete\n");
 }
 
@@ -746,8 +753,11 @@ main(int argc, char * const argv[])
 		logout("startup sequence complete\n");
 
 	/* workers do the work, just wait */
-	while (keep_running)
+	while (keep_running) {
 		sleep(1);
+		if (need_reload)
+			reload_relay();
+	}
 
 	logout("shutting down...\n");
 	/* make sure we don't accept anything new anymore */
