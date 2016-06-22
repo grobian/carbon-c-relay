@@ -38,7 +38,8 @@
 #include "aggregator.h"
 #include "collector.h"
 
-int keep_running = 1;
+unsigned char keep_running = 1;
+unsigned char need_reload = 0;
 char relay_hostname[256];
 unsigned char mode = 0;
 
@@ -126,19 +127,27 @@ exit_handler(int sig)
 		case SIGQUIT:
 			sign = "SIGQUIT";
 			break;
+		case SIGHUP:
+			sign = "SIGHUP";
+			break;
 	}
 	if (keep_running) {
 		logout("caught %s\n", sign);
 	} else {
+		/* also fine when SIGHUP */
 		logerr("caught %s while already shutting down, "
 				"forcing exit!\n", sign);
 		exit(1);
 	}
-	keep_running = 0;
+	if (sig == SIGHUP) {
+		need_reload = 1;
+	} else {
+		keep_running = 0;
+	}
 }
 
 static void
-hup_handler(int sig)
+do_reload(void)
 {
 	router *newrtr;
 	aggregator *newaggrs;
@@ -146,7 +155,6 @@ hup_handler(int sig)
 	FILE *newfd;
 	size_t numaggregators;
 
-	logout("caught SIGHUP...\n");
 	if (relay_stderr != stderr) {
 		/* try to re-open the file first, so we can still try and say
 		 * something if that fails */
@@ -655,7 +663,7 @@ main(int argc, char * const argv[])
 		logerr("failed to create SIGQUIT handler: %s\n", strerror(errno));
 		return 1;
 	}
-	if (signal(SIGHUP, hup_handler) == SIG_ERR) {
+	if (signal(SIGHUP, exit_handler) == SIG_ERR) {
 		logerr("failed to create SIGHUP handler: %s\n", strerror(errno));
 		return 1;
 	}
@@ -746,8 +754,13 @@ main(int argc, char * const argv[])
 		logout("startup sequence complete\n");
 
 	/* workers do the work, just wait */
-	while (keep_running)
+	while (keep_running) {
 		sleep(1);
+		if (need_reload) {
+			do_reload();
+			need_reload = 0;
+		}
+	}
 
 	logout("shutting down...\n");
 	/* make sure we don't accept anything new anymore */
