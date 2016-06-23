@@ -39,7 +39,7 @@
 #include "collector.h"
 
 unsigned char keep_running = 1;
-unsigned char need_reload = 0;
+int pending_signal = -1;
 char relay_hostname[256];
 unsigned char mode = 0;
 
@@ -113,37 +113,12 @@ relaylog(enum logdst dest, const char *fmt, ...)
 }
 
 static void
-exit_handler(int sig)
+sig_handler(int sig)
 {
-	char *sign = "unknown signal";
-
-	switch (sig) {
-		case SIGTERM:
-			sign = "SIGTERM";
-			break;
-		case SIGINT:
-			sign = "SIGINT";
-			break;
-		case SIGQUIT:
-			sign = "SIGQUIT";
-			break;
-		case SIGHUP:
-			sign = "SIGHUP";
-			break;
-	}
-	if (keep_running) {
-		logout("caught %s\n", sign);
-	} else {
-		/* also fine when SIGHUP */
-		logerr("caught %s while already shutting down, "
-				"forcing exit!\n", sign);
-		exit(1);
-	}
-	if (sig == SIGHUP) {
-		need_reload = 1;
-	} else {
-		keep_running = 0;
-	}
+	/* a thunder of signals will be ignored for as long as a pending
+	 * signal was set, I can live with that, feels like a bad practice
+	 * to bombard a process like that */
+	(void)__sync_bool_compare_and_swap(&pending_signal, -1, sig);
 }
 
 static void
@@ -261,6 +236,40 @@ do_reload(void)
 	rtr = newrtr;
 
 	logout("SIGHUP handler complete\n");
+}
+
+static void
+handle_signal(int sig)
+{
+	char *sign = "unknown signal";
+
+	switch (sig) {
+		case SIGTERM:
+			sign = "SIGTERM";
+			break;
+		case SIGINT:
+			sign = "SIGINT";
+			break;
+		case SIGQUIT:
+			sign = "SIGQUIT";
+			break;
+		case SIGHUP:
+			sign = "SIGHUP";
+			break;
+	}
+	if (keep_running) {
+		logout("caught %s\n", sign);
+	} else {
+		/* also fine when SIGHUP */
+		logerr("caught %s while already shutting down, "
+				"forcing exit!\n", sign);
+		exit(1);
+	}
+	if (sig == SIGHUP) {
+		do_reload();
+	} else {
+		keep_running = 0;
+	}
 }
 
 static int
@@ -656,19 +665,19 @@ main(int argc, char * const argv[])
 		exit(0);
 	}
 
-	if (signal(SIGINT, exit_handler) == SIG_ERR) {
+	if (signal(SIGINT, sig_handler) == SIG_ERR) {
 		logerr("failed to create SIGINT handler: %s\n", strerror(errno));
 		return 1;
 	}
-	if (signal(SIGTERM, exit_handler) == SIG_ERR) {
+	if (signal(SIGTERM, sig_handler) == SIG_ERR) {
 		logerr("failed to create SIGTERM handler: %s\n", strerror(errno));
 		return 1;
 	}
-	if (signal(SIGQUIT, exit_handler) == SIG_ERR) {
+	if (signal(SIGQUIT, sig_handler) == SIG_ERR) {
 		logerr("failed to create SIGQUIT handler: %s\n", strerror(errno));
 		return 1;
 	}
-	if (signal(SIGHUP, exit_handler) == SIG_ERR) {
+	if (signal(SIGHUP, sig_handler) == SIG_ERR) {
 		logerr("failed to create SIGHUP handler: %s\n", strerror(errno));
 		return 1;
 	}
@@ -761,9 +770,9 @@ main(int argc, char * const argv[])
 	/* workers do the work, just wait */
 	while (keep_running) {
 		sleep(1);
-		if (need_reload) {
-			do_reload();
-			need_reload = 0;
+		if (pending_signal != -1) {
+			handle_signal(pending_signal);
+			pending_signal = -1;
 		}
 	}
 
