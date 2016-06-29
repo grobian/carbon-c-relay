@@ -46,11 +46,12 @@ relay: $(OBJS)
 	$(CC) -o $@ $(LDFLAGS) $^ $(LIBS)
 
 man:
+	sed -e '/travis-ci.org\/grobian\/carbon-c-relay.svg/d' carbon-c-relay.md | \
 	ronn \
 		--manual="Graphite data collection and visualisation" \
 		--organization=Graphite \
 		--roff \
-		carbon-c-relay.md
+	> carbon-c-relay.1
 
 VERSION = $(shell sed -n '/VERSION/s/^.*"\([0-9.]\+\)".*$$/\1/p' relay.h)
 dist:

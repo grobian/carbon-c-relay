@@ -1,5 +1,6 @@
 carbon-c-relay(1) -- graphite relay, aggregator and rewriter
 ============================================================
+[![Build Status](https://travis-ci.org/grobian/carbon-c-relay.svg)](https://travis-ci.org/grobian/carbon-c-relay)
 
 ## SYNOPSIS
 
