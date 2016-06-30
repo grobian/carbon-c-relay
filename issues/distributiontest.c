@@ -38,7 +38,7 @@
 #define SRVCNT 8
 #define REPLCNT 2
 
-enum rmode mode = NORMAL;
+unsigned char mode = 0;
 
 int
 relaylog(enum logdst dest, const char *fmt, ...)
@@ -88,6 +88,7 @@ int main(int argc, char *argv[]) {
 				NULL,
 				1024,
 				128,
+				4,
 				800
 				);
 		MD5((unsigned char *)ip, strlen(ip), md5);
