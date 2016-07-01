@@ -237,18 +237,8 @@ aggregator_putmetric(
 			if (invocation->hash == omhash && \
 					strcmp(o, invocation->metric) == 0)  /* match */ \
 				break;
-		pthread_rwlock_rdlock(&compute->invlock);
-		find_invocation(ometric);
-		/* switch to a write lock from here, since we've found what we
-		 * were looking for (or are going to create it) and modify it */
-		pthread_rwlock_unlock(&compute->invlock);
 		pthread_rwlock_wrlock(&compute->invlock);
-
-		if (invocation == NULL) {
-			/* we need to recheck there wasn't someone else who did the
-			 * same thing we want to do below */
-			find_invocation(ometric);
-		}
+		find_invocation(ometric);
 
 		if (invocation == NULL) {  /* no match, add */
 			long long int i;
