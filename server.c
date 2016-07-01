@@ -674,8 +674,8 @@ server_swap_queue(server *l, server *r)
 {
 	queue *t;
 
-	assert(l->tid == 0);
-	assert(r->tid == 0);
+	assert(l->keep_running == 0 || l->tid == 0);
+	assert(r->keep_running == 0 || r->tid == 0);
 
 	t = l->queue;
 	l->queue = r->queue;
