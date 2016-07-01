@@ -11,6 +11,10 @@
 * [Issue #188](https://github.com/grobian/carbon-c-relay/issues/188)
   SIGHUP leads to SIGSEGV when config didn't change, or a SIGHUP is
   received while a previous HUP is being processed
+* [Issue #193](https://github.com/grobian/carbon-c-relay/issues/193)
+  race condition in aggregator leads to crash
+* [Issue #195](https://github.com/grobian/carbon-c-relay/issues/195)
+  assertion fails when reloading config
 
 # 2.1 (16-06-2016)
 
