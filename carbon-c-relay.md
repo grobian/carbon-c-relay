@@ -146,7 +146,7 @@ These options control the behaviour of **carbon-c-relay**.
     connections, this setting likely needs to be increased to avoid
     connection refused errors on the clients.
 
-  * `-I` <timeout>:
+  * `-T` <timeout>:
     Specifies the IO timeout in milliseconds used for server connections.
     The default is `600` milliseconds, but may need increasing when WAN
     links are used for target servers.  A relatively low value for

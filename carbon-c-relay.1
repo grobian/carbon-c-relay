@@ -1,7 +1,7 @@
 .\" generated with Ronn/v0.7.3
 .\" http://github.com/rtomayko/ronn/tree/0.7.3
 .
-.TH "CARBON\-C\-RELAY" "1" "May 2016" "Graphite" "Graphite data collection and visualisation"
+.TH "CARBON\-C\-RELAY" "1" "July 2016" "Graphite" "Graphite data collection and visualisation"
 .
 .SH "NAME"
 \fBcarbon\-c\-relay\fR \- graphite relay, aggregator and rewriter
@@ -100,7 +100,7 @@ Set the interval in which statistics are being generated and sent by the relay t
 Sets TCP connection listen backlog to \fIbacklog\fR connections\. The default value is \fB3\fR but on servers which receive many concurrent connections, this setting likely needs to be increased to avoid connection refused errors on the clients\.
 .
 .TP
-\fB\-I\fR \fItimeout\fR
+\fB\-T\fR \fItimeout\fR
 Specifies the IO timeout in milliseconds used for server connections\. The default is \fB600\fR milliseconds, but may need increasing when WAN links are used for target servers\. A relatively low value for connection timeout allows the relay to quickly establish a server is unreachable, and as such failover strategies to kick in before the queue runs high\.
 .
 .TP
