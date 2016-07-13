@@ -6,6 +6,8 @@
 
 ### Enhancements
 
+* **relay** the listen backlog default got increased from 3 to 32
+
 ### Bugfixes
 
 * [Issue #188](https://github.com/grobian/carbon-c-relay/issues/188)
@@ -15,6 +17,8 @@
   race condition in aggregator leads to crash
 * [Issue #195](https://github.com/grobian/carbon-c-relay/issues/195)
   assertion fails when reloading config
+* [Issue #203](https://github.com/grobian/carbon-c-relay/issues/203)
+  change default connection listen backlog
 
 # 2.1 (16-06-2016)
 

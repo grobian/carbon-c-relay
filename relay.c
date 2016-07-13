@@ -311,7 +311,7 @@ do_usage(int exitcode)
 	printf("  -q  server queue size, defaults to %d\n", queuesize);
 	printf("  -L  server max stalls, defaults to %d\n", maxstalls);
 	printf("  -S  statistics sending interval in seconds, defaults to 60\n");
-	printf("  -B  connection listen backlog, defaults to 3\n");
+	printf("  -B  connection listen backlog, defaults to 32\n");
 	printf("  -T  IO timeout in milliseconds for server connections, defaults to %d\n", iotimeout);
 	printf("  -m  send statistics like carbon-cache.py, e.g. not cumulative\n");
 	printf("  -c  characters to allow next to [A-Za-z0-9], defaults to -_:#\n");
@@ -336,7 +336,7 @@ main(int argc, char * const argv[])
 	int dgram_socklen = sizeof(dgram_sock) / sizeof(dgram_sock[0]);
 	char id;
 	unsigned short listenport = 2003;
-	unsigned int listenbacklog = 3;
+	unsigned int listenbacklog = 32;
 	int ch;
 	size_t numaggregators;
 	char *listeninterface = NULL;
