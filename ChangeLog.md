@@ -17,6 +17,8 @@
   race condition in aggregator leads to crash
 * [Issue #195](https://github.com/grobian/carbon-c-relay/issues/195)
   assertion fails when reloading config
+* [Issue #200](https://github.com/grobian/carbon-c-relay/issues/200)
+  use after free during shutdown in aggregator
 * [Issue #203](https://github.com/grobian/carbon-c-relay/issues/203)
   change default connection listen backlog
 

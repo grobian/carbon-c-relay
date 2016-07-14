@@ -193,6 +193,10 @@ aggregator_putmetric(
 	struct _aggr_bucket *bucket;
 	struct _aggr_bucket_entries *entries;
 
+	/* do not accept new values when shutting down, issue #200 */
+	if (!keep_running)
+		return;
+
 	/* get value */
 	if ((v = strchr(firstspace + 1, ' ')) == NULL) {
 		/* metric includes \n */
