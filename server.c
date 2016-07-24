@@ -55,7 +55,7 @@ struct _server {
 	char failover:1;
 	char failure:5;
 	char running:1;
-	char keep_running:1;
+	char keep_running;  /* full byte for atomic access */
 	unsigned char stallseq:SERVER_STALL_BITS;
 	size_t metrics;
 	size_t dropped;
@@ -113,7 +113,7 @@ server_queuereader(void *d)
 			}
 			gettimeofday(&stop, NULL);
 			self->ticks += timediff(start, stop);
-			if (!self->keep_running)
+			if (__sync_bool_compare_and_swap(&(self->keep_running), 0, 0))
 				break;
 			/* nothing to do, so slow down for a bit */
 			usleep((200 + (rand() % 100)) * 1000);  /* 200ms - 300ms */
@@ -206,12 +206,12 @@ server_queuereader(void *d)
 				/* we couldn't do anything, take it easy for a bit */
 				if (self->failure)
 					self->failure = 1;
-				if (!self->keep_running)
+				if (__sync_bool_compare_and_swap(&(self->keep_running), 0, 0))
 					break;
 				usleep((200 + (rand() % 100)) * 1000);  /* 200ms - 300ms */
 			}
 		} else if (self->failure) {
-			if (!self->keep_running)
+			if (__sync_bool_compare_and_swap(&(self->keep_running), 0, 0))
 				break;
 			usleep((200 + (rand() % 100)) * 1000);  /* 200ms - 300ms */
 		}
@@ -360,7 +360,9 @@ server_queuereader(void *d)
 		self->batch[len] = NULL;
 		metric = self->batch;
 
-		if (len != 0 && !self->keep_running) {
+		if (len != 0 &&
+				__sync_bool_compare_and_swap(&(self->keep_running), 0, 0))
+		{
 			/* be noisy during shutdown so we can track any slowing down
 			 * servers, possibly preventing us to shut down */
 			logerr("shutting down %s:%u: waiting for %zu metrics\n",
@@ -600,7 +602,7 @@ server_shutdown(server *s)
 	size_t inqueue;
 
 	/* this function should only be called on a running server */
-	if (s->keep_running == 0)
+	if (__sync_bool_compare_and_swap(&(s->keep_running), 0, 0))
 		return;
 
 	if (s->secondariescnt > 0) {
@@ -624,14 +626,15 @@ server_shutdown(server *s)
 				usleep((200 + (rand() % 100)) * 1000) <= 0);
 		/* shut down entire cluster */
 		for (i = 0; i < s->secondariescnt; i++)
-			s->secondaries[i]->keep_running = 0;
+			__sync_bool_compare_and_swap(
+					&(s->secondaries[i]->keep_running), 1, 0);
 		/* to pretend to be dead for above loop (just in case) */
 		if (inqueue != 0)
 			for (i = 0; i < s->secondariescnt; i++)
 				s->secondaries[i]->failure = 1;
 	}
 
-	s->keep_running = 0;
+	__sync_bool_compare_and_swap(&(s->keep_running), 1, 0);
 }
 
 /**
