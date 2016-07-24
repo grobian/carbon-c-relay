@@ -243,7 +243,8 @@ dispatch_addconnection(int sock)
 	connections[c].destlen = 0;
 	gettimeofday(&connections[c].lastwork, NULL);
 	connections[c].hadwork = 1;  /* force first iteration before stalling */
-	connections[c].takenby = 0;  /* now dispatchers will pick this one up */
+	/* after this dispatchers will pick this connection up */
+	__sync_bool_compare_and_swap(&(connections[c].takenby), -2, 0);
 	acceptedconnections++;
 
 	return c;
@@ -351,14 +352,14 @@ dispatch_connection(connection *conn, dispatcher *self, struct timeval start)
 
 	/* first try to resume any work being blocked */
 	if (dispatch_process_dests(conn, self, start) == 0) {
-		conn->takenby = 0;
+		__sync_bool_compare_and_swap(&(conn->takenby), conn->takenby, 0);
 		return 0;
 	}
 
 	/* don't poll (read) when the last time we ran nothing happened,
 	 * this is to avoid excessive CPU usage, issue #126 */
 	if (!conn->hadwork && timediff(conn->lastwork, start) < 100 * 1000) {
-		conn->takenby = 0;
+		__sync_bool_compare_and_swap(&(conn->takenby), conn->takenby, 0);
 		return 0;
 	}
 	conn->hadwork = 0;
@@ -471,7 +472,7 @@ dispatch_connection(connection *conn, dispatcher *self, struct timeval start)
 			/* force close connection below */
 			len = 0;
 		} else {
-			conn->takenby = 0;
+			__sync_bool_compare_and_swap(&(conn->takenby), conn->takenby, 0);
 			return 0;
 		}
 	}
@@ -485,7 +486,7 @@ dispatch_connection(connection *conn, dispatcher *self, struct timeval start)
 			/* reset buffer only (UDP) and move on */
 			conn->needmore = 1;
 			conn->buflen = 0;
-			conn->takenby = 0;
+			__sync_bool_compare_and_swap(&(conn->takenby), conn->takenby, 0);
 
 			return 0;
 		} else {
@@ -493,14 +494,14 @@ dispatch_connection(connection *conn, dispatcher *self, struct timeval start)
 			close(conn->sock);
 
 			/* flag this connection as no longer in use */
-			conn->takenby = -1;
+			__sync_bool_compare_and_swap(&(conn->takenby), conn->takenby, -1);
 
 			return 0;
 		}
 	}
 
 	/* "release" this connection again */
-	conn->takenby = 0;
+	__sync_bool_compare_and_swap(&(conn->takenby), conn->takenby, 0);
 
 	return 1;
 }
@@ -576,10 +577,12 @@ dispatch_runner(void *arg)
 			for (c = 0; c < connectionslen; c++) {
 				conn = &(connections[c]);
 				/* atomically try to "claim" this connection */
-				if (!__sync_bool_compare_and_swap(&(conn->takenby), 0, self->id))
+				if (!__sync_bool_compare_and_swap(
+							&(conn->takenby), 0, self->id))
 					continue;
 				if (self->hold && !conn->isaggr) {
-					conn->takenby = 0;
+					__sync_bool_compare_and_swap(
+							&(conn->takenby), conn->takenby, 0);
 					continue;
 				}
 				work += dispatch_connection(conn, self, start);
