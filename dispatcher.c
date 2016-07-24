@@ -70,7 +70,7 @@ struct _dispatcher {
 	size_t prevblackholes;
 	size_t prevticks;
 	size_t prevsleeps;
-	char keep_running:1;
+	char keep_running;  /* full byte for atomic access */
 	router *rtr;
 	router *pending_rtr;
 	char route_refresh_pending:1;
@@ -552,7 +552,7 @@ dispatch_runner(void *arg)
 	if (self->type == LISTENER) {
 		struct pollfd ufds[MAX_LISTENERS];
 		int fds;
-		while (self->keep_running) {
+		while (__sync_bool_compare_and_swap(&(self->keep_running), 1, 1)) {
 			pthread_rwlock_rdlock(&listenerslock);
 			fds = 0;
 			for (c = 0; c < MAX_LISTENERS; c++) {
@@ -590,7 +590,7 @@ dispatch_runner(void *arg)
 		int work;
 		struct timeval start, stop;
 
-		while (self->keep_running) {
+		while (__sync_bool_compare_and_swap(&(self->keep_running), 1, 1)) {
 			work = 0;
 
 			if (self->route_refresh_pending) {
@@ -620,7 +620,9 @@ dispatch_runner(void *arg)
 			self->ticks += timediff(start, stop);
 
 			/* nothing done, avoid spinlocking */
-			if (self->keep_running && work == 0) {
+			if (__sync_bool_compare_and_swap(&(self->keep_running), 1, 1) &&
+					work == 0)
+			{
 				gettimeofday(&start, NULL);
 				usleep((100 + (rand() % 200)) * 1000);  /* 100ms - 300ms */
 				gettimeofday(&stop, NULL);
@@ -691,7 +693,7 @@ dispatch_new_connection(router *r, char *allowed_chars)
 void
 dispatch_stop(dispatcher *d)
 {
-	d->keep_running = 0;
+	__sync_bool_compare_and_swap(&(d->keep_running), 1, 0);
 }
 
 /**
