@@ -114,7 +114,7 @@ collector_runner(void *s)
 		server_send(submission, strdup(metric), 1);
 
 	nextcycle = time(NULL) + collector_interval;
-	while (keep_running) {
+	while (__sync_bool_compare_and_swap(&keep_running, 1, 1)) {
 		if (cluster_refresh_pending) {
 			char *stub = router_getcollectorstub(pending_router);
 			server **newservers = router_getservers(pending_router);
@@ -462,6 +462,6 @@ collector_start(dispatcher **d, router *rtr, server *submission, char cum)
 void
 collector_stop(void)
 {
-	keep_running = 0;
+	__sync_bool_compare_and_swap(&keep_running, 1, 0);
 	pthread_join(collectorid, NULL);
 }
