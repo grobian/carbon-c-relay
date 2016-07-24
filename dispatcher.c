@@ -352,14 +352,14 @@ dispatch_connection(connection *conn, dispatcher *self, struct timeval start)
 
 	/* first try to resume any work being blocked */
 	if (dispatch_process_dests(conn, self, start) == 0) {
-		__sync_bool_compare_and_swap(&(conn->takenby), conn->takenby, 0);
+		__sync_bool_compare_and_swap(&(conn->takenby), self->id, 0);
 		return 0;
 	}
 
 	/* don't poll (read) when the last time we ran nothing happened,
 	 * this is to avoid excessive CPU usage, issue #126 */
 	if (!conn->hadwork && timediff(conn->lastwork, start) < 100 * 1000) {
-		__sync_bool_compare_and_swap(&(conn->takenby), conn->takenby, 0);
+		__sync_bool_compare_and_swap(&(conn->takenby), self->id, 0);
 		return 0;
 	}
 	conn->hadwork = 0;
@@ -472,7 +472,7 @@ dispatch_connection(connection *conn, dispatcher *self, struct timeval start)
 			/* force close connection below */
 			len = 0;
 		} else {
-			__sync_bool_compare_and_swap(&(conn->takenby), conn->takenby, 0);
+			__sync_bool_compare_and_swap(&(conn->takenby), self->id, 0);
 			return 0;
 		}
 	}
@@ -486,7 +486,7 @@ dispatch_connection(connection *conn, dispatcher *self, struct timeval start)
 			/* reset buffer only (UDP) and move on */
 			conn->needmore = 1;
 			conn->buflen = 0;
-			__sync_bool_compare_and_swap(&(conn->takenby), conn->takenby, 0);
+			__sync_bool_compare_and_swap(&(conn->takenby), self->id, 0);
 
 			return 0;
 		} else {
@@ -494,14 +494,14 @@ dispatch_connection(connection *conn, dispatcher *self, struct timeval start)
 			close(conn->sock);
 
 			/* flag this connection as no longer in use */
-			__sync_bool_compare_and_swap(&(conn->takenby), conn->takenby, -1);
+			__sync_bool_compare_and_swap(&(conn->takenby), self->id, -1);
 
 			return 0;
 		}
 	}
 
 	/* "release" this connection again */
-	__sync_bool_compare_and_swap(&(conn->takenby), conn->takenby, 0);
+	__sync_bool_compare_and_swap(&(conn->takenby), self->id, 0);
 
 	return 1;
 }
@@ -582,7 +582,7 @@ dispatch_runner(void *arg)
 					continue;
 				if (self->hold && !conn->isaggr) {
 					__sync_bool_compare_and_swap(
-							&(conn->takenby), conn->takenby, 0);
+							&(conn->takenby), self->id, 0);
 					continue;
 				}
 				work += dispatch_connection(conn, self, start);
