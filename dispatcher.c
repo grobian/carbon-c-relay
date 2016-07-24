@@ -562,6 +562,7 @@ dispatch_runner(void *arg)
 				ufds[fds].events = POLLIN;
 				fds++;
 			}
+			pthread_rwlock_unlock(&listenerslock);
 			if (poll(ufds, fds, 1000) > 0) {
 				for (c = fds - 1; c >= 0; c--) {
 					if (ufds[c].revents & POLLIN) {
@@ -584,7 +585,6 @@ dispatch_runner(void *arg)
 					}
 				}
 			}
-			pthread_rwlock_unlock(&listenerslock);
 		}
 	} else if (self->type == CONNECTION) {
 		int work;
