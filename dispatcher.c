@@ -78,9 +78,10 @@ struct _dispatcher {
 	char *allowed_chars;
 };
 
-static connection *listeners[32];       /* hopefully enough */
+static connection **listeners = NULL;
 static connection *connections = NULL;
 static size_t connectionslen = 0;
+pthread_rwlock_t listenerslock = PTHREAD_RWLOCK_INITIALIZER;
 pthread_rwlock_t connectionslock = PTHREAD_RWLOCK_INITIALIZER;
 static size_t acceptedconnections = 0;
 static size_t closedconnections = 0;
@@ -109,6 +110,8 @@ dispatch_check_rlimit_and_warn(void)
 	}
 }
 
+#define MAX_LISTENERS 32  /* hopefully enough */
+
 /**
  * Adds an (initial) listener socket to the chain of connections.
  * Listener sockets are those which need to be accept()-ed on.
@@ -126,43 +129,63 @@ dispatch_addlistener(int sock)
 	newconn->sock = sock;
 	newconn->takenby = 0;
 	newconn->buflen = 0;
-	for (c = 0; c < sizeof(listeners) / sizeof(connection *); c++)
-		if (__sync_bool_compare_and_swap(&(listeners[c]), NULL, newconn))
+
+	pthread_rwlock_wrlock(&listenerslock);
+	if (listeners == NULL) {
+		listeners = malloc(sizeof(connection *) * MAX_LISTENERS);
+		for (c = 0; c < MAX_LISTENERS; c++)
+			listeners[c] = NULL;
+	}
+	if (listeners == NULL) {
+		pthread_rwlock_unlock(&listenerslock);
+		return 1;
+	}
+	for (c = 0; c < MAX_LISTENERS; c++) {
+		if (listeners[c] == NULL) {
+			listeners[c] = newconn;
 			break;
-	if (c == sizeof(listeners) / sizeof(connection *)) {
+		}
+	}
+	if (c == MAX_LISTENERS) {
 		free(newconn);
 		logerr("cannot add new listener: "
 				"no more free listener slots (max = %zu)\n",
-				sizeof(listeners) / sizeof(connection *));
+				MAX_LISTENERS);
+		pthread_rwlock_unlock(&listenerslock);
 		return 1;
 	}
+	pthread_rwlock_unlock(&listenerslock);
 
 	return 0;
 }
 
+/**
+ * Remove listener from the listeners list.  Each removal will incur a
+ * global lock.  Frequent usage of this function is not anticipated.
+ */
 void
 dispatch_removelistener(int sock)
 {
 	int c;
 	connection *conn;
 
+	pthread_rwlock_wrlock(&listenerslock);
 	/* find connection */
-	for (c = 0; c < sizeof(listeners) / sizeof(connection *); c++)
+	for (c = 0; c < MAX_LISTENERS; c++)
 		if (listeners[c] != NULL && listeners[c]->sock == sock)
 			break;
-	if (c == sizeof(listeners) / sizeof(connection *)) {
+	if (c == MAX_LISTENERS) {
 		/* not found?!? */
 		logerr("dispatch: cannot find listener!\n");
+		pthread_rwlock_unlock(&listenerslock);
 		return;
 	}
-	/* make this connection no longer visible */
+	/* cleanup */
 	conn = listeners[c];
-	listeners[c] = NULL;
-	/* if some other thread was looking at conn, make sure it
-	 * will have moved on before freeing this object */
-	usleep(10 * 1000);  /* 10ms */
 	close(conn->sock);
 	free(conn);
+	listeners[c] = NULL;
+	pthread_rwlock_unlock(&listenerslock);
 }
 
 #define CONNGROWSZ  1024
@@ -527,16 +550,20 @@ dispatch_runner(void *arg)
 	self->prevsleeps = 0;
 
 	if (self->type == LISTENER) {
-		struct pollfd ufds[sizeof(listeners) / sizeof(connection *)];
+		struct pollfd ufds[MAX_LISTENERS];
+		int fds;
 		while (self->keep_running) {
-			for (c = 0; c < sizeof(listeners) / sizeof(connection *); c++) {
+			pthread_rwlock_rdlock(&listenerslock);
+			fds = 0;
+			for (c = 0; c < MAX_LISTENERS; c++) {
 				if (listeners[c] == NULL)
-					break;
-				ufds[c].fd = listeners[c]->sock;
-				ufds[c].events = POLLIN;
+					continue;
+				ufds[fds].fd = listeners[c]->sock;
+				ufds[fds].events = POLLIN;
+				fds++;
 			}
-			if (poll(ufds, c, 1000) > 0) {
-				for (--c; c >= 0; c--) {
+			if (poll(ufds, fds, 1000) > 0) {
+				for (c = fds - 1; c >= 0; c--) {
 					if (ufds[c].revents & POLLIN) {
 						int client;
 						struct sockaddr addr;
@@ -557,6 +584,7 @@ dispatch_runner(void *arg)
 					}
 				}
 			}
+			pthread_rwlock_unlock(&listenerslock);
 		}
 	} else if (self->type == CONNECTION) {
 		int work;
