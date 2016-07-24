@@ -245,7 +245,7 @@ dispatch_addconnection(int sock)
 	connections[c].hadwork = 1;  /* force first iteration before stalling */
 	/* after this dispatchers will pick this connection up */
 	__sync_bool_compare_and_swap(&(connections[c].takenby), -2, 0);
-	acceptedconnections++;
+	__sync_add_and_fetch(&acceptedconnections, 1);
 
 	return c;
 }
@@ -490,7 +490,7 @@ dispatch_connection(connection *conn, dispatcher *self, struct timeval start)
 
 			return 0;
 		} else {
-			closedconnections++;
+			__sync_add_and_fetch(&closedconnections, 1);
 			close(conn->sock);
 
 			/* flag this connection as no longer in use */
