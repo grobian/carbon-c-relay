@@ -194,7 +194,7 @@ aggregator_putmetric(
 	struct _aggr_bucket_entries *entries;
 
 	/* do not accept new values when shutting down, issue #200 */
-	if (!keep_running)
+	if (__sync_bool_compare_and_swap(&keep_running, 0, 0))
 		return;
 
 	/* get value */
@@ -398,14 +398,14 @@ aggregator_expire(void *sub)
 			/* send metrics for buckets that are completely past the
 			 * expiry time, unless we are shutting down, then send
 			 * metrics for all buckets that have completed */
-			now = time(NULL) + (keep_running ? 0 : s->expire - s->interval);
+			now = time(NULL) + (__sync_bool_compare_and_swap(&keep_running, 1, 1) ? 0 : s->expire - s->interval);
 			for (c = s->computes; c != NULL; c = c->next) {
 				for (i = 0; i < (1 << AGGR_HT_POW_SIZE); i++) {
 					lastinv = NULL;
 					isempty = 0;
 					for (inv = c->invocations_ht[i]; inv != NULL; ) {
 						while (inv->buckets[0].start +
-								(keep_running ? inv->expire : s->expire) < now)
+								(__sync_bool_compare_and_swap(&keep_running, 1, 1) ? inv->expire : s->expire) < now)
 						{
 							/* yay, let's produce something cool */
 							b = &inv->buckets[0];
@@ -564,7 +564,7 @@ aggregator_expire(void *sub)
 		}
 
 		if (work == 0) {
-			if (!keep_running)
+			if (__sync_bool_compare_and_swap(&keep_running, 0, 0))
 				break;
 			/* nothing done, avoid spinlocking */
 			usleep(250 * 1000);  /* 250ms */
@@ -659,7 +659,7 @@ aggregator_start(aggregator *aggrs)
 void
 aggregator_stop(void)
 {
-	keep_running = 0;
+	__sync_bool_compare_and_swap(&keep_running, 1, 0);
 	pthread_join(aggregatorid, NULL);
 }
 
