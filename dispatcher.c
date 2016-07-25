@@ -73,7 +73,7 @@ struct _dispatcher {
 	char keep_running;  /* full byte for atomic access */
 	router *rtr;
 	router *pending_rtr;
-	char route_refresh_pending:1;
+	char route_refresh_pending;  /* full byte for atomic access */
 	char hold:1;
 	char *allowed_chars;
 };
@@ -420,15 +420,16 @@ dispatch_connection(connection *conn, dispatcher *self, struct timeval start)
 					continue;
 				}
 
-				self->metrics++;
+				__sync_add_and_fetch(&(self->metrics), 1);
 				*q++ = '\n';
 				*q = '\0';  /* can do this because we substract one from buf */
 
 				/* perform routing of this metric */
-				self->blackholes += router_route(self->rtr,
+				__sync_add_and_fetch(&(self->blackholes),
+						router_route(self->rtr,
 						conn->dests, &conn->destlen, CONN_DESTS_SIZE,
 						conn->srcaddr,
-						conn->metric, firstspace);
+						conn->metric, firstspace));
 
 				/* restart building new one from the start */
 				q = conn->metric;
@@ -593,10 +594,10 @@ dispatch_runner(void *arg)
 		while (__sync_bool_compare_and_swap(&(self->keep_running), 1, 1)) {
 			work = 0;
 
-			if (self->route_refresh_pending) {
+			if (__sync_bool_compare_and_swap(&(self->route_refresh_pending), 1, 1)) {
 				self->rtr = self->pending_rtr;
 				self->pending_rtr = NULL;
-				self->route_refresh_pending = 0;
+				__sync_bool_compare_and_swap(&(self->route_refresh_pending), 1, 0);
 				self->hold = 0;
 			}
 
@@ -617,7 +618,7 @@ dispatch_runner(void *arg)
 			}
 			pthread_rwlock_unlock(&connectionslock);
 			gettimeofday(&stop, NULL);
-			self->ticks += timediff(start, stop);
+			__sync_add_and_fetch(&(self->ticks), timediff(start, stop));
 
 			/* nothing done, avoid spinlocking */
 			if (__sync_bool_compare_and_swap(&(self->keep_running), 1, 1) &&
@@ -626,7 +627,7 @@ dispatch_runner(void *arg)
 				gettimeofday(&start, NULL);
 				usleep((100 + (rand() % 200)) * 1000);  /* 100ms - 300ms */
 				gettimeofday(&stop, NULL);
-				self->sleeps += timediff(start, stop);
+				__sync_add_and_fetch(&(self->sleeps), timediff(start, stop));
 			}
 		}
 	} else {
@@ -737,7 +738,7 @@ inline void
 dispatch_schedulereload(dispatcher *d, router *r)
 {
 	d->pending_rtr = r;
-	d->route_refresh_pending = 1;
+	__sync_bool_compare_and_swap(&(d->route_refresh_pending), 0, 1);
 }
 
 /**
@@ -747,7 +748,7 @@ dispatch_schedulereload(dispatcher *d, router *r)
 inline char
 dispatch_reloadcomplete(dispatcher *d)
 {
-	return d->route_refresh_pending == 0;
+	return __sync_bool_compare_and_swap(&(d->route_refresh_pending), 0, 0);
 }
 
 /**
@@ -756,7 +757,7 @@ dispatch_reloadcomplete(dispatcher *d)
 inline size_t
 dispatch_get_ticks(dispatcher *self)
 {
-	return self->ticks;
+	return __sync_add_and_fetch(&(self->ticks), 0);
 }
 
 /**
@@ -766,7 +767,7 @@ dispatch_get_ticks(dispatcher *self)
 inline size_t
 dispatch_get_ticks_sub(dispatcher *self)
 {
-	size_t d = self->ticks - self->prevticks;
+	size_t d = dispatch_get_ticks(self) - self->prevticks;
 	self->prevticks += d;
 	return d;
 }
@@ -778,7 +779,7 @@ dispatch_get_ticks_sub(dispatcher *self)
 inline size_t
 dispatch_get_sleeps(dispatcher *self)
 {
-	return self->sleeps;
+	return __sync_add_and_fetch(&(self->sleeps), 0);
 }
 
 /**
@@ -788,7 +789,7 @@ dispatch_get_sleeps(dispatcher *self)
 inline size_t
 dispatch_get_sleeps_sub(dispatcher *self)
 {
-	size_t d = self->sleeps - self->prevsleeps;
+	size_t d = dispatch_get_sleeps(self) - self->prevsleeps;
 	self->prevsleeps += d;
 	return d;
 }
@@ -799,7 +800,7 @@ dispatch_get_sleeps_sub(dispatcher *self)
 inline size_t
 dispatch_get_metrics(dispatcher *self)
 {
-	return self->metrics;
+	return __sync_add_and_fetch(&(self->metrics), 0);
 }
 
 /**
@@ -809,7 +810,7 @@ dispatch_get_metrics(dispatcher *self)
 inline size_t
 dispatch_get_metrics_sub(dispatcher *self)
 {
-	size_t d = self->metrics - self->prevmetrics;
+	size_t d = dispatch_get_metrics(self) - self->prevmetrics;
 	self->prevmetrics += d;
 	return d;
 }
@@ -821,7 +822,7 @@ dispatch_get_metrics_sub(dispatcher *self)
 inline size_t
 dispatch_get_blackholes(dispatcher *self)
 {
-	return self->blackholes;
+	return __sync_add_and_fetch(&(self->blackholes), 0);
 }
 
 /**
@@ -831,7 +832,7 @@ dispatch_get_blackholes(dispatcher *self)
 inline size_t
 dispatch_get_blackholes_sub(dispatcher *self)
 {
-	size_t d = self->blackholes - self->prevblackholes;
+	size_t d = dispatch_get_blackholes(self) - self->prevblackholes;
 	self->prevblackholes += d;
 	return d;
 }
@@ -839,17 +840,17 @@ dispatch_get_blackholes_sub(dispatcher *self)
 /**
  * Returns the number of accepted connections thusfar.
  */
-size_t
+inline size_t
 dispatch_get_accepted_connections(void)
 {
-	return acceptedconnections;
+	return __sync_add_and_fetch(&(acceptedconnections), 0);
 }
 
 /**
  * Returns the number of closed connections thusfar.
  */
-size_t
+inline size_t
 dispatch_get_closed_connections(void)
 {
-	return closedconnections;
+	return __sync_add_and_fetch(&(closedconnections), 0);
 }
