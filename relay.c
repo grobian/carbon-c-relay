@@ -479,7 +479,8 @@ main(int argc, char * const argv[])
 				}
 				if (sockbufsize != (unsigned int)val)
 					fprintf(stdout, "warning: OS rejected socket bufsize\n");
-				close(sock);
+				if (sock != -1)
+					close(sock);
 			}	break;
 			case 'D':
 				mode |= MODE_DAEMON;
