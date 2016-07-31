@@ -460,14 +460,15 @@ main(int argc, char * const argv[])
 				/* test the size to see if the value is valid, since
 				 * this is OS dependant, it's the only way */
 				sock = socket(PF_INET, SOCK_STREAM, 0);
-				if (setsockopt(sock, SOL_SOCKET, SO_RCVBUF,
+				if (sock == -1 || setsockopt(sock, SOL_SOCKET, SO_RCVBUF,
 						&sockbufsize, sizeof(sockbufsize)) != 0)
 				{
 					fprintf(stderr, "failed to set socket bufsize: %s\n",
 							strerror(errno));
 				}
-				getsockopt(sock, SOL_SOCKET, SO_RCVBUF,
-						&sockbufsize, &len);
+				if (sock != -1)
+					getsockopt(sock, SOL_SOCKET, SO_RCVBUF,
+							&sockbufsize, &len);
 				if (len != sizeof(sockbufsize)) {
 					fprintf(stderr, "getsockopt returned unexpected size: %u, "
 							"expected %lu\n", len, sizeof(sockbufsize));
