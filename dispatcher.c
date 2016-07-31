@@ -263,6 +263,7 @@ dispatch_addconnection(int sock)
 		if (setsockopt(sock, SOL_SOCKET, SO_RCVBUF,
 				&sockbufsize, sizeof(sockbufsize)) != 0)
 			;
+	}
 	connections[c].sock = sock;
 	connections[c].buflen = 0;
 	connections[c].needmore = 0;
