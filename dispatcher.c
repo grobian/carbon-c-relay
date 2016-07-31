@@ -85,6 +85,7 @@ pthread_rwlock_t listenerslock = PTHREAD_RWLOCK_INITIALIZER;
 pthread_rwlock_t connectionslock = PTHREAD_RWLOCK_INITIALIZER;
 static size_t acceptedconnections = 0;
 static size_t closedconnections = 0;
+static unsigned int sockbufsize = 0;
 
 
 /**
@@ -258,6 +259,9 @@ dispatch_addconnection(int sock)
 	}
 
 	(void) fcntl(sock, F_SETFL, O_NONBLOCK);
+	if (sockbufsize > 0)
+		setsockopt(sock, SOL_SOCKET, SO_RCVBUF,
+				&sockbufsize, sizeof(sockbufsize));
 	connections[c].sock = sock;
 	connections[c].buflen = 0;
 	connections[c].needmore = 0;
@@ -671,9 +675,10 @@ static char globalid = 0;
  * (and putting them on the queue for handling the connections).
  */
 dispatcher *
-dispatch_new_listener(void)
+dispatch_new_listener(unsigned int nsockbufsize)
 {
 	char id = globalid++;
+	sockbufsize = nsockbufsize;
 	return dispatch_new(id, LISTENER, NULL, NULL);
 }
 

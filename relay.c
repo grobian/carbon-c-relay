@@ -48,6 +48,7 @@ static int batchsize = 2500;
 static int queuesize = 25000;
 static int maxstalls = 4;
 static unsigned short iotimeout = 600;
+static int sockbufsize = 0;
 static dispatcher **workers = NULL;
 static char workercnt = 0;
 static router *rtr = NULL;
@@ -151,7 +152,8 @@ do_reload(void)
 
 	logout("reloading config from '%s'\n", config);
 	if ((newrtr = router_readconfig(NULL, config,
-					queuesize, batchsize, maxstalls, iotimeout)) == NULL)
+					queuesize, batchsize, maxstalls,
+					iotimeout, sockbufsize)) == NULL)
 	{
 		logerr("failed to read configuration '%s', aborting reload\n", config);
 		return;
@@ -349,7 +351,7 @@ main(int argc, char * const argv[])
 	if (gethostname(relay_hostname, sizeof(relay_hostname)) < 0)
 		snprintf(relay_hostname, sizeof(relay_hostname), "127.0.0.1");
 
-	while ((ch = getopt(argc, argv, ":hvdmstf:i:l:p:w:b:q:L:S:T:c:H:B:DP:")) != -1) {
+	while ((ch = getopt(argc, argv, ":hvdmstf:i:l:p:w:b:q:L:S:T:c:H:B:U:DP:")) != -1) {
 		switch (ch) {
 			case 'v':
 				do_version();
@@ -444,7 +446,37 @@ main(int argc, char * const argv[])
 				}
 				listenbacklog = (unsigned int)val;
 			}	break;
+			case 'U': {
+				int val = atoi(optarg);
+				socklen_t len = sizeof(sockbufsize);
+				int sock;
 
+				if (val <= 0) {
+					fprintf(stderr, "error: bufsize needs to be a number >0\n");
+					do_usage(1);
+				}
+				sockbufsize = (unsigned int)val;
+
+				/* test the size to see if the value is valid, since
+				 * this is OS dependant, it's the only way */
+				sock = socket(PF_INET, SOCK_STREAM, 0);
+				if (setsockopt(sock, SOL_SOCKET, SO_RCVBUF,
+						&sockbufsize, sizeof(sockbufsize)) != 0)
+				{
+					fprintf(stderr, "failed to set socket bufsize: %s\n",
+							strerror(errno));
+				}
+				getsockopt(sock, SOL_SOCKET, SO_RCVBUF,
+						&sockbufsize, &len);
+				if (len != sizeof(sockbufsize)) {
+					fprintf(stderr, "getsockopt returned unexpected size: %u, "
+							"expected %lu\n", len, sizeof(sockbufsize));
+					exit(1);
+				}
+				if (sockbufsize != (unsigned int)val)
+					fprintf(stdout, "warning: OS rejected socket bufsize\n");
+				close(sock);
+			}	break;
 			case 'D':
 				mode |= MODE_DAEMON;
 				break;
@@ -613,6 +645,8 @@ main(int argc, char * const argv[])
 	fprintf(relay_stdout, "    statistics submission interval = %ds\n",
 			collector_interval);
 	fprintf(relay_stdout, "    listen backlog = %u\n", listenbacklog);
+	if (sockbufsize > 0)
+		fprintf(relay_stdout, "    socket bufsize = %u\n", sockbufsize);
 	fprintf(relay_stdout, "    server connection IO timeout = %dms\n",
 			iotimeout);
 	if (allowed_chars != NULL)
@@ -628,7 +662,8 @@ main(int argc, char * const argv[])
 	fprintf(relay_stdout, "\n");
 
 	if ((rtr = router_readconfig(NULL, config,
-					queuesize, batchsize, maxstalls, iotimeout)) == NULL)
+					queuesize, batchsize, maxstalls,
+					iotimeout, sockbufsize)) == NULL)
 	{
 		logerr("failed to read configuration '%s'\n", config);
 		return 1;
@@ -712,7 +747,7 @@ main(int argc, char * const argv[])
 			return -1;
 		}
 	}
-	if ((workers[0] = dispatch_new_listener()) == NULL)
+	if ((workers[0] = dispatch_new_listener(sockbufsize)) == NULL)
 		logerr("failed to add listener\n");
 
 	if (allowed_chars == NULL)
@@ -733,8 +768,9 @@ main(int argc, char * const argv[])
 
 	/* server used for delivering metrics produced inside the relay,
 	 * that is, the collector (statistics) */
-	if ((internal_submission = server_new("internal", listenport, CON_PIPE,
-					NULL, 3000, batchsize, maxstalls, iotimeout)) == NULL)
+	if ((internal_submission = server_new(
+					"internal", listenport, CON_PIPE, NULL, 3000,
+					batchsize, maxstalls, iotimeout, sockbufsize)) == NULL)
 	{
 		logerr("failed to create internal submission queue, shutting down\n");
 		keep_running = 0;

@@ -2,6 +2,10 @@
 
 ### New Features
 
+* **relay** socket receive and send buffer sizes can be adjusted
+            the `-U` option was introduced to allow setting the socket
+            buffer size in bytes, [Issue #207](https://github.com/grobian/carbon-c-relay/issues/207).
+
 ### Breaking Changes
 
 ### Enhancements

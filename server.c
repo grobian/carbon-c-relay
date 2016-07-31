@@ -46,6 +46,7 @@ struct _server {
 	queue *queue;
 	size_t bsize;
 	short iotimeout;
+	unsigned int sockbufsize;
 	unsigned char maxstalls:SERVER_STALL_BITS;
 	const char **batch;
 	serv_ctype ctype;
@@ -348,6 +349,9 @@ server_queuereader(void *d)
 			timeout.tv_usec = (rand() % 300) * 1000;
 			setsockopt(self->fd, SOL_SOCKET, SO_SNDTIMEO,
 					&timeout, sizeof(timeout));
+			if (self->sockbufsize > 0)
+				setsockopt(self->fd, SOL_SOCKET, SO_SNDBUF,
+						&self->sockbufsize, sizeof(self->sockbufsize));
 #ifdef SO_NOSIGPIPE
 			if (setsockopt(self->fd, SOL_SOCKET, SO_NOSIGPIPE, NULL, 0) != 0)
 				logout("warning: failed to ignore SIGPIPE on socket: %s\n",
@@ -455,7 +459,8 @@ server_new(
 		size_t qsize,
 		size_t bsize,
 		int maxstalls,
-		unsigned short iotimeout)
+		unsigned short iotimeout,
+		unsigned int sockbufsize)
 {
 	server *ret;
 
@@ -475,6 +480,7 @@ server_new(
 	ret->instance = NULL;
 	ret->bsize = bsize;
 	ret->iotimeout = iotimeout < 250 ? 600 : iotimeout;
+	ret->sockbufsize = sockbufsize;
 	ret->maxstalls = maxstalls;
 	if ((ret->batch = malloc(sizeof(char *) * (bsize + 1))) == NULL) {
 		free((char *)ret->ip);
