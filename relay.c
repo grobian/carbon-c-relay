@@ -466,9 +466,12 @@ main(int argc, char * const argv[])
 					fprintf(stderr, "failed to set socket bufsize: %s\n",
 							strerror(errno));
 				}
-				if (sock != -1)
-					getsockopt(sock, SOL_SOCKET, SO_RCVBUF,
-							&sockbufsize, &len);
+				if (sock != -1 && getsockopt(sock, SOL_SOCKET, SO_RCVBUF,
+							&sockbufsize, &len) != 0)
+				{
+					fprintf(stderr, "failed to get socket bufsize: %s\n",
+							strerror(errno));
+				}
 				if (len != sizeof(sockbufsize)) {
 					fprintf(stderr, "getsockopt returned unexpected size: %u, "
 							"expected %lu\n", len, sizeof(sockbufsize));

@@ -347,11 +347,13 @@ server_queuereader(void *d)
 			 * quickly than the kernel would give up */
 			timeout.tv_sec = 10;
 			timeout.tv_usec = (rand() % 300) * 1000;
-			setsockopt(self->fd, SOL_SOCKET, SO_SNDTIMEO,
-					&timeout, sizeof(timeout));
+			if (setsockopt(self->fd, SOL_SOCKET, SO_SNDTIMEO,
+					&timeout, sizeof(timeout)) != 0)
+				;
 			if (self->sockbufsize > 0)
-				setsockopt(self->fd, SOL_SOCKET, SO_SNDBUF,
-						&self->sockbufsize, sizeof(self->sockbufsize));
+				if (setsockopt(self->fd, SOL_SOCKET, SO_SNDBUF,
+						&self->sockbufsize, sizeof(self->sockbufsize)) != 0)
+					;
 #ifdef SO_NOSIGPIPE
 			if (setsockopt(self->fd, SOL_SOCKET, SO_NOSIGPIPE, NULL, 0) != 0)
 				logout("warning: failed to ignore SIGPIPE on socket: %s\n",
