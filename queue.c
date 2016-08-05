@@ -200,7 +200,11 @@ queue_putback(queue *q, const char *p)
 inline size_t
 queue_len(queue *q)
 {
-	return q->len;
+	size_t len;
+	pthread_mutex_lock(&q->lock);
+	len = q->len;
+	pthread_mutex_unlock(&q->lock);
+	return len;
 }
 
 /**
@@ -210,7 +214,7 @@ queue_len(queue *q)
 inline size_t
 queue_free(queue *q)
 {
-	return q->end - q->len;
+	return q->end - queue_len(q);
 }
 
 /**
