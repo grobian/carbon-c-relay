@@ -71,7 +71,7 @@ relaylog(enum logdst dest, const char *fmt, ...)
 	char prefix[64];
 	size_t len;
 	time_t now;
-	struct tm *tm_now;
+	struct tm tm_now;
 	FILE *dst = NULL;
 	char console = 0;
 	int ret;
@@ -95,8 +95,8 @@ relaylog(enum logdst dest, const char *fmt, ...)
 		usleep((100 + (rand() % 200)) * 1000);  /* 100ms - 300ms */
 
 	time(&now);
-	tm_now = localtime(&now);
-	len = strftime(prefix, sizeof(prefix), "[%Y-%m-%d %H:%M:%S]", tm_now);
+	localtime_r(&now, &tm_now);
+	len = strftime(prefix, sizeof(prefix), "[%Y-%m-%d %H:%M:%S]", &tm_now);
 
 	if (!console)
 		(void)snprintf(prefix + len, sizeof(prefix) - len, " (%s)", dest == LOGOUT ? "MSG" : "ERR");
