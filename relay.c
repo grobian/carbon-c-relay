@@ -91,7 +91,7 @@ relaylog(enum logdst dest, const char *fmt, ...)
 	assert(dst != NULL);
 
 	/* briefly stall if we're swapping fds */
-	while (!relay_can_log)
+	while (!__sync_add_and_fetch(&relay_can_log, 0))
 		usleep((100 + (rand() % 200)) * 1000);  /* 100ms - 300ms */
 
 	time(&now);
@@ -139,13 +139,13 @@ do_reload(void)
 					relay_logfile, strerror(errno));
 		} else {
 			logout("closing logfile\n");
-			relay_can_log = 0;
+			__sync_and_and_fetch(&relay_can_log, 0);
 			/* lame race avoidance for relaylog() usage */
 			usleep((100 + (rand() % 200)) * 1000);  /* 100ms - 300ms */
 			fclose(relay_stderr);
 			relay_stdout = newfd;
 			relay_stderr = newfd;
-			relay_can_log = 1;
+			__sync_bool_compare_and_swap(&relay_can_log, 0, 1);
 			logout("reopening logfile\n");
 		}
 	}
