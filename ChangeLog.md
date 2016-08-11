@@ -11,6 +11,7 @@
 ### Enhancements
 
 * **relay** the listen backlog default got increased from 3 to 32
+* **server** TCP\_NODELAY is now set to improve small writes
 
 ### Bugfixes
 
@@ -25,6 +26,9 @@
   use after free during shutdown in aggregator
 * [Issue #203](https://github.com/grobian/carbon-c-relay/issues/203)
   change default connection listen backlog
+* [Issue #208](https://github.com/grobian/carbon-c-relay/issues/208)
+  TCP\_NODELAY should be off for connections relaying data
+
 
 # 2.1 (16-06-2016)
 

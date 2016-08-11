@@ -27,6 +27,7 @@
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <netdb.h>
+#include <netinet/tcp.h>
 #include <arpa/inet.h>
 #include <sys/resource.h>
 #include <assert.h>
@@ -340,6 +341,12 @@ server_queuereader(void *d)
 
 				/* make socket blocking again */
 				(void) fcntl(self->fd, F_SETFL, args);
+
+				/* disable Nagle's algorithm, issue #208 */
+				args = 1;
+				if (setsockopt(self->fd, IPPROTO_TCP, TCP_NODELAY,
+							&args, sizeof(args)) != 0)
+					; /* ignore */
 			}
 
 			/* ensure we will break out of connections being stuck more
