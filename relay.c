@@ -298,9 +298,9 @@ do_version(void)
 }
 
 static void
-do_usage(int exitcode)
+do_usage(char *name, int exitcode)
 {
-	printf("Usage: relay [-vdst] -f <config> [-p <port>] [-w <workers>] [-b <size>] [-q <size>]\n");
+	printf("Usage: %s -f <config> [opts]\n", name);
 	printf("\n");
 	printf("Options:\n");
 	printf("  -v  print version and exit\n");
@@ -381,28 +381,28 @@ main(int argc, char * const argv[])
 				listenport = (unsigned short)atoi(optarg);
 				if (listenport == 0) {
 					fprintf(stderr, "error: port needs to be a number >0\n");
-					do_usage(1);
+					do_usage(argv[0], 1);
 				}
 				break;
 			case 'w':
 				workercnt = (char)atoi(optarg);
 				if (workercnt <= 0) {
 					fprintf(stderr, "error: workers needs to be a number >0\n");
-					do_usage(1);
+					do_usage(argv[0], 1);
 				}
 				break;
 			case 'b':
 				batchsize = atoi(optarg);
 				if (batchsize <= 0) {
 					fprintf(stderr, "error: batch size needs to be a number >0\n");
-					do_usage(1);
+					do_usage(argv[0], 1);
 				}
 				break;
 			case 'q':
 				queuesize = atoi(optarg);
 				if (queuesize <= 0) {
 					fprintf(stderr, "error: queue size needs to be a number >0\n");
-					do_usage(1);
+					do_usage(argv[0], 1);
 				}
 				break;
 			case 'L':
@@ -410,7 +410,7 @@ main(int argc, char * const argv[])
 				if (maxstalls < 0 || maxstalls >= (1 << SERVER_STALL_BITS)) {
 					fprintf(stderr, "error: maxium stalls needs to be a number "
 							"between 0 and %d\n", (1 << SERVER_STALL_BITS) - 1);
-					do_usage(1);
+					do_usage(argv[0], 1);
 				}
 				break;
 			case 'S':
@@ -418,17 +418,19 @@ main(int argc, char * const argv[])
 				if (collector_interval <= 0) {
 					fprintf(stderr, "error: sending interval needs to be "
 							"a number >0\n");
-					do_usage(1);
+					do_usage(argv[0], 1);
 				}
 				break;
 			case 'T': {
 				int val = atoi(optarg);
 				if (val <= 0) {
-					fprintf(stderr, "error: server IO timeout needs to be a number >0\n");
-					do_usage(1);
+					fprintf(stderr, "error: server IO timeout needs "
+							"to be a number >0\n");
+					do_usage(argv[0], 1);
 				} else if (val >= 60000) {
-					fprintf(stderr, "error: server IO timeout needs to be less than one minute\n");
-					do_usage(1);
+					fprintf(stderr, "error: server IO timeout needs "
+							"to be less than one minute\n");
+					do_usage(argv[0], 1);
 				}
 				iotimeout = (unsigned short)val;
 			}	break;
@@ -442,7 +444,7 @@ main(int argc, char * const argv[])
 				int val = atoi(optarg);
 				if (val <= 0) {
 					fprintf(stderr, "error: backlog needs to be a number >0\n");
-					do_usage(1);
+					do_usage(argv[0], 1);
 				}
 				listenbacklog = (unsigned int)val;
 			}	break;
@@ -453,7 +455,7 @@ main(int argc, char * const argv[])
 
 				if (val <= 0) {
 					fprintf(stderr, "error: bufsize needs to be a number >0\n");
-					do_usage(1);
+					do_usage(argv[0], 1);
 				}
 				sockbufsize = (unsigned int)val;
 
@@ -490,16 +492,16 @@ main(int argc, char * const argv[])
 				break;
 			case '?':
 			case ':':
-				do_usage(1);
+				do_usage(argv[0], 1);
 				break;
 			case 'h':
 			default:
-				do_usage(0);
+				do_usage(argv[0], 0);
 				break;
 		}
 	}
 	if (optind == 1 || config == NULL)
-		do_usage(1);
+		do_usage(argv[0], 1);
 
 
 	/* seed randomiser for dispatcher and aggregator "splay" */
