@@ -58,11 +58,11 @@ These options control the behaviour of **carbon-c-relay**.
   * `-s`:
     Enable submission mode.  In this mode, internal statistics are not
     generated.  Instead, queue pressure and metrics drops are reported on
-	stdout.  This mode is useful when used as submission relay which'
-	job is just to forward to (a set of) main relays.  Statistics about
-	the submission relays in this case are not needed, and could easily
-	cause a non-desired flood of metrics e.g. when used on each and
-	every host locally.
+    stdout.  This mode is useful when used as submission relay which'
+    job is just to forward to (a set of) main relays.  Statistics about
+    the submission relays in this case are not needed, and could easily
+    cause a non-desired flood of metrics e.g. when used on each and
+    every host locally.
 
   * `-t`:
     Test mode.  This mode doesn't do any routing at all, but instead reads
@@ -186,7 +186,7 @@ input until the end of that line:
 ```
 cluster <name>
     <forward | any_of [useall] | failover |
-	<carbon_ch | fnv1a_ch | jump_fnv1a_ch> [replication <count>]>
+    <carbon_ch | fnv1a_ch | jump_fnv1a_ch> [replication <count>]>
         <host[:port][=instance] [proto <udp | tcp>]> ...
     ;
 
