@@ -290,7 +290,13 @@ server_queuereader(void *d)
 				/* put socket in non-blocking mode such that we can
 				 * poll() (time-out) on the connect() call */
 				args = fcntl(self->fd, F_GETFL, NULL);
-				(void) fcntl(self->fd, F_SETFL, args | O_NONBLOCK);
+				if (fcntl(self->fd, F_SETFL, args | O_NONBLOCK) < 0) {
+					logerr("failed to set socket non-blocking mode: %s\n",
+							strerror(errno));
+					close(self->fd);
+					self->fd = -1;
+					continue;
+				}
 				ret = connect(self->fd,
 						self->saddr->ai_addr, self->saddr->ai_addrlen);
 
@@ -340,7 +346,13 @@ server_queuereader(void *d)
 				}
 
 				/* make socket blocking again */
-				(void) fcntl(self->fd, F_SETFL, args);
+				if (fcntl(self->fd, F_SETFL, args) < 0) {
+					logerr("failed to remove socket non-blocking mode: %s\n",
+							strerror(errno));
+					close(self->fd);
+					self->fd = -1;
+					continue;
+				}
 
 				/* disable Nagle's algorithm, issue #208 */
 				args = 1;
