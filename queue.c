@@ -79,8 +79,8 @@ queue_destroy(queue *q)
 /**
  * Enqueues the string pointed to by p at queue q.  If the queue is
  * full, the oldest entry is dropped.  For this reason, enqueuing will
- * never fail.  This function assumes the pointer p is a private copy
- * for this queue, and hence will be freed once processed.
+ * never fail.  This function assumes the pointer p is a copy for this
+ * queue, that is returned on dequeue, or freed when dropped.
  */
 void
 queue_enqueue(queue *q, const char *p)
