@@ -547,15 +547,6 @@ dispatch_runner(void *arg)
 	connection *conn;
 	int c;
 
-	self->metrics = 0;
-	self->blackholes = 0;
-	self->ticks = 0;
-	self->sleeps = 0;
-	self->prevmetrics = 0;
-	self->prevblackholes = 0;
-	self->prevticks = 0;
-	self->prevsleeps = 0;
-
 	if (self->type == LISTENER) {
 		struct pollfd ufds[MAX_LISTENERS];
 		int fds;
@@ -662,6 +653,16 @@ dispatch_new(char id, enum conntype type, router *r, char *allowed_chars)
 	ret->route_refresh_pending = 0;
 	ret->hold = 0;
 	ret->allowed_chars = allowed_chars;
+
+	ret->metrics = 0;
+	ret->blackholes = 0;
+	ret->ticks = 0;
+	ret->sleeps = 0;
+	ret->prevmetrics = 0;
+	ret->prevblackholes = 0;
+	ret->prevticks = 0;
+	ret->prevsleeps = 0;
+
 	if (pthread_create(&ret->tid, NULL, dispatch_runner, ret) != 0) {
 		free(ret);
 		return NULL;
