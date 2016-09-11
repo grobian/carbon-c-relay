@@ -206,7 +206,7 @@ aggregator_putmetric(
 		return;
 	}
 
-	s->received++;
+	__sync_add_and_fetch(&s->received, 1);
 
 	val = atof(firstspace + 1);
 	epoch = atoll(v + 1);
@@ -305,7 +305,7 @@ aggregator_putmetric(
 		itime = epoch - invocation->buckets[0].start;
 		if (itime < 0) {
 			/* drop too old metric */
-			s->dropped++;
+			__sync_add_and_fetch(&s->dropped, 1);
 			pthread_rwlock_unlock(&compute->invlock);
 			continue;
 		}
@@ -317,7 +317,7 @@ aggregator_putmetric(
 						"future (%lld > %lld): %s from %s", epoch,
 						invocation->buckets[s->bucketcnt - 1].start,
 						ometric, metric);
-			s->dropped++;
+			__sync_add_and_fetch(&s->dropped, 1);
 			pthread_rwlock_unlock(&compute->invlock);
 			continue;
 		}
@@ -497,13 +497,13 @@ aggregator_expire(void *sub)
 									logerr("aggregator: failed to write to "
 											"pipe (fd=%d): %s\n",
 											s->fd, strerror(errno));
-									s->dropped++;
+									__sync_add_and_fetch(&s->dropped, 1);
 								} else if (ts < len) {
 									logerr("aggregator: uncomplete write on "
 											"pipe (fd=%d)\n", s->fd);
-									s->dropped++;
+									__sync_add_and_fetch(&s->dropped, 1);
 								} else {
-									s->sent++;
+									__sync_add_and_fetch(&s->sent, 1);
 								}
 							}
 
@@ -670,7 +670,7 @@ aggregator_get_received(aggregator *a)
 	size_t totreceived = 0;
 
 	for ( ; a != NULL; a = a->next)
-		totreceived += a->received;
+		totreceived += __sync_add_and_fetch(&a->received, 0);
 
 	return totreceived;
 }
@@ -696,7 +696,7 @@ aggregator_get_sent(aggregator *a)
 	size_t totsent = 0;
 
 	for ( ; a != NULL; a = a->next)
-		totsent += a->sent;
+		totsent += __sync_add_and_fetch(&a->sent, 0);
 
 	return totsent;
 }
@@ -724,7 +724,7 @@ aggregator_get_dropped(aggregator *a)
 	size_t totdropped = 0;
 
 	for ( ; a != NULL; a = a->next)
-		totdropped += a->dropped;
+		totdropped += __sync_add_and_fetch(&a->dropped, 0);
 
 	return totdropped;
 }
