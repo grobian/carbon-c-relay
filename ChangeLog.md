@@ -1,4 +1,7 @@
-# 2.2 (unreleased master branch)
+# 2.3 (unreleased master branch)
+
+
+# 2.2 (2016-09-11)
 
 ### New Features
 
@@ -28,6 +31,8 @@
   change default connection listen backlog
 * [Issue #208](https://github.com/grobian/carbon-c-relay/issues/208)
   TCP\_NODELAY should be off for connections relaying data
+* [Issue #199](https://github.com/grobian/carbon-c-relay/issues/199)
+  Various race conditions reported by TSAN
 
 
 # 2.1 (16-06-2016)

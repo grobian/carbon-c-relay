@@ -18,7 +18,7 @@
 #ifndef HAVE_RELAY_H
 #define HAVE_RELAY_H 1
 
-#define VERSION "2.1"
+#define VERSION "2.2"
 
 #define METRIC_BUFSIZ 8192
 
