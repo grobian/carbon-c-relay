@@ -400,6 +400,7 @@ aggregator_expire(void *sub)
 			 * metrics for all buckets that have completed */
 			now = time(NULL) + (__sync_bool_compare_and_swap(&keep_running, 1, 1) ? 0 : s->expire - s->interval);
 			for (c = s->computes; c != NULL; c = c->next) {
+				pthread_rwlock_wrlock(&c->invlock);
 				for (i = 0; i < (1 << AGGR_HT_POW_SIZE); i++) {
 					lastinv = NULL;
 					isempty = 0;
@@ -508,7 +509,6 @@ aggregator_expire(void *sub)
 
 							/* move the bucket to the end, to make room for
 							 * new ones */
-							pthread_rwlock_wrlock(&c->invlock);
 							b = &inv->buckets[0];
 							len = b->entries.size;
 							values = b->entries.values;
@@ -521,7 +521,6 @@ aggregator_expire(void *sub)
 								s->interval;
 							b->entries.size = len;
 							b->entries.values = values;
-							pthread_rwlock_unlock(&c->invlock);
 
 							work++;
 						}
@@ -536,7 +535,6 @@ aggregator_expire(void *sub)
 							}
 						}
 						if (isempty) {
-							pthread_rwlock_wrlock(&c->invlock);
 							/* free and unlink */
 							if (c->entries_needed)
 								for (j = 0; j < s->bucketcnt; j++)
@@ -553,13 +551,13 @@ aggregator_expire(void *sub)
 								free(inv);
 								inv = c->invocations_ht[i];
 							}
-							pthread_rwlock_unlock(&c->invlock);
 						} else {
 							lastinv = inv;
 							inv = inv->next;
 						}
 					}
 				}
+				pthread_rwlock_unlock(&c->invlock);
 			}
 		}
 
