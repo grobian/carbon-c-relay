@@ -2290,7 +2290,7 @@ router_printconfig(router *rtr, FILE *f, char pmode)
 						PPROTO);
 		}
 		fprintf(f, "    ;\n");
-		if (pmode & 2) {
+		if (pmode & PMODE_HASH) {
 			if (c->type == CARBON_CH ||
 					c->type == FNV1A_CH ||
 					c->type == JUMP_CH)
@@ -2308,10 +2308,10 @@ router_printconfig(router *rtr, FILE *f, char pmode)
 			char stubname[48];
 			char percentile[16];
 
-			if (!(pmode & 1))
+			if (!(pmode & PMODE_AGGR))
 				continue;
 
-			if (pmode & 2 || r->dests->next == NULL) {
+			if (pmode & PMODE_STUB || r->dests->next == NULL) {
 				stubname[0] = '\0';
 			} else {
 				snprintf(stubname, sizeof(stubname),
@@ -2352,7 +2352,7 @@ router_printconfig(router *rtr, FILE *f, char pmode)
 						"<unknown>",
 						ac->metric + strlen(stubname));
 			}
-			if (!(pmode & 2) && r->dests->next != NULL) {
+			if (!(pmode & PMODE_STUB) && r->dests->next != NULL) {
 				destinations *dn = r->dests->next;
 				fprintf(f, "    send to");
 				if (dn->next == NULL) {
@@ -2386,7 +2386,7 @@ router_printconfig(router *rtr, FILE *f, char pmode)
 		} else if (r->dests->cl->type == AGGRSTUB ||
 				r->dests->cl->type == STATSTUB)
 		{
-			if (pmode & 2) {
+			if (pmode & PMODE_STUB) {
 				fprintf(f, "# stub match for aggregate/statistics rule "
 						"with send to\n");
 				fprintf(f, "match ^%s\n    send to", r->pattern);
@@ -2474,7 +2474,7 @@ router_printdiffs(router *old, router *new, FILE *out)
 				patho, strerror(errno));
 		return 1;
 	}
-	router_printconfig(old, f, 1);
+	router_printconfig(old, f, PMODE_AGGR);
 	fclose(f);
 
 	snprintf(pathn, sizeof(pathn), "%s/carbon-c-relay_route.XXXXXX", tmp);
@@ -2489,7 +2489,7 @@ router_printdiffs(router *old, router *new, FILE *out)
 				pathn, strerror(errno));
 		return 1;
 	}
-	router_printconfig(new, f, 1);
+	router_printconfig(new, f, PMODE_AGGR);
 	fclose(f);
 
 	/* diff and print its output */

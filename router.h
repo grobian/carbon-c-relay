@@ -24,6 +24,12 @@
 #include "server.h"
 #include "aggregator.h"
 
+#define PMODE_NORM    (1 << 0)
+#define PMODE_AGGR    (1 << 1)
+#define PMODE_HASH    (1 << 2)
+#define PMODE_STUB    (1 << 3)
+#define PMODE_DEBUG   (PMODE_HASH | PMODE_STUB)
+
 #define CONN_DESTS_SIZE    64
 typedef struct {
 	const char *metric;

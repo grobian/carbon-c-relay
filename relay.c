@@ -679,16 +679,16 @@ main(int argc, char * const argv[])
 
 	aggrs = router_getaggregators(rtr);
 	numaggregators = aggregator_numaggregators(aggrs);
-	if (numaggregators > 10 && mode & MODE_DEBUG) {
+	if (numaggregators > 10 && !(mode & MODE_DEBUG)) {
 		fprintf(relay_stdout, "parsed configuration follows:\n"
 				"(%zu aggregations with %zu computations omitted "
 				"for brevity)\n",
 				numaggregators, aggregator_numcomputes(aggrs));
-		router_printconfig(rtr, relay_stdout, 0);
+		router_printconfig(rtr, relay_stdout, PMODE_NORM);
 	} else {
 		fprintf(relay_stdout, "parsed configuration follows:\n");
 		router_printconfig(rtr, relay_stdout,
-				1 + (mode & MODE_DEBUG ? 2 : 0));
+				PMODE_AGGR + (mode & MODE_DEBUG ? PMODE_DEBUG : PMODE_NORM));
 	}
 	fprintf(relay_stdout, "\n");
 
