@@ -1,5 +1,11 @@
 # 2.3 (unreleased master branch)
 
+### Bugfixes
+
+* [Issue #213](https://github.com/grobian/carbon-c-relay/issues/213)
+  Change to aggregates do not cause HUP to reload when more than 10
+  aggregates are defined.
+
 
 # 2.2 (2016-09-11)
 
