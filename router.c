@@ -2385,7 +2385,7 @@ router_printconfig(router *rtr, FILE *f, char pmode)
 					++b, cnt);
 			if (mode & PMODE_AGGR) {
 				router srtr;
-				memset(&srtr, sizeof(srtr), '\0');
+				memset(&srtr, 0, sizeof(srtr));
 				srtr.routes = r->dests->cl->members.routes;
 				/* recurse */
 				router_printconfig(&srtr, f, pmode);
