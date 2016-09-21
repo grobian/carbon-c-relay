@@ -742,6 +742,7 @@ main(int argc, char * const argv[])
 				listenport, strerror(errno));
 		return -1;
 	}
+	dispatch_set_bufsize(sockbufsize);
 	for (ch = 0; ch < stream_socklen; ch++) {
 		if (dispatch_addlistener(stream_sock[ch]) != 0) {
 			logerr("failed to add listener\n");
@@ -754,7 +755,7 @@ main(int argc, char * const argv[])
 			return -1;
 		}
 	}
-	if ((workers[0] = dispatch_new_listener(sockbufsize)) == NULL)
+	if ((workers[0] = dispatch_new_listener()) == NULL)
 		logerr("failed to add listener\n");
 
 	if (allowed_chars == NULL)

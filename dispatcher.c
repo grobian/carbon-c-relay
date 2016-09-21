@@ -671,6 +671,12 @@ dispatch_new(char id, enum conntype type, router *r, char *allowed_chars)
 	return ret;
 }
 
+void
+dispatch_set_bufsize(unsigned int nsockbufsize)
+{
+	sockbufsize = nsockbufsize;
+}
+
 static char globalid = 0;
 
 /**
@@ -678,10 +684,9 @@ static char globalid = 0;
  * (and putting them on the queue for handling the connections).
  */
 dispatcher *
-dispatch_new_listener(unsigned int nsockbufsize)
+dispatch_new_listener(void)
 {
 	char id = globalid++;
-	sockbufsize = nsockbufsize;
 	return dispatch_new(id, LISTENER, NULL, NULL);
 }
 
