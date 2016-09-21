@@ -15,7 +15,7 @@
 
 CFLAGS ?= -O2 -Wall -Wshadow
 
-GIT_VERSION := $(shell git describe --abbrev=6 --dirty --always || date +%F)
+GIT_VERSION := $(shell type git >/dev/null && git describe --abbrev=6 --dirty --always || date +%F)
 GVCFLAGS += -DGIT_VERSION=\"$(GIT_VERSION)\"
 
 override CFLAGS += $(GVCFLAGS) -pthread
