@@ -373,9 +373,10 @@ server_queuereader(void *d)
 						&self->sockbufsize, sizeof(self->sockbufsize)) != 0)
 					; /* ignore */
 #ifdef SO_NOSIGPIPE
-			if (setsockopt(self->fd, SOL_SOCKET, SO_NOSIGPIPE, NULL, 0) != 0)
-				logout("warning: failed to ignore SIGPIPE on socket: %s\n",
-						strerror(errno));
+			if (self->ctype == CON_TCP || self->ctype == CON_UDP)
+				if (setsockopt(self->fd, SOL_SOCKET, SO_NOSIGPIPE, NULL, 0) != 0)
+					logout("warning: failed to ignore SIGPIPE on socket: %s\n",
+							strerror(errno));
 #endif
 		}
 
