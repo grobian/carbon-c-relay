@@ -333,6 +333,10 @@ dispatch_process_dests(connection *conn, dispatcher *self, struct timeval now)
 		/* force after timeout */
 		force = timediff(conn->lastwork, now) > conn->maxsenddelay;
 		for (i = 0; i < conn->destlen; i++) {
+			tracef("dispatcher %d, connfd %d, metric %s, queueing to %s:%d\n",
+					self->id, conn->sock, conn->dests[i].metric,
+					server_ip(conn->dests[i].dest),
+					server_port(conn->dests[i].dest));
 			if (server_send(conn->dests[i].dest, conn->dests[i].metric, force) == 0)
 				break;
 		}
@@ -403,8 +407,11 @@ dispatch_connection(connection *conn, dispatcher *self, struct timeval start)
 						(sizeof(conn->buf) - 1) - conn->buflen)) > 0
 	   )
 	{
-		if (len > 0)
+		if (len > 0) {
 			conn->buflen += len;
+			tracef("dispatcher %d, connfd %d, read %d bytes from socket\n",
+					self->id, conn->sock, len);
+		}
 
 		/* metrics look like this: metric_path value timestamp\n
 		 * due to various messups we need to sanitise the
@@ -431,11 +438,15 @@ dispatch_connection(connection *conn, dispatcher *self, struct timeval start)
 				*q = '\0';  /* can do this because we substract one from buf */
 
 				/* perform routing of this metric */
+				tracef("dispatcher %d, connfd %d, metric %s",
+						self->id, conn->sock, conn->metric);
 				__sync_add_and_fetch(&(self->blackholes),
 						router_route(self->rtr,
 						conn->dests, &conn->destlen, CONN_DESTS_SIZE,
 						conn->srcaddr,
 						conn->metric, firstspace));
+				tracef("dispatcher %d, connfd %d, destinations %zd\n",
+						self->id, conn->sock, conn->destlen);
 
 				/* restart building new one from the start */
 				q = conn->metric;

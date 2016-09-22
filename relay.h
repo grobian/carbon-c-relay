@@ -27,7 +27,14 @@
 #define MODE_SUBMISSION (1 << 1)
 #define MODE_TEST       (1 << 2)
 #define MODE_DAEMON     (1 << 3)
+#define MODE_TRACE      (1 << 4)
 extern unsigned char mode;
+
+#ifdef ENABLE_TRACE
+#define tracef(...) if (mode & MODE_TRACE) fprintf(stdout, __VA_ARGS__)
+#else
+#define tracef(...) /* noop */
+#endif
 
 typedef enum { CON_TCP, CON_UDP, CON_PIPE, CON_FILE } serv_ctype;
 

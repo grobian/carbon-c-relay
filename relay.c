@@ -357,7 +357,14 @@ main(int argc, char * const argv[])
 				do_version();
 				break;
 			case 'd':
-				mode |= MODE_DEBUG;
+				/* secret support for -dd (just trace) and -ddd (debug
+				 * and trace) */
+				if (mode & MODE_DEBUG) {
+					mode |= MODE_TRACE;
+					mode &= ~MODE_DEBUG;
+				} else {
+					mode |= MODE_DEBUG;
+				}
 				break;
 			case 'm':
 				smode = SUB;
@@ -661,6 +668,10 @@ main(int argc, char * const argv[])
 				allowed_chars);
 	if (mode & MODE_DEBUG)
 		fprintf(relay_stdout, "    debug = true\n");
+#ifdef ENABLE_TRACE
+	if (mode & MODE_TRACE)
+		fprintf(relay_stdout, "    trace = true\n");
+#endif
 	else if (mode & MODE_SUBMISSION)
 		fprintf(relay_stdout, "    submission = true\n");
 	else if (mode & MODE_DAEMON)
