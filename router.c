@@ -2503,7 +2503,9 @@ router_printdiffs(router *old, router *new, FILE *out)
 	snprintf(buf, sizeof(buf), "diff -u %s %s", patho, pathn);
 	f = popen(buf, "r");
 	while ((len = fread(buf, 1, sizeof(buf) - 1, f)) > 0) {
-		fwrite(buf, len, 1, out);
+		if (fwrite(buf, len, 1, out) == 0)
+			/* ignore */
+			;
 	}
 	ret = pclose(f);
 
