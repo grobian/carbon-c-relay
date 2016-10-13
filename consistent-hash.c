@@ -84,7 +84,7 @@ fnv1a_hashpos(const char *key, const char *end)
  * Computes the bucket number for key in the range [0, bckcnt).  The
  * algorithm used is the jump consistent hash by Lamping and Veach.
  */
-static int
+static unsigned int
 jump_bucketpos(unsigned long long int key, int bckcnt)
 {
 	long long int b = -1, j = 0;
@@ -98,7 +98,7 @@ jump_bucketpos(unsigned long long int key, int bckcnt)
 	}
 
 	/* b cannot exceed the range of bckcnt, see while condition */
-	return (int)b;
+	return (unsigned int)b;
 }
 
 /**
