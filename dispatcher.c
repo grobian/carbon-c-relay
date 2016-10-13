@@ -123,32 +123,33 @@ dispatch_addlistener(int sock)
 	connection *newconn;
 	int c;
 
-	newconn = malloc(sizeof(connection));
-	if (newconn == NULL)
-		return 1;
-	(void) fcntl(sock, F_SETFL, O_NONBLOCK);
-	newconn->sock = sock;
-	newconn->takenby = 0;
-	newconn->buflen = 0;
-
 	pthread_rwlock_wrlock(&listenerslock);
 	if (listeners == NULL) {
-		listeners = malloc(sizeof(connection *) * MAX_LISTENERS);
+		if ((listeners = malloc(sizeof(connection *) * MAX_LISTENERS)) == NULL)
+		{
+			pthread_rwlock_unlock(&listenerslock);
+			return 1;
+		}
 		for (c = 0; c < MAX_LISTENERS; c++)
 			listeners[c] = NULL;
 	}
-	if (listeners == NULL) {
-		pthread_rwlock_unlock(&listenerslock);
-		return 1;
-	}
 	for (c = 0; c < MAX_LISTENERS; c++) {
 		if (listeners[c] == NULL) {
+			newconn = malloc(sizeof(connection));
+			if (newconn == NULL) {
+				pthread_rwlock_unlock(&listenerslock);
+				return 1;
+			}
+			(void) fcntl(sock, F_SETFL, O_NONBLOCK);
+			newconn->sock = sock;
+			newconn->takenby = 0;
+			newconn->buflen = 0;
+
 			listeners[c] = newconn;
 			break;
 		}
 	}
 	if (c == MAX_LISTENERS) {
-		free(newconn);
 		logerr("cannot add new listener: "
 				"no more free listener slots (max = %zu)\n",
 				MAX_LISTENERS);
