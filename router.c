@@ -162,6 +162,7 @@ ra_malloc(router *rtr, size_t sz)
 	size_t nsz;
 
 #define ra_alloc(RA, SZ) { \
+		assert(SZ >= 0); \
 		nsz = 256 * 1024; \
 		if (SZ > nsz) \
 			nsz = ((SZ / 1024) + 1) * 1024; \
