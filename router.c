@@ -2462,6 +2462,7 @@ router_printdiffs(router *old, router *new, FILE *out)
 	char buf[1024];
 	size_t len;
 	int ret;
+	mode_t mask;
 
 	/* First idea was to printconfig both old and new, and run diff -u
 	 * on them.  Simple and effective.  Does require diff and two files
@@ -2471,7 +2472,9 @@ router_printdiffs(router *old, router *new, FILE *out)
 		tmp = "/tmp";
 
 	snprintf(patho, sizeof(patho), "%s/carbon-c-relay_route.XXXXXX", tmp);
+	mask = umask(S_IWGRP | S_IWOTH);
 	fd = mkstemp(patho);
+	umask(mask);
 	if (fd < 0) {
 		logerr("failed to create temporary file: %s\n", strerror(errno));
 		return 1;
@@ -2486,7 +2489,9 @@ router_printdiffs(router *old, router *new, FILE *out)
 	fclose(f);
 
 	snprintf(pathn, sizeof(pathn), "%s/carbon-c-relay_route.XXXXXX", tmp);
+	mask = umask(S_IWGRP | S_IWOTH);
 	fd = mkstemp(pathn);
+	umask(mask);
 	if (fd < 0) {
 		logerr("failed to create temporary file: %s\n", strerror(errno));
 		return 1;
