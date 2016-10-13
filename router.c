@@ -411,6 +411,7 @@ router_readconfig(router *orig,
 		ret->routes = NULL;
 		ret->aggregators = NULL;
 		ret->srvrs = NULL;
+		ret->clusters = NULL;
 
 		/* create virtual blackhole cluster */
 		cl = ra_malloc(ret, sizeof(cluster));
