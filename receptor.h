@@ -18,7 +18,7 @@
 #ifndef RECEPTOR_H
 #define RECEPTOR_H 1
 
-int bindlisten(int ret_stream[], int *retlen_stream, int ret_dgram[], int *retlen_dgram, const char *interface, unsigned short port, unsigned int backlog);
+int bindlisten(int ret_stream[], int *retlen_stream, int ret_dgram[], int *retlen_dgram, const char *interface, unsigned short port, unsigned int backlog, int must_bind_to_all_sockets);
 
 void destroy_usock(unsigned short port);
 

@@ -46,7 +46,8 @@ int
 bindlisten(
 		int ret_stream[], int *retlen_stream,
 		int ret_dgram[], int *retlen_dgram,
-		const char *interface, unsigned short port, unsigned int backlog)
+		const char *interface, unsigned short port,
+        unsigned int backlog, int must_bind_to_all_sockets)
 {
 	int sock;
 	int optval;
@@ -96,6 +97,11 @@ bindlisten(
 			}
 
 			if (bind(sock, resw->ai_addr, resw->ai_addrlen) < 0) {
+                logout("failed to bind on %s%d port %s\n",
+                        resw->ai_protocol == IPPROTO_TCP ? "tcp" : "udp",
+                        resw->ai_family == PF_INET6 ? 6 : 4, buf);
+                if (must_bind_to_all_sockets)
+                    return -1;
 				close(sock);
 				continue;
 			}
