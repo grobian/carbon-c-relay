@@ -9,6 +9,8 @@
   `-U` option doesn't set UDP receive buffer size.
 * [Issue #218](https://github.com/grobian/carbon-c-relay/issues/218)
   zeros inserted after some metrics.
+* [Issue #219](https://github.com/grobian/carbon-c-relay/issues/219)
+  should fail if port is unavailable
 
 
 # 2.2 (2016-09-11)
