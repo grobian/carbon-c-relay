@@ -95,14 +95,6 @@ bindlisten(
 				(void) setsockopt(sock, IPPROTO_IPV6, IPV6_V6ONLY, &optval, sizeof(optval));
 			}
 
-			if (bind(sock, resw->ai_addr, resw->ai_addrlen) < 0) {
-				logerr("failed to bind on %s%d port %s\n",
-						resw->ai_protocol == IPPROTO_TCP ? "tcp" : "udp",
-						resw->ai_family == PF_INET6 ? 6 : 4, buf);
-				close(sock);
-				return -1;
-			}
-
 			snprintf(saddr, sizeof(saddr), "(unknown)");
 			switch (resw->ai_family) {
 				case PF_INET:
@@ -117,10 +109,26 @@ bindlisten(
 					break;
 			}
 
+			if (bind(sock, resw->ai_addr, resw->ai_addrlen) < 0) {
+				logerr("failed to bind on %s%d %s port %s\n",
+						resw->ai_protocol == IPPROTO_TCP ? "tcp" : "udp",
+						resw->ai_family == PF_INET6 ? 6 : 4, saddr, buf);
+				close(sock);
+				while (curlen_dgram > 0)
+					close(ret_dgram[--curlen_dgram]);
+				while (curlen_stream > 0)
+					close(ret_stream[--curlen_stream]);
+				break;
+			}
+
 			if (resw->ai_protocol == IPPROTO_TCP) {
 				if (listen(sock, backlog) < 0) {
 					close(sock);
-					continue;
+					while (curlen_dgram > 0)
+						close(ret_dgram[--curlen_dgram]);
+					while (curlen_stream > 0)
+						close(ret_stream[--curlen_stream]);
+					break;
 				}
 				if (curlen_stream < *retlen_stream) {
 					logout("listening on tcp%d %s port %s\n",
