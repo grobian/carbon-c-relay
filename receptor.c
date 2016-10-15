@@ -96,8 +96,11 @@ bindlisten(
 			}
 
 			if (bind(sock, resw->ai_addr, resw->ai_addrlen) < 0) {
+				logerr("failed to bind on %s%d port %s\n",
+						resw->ai_protocol == IPPROTO_TCP ? "tcp" : "udp",
+						resw->ai_family == PF_INET6 ? 6 : 4, buf);
 				close(sock);
-				continue;
+				return -1;
 			}
 
 			snprintf(saddr, sizeof(saddr), "(unknown)");
