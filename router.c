@@ -1974,8 +1974,8 @@ router_optimise(router *r)
 	blocks->next = NULL;
 	rlast = NULL;
 	for (rwalk = r->routes; rwalk != NULL; rwalk = rnext) {
-		/* matchall rules cannot be in a group */
-		if (rwalk->matchtype == MATCHALL) {
+		/* matchall and rewrite rules cannot be in a group (issue #218) */
+		if (rwalk->matchtype == MATCHALL || rwalk->dests->cl->type == REWRITE) {
 			blast->next = malloc(sizeof(block));
 			blast->next->prev = blast;
 			blast = blast->next;
@@ -2043,9 +2043,9 @@ router_optimise(router *r)
 		while (
 				p >= rwalk->pattern && b - pblock < sizeof(pblock) &&
 				(
-				(*p >= 'a' && *p <= 'z') ||
-				(*p >= 'A' && *p <= 'Z') ||
-				*p == '_'
+					(*p >= 'a' && *p <= 'z') ||
+					(*p >= 'A' && *p <= 'Z') ||
+					*p == '_'
 				)
 			  )
 		{
