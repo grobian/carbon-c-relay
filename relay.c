@@ -57,7 +57,6 @@ static char *relay_logfile = NULL;
 static FILE *relay_stdout = NULL;
 static FILE *relay_stderr = NULL;
 static char relay_can_log = 0;
-static char must_bind_to_all_sockets = 0;
 
 
 /**
@@ -326,7 +325,6 @@ do_usage(char *name, int exitcode)
 	printf("  -H  hostname: override hostname (used in statistics)\n");
 	printf("  -D  daemonise: run in a background\n");
 	printf("  -P  pidfile: write a pid to a specified pidfile\n");
-	printf("  -A  must bind to all sockets (address families/protocols)\n");
 
 	exit(exitcode);
 }
@@ -353,7 +351,7 @@ main(int argc, char * const argv[])
 	if (gethostname(relay_hostname, sizeof(relay_hostname)) < 0)
 		snprintf(relay_hostname, sizeof(relay_hostname), "127.0.0.1");
 
-	while ((ch = getopt(argc, argv, ":hvdmstf:i:l:p:w:b:q:L:S:T:c:H:B:U:DAP:")) != -1) {
+	while ((ch = getopt(argc, argv, ":hvdmstf:i:l:p:w:b:q:L:S:T:c:H:B:U:DP:")) != -1) {
 		switch (ch) {
 			case 'v':
 				do_version();
@@ -498,9 +496,6 @@ main(int argc, char * const argv[])
 				break;
 			case 'P':
 				pidfile = optarg;
-				break;
-			case 'A':
-                must_bind_to_all_sockets = 1;
 				break;
 			case '?':
 			case ':':
@@ -752,8 +747,7 @@ main(int argc, char * const argv[])
 
 	if (bindlisten(stream_sock, &stream_socklen,
 				dgram_sock, &dgram_socklen,
-				listeninterface, listenport,
-                listenbacklog, must_bind_to_all_sockets) < 0) {
+				listeninterface, listenport, listenbacklog) < 0) {
 		logerr("failed to bind on port %s:%d: %s\n",
 				listeninterface == NULL ? "" : listeninterface,
 				listenport, strerror(errno));

@@ -177,12 +177,6 @@ These options control the behaviour of **carbon-c-relay**.
     is in particular useful when daemonised in combination with init
     managers.
 
-  * `-A` *must_bind_to_all_sockets*:
-    Quit if the relay cannot bind to all sockets. An example is if
-    an IPv4 TCP socket is in use, but its IPv6 counterpart is not.
-    Without this flag, the relay will continue to run
-    even though it is not listening on all sockets.
-
 ## CONFIGURATION SYNTAX
 
 The config file supports the following syntax, where comments start with
