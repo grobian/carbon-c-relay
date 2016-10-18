@@ -56,6 +56,7 @@ bindlisten(
 	char buf[128];
 	char saddr[INET6_ADDRSTRLEN];
 	int err;
+	int binderr = 0;
 	int curlen_stream = 0;
 	int curlen_dgram = 0;
 	int socktypes[] = {SOCK_STREAM, SOCK_DGRAM, 0};
@@ -64,7 +65,7 @@ bindlisten(
 	tv.tv_sec = 0;
 	tv.tv_usec = 500 * 1000;
 
-	for (; *socktype != 0; socktype++) {
+	for (; *socktype != 0 && binderr == 0; socktype++) {
 		memset(&hint, 0, sizeof(hint));
 		hint.ai_family = PF_UNSPEC;
 		hint.ai_socktype = *socktype;
@@ -84,8 +85,14 @@ bindlisten(
 				continue;
 			if (resw->ai_protocol != IPPROTO_TCP && resw->ai_protocol != IPPROTO_UDP)
 				continue;
-			if ((sock = socket(resw->ai_family, resw->ai_socktype, resw->ai_protocol)) < 0)
-				continue;
+			if ((sock = socket(resw->ai_family, resw->ai_socktype, resw->ai_protocol)) < 0) {
+				while (curlen_dgram > 0)
+					close(ret_dgram[--curlen_dgram]);
+				while (curlen_stream > 0)
+					close(ret_stream[--curlen_stream]);
+				binderr = 1;
+				break;
+			}
 
 			(void) setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
 			optval = 1;  /* allow takeover */
@@ -118,6 +125,7 @@ bindlisten(
 					close(ret_dgram[--curlen_dgram]);
 				while (curlen_stream > 0)
 					close(ret_stream[--curlen_stream]);
+				binderr = 1;
 				break;
 			}
 
@@ -128,6 +136,7 @@ bindlisten(
 						close(ret_dgram[--curlen_dgram]);
 					while (curlen_stream > 0)
 						close(ret_stream[--curlen_stream]);
+					binderr = 1;
 					break;
 				}
 				if (curlen_stream < *retlen_stream) {
