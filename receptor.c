@@ -55,7 +55,8 @@ bindlisten(
 	struct addrinfo *res, *resw;
 	char buf[128];
 	char saddr[INET6_ADDRSTRLEN];
-	int err, binderr = 0;
+	int err;
+	int binderr = 0;
 	int curlen_stream = 0;
 	int curlen_dgram = 0;
 	int socktypes[] = {SOCK_STREAM, SOCK_DGRAM, 0};
