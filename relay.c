@@ -76,6 +76,10 @@ relaylog(enum logdst dest, const char *fmt, ...)
 	char console = 0;
 	int ret;
 
+	/* briefly stall if we're swapping fds */
+	while (!__sync_add_and_fetch(&relay_can_log, 0))
+		usleep((100 + (rand() % 200)) * 1000);  /* 100ms - 300ms */
+
 	switch (dest) {
 		case LOGOUT:
 			dst = relay_stdout;
@@ -89,10 +93,6 @@ relaylog(enum logdst dest, const char *fmt, ...)
 			break;
 	}
 	assert(dst != NULL);
-
-	/* briefly stall if we're swapping fds */
-	while (!__sync_add_and_fetch(&relay_can_log, 0))
-		usleep((100 + (rand() % 200)) * 1000);  /* 100ms - 300ms */
 
 	time(&now);
 	localtime_r(&now, &tm_now);
