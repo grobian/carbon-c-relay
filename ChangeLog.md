@@ -3,7 +3,7 @@
 ### Bugfixes
 
 * [Issue #213](https://github.com/grobian/carbon-c-relay/issues/213)
-  Change to aggregates do not cause HUP to reload when more than 10
+  Change to aggregates to not cause HUP to reload when more than 10
   aggregates are defined.
 * [Issue #214](https://github.com/grobian/carbon-c-relay/issues/214)
   `-U` option doesn't set UDP receive buffer size.
@@ -11,6 +11,8 @@
   zeros inserted after some metrics.
 * [Issue #219](https://github.com/grobian/carbon-c-relay/issues/219)
   should fail if port is unavailable
+* [Issue #224](https://github.com/grobian/carbon-c-relay/issues/224)
+  segfault during SIGHUP
 
 
 # 2.2 (2016-09-11)
