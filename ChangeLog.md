@@ -1,4 +1,7 @@
-# 2.3 (unreleased master branch)
+# 2.4 (unreleased master branch)
+
+
+# 2.3 (2016-11-07)
 
 ### Bugfixes
 
