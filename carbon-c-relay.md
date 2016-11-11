@@ -197,6 +197,7 @@ cluster <name>
 
 match
         <* | expression ...>
+	[validate <expression> else <log | drop>]
     send to <cluster ... | blackhole>
     [stop]
     ;
@@ -299,6 +300,15 @@ careful ordering and usage of the `stop` keyword.  The special cluster
 weeding out unwanted metrics in certain cases.  Because throwing metrics
 away is pointless if other matches would accept the same data, a match
 with as destination the blackhole cluster, has an implicit `stop`.
+The `validation` clause adds a check to the data (what comes after the
+metric) in the form of a regular expression.  When this expression
+matches, the match rule will execute as if no validation clause was
+present.  However, if it fails, the match rule is aborted, and no
+metrics will be sent to destinations, this is the `drop` behaviour.
+When `log` is used, the metric is logged to stderr.  Care should be
+taken with the latter to avoid log flooding.  When a validate clause is
+present, destinations need not to be present, this allows for applying a
+global validation rule.
 
 Rewrite rules take a regular input to match incoming metrics, and
 transform them into the desired new metric name.  In the replacement,
@@ -537,6 +547,43 @@ match * send to new;
 In this example the old cluster would receive the metric that's unwanted
 for the new cluster.  So, the order in which the rules occur does
 matter for the execution.
+
+Validation can be used to ensure the data for metrics is as expected.  A
+global validation for just number (no floating point) values could be:
+
+```
+match *
+    validate ^[0-9]+\ [0-9]+$ else drop
+	;
+```
+
+(Note the escape with backslash `\` of the space, you might be able to
+use `\s` or `[:space:]` instead, this depends on your libc
+implementation.)
+
+The validation clause can exist on every match rule, so in principle,
+the following is valid:
+
+```
+match ^foo
+	validate ^[0-9]+\ [0-9]+$ else drop
+	send to integer-cluster
+	;
+match ^foo
+	validate ^[0-9.e+-]+\ [0-9.e+-]+$ else drop
+	send to float-cluster
+	stop;
+```
+
+Note that the behaviour is different in the previous two examples.  When
+no `send to` clusters are specified, a validation error makes the match
+behave like the `stop` keyword is present.  Likewise, when validation
+passes, processing continues with the next rule.
+When destination clusters are present, the `match` respects the `stop`
+keyword as normal.  When specified, processing will always stop when
+specified so.  However, if validation fails, the rule does not send
+anything to the destination clusters, the metric will be dropped or
+logged, but never sent.
 
 The relay is capable of rewriting incoming metrics on the fly.  This
 process is done based on regular expressions with capture groups that

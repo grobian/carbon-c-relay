@@ -1,5 +1,13 @@
 # 2.4 (unreleased master branch)
 
+### New Features
+
+* **router** `match` rules now support a `validate` clause to do data
+             filtering, [Issue #228](https://github.com/grobian/carbon-c-relay/issues/228),
+			 [Issue #142](https://github.com/grobian/carbon-c-relay/issues/142),
+			 [Issue #121](https://github.com/grobian/carbon-c-relay/issues/121),
+			 [Pull #127](https://github.com/grobian/carbon-c-relay/issues/127),
+			 [Pull #87](https://github.com/grobian/carbon-c-relay/issues/87).
 
 # 2.3 (2016-11-07)
 

@@ -42,6 +42,7 @@ enum clusttype {
 	GROUP,      /* pseudo type to create a matching tree */
 	AGGRSTUB,   /* pseudo type to have stub matches for aggregation returns */
 	STATSTUB,   /* pseudo type to have stub matches for collector returns */
+	VALIDATION, /* pseudo type to perform additional data validation */
 	FORWARD,
 	FILELOG,    /* like forward, write metric to file */
 	FILELOGIP,  /* like forward, write ip metric to file */
@@ -72,6 +73,11 @@ typedef struct {
 	servers *list;
 } serverlist;
 
+typedef struct _validate {
+	struct _route *rule;
+	enum { VAL_LOG, VAL_DROP } action;
+} validate;
+
 typedef struct _cluster {
 	char *name;
 	enum clusttype type;
@@ -82,6 +88,7 @@ typedef struct _cluster {
 		aggregator *aggregation;
 		struct _route *routes;
 		char *replacement;
+		struct _validate *validation;
 	} members;
 	struct _cluster *next;
 } cluster;
@@ -228,6 +235,9 @@ router_free_intern(cluster *clusters, route *routes)
 						routes->dests->cl->type == AGGRSTUB ||
 						routes->dests->cl->type == STATSTUB)
 					router_free_intern(NULL, routes->dests->cl->members.routes);
+				if (routes->dests->cl->type == VALIDATION)
+					router_free_intern(NULL,
+							routes->dests->cl->members.validation->rule);
 
 				routes->dests = routes->dests->next;
 			}
@@ -254,6 +264,7 @@ router_free_intern(cluster *clusters, route *routes)
 			case GROUP:
 			case AGGRSTUB:
 			case STATSTUB:
+			case VALIDATION:
 				/* handled at the routes above */
 				break;
 			case AGGREGATION:
@@ -1016,12 +1027,152 @@ router_readconfig(router *orig,
 						return NULL;
 					}
 				}
-			} while (strncmp(p, "send", 4) != 0 || !isspace(*(p + 4)));
+			} while (
+					(strncmp(p, "send", 4) != 0 || !isspace(*(p + 4))) &&
+					(strncmp(p, "validate", 8) != 0 || !isspace(*(p + 8))));
+			if (*p == 'v') {
+				p += 9;
+
+				if (dw == NULL) {
+					dw = d = ra_malloc(ret, sizeof(destinations));
+				} else {
+					d = d->next = ra_malloc(ret, sizeof(destinations));
+				}
+				if (d == NULL) {
+					logerr("out of memory allocating new validation "
+							"for 'match %s'\n", pat);
+					router_free(ret);
+					return NULL;
+				}
+				if ((d->cl = ra_malloc(ret, sizeof(cluster))) == NULL) {
+					logerr("malloc failed for validation rule in 'match %s'\n",
+							pat);
+					router_free(ret);
+					return NULL;
+				}
+				d->cl->name = NULL;
+				d->cl->type = VALIDATION;
+				d->cl->next = NULL;
+				d->cl->members.validation = ra_malloc(ret, sizeof(validate));
+				if (d->cl->members.validation == NULL) {
+					logerr("malloc failed for validation member in "
+							"'match %s'\n", pat);
+					router_free(ret);
+					return NULL;
+				}
+
+				for (; *p != '\0' && isspace(*p); p++)
+					;
+				pat = p;
+				do {
+					for (; *p != '\0' && !isspace(*p); p++)
+						;
+				} while (*p != '\0' && *(p - 1) == '\\' && *(p++) != '\0');
+				if (*p == '\0') {
+					logerr("unexpected end of file after 'validate'\n");
+					router_free(ret);
+					return NULL;
+				}
+				*p++ = '\0';
+				for (; *p != '\0' && isspace(*p); p++)
+					;
+				if (strcmp(pat, "*") == 0) {
+					logerr("cannot use '*' as validate expression\n");
+					router_free(ret);
+					return NULL;
+				} else {
+					route *rule = ra_malloc(ret, sizeof(route));
+					int err;
+
+					if (rule == NULL) {
+						logerr("malloc failed for validate '%s'\n", pat);
+						router_free(ret);
+						return NULL;
+					}
+					rule->next = NULL;
+					d->cl->members.validation->rule = rule;
+
+					err = determine_if_regex(rule, pat,
+							REG_EXTENDED | REG_NOSUB);
+					if (err != 0) {
+						char ebuf[512];
+						regerror(err, &rule->rule, ebuf, sizeof(ebuf));
+						logerr("invalid expression '%s' for validate: %s\n",
+								pat, ebuf);
+						router_free(ret);
+						return NULL;
+					}
+				}
+
+				if (strncmp(p, "else", 4) != 0 || !isspace(*(p + 4))) {
+					logerr("expected 'else' after for validate %s\n", pat);
+					router_free(ret);
+					return NULL;
+				}
+				p += 5;
+
+				for (; *p != '\0' && isspace(*p); p++)
+					;
+
+				if ((strncmp(p, "drop", 4) != 0 || !isspace(*(p + 4))) &&
+						(strncmp(p, "log", 3) != 0 || !isspace(*(p + 3))))
+				{
+					logerr("expected 'drop' or 'log' after validate %s else\n",
+							pat);
+					router_free(ret);
+					return NULL;
+				}
+				if (*p == 'd') {
+					p += 5;
+					d->cl->members.validation->action = VAL_DROP;
+				} else {
+					p += 4;
+					d->cl->members.validation->action = VAL_LOG;
+				}
+
+				for (; *p != '\0' && isspace(*p); p++)
+					;
+				if (*p == '\0') {
+					logerr("unexpected end of file after validate %s\n", pat);
+					router_free(ret);
+					return NULL;
+				}
+
+				if (strncmp(p, "stop", 4) == 0) {
+					if (isspace(*(p + 4))) {
+						p += 5;
+						for (; *p != '\0' && isspace(*p); p++)
+							;
+					} else if (*(p + 4) != ';') {
+						logerr("expected ';' after 'stop' for validate %s\n",
+								pat);
+						router_free(ret);
+						return NULL;
+					}
+				}
+				if (*p == ';') {
+					p++;
+					do {
+						m->dests = dw;
+						/* always ignore stop here, else the whole
+						 * contruct makes no sense */
+						m->stop = 0;
+					} while (m != r && (m = m->next) != NULL);
+					continue;
+				}
+
+				if (strncmp(p, "send", 4) != 0 || !isspace(*(p + 4))) {
+					logerr("expected 'send to' after validate %s\n", pat);
+					router_free(ret);
+					return NULL;
+				}
+			}
 			p += 5;
 			for (; *p != '\0' && isspace(*p); p++)
 				;
 			if (strncmp(p, "to", 2) != 0 || !isspace(*(p + 2))) {
-				logerr("expected 'send to' after match %s\n", pat);
+				logerr("expected 'to' after 'send' for match %s\n",
+						r->pattern ? r->pattern : "*");
 				router_free(ret);
 				return NULL;
 			}
@@ -1049,7 +1200,8 @@ router_readconfig(router *orig,
 						break;
 				}
 				if (w == NULL) {
-					logerr("no such cluster '%s' for 'match %s'\n", dest, pat);
+					logerr("no such cluster '%s' for 'match %s'\n", dest,
+							r->pattern ? r->pattern : "*");
 					router_free(ret);
 					return NULL;
 				}
@@ -1061,7 +1213,8 @@ router_readconfig(router *orig,
 				}
 				if (d == NULL) {
 					logerr("out of memory allocating new destination '%s' "
-							"for 'match %s'\n", dest, pat);
+							"for 'match %s'\n", dest,
+							r->pattern ? r->pattern : "*");
 					router_free(ret);
 					return NULL;
 				}
@@ -2421,6 +2574,7 @@ router_printconfig(router *rtr, FILE *f, char pmode)
 			}
 		} else {
 			route *or = r;
+			destinations *d;
 			fprintf(f, "match");
 			if (r->next == NULL || r->next->dests != or->dests) {
 				fprintf(f, " %s\n",
@@ -2433,15 +2587,27 @@ router_printconfig(router *rtr, FILE *f, char pmode)
 				} while (r->next != NULL && r->next->dests == or->dests
 						&& (r = r->next) != NULL);
 			}
-			fprintf(f, "    send to");
-			if (or->dests->next == NULL) {
-				fprintf(f, " %s", or->dests->cl->name);
-			} else {
-				destinations *d;
-				for (d = or->dests; d != NULL; d = d->next)
-					fprintf(f, "\n        %s", d->cl->name);
+			d = or->dests;
+			if (d->cl->type == VALIDATION) {
+				validate *v = d->cl->members.validation;
+				fprintf(f, "    validate %s else %s\n",
+						v->rule->pattern,
+						v->action == VAL_LOG ? "log" : "drop");
+				/* hide this pseudo target */
+				d = d->next;
 			}
-			fprintf(f, "\n%s    ;\n", or->stop ? "    stop\n" : "");
+			if (d != NULL) {
+				fprintf(f, "    send to");
+				if (d->next == NULL) {
+					fprintf(f, " %s", d->cl->name);
+				} else {
+					for ( ; d != NULL; d = d->next)
+						fprintf(f, "\n        %s", d->cl->name);
+				}
+				fprintf(f, "\n%s    ;\n", or->stop ? "    stop\n" : "");
+			} else {
+				fprintf(f, "    ;\n");
+			}
 		}
 	}
 	fflush(f);
@@ -2614,6 +2780,7 @@ router_metric_matches(
 		regmatch_t *pmatch)
 {
 	char ret = 0;
+	char firstspc = *firstspace;
 
 	switch (r->matchtype) {
 		case MATCHALL:
@@ -2622,12 +2789,12 @@ router_metric_matches(
 		case REGEX:
 			*firstspace = '\0';
 			ret = regexec(&r->rule, metric, r->nmatch, pmatch, 0) == 0;
-			*firstspace = ' ';
+			*firstspace = firstspc;
 			break;
 		case CONTAINS:
 			*firstspace = '\0';
 			ret = strstr(metric, r->strmatch) != NULL;
-			*firstspace = ' ';
+			*firstspace = firstspc;
 			break;
 		case STARTS_WITH:
 			ret = strncmp(metric, r->strmatch, strlen(r->strmatch)) == 0;
@@ -2637,12 +2804,12 @@ router_metric_matches(
 			ret = strcmp(
 					firstspace - strlen(r->strmatch),
 					r->strmatch) == 0;
-			*firstspace = ' ';
+			*firstspace = firstspc;
 			break;
 		case MATCHES:
 			*firstspace = '\0';
 			ret = strcmp(metric, r->strmatch) == 0;
-			*firstspace = ' ';
+			*firstspace = firstspc;
 			break;
 		default:
 			ret = 0;
@@ -2959,6 +3126,32 @@ router_route_intern(
 								firstspace + strlen(w->pattern),
 								w->dests->cl->members.routes);
 					}	break;
+					case VALIDATION: {
+						/* test whether data matches, if not, either log
+						 * or drop and stop */
+						char *lastchr = firstspace + strlen(firstspace) - 1;
+						if (router_metric_matches(
+									w->dests->cl->members.validation->rule,
+									firstspace + 1,
+									lastchr,
+									pmatch))
+							break;
+
+						if (w->dests->cl->members.validation->action == VAL_LOG)
+						{
+							logerr("dropping metric due to validation error: "
+									"%s", metric);
+							wassent = 1;
+						}
+
+						/* only stop if this is a validate without
+						 * destinations */
+						stop |= d->next == NULL;
+						/* break out of the dests loop */
+						while (d->next != NULL)
+							d = d->next;
+						break;
+					}
 					case GROUP: {
 						/* this should not happen */
 					}	break;
@@ -3011,6 +3204,7 @@ router_test_intern(char *metric, char *firstspace, route *routes)
 {
 	route *w;
 	destinations *d;
+	char stop = 0;
 	char gotmatch = 0;
 	char newmetric[METRIC_BUFSIZ];
 	char *newfirstspace = NULL;
@@ -3081,6 +3275,7 @@ router_test_intern(char *metric, char *firstspace, route *routes)
 				}	break;
 			}
 			*firstspace = ' ';
+			stop = w->stop;
 			for (d = w->dests; d != NULL; d = d->next) {
 				switch (d->cl->type) {
 					case AGGREGATION: {
@@ -3231,12 +3426,33 @@ router_test_intern(char *metric, char *firstspace, route *routes)
 								server_ip(d->cl->members.anyof->servers[hash]),
 								server_port(d->cl->members.anyof->servers[hash]));
 					}	break;
+					case VALIDATION: {
+						char *lastspc = firstspace + strlen(firstspace);
+						fprintf(stdout, "    validate\n        %s -> %s\n",
+								d->cl->members.validation->rule->pattern,
+								firstspace + 1);
+						
+						if (router_metric_matches(
+									d->cl->members.validation->rule,
+									firstspace + 1,
+									lastspc,
+									pmatch))
+						{
+							fprintf(stdout, "        match\n");
+						} else {
+							fprintf(stdout, "        fail -> %s\n",
+									d->cl->members.validation->action == VAL_LOG ? "log" : "drop");
+							stop |= d->next == NULL;
+							while (d->next != NULL)
+								d = d->next;
+						}
+					}	break;
 					default: {
 						fprintf(stdout, "    cluster(%s)\n", d->cl->name);
 					}	break;
 				}
 			}
-			if (w->stop) {
+			if (stop) {
 				gotmatch = 3;
 				fprintf(stdout, "    stop\n");
 				break;
