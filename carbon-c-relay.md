@@ -198,6 +198,7 @@ cluster <name>
 match
         <* | expression ...>
 	[validate <expression> else <log | drop>]
+	[transform <expression> into replacement
     send to <cluster ... | blackhole>
     [stop]
     ;
@@ -308,7 +309,10 @@ metrics will be sent to destinations, this is the `drop` behaviour.
 When `log` is used, the metric is logged to stderr.  Care should be
 taken with the latter to avoid log flooding.  When a validate clause is
 present, destinations need not to be present, this allows for applying a
-global validation rule.
+global validation rule.  The transform clause is used to perform a
+temporary modification to the key used for input to the consistent
+hashing routines.  The primary purpose is to route traffic so that
+appropriate data is sent to the needed aggregation instances.
 
 Rewrite rules take a regular input to match incoming metrics, and
 transform them into the desired new metric name.  In the replacement,
