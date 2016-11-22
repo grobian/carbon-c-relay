@@ -1044,6 +1044,7 @@ router_readconfig(router *orig,
 					router_free(ret);
 					return NULL;
 				}
+				d->next = NULL;
 				if ((d->cl = ra_malloc(ret, sizeof(cluster))) == NULL) {
 					logerr("malloc failed for validation rule in 'match %s'\n",
 							pat);
