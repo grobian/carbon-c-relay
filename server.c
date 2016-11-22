@@ -401,7 +401,7 @@ server_queuereader(void *d)
 				if (self->ctype != CON_UDP && !self->failure)
 					logerr("failed to write() to %s:%u: %s\n",
 							self->ip, self->port,
-							(slen < 0 ? strerror(errno) : "uncomplete write"));
+							(slen < 0 ? strerror(errno) : "incomplete write"));
 				close(self->fd);
 				self->fd = -1;
 				self->failure += self->failure >= FAIL_WAIT_TIME ? 0 : 1;
