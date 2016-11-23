@@ -429,7 +429,7 @@ server_queuereader(void *d)
 						__sync_fetch_and_add(&(self->failure), 1) == 0)
 					logerr("failed to write() to %s:%u: %s\n",
 							self->ip, self->port,
-							(slen < 0 ? strerror(errno) : "uncomplete write"));
+							(slen < 0 ? strerror(errno) : "incomplete write"));
 				close(self->fd);
 				self->fd = -1;
 				/* put back stuff we couldn't process */

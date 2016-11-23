@@ -1700,7 +1700,7 @@ router_readconfig(router *orig,
 
 			if (matchcatchallfound) {
 				logerr("warning: aggregate %s will never be matched "
-						"due to preceeding match * ... stop\n",
+						"due to preceding match * ... stop\n",
 						r->pattern);
 			}
 		} else if (strncmp(p, "rewrite", 7) == 0 && isspace(*(p + 7))) {
@@ -1801,7 +1801,7 @@ router_readconfig(router *orig,
 
 			if (matchcatchallfound) {
 				logerr("warning: rewrite %s will never be matched "
-						"due to preceeding match * ... stop\n",
+						"due to preceding match * ... stop\n",
 						r->pattern == NULL ? "*" : r->pattern);
 			}
 		} else if (strncmp(p, "send", 4) == 0 && isspace(*(p + 4))) {
