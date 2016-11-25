@@ -415,7 +415,7 @@ main(int argc, char * const argv[])
 			case 'L':
 				maxstalls = atoi(optarg);
 				if (maxstalls < 0 || maxstalls >= (1 << SERVER_STALL_BITS)) {
-					fprintf(stderr, "error: maxium stalls needs to be a number "
+					fprintf(stderr, "error: maximum stalls needs to be a number "
 							"between 0 and %d\n", (1 << SERVER_STALL_BITS) - 1);
 					do_usage(argv[0], 1);
 				}
