@@ -308,7 +308,8 @@ metrics will be sent to destinations, this is the `drop` behaviour.
 When `log` is used, the metric is logged to stderr.  Care should be
 taken with the latter to avoid log flooding.  When a validate clause is
 present, destinations need not to be present, this allows for applying a
-global validation rule.
+global validation rule.  Note that the cleansing rules are applied
+before validation is done, thus the data will not have duplicate spaces.
 
 Rewrite rules take a regular input to match incoming metrics, and
 transform them into the desired new metric name.  In the replacement,
