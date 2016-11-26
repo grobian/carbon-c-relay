@@ -1197,6 +1197,7 @@ router_readconfig(router *orig,
 							w->type != STATSTUB &&
 							w->type != AGGREGATION &&
 							w->type != REWRITE &&
+							w->type != VALIDATION &&
 							strcmp(w->name, dest) == 0)
 						break;
 				}
@@ -1568,6 +1569,7 @@ router_readconfig(router *orig,
 								cw->type != STATSTUB &&
 								cw->type != AGGREGATION &&
 								cw->type != REWRITE &&
+								cw->type != VALIDATION &&
 								strcmp(cw->name, dest) == 0)
 							break;
 					}
@@ -1853,6 +1855,7 @@ router_readconfig(router *orig,
 							cw->type != STATSTUB &&
 							cw->type != AGGREGATION &&
 							cw->type != REWRITE &&
+							cw->type != VALIDATION &&
 							strcmp(cw->name, dest) == 0)
 						break;
 				}
