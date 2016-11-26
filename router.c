@@ -1091,6 +1091,7 @@ router_readconfig(router *orig,
 						return NULL;
 					}
 					rule->next = NULL;
+					rule->dests = NULL;
 					d->cl->members.validation->rule = rule;
 
 					err = determine_if_regex(rule, pat,
