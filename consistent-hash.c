@@ -341,13 +341,14 @@ ch_addnode(ch_ring *ring, server *s)
 			if (ring->entryarray[w->pos] == 0)
 				ring->entryarray[w->pos] = w;
 
-		for (i=MAX_RING_ENTRIES-1; i>=0; i--) {
+		for (i=MAX_RING_ENTRIES-2; i>=0; i--) {
 			if (ring->entryarray[i] == 0)
 				ring->entryarray[i] = ring->entryarray[i+1];
 		}
 		// Fill in tail of array;
-		for (i=MAX_RING_ENTRIES; ring->entryarray[i]==0; i--)
+		for (i=MAX_RING_ENTRIES-1; ring->entryarray[i]==0; i--) {
 			ring->entryarray[i] = ring->entryarray[0];
+		}
 	}
 
 	return ring;
