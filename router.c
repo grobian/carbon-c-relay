@@ -1096,6 +1096,7 @@ router_readconfig(router *orig,
 						return NULL;
 					}
 					rule->next = NULL;
+					rule->dests = NULL;
 					d->cl->members.validation->rule = rule;
 
 					err = determine_if_regex(rule, pat,
@@ -1250,6 +1251,7 @@ router_readconfig(router *orig,
 							w->type != STATSTUB &&
 							w->type != AGGREGATION &&
 							w->type != REWRITE &&
+							w->type != VALIDATION &&
 							strcmp(w->name, dest) == 0)
 						break;
 				}
@@ -1621,6 +1623,7 @@ router_readconfig(router *orig,
 								cw->type != STATSTUB &&
 								cw->type != AGGREGATION &&
 								cw->type != REWRITE &&
+								cw->type != VALIDATION &&
 								strcmp(cw->name, dest) == 0)
 							break;
 					}
@@ -1906,6 +1909,7 @@ router_readconfig(router *orig,
 							cw->type != STATSTUB &&
 							cw->type != AGGREGATION &&
 							cw->type != REWRITE &&
+							cw->type != VALIDATION &&
 							strcmp(cw->name, dest) == 0)
 						break;
 				}
