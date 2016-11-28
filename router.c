@@ -1249,6 +1249,7 @@ router_readconfig(router *orig,
 							w->type != AGGREGATION &&
 							w->type != REWRITE &&
 							w->type != VALIDATION &&
+							w->type != ROUTE_USING &&
 							strcmp(w->name, dest) == 0)
 						break;
 				}
@@ -1621,6 +1622,7 @@ router_readconfig(router *orig,
 								cw->type != AGGREGATION &&
 								cw->type != REWRITE &&
 								cw->type != VALIDATION &&
+								cw->type != ROUTE_USING &&
 								strcmp(cw->name, dest) == 0)
 							break;
 					}
@@ -1907,6 +1909,7 @@ router_readconfig(router *orig,
 							cw->type != AGGREGATION &&
 							cw->type != REWRITE &&
 							cw->type != VALIDATION &&
+							cw->type != ROUTE_USING &&
 							strcmp(cw->name, dest) == 0)
 						break;
 				}
@@ -2651,7 +2654,7 @@ router_printconfig(router *rtr, FILE *f, char pmode)
 				/* hide this pseudo target */
 				d = d->next;
 			}
-			if (d->cl->type == ROUTE_USING) {
+			if (d != NULL && d->cl->type == ROUTE_USING) {
 				fprintf(f, "    route using %s\n",
 						d->cl->members.replacement);
 				/* hide this pseudo target */
