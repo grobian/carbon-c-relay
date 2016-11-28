@@ -1169,8 +1169,6 @@ router_readconfig(router *orig,
 				}
 
 			}
-// route using
-// XXX
 			if (*p == 'r') {
 				p += 6;
 				for (; *p != '\0' && isspace(*p); p++)
@@ -1207,7 +1205,7 @@ router_readconfig(router *orig,
 				d->cl->name = NULL;
 				d->cl->type = ROUTE_USING;
 				d->cl->next = NULL;
-	
+
 				if (*p == '\0') {
 					logerr("unexpected end of file after 'route using %s'\n",
 							replacement);
@@ -1219,7 +1217,6 @@ router_readconfig(router *orig,
 				*p++ = '\0';
 				for (; *p != '\0' && isspace(*p); p++)
 					;
-// Save the replacement somewhere
 				d->cl->members.replacement = ra_strdup(ret, replacement);
 			}
 			p += 5;
@@ -3226,16 +3223,16 @@ router_route_intern(
 					case ROUTE_USING: {
 						if ((len = router_rewrite_metric(
 									&newmetric, &newfirstspace,
- 									metric, firstspace,
- 									d->cl->members.replacement,
- 									w->nmatch, pmatch)) == 0)
- 						{
- 							fprintf(stderr, "router_test: failed to transform "
- 									"metric: newmetric size too small to hold "
- 									"replacement (%s -> %s)\n",
- 									metric, d->cl->members.replacement);
- 							break;
- 						};
+									metric, firstspace,
+									d->cl->members.replacement,
+									w->nmatch, pmatch)) == 0)
+						{
+							fprintf(stderr, "router_test: failed to transform "
+									"metric: newmetric size too small to hold "
+									"replacement (%s -> %s)\n",
+									metric, d->cl->members.replacement);
+							break;
+						};
 
 						route_using = 1;
 					}
@@ -3547,16 +3544,16 @@ router_test_intern(char *metric, char *firstspace, route *routes)
 					case ROUTE_USING: {
 						if ((len = router_rewrite_metric(
 									&newmetric, &newfirstspace,
- 									metric, firstspace,
- 									d->cl->members.replacement,
- 									w->nmatch, pmatch)) == 0)
- 						{
- 							fprintf(stderr, "router_test: failed to transform "
- 									"metric: newmetric size too small to hold "
- 									"replacement (%s -> %s)\n",
- 									metric, d->cl->members.replacement);
- 							break;
- 						};
+									metric, firstspace,
+									d->cl->members.replacement,
+									w->nmatch, pmatch)) == 0)
+						{
+							fprintf(stderr, "router_test: failed to transform "
+									"metric: newmetric size too small to hold "
+									"replacement (%s -> %s)\n",
+									metric, d->cl->members.replacement);
+							break;
+						};
 						*newfirstspace = '\0';
 						fprintf(stdout, "    route using %s\n",
 								d->cl->members.replacement);
