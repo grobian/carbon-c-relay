@@ -1107,7 +1107,7 @@ router_readconfig(router *orig,
 				}
 
 				if (strncmp(p, "else", 4) != 0 || !isspace(*(p + 4))) {
-					logerr("expected 'else' after for validate %s\n", pat);
+					logerr("expected 'else' after validate %s\n", pat);
 					router_free(ret);
 					return NULL;
 				}
