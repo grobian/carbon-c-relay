@@ -224,6 +224,9 @@ server_queuereader(void *d)
 			if (__sync_bool_compare_and_swap(&(self->keep_running), 0, 0))
 				break;
 			usleep((200 + (rand() % 100)) * 1000);  /* 200ms - 300ms */
+			/* avoid overflowing */
+			if (__sync_add_and_fetch(&(self->failure), 0) > FAIL_WAIT_TIME)
+				__sync_sub_and_fetch(&(self->failure), 1);
 		}
 
 		/* at this point we've got work to do, if we're instructed to

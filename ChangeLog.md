@@ -9,6 +9,10 @@
 			 [Pull #127](https://github.com/grobian/carbon-c-relay/issues/127),
 			 [Pull #87](https://github.com/grobian/carbon-c-relay/issues/87).
 
+### Bugfixes
+
+* **server** connection errors are no longer endlessly repeated
+
 # 2.3 (2016-11-07)
 
 ### Bugfixes
