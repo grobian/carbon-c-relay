@@ -398,13 +398,13 @@ router_readconfig(router *orig,
 	char *buf;
 	size_t len = 0;
 	char *p;
-	cluster *cl;
 	struct stat st;
-	route *r = NULL;
-	aggregator *a = NULL;
 	struct addrinfo *saddrs;
 	char matchcatchallfound = 0;
 	router *ret = NULL;
+	cluster *cl = NULL;
+	aggregator *a = NULL;
+	route *r = NULL;
 
 	/* if there is no config, don't try anything */
 	if (stat(path, &st) == -1) {
@@ -2040,13 +2040,14 @@ router_readconfig(router *orig,
 			if (ret == NULL)
 				/* router_readconfig already barked and freed ret */
 				return NULL;
-			/* the included file could have added new aggregates, matches, or clusters,
-			 * so adjust these chains to point to the new end. */
-			for (; a != NULL && a->next != NULL; a = a->next)
+			/* the included file could have added new aggregates,
+			 * matches, or clusters, so adjust these chains to point to
+			 * the new end. */
+			for (a = ret->aggregators; a != NULL && a->next != NULL; a = a->next)
 				;
-			for (; cl->next != NULL; cl = cl->next)
+			for (cl = ret->clusters; cl->next != NULL; cl = cl->next)
 				;
-			for (; r != NULL && r->next != NULL; r = r->next)
+			for (r = ret->routes; r != NULL && r->next != NULL; r = r->next)
 				;
 			*p = endchar;
 			for (; *p != '\0' && isspace(*p); p++)

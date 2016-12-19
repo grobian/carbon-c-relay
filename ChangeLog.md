@@ -12,6 +12,9 @@
 ### Bugfixes
 
 * **server** connection errors are no longer endlessly repeated
+* [Issue #240](https://github.com/grobian/carbon-c-relay/issues/240)
+  'include' directive doesn't care about rewrites.
+
 
 # 2.3 (2016-11-07)
 
