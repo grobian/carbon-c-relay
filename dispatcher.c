@@ -413,6 +413,8 @@ dispatch_connection(connection *conn, dispatcher *self, struct timeval start)
 			tracef("dispatcher %d, connfd %d, read %d bytes from socket\n",
 					self->id, conn->sock, len);
 		}
+		if (conn->noexpire)
+			len = -1;  /* simulate EOF for UDP packet */
 
 		/* metrics look like this: metric_path value timestamp\n
 		 * due to various messups we need to sanitise the
