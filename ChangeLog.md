@@ -16,6 +16,8 @@
   'include' directive doesn't care about rewrites.
 * [Issue #241](https://github.com/grobian/carbon-c-relay/issues/241)
   XXX characters being prepended to metrics when sent via UDP
+* [Issue #204](https://github.com/grobian/carbon-c-relay/issues/204)
+  relay is sending data randomly while kill -HUP happens
 
 
 # 2.3 (2016-11-07)

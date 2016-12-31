@@ -2695,7 +2695,7 @@ router_transplant_queues(router *new, router *old)
 
 	for (ns = new->srvrs; ns != NULL; ns = ns->next) {
 		for (os = old->srvrs; os != NULL; os = os->next) {
-			if (strcmp(server_ip(ns->server), server_ip(os->server)) &&
+			if (strcmp(server_ip(ns->server), server_ip(os->server)) == 0 &&
 					server_port(ns->server) == server_port(os->server) &&
 					server_ctype(ns->server) == server_ctype(os->server))
 			{
