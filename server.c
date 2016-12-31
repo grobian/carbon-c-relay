@@ -94,8 +94,6 @@ server_queuereader(void *d)
 	const char *p;
 
 	*metric = NULL;
-	__sync_and_and_fetch(&(self->metrics), 0);
-	__sync_and_and_fetch(&(self->ticks), 0);
 
 #define FAIL_WAIT_TIME   6  /* 6 * 250ms = 1.5s */
 #define DISCONNECT_WAIT_TIME   12  /* 12 * 250ms = 3s */
@@ -713,6 +711,16 @@ server_swap_queue(server *l, server *r)
 	t = l->queue;
 	l->queue = r->queue;
 	r->queue = t;
+	
+	/* swap associated statistics as well */
+	l->metrics = r->metrics;
+	l->dropped = r->dropped;
+	l->stalls = r->stalls;
+	l->ticks = r->ticks;
+	l->prevmetrics = r->prevmetrics;
+	l->prevdropped = r->prevdropped;
+	l->prevstalls = r->prevstalls;
+	l->prevticks = r->prevticks;
 }
 
 /**
