@@ -2340,41 +2340,24 @@ router_optimise(router *r)
 server **
 router_getservers(router *r)
 {
-#define SERVSZ  511
-	server **ret = malloc(sizeof(server *) * SERVSZ + 1);
-	cluster *c;
+	server **ret;
 	servers *s;
 	int i;
 
-	*ret = NULL;
+	i = 0;
+	for (s = r->srvrs; s != NULL; s = s->next)
+		i++;
 
-#define add_server(X) { \
-	for (i = 0; i < SERVSZ && ret[i] != NULL; i++) \
-		if (ret[i] == X) \
-			break; \
-	if (i < SERVSZ && ret[i] == NULL) { \
-		ret[i] = X; \
-		ret[i + 1] = NULL; \
-	} \
-}
+	ret = malloc(sizeof(server *) * (i + 1));
+	if (ret == NULL)
+		return NULL;
 
-	for (c = r->clusters; c != NULL; c = c->next) {
-		if (c->type == FORWARD ||
-				c->type == FILELOG || c->type == FILELOGIP)
-		{
-			for (s = c->members.forward; s != NULL; s = s->next)
-				add_server(s->server);
-		} else if (c->type == ANYOF || c->type == FAILOVER) {
-			for (s = c->members.anyof->list; s != NULL; s = s->next)
-				add_server(s->server);
-		} else if (c->type == CARBON_CH ||
-				c->type == FNV1A_CH ||
-				c->type == JUMP_CH)
-		{
-			for (s = c->members.ch->servers; s != NULL; s = s->next)
-				add_server(s->server);
-		}
-	}
+	i = 0;
+	for (s = r->srvrs; s != NULL; s = s->next)
+		ret[i++] = s->server;
+
+	/* ensure NULL-termination */
+	ret[i] = NULL;
 
 	return ret;
 }
