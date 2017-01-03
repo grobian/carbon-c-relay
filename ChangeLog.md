@@ -1,4 +1,7 @@
-# 2.4 (unreleased master branch)
+# 2.5 (unreleased master branch)
+
+
+# 2.4 (2017-01-03)
 
 ### New Features
 
