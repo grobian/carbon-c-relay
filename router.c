@@ -2963,7 +2963,10 @@ router_route_intern(
 			 * having to calculate the end of the pattern string all the
 			 * time */
 			for (p = firstspace - 1; p >= metric; p--) {
-				for (q = w->dests->cl->name, t = p; *q != '\0' && t >= metric; q++, t--) {
+				for (q = w->dests->cl->name, t = p;
+						*q != '\0' && t >= metric;
+						q++, t--)
+				{
 					if (*q != *t)
 						break;
 				}

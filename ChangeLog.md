@@ -1,5 +1,10 @@
 # 2.5 (unreleased master branch)
 
+### Bugfixes
+
+* [Issue #239](https://github.com/grobian/carbon-c-relay/issues/239)
+  segfault when date format is incorrect
+
 
 # 2.4 (2017-01-03)
 

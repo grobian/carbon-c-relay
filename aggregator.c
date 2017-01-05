@@ -180,7 +180,6 @@ aggregator_putmetric(
 	double val;
 	long long int epoch;
 	long long int itime;
-	int slot;
 	char newmetric[METRIC_BUFSIZ];
 	char *newfirstspace = NULL;
 	size_t len;
@@ -197,7 +196,7 @@ aggregator_putmetric(
 	if (__sync_bool_compare_and_swap(&keep_running, 0, 0))
 		return;
 
-	/* get value */
+	/* get timestamp */
 	if ((v = strchr(firstspace + 1, ' ')) == NULL) {
 		/* metric includes \n */
 		if (mode & MODE_DEBUG)
@@ -310,8 +309,7 @@ aggregator_putmetric(
 			continue;
 		}
 
-		slot = itime / s->interval;
-		if (slot >= s->bucketcnt) {
+		if (itime >= (s->bucketcnt * s->interval)) {
 			if (mode & MODE_DEBUG)
 				logerr("aggregator: dropping metric too far in the "
 						"future (%lld > %lld): %s from %s", epoch,
@@ -322,7 +320,7 @@ aggregator_putmetric(
 			continue;
 		}
 
-		bucket = &invocation->buckets[slot];
+		bucket = &invocation->buckets[itime / s->interval];
 		if (bucket->cnt == 0) {
 			bucket->sum = val;
 			bucket->max = val;
