@@ -197,7 +197,7 @@ cluster <name>
 
 match
         <* | expression ...>
-	[validate <expression> else <log | drop>]
+    [validate <expression> else <log | drop>]
     send to <cluster ... | blackhole>
     [stop]
     ;
