@@ -327,7 +327,6 @@ dispatch_process_dests(connection *conn, dispatcher *self, struct timeval now)
 {
 	int i;
 	char force;
-
 	if (conn->destlen > 0) {
 		if (conn->maxsenddelay == 0)
 			conn->maxsenddelay = ((rand() % 750) + 250) * 1000;
@@ -353,7 +352,6 @@ dispatch_process_dests(connection *conn, dispatcher *self, struct timeval now)
 			conn->hadwork = 1;
 		}
 	}
-
 	return 1;
 }
 
@@ -382,7 +380,7 @@ static int
 dispatch_connection(connection *conn, dispatcher *self, struct timeval start)
 {
 	char *p, *q, *firstspace, *lastnl;
-	int len;
+	int len,countspace;
 
 	/* first try to resume any work being blocked */
 	if (dispatch_process_dests(conn, self, start) == 0) {
@@ -424,21 +422,25 @@ dispatch_connection(connection *conn, dispatcher *self, struct timeval start)
 		q = conn->metric;
 		firstspace = NULL;
 		lastnl = NULL;
+		countspace = 0;
 		for (p = conn->buf; p - conn->buf < conn->buflen; p++) {
 			if (*p == '\n' || *p == '\r') {
 				/* end of metric */
 				lastnl = p;
-
+				
+				
 				/* just a newline on it's own? some random garbage? skip */
-				if (q == conn->metric || firstspace == NULL) {
+				if (q == conn->metric || firstspace == NULL || countspace != 2) {
 					q = conn->metric;
 					firstspace = NULL;
+					countspace = 0;
 					continue;
 				}
 
 				__sync_add_and_fetch(&(self->metrics), 1);
 				*q++ = '\n';
 				*q = '\0';  /* can do this because we substract one from buf */
+				countspace = 0;
 
 				/* perform routing of this metric */
 				tracef("dispatcher %d, connfd %d, metric %s",
@@ -483,6 +485,8 @@ dispatch_connection(connection *conn, dispatcher *self, struct timeval start)
 					if (*(q - 1) != *p && (q - 1) != firstspace)
 						*q++ = *p;
 				}
+				if (*p == ' ')
+					countspace++;
 			} else if (firstspace != NULL ||
 					(*p >= 'a' && *p <= 'z') ||
 					(*p >= 'A' && *p <= 'Z') ||
