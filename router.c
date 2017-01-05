@@ -43,6 +43,7 @@ enum clusttype {
 	AGGRSTUB,   /* pseudo type to have stub matches for aggregation returns */
 	STATSTUB,   /* pseudo type to have stub matches for collector returns */
 	VALIDATION, /* pseudo type to perform additional data validation */
+	TRANSFORM,  /* pseudo type to perform key transformation for routing to aggregations */
 	FORWARD,
 	FILELOG,    /* like forward, write metric to file */
 	FILELOGIP,  /* like forward, write ip metric to file */
@@ -78,6 +79,11 @@ typedef struct _validate {
 	enum { VAL_LOG, VAL_DROP } action;
 } validate;
 
+typedef struct _transform {
+	struct _route *rule;
+	char *replacement;
+} transform;
+
 typedef struct _cluster {
 	char *name;
 	enum clusttype type;
@@ -89,6 +95,7 @@ typedef struct _cluster {
 		struct _route *routes;
 		char *replacement;
 		struct _validate *validation;
+		struct _transform *transform;
 	} members;
 	struct _cluster *next;
 } cluster;
@@ -265,6 +272,9 @@ router_free_intern(cluster *clusters, route *routes)
 			case AGGRSTUB:
 			case STATSTUB:
 			case VALIDATION:
+				/* handled at the routes above */
+				break;
+			case TRANSFORM:
 				/* handled at the routes above */
 				break;
 			case AGGREGATION:
@@ -1029,7 +1039,8 @@ router_readconfig(router *orig,
 				}
 			} while (
 					(strncmp(p, "send", 4) != 0 || !isspace(*(p + 4))) &&
-					(strncmp(p, "validate", 8) != 0 || !isspace(*(p + 8))));
+					(strncmp(p, "validate", 8) != 0 || !isspace(*(p + 8))) &&
+					(strncmp(p, "transform", 9) != 0 || !isspace(*(p + 9))));
 			if (*p == 'v') {
 				p += 9;
 
@@ -1168,6 +1179,96 @@ router_readconfig(router *orig,
 					router_free(ret);
 					return NULL;
 				}
+			}
+
+			if (*p == 't') {
+				/* transform rule */
+
+				if (dw == NULL) {
+					dw = d = ra_malloc(ret, sizeof(destinations));
+				} else {
+					d = d->next = ra_malloc(ret, sizeof(destinations));
+				}
+				if (d == NULL) {
+					logerr("out of memory allocating new transform "
+							"for 'match %s'\n", pat);
+					router_free(ret);
+					return NULL;
+				}
+				if ((d->cl = ra_malloc(ret, sizeof(cluster))) == NULL) {
+					logerr("malloc failed for transform rule in 'match %s'\n",
+							pat);
+					router_free(ret);
+					return NULL;
+				}
+				d->cl->name = NULL;
+				d->cl->type = TRANSFORM;
+				d->cl->next = NULL;
+				d->cl->members.transform = ra_malloc(ret, sizeof(transform));
+				if (d->cl->members.transform == NULL) {
+					logerr("malloc failed for transform member in "
+							"'match %s'\n", pat);
+					router_free(ret);
+					return NULL;
+				}
+
+				p += 10;
+				for (; *p != '\0' && isspace(*p); p++)
+					;
+				pat = p;
+				for (; *p != '\0' && !isspace(*p); p++)
+					;
+				if (*p == '\0') {
+					logerr("unexpected end of file after 'transform'\n");
+					router_free(ret);
+					return NULL;
+				}
+				*p++ = '\0';
+
+				route *rule = ra_malloc(ret, sizeof(route));
+				int err;
+
+				if (rule == NULL) {
+					logerr("malloc failed for validate '%s'\n", pat);
+					router_free(ret);
+					return NULL;
+				}
+				rule->next = NULL;
+				d->cl->members.transform->rule = rule;
+
+				err = determine_if_regex(rule, pat, REG_EXTENDED);
+				if (err != 0) {
+					char ebuf[512];
+					regerror(err, &rule->rule, ebuf, sizeof(ebuf));
+					logerr("invalid expression '%s' for transform: %s\n",
+							pat, ebuf);
+					router_free(ret);
+					return NULL;
+				}
+
+				for (; *p != '\0' && isspace(*p); p++)
+					;
+				if (strncmp(p, "into", 4) != 0 || !isspace(*(p + 4))) {
+					logerr("expected 'into' after transform %s\n", pat);
+					router_free(ret);
+					return NULL;
+				}
+				p += 5;
+				for (; *p != '\0' && isspace(*p); p++)
+					;
+				char *replacement = p;
+				if (*p == '\0') {
+					logerr("unexpected end of file after 'into %s'\n",
+							replacement);
+					router_free(ret);
+					return NULL;
+				}
+				for (; *p != '\0' && !isspace(*p); p++)
+					;
+				*p++ = '\0';
+				for (; *p != '\0' && isspace(*p); p++)
+					;
+				d->cl->members.transform->replacement = replacement;
 			}
 			p += 5;
 			for (; *p != '\0' && isspace(*p); p++)
@@ -2585,6 +2686,14 @@ router_printconfig(router *rtr, FILE *f, char pmode)
 				/* hide this pseudo target */
 				d = d->next;
 			}
+			if (d->cl->type == TRANSFORM) {
+				transform *t = d->cl->members.transform;
+				fprintf(f, "    transform %s into %s\n",
+						t->rule->pattern,
+						t->replacement);
+				/* hide this pseudo target */
+				d = d->next;
+			}
 			if (d != NULL) {
 				fprintf(f, "    send to");
 				if (d->next == NULL) {
@@ -2864,6 +2973,7 @@ router_rewrite_metric(
 							/* insert match part */
 							q = metric + pmatch[ref].rm_so;
 							t = metric + pmatch[ref].rm_eo;
+
 							if (s - *newmetric + t - q < sizeof(*newmetric)) {
 								switch (rcase) {
 									case RETAIN:
@@ -2945,6 +3055,7 @@ router_route_intern(
 	char newmetric[METRIC_BUFSIZ];
 	char *newfirstspace = NULL;
 	size_t len;
+	int transformed = 0;
 	regmatch_t pmatch[RE_MAX_MATCHES];
 
 #define failif(RETLEN, WANTLEN) \
@@ -3059,12 +3170,18 @@ router_route_intern(
 						/* let the ring(bearer) decide */
 						failif(retsize,
 								*curlen + d->cl->members.ch->repl_factor);
+						char *key = metric;
+						char *space = firstspace;
+						if (transformed) {
+							key = newmetric;
+							space = newfirstspace;
+						}
 						ch_get_nodes(
 								&ret[*curlen],
 								d->cl->members.ch->ring,
 								d->cl->members.ch->repl_factor,
-								metric,
-								firstspace);
+								key,
+								space);
 						*curlen += d->cl->members.ch->repl_factor;
 						wassent = 1;
 					}	break;
@@ -3141,6 +3258,35 @@ router_route_intern(
 							d = d->next;
 						break;
 					}
+					case TRANSFORM: {
+						if (router_metric_matches(
+									w->dests->cl->members.transform->rule,
+									metric,
+									firstspace,
+									pmatch) == 0)
+						{
+							fprintf(stderr, "router_test: failed to match transform "
+									"pattern: %s -> %s)\n",
+									w->dests->cl->members.transform->rule->pattern, metric);
+							break;
+						}
+
+						if ((len = router_rewrite_metric(
+									&newmetric, &newfirstspace,
+									metric, firstspace,
+									d->cl->members.transform->replacement,
+									d->cl->members.transform->rule->nmatch, pmatch)) == 0)
+						{
+							fprintf(stderr, "router_test: failed to transform "
+									"metric: newmetric size too small to hold "
+									"replacement (%s -> %s)\n",
+									metric, d->cl->members.transform->replacement);
+							break;
+						};
+
+						transformed = 1;
+					}	break;
+
 					case GROUP: {
 						/* this should not happen */
 					}	break;
@@ -3198,6 +3344,7 @@ router_test_intern(char *metric, char *firstspace, route *routes)
 	char newmetric[METRIC_BUFSIZ];
 	char *newfirstspace = NULL;
 	size_t len;
+	int transformed = 0;
 	regmatch_t pmatch[RE_MAX_MATCHES];
 
 	for (w = routes; w != NULL; w = w->next) {
@@ -3372,6 +3519,12 @@ router_test_intern(char *metric, char *firstspace, route *routes)
 						destination dst[CONN_DESTS_SIZE];
 						int i;
 
+						char *key = metric;
+						char *space = firstspace;
+						if (transformed) {
+							key = newmetric;
+							space = newfirstspace;
+						}
 						fprintf(stdout, "    %s_ch(%s)\n",
 								d->cl->type == CARBON_CH ? "carbon" :
 								d->cl->type == FNV1A_CH ? "fnv1a" :
@@ -3381,19 +3534,22 @@ router_test_intern(char *metric, char *firstspace, route *routes)
 						if (mode & MODE_DEBUG) {
 							fprintf(stdout, "        hash_pos(%d)\n",
 									ch_gethashpos(d->cl->members.ch->ring,
-										metric, firstspace));
+										key, space));
 						}
 						ch_get_nodes(dst,
 								d->cl->members.ch->ring,
 								d->cl->members.ch->repl_factor,
-								metric,
-								firstspace);
+								key,
+								space);
+						*firstspace = '\0';
 						for (i = 0; i < d->cl->members.ch->repl_factor; i++) {
-							fprintf(stdout, "        %s:%d\n",
+							fprintf(stdout, "        %s  ->  %s:%d\n",
+									metric,
 									server_ip(dst[i].dest),
 									server_port(dst[i].dest));
 							free((char *)dst[i].metric);
 						}
+						*firstspace = ' ';
 					}	break;
 					case FAILOVER:
 					case ANYOF: {
@@ -3436,6 +3592,42 @@ router_test_intern(char *metric, char *firstspace, route *routes)
 								d = d->next;
 						}
 					}	break;
+					case TRANSFORM: {
+						if (router_metric_matches(
+									w->dests->cl->members.transform->rule,
+									metric,
+									firstspace,
+									pmatch) == 0)
+						{
+							fprintf(stderr, "router_test: failed to match transform "
+									"pattern: %s -> %s)\n",
+									w->dests->cl->members.transform->rule->pattern, metric);
+							break;
+						}
+
+						if ((len = router_rewrite_metric(
+									&newmetric, &newfirstspace,
+									metric, firstspace,
+									d->cl->members.transform->replacement,
+									d->cl->members.transform->rule->nmatch, pmatch)) == 0)
+						{
+							fprintf(stderr, "router_test: failed to transform "
+									"metric: newmetric size too small to hold "
+									"replacement (%s -> %s)\n",
+									metric, d->cl->members.transform->replacement);
+							break;
+						};
+						*newfirstspace = '\0';
+						fprintf(stdout, "    transform\n        %s -> %s\n",
+								d->cl->members.transform->rule->pattern,
+								metric);
+						/* transform (aka. rewrite) metric name */
+						fprintf(stdout, "        into(%s) -> %s\n",
+								d->cl->members.transform->replacement, newmetric);
+						*newfirstspace = ' ';
+						transformed = 1;
+					}	break;
+
 					default: {
 						fprintf(stdout, "    cluster(%s)\n", d->cl->name);
 					}	break;
