@@ -533,7 +533,7 @@ dispatch_connection(connection *conn, dispatcher *self, struct timeval start)
 			conn->buflen = 0;
 			__sync_bool_compare_and_swap(&(conn->takenby), self->id, 0);
 
-			return 0;
+			return len > 0;
 		} else {
 			__sync_add_and_fetch(&closedconnections, 1);
 			close(conn->sock);
