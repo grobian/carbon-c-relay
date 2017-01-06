@@ -234,14 +234,12 @@ aggregator_putmetric(
 			((omhash >> AGGR_HT_POW_SIZE) ^ omhash) &
 			(((unsigned int)1 << AGGR_HT_POW_SIZE) - 1);
 
-#define find_invocation(o) \
-		invocation = compute->invocations_ht[omhtbucket]; \
-		for (; invocation != NULL; invocation = invocation->next) \
-			if (invocation->hash == omhash && \
-					strcmp(o, invocation->metric) == 0)  /* match */ \
-				break;
 		pthread_rwlock_wrlock(&compute->invlock);
-		find_invocation(ometric);
+		invocation = compute->invocations_ht[omhtbucket];
+		for (; invocation != NULL; invocation = invocation->next)
+			if (invocation->hash == omhash &&
+					strcmp(ometric, invocation->metric) == 0)  /* match */
+				break;
 
 		if (invocation == NULL) {  /* no match, add */
 			long long int i;
