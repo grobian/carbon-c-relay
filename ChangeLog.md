@@ -4,6 +4,8 @@
 
 * [Issue #239](https://github.com/grobian/carbon-c-relay/issues/239)
   segfault when date format is incorrect
+* [Issue #242](https://github.com/grobian/carbon-c-relay/issues/242)
+  dispatcher/aggregations broken (relay seems too slow)
 
 
 # 2.4 (2017-01-03)

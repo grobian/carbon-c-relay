@@ -56,6 +56,7 @@ typedef struct _connection {
 	unsigned int maxsenddelay;
 	char hadwork:1;
 	char isaggr:1;
+	char isudp:1;
 } connection;
 
 struct _dispatcher {
@@ -270,6 +271,7 @@ dispatch_addconnection(int sock)
 	connections[c].needmore = 0;
 	connections[c].noexpire = 0;
 	connections[c].isaggr = 0;
+	connections[c].isudp = 0;
 	connections[c].destlen = 0;
 	gettimeofday(&connections[c].lastwork, NULL);
 	connections[c].hadwork = 1;  /* force first iteration before stalling */
@@ -316,6 +318,7 @@ dispatch_addlistener_udp(int sock)
 		return 1;
 
 	connections[conn].noexpire = 1;
+	connections[conn].isudp = 1;
 	acceptedconnections--;
 
 	return 0;
@@ -413,8 +416,6 @@ dispatch_connection(connection *conn, dispatcher *self, struct timeval start)
 			tracef("dispatcher %d, connfd %d, read %d bytes from socket\n",
 					self->id, conn->sock, len);
 		}
-		if (conn->noexpire)
-			len = -1;  /* simulate EOF for UDP packet */
 
 		/* metrics look like this: metric_path value timestamp\n
 		 * due to various messups we need to sanitise the
@@ -520,14 +521,14 @@ dispatch_connection(connection *conn, dispatcher *self, struct timeval start)
 			return 0;
 		}
 	}
-	if (len == -1 || len == 0) {  /* error + EOF */
+	if (len == -1 || len == 0 || conn->isudp) {  /* error + EOF */
 		/* we also disconnect the client in this case if our reading
 		 * buffer is full, but we still need more (read returns 0 if the
 		 * size argument is 0) -> this is good, because we can't do much
 		 * with such client */
 
 		if (conn->noexpire) {
-			/* reset buffer only (UDP) and move on */
+			/* reset buffer only (UDP/aggregations) and move on */
 			conn->needmore = 1;
 			conn->buflen = 0;
 			__sync_bool_compare_and_swap(&(conn->takenby), self->id, 0);
