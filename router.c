@@ -43,6 +43,7 @@ enum clusttype {
 	AGGRSTUB,   /* pseudo type to have stub matches for aggregation returns */
 	STATSTUB,   /* pseudo type to have stub matches for collector returns */
 	VALIDATION, /* pseudo type to perform additional data validation */
+	ROUTE_USING,/* pseudo type to perform temporary key pattern changes prior to routing */
 	FORWARD,
 	FILELOG,    /* like forward, write metric to file */
 	FILELOGIP,  /* like forward, write ip metric to file */
@@ -265,6 +266,9 @@ router_free_intern(cluster *clusters, route *routes)
 			case AGGRSTUB:
 			case STATSTUB:
 			case VALIDATION:
+				/* handled at the routes above */
+				break;
+			case ROUTE_USING:
 				/* handled at the routes above */
 				break;
 			case AGGREGATION:
@@ -1017,7 +1021,7 @@ router_readconfig(router *orig,
 					r->matchtype = MATCHALL;
 				} else {
 					int err = determine_if_regex(r, pat,
-							REG_EXTENDED | REG_NOSUB);
+							REG_EXTENDED);
 					if (err != 0) {
 						char ebuf[512];
 						regerror(err, &r->rule, ebuf, sizeof(ebuf));
@@ -1029,7 +1033,8 @@ router_readconfig(router *orig,
 				}
 			} while (
 					(strncmp(p, "send", 4) != 0 || !isspace(*(p + 4))) &&
-					(strncmp(p, "validate", 8) != 0 || !isspace(*(p + 8))));
+					(strncmp(p, "validate", 8) != 0 || !isspace(*(p + 8))) &&
+					(strncmp(p, "route", 5) != 0 || !isspace(*(p + 5))));
 			if (*p == 'v') {
 				p += 9;
 
@@ -1163,11 +1168,56 @@ router_readconfig(router *orig,
 					continue;
 				}
 
-				if (strncmp(p, "send", 4) != 0 || !isspace(*(p + 4))) {
-					logerr("expected 'send to' after validate %s\n", pat);
+			}
+			if (*p == 'r') {
+				p += 6;
+				for (; *p != '\0' && isspace(*p); p++)
+					;
+				if (strncmp(p, "using", 5) != 0 || !isspace(*(p + 5))) {
+					logerr("expected 'using' after 'route' for match %s\n",
+							r->pattern ? r->pattern : "*");
 					router_free(ret);
 					return NULL;
 				}
+				p += 5;
+				for (; *p != '\0' && isspace(*p); p++)
+					;
+				char *replacement = p;
+
+				if (dw == NULL) {
+					dw = d = ra_malloc(ret, sizeof(destinations));
+				} else {
+					d = d->next = ra_malloc(ret, sizeof(destinations));
+				}
+				if (d == NULL) {
+					logerr("out of memory allocating new route using "
+							"for 'match %s'\n", pat);
+					router_free(ret);
+					return NULL;
+				}
+				d->next = NULL;
+				if ((d->cl = ra_malloc(ret, sizeof(cluster))) == NULL) {
+					logerr("malloc failed for route using rule in 'match %s'\n",
+							pat);
+					router_free(ret);
+					return NULL;
+				}
+				d->cl->name = NULL;
+				d->cl->type = ROUTE_USING;
+				d->cl->next = NULL;
+
+				if (*p == '\0') {
+					logerr("unexpected end of file after 'route using %s'\n",
+							replacement);
+					router_free(ret);
+					return NULL;
+				}
+				for (; *p != '\0' && !isspace(*p); p++)
+					;
+				*p++ = '\0';
+				for (; *p != '\0' && isspace(*p); p++)
+					;
+				d->cl->members.replacement = ra_strdup(ret, replacement);
 			}
 			p += 5;
 			for (; *p != '\0' && isspace(*p); p++)
@@ -1199,6 +1249,7 @@ router_readconfig(router *orig,
 							w->type != AGGREGATION &&
 							w->type != REWRITE &&
 							w->type != VALIDATION &&
+							w->type != ROUTE_USING &&
 							strcmp(w->name, dest) == 0)
 						break;
 				}
@@ -1571,6 +1622,7 @@ router_readconfig(router *orig,
 								cw->type != AGGREGATION &&
 								cw->type != REWRITE &&
 								cw->type != VALIDATION &&
+								cw->type != ROUTE_USING &&
 								strcmp(cw->name, dest) == 0)
 							break;
 					}
@@ -1857,6 +1909,7 @@ router_readconfig(router *orig,
 							cw->type != AGGREGATION &&
 							cw->type != REWRITE &&
 							cw->type != VALIDATION &&
+							cw->type != ROUTE_USING &&
 							strcmp(cw->name, dest) == 0)
 						break;
 				}
@@ -2585,6 +2638,12 @@ router_printconfig(router *rtr, FILE *f, char pmode)
 				/* hide this pseudo target */
 				d = d->next;
 			}
+			if (d != NULL && d->cl->type == ROUTE_USING) {
+				fprintf(f, "    route using %s\n",
+						d->cl->members.replacement);
+				/* hide this pseudo target */
+				d = d->next;
+			}
 			if (d != NULL) {
 				fprintf(f, "    send to");
 				if (d->next == NULL) {
@@ -2945,6 +3004,7 @@ router_route_intern(
 	char newmetric[METRIC_BUFSIZ];
 	char *newfirstspace = NULL;
 	size_t len;
+	int route_using = 0;
 	regmatch_t pmatch[RE_MAX_MATCHES];
 
 #define failif(RETLEN, WANTLEN) \
@@ -3062,12 +3122,18 @@ router_route_intern(
 						/* let the ring(bearer) decide */
 						failif(retsize,
 								*curlen + d->cl->members.ch->repl_factor);
+						char *key = metric;
+						char *space = firstspace;
+						if (route_using) {
+							key = newmetric;
+							space = newfirstspace;
+						}
 						ch_get_nodes(
 								&ret[*curlen],
 								d->cl->members.ch->ring,
 								d->cl->members.ch->repl_factor,
-								metric,
-								firstspace);
+								key,
+								space);
 						*curlen += d->cl->members.ch->repl_factor;
 						wassent = 1;
 					}	break;
@@ -3144,6 +3210,22 @@ router_route_intern(
 							d = d->next;
 						break;
 					}
+					case ROUTE_USING: {
+						if ((len = router_rewrite_metric(
+									&newmetric, &newfirstspace,
+									metric, firstspace,
+									d->cl->members.replacement,
+									w->nmatch, pmatch)) == 0)
+						{
+							fprintf(stderr, "router_test: failed to transform "
+									"metric: newmetric size too small to hold "
+									"replacement (%s -> %s)\n",
+									metric, d->cl->members.replacement);
+							break;
+						};
+
+						route_using = 1;
+					}
 					case GROUP: {
 						/* this should not happen */
 					}	break;
@@ -3201,6 +3283,7 @@ router_test_intern(char *metric, char *firstspace, route *routes)
 	char newmetric[METRIC_BUFSIZ];
 	char *newfirstspace = NULL;
 	size_t len;
+	int route_using = 0;
 	regmatch_t pmatch[RE_MAX_MATCHES];
 
 	for (w = routes; w != NULL; w = w->next) {
@@ -3375,6 +3458,12 @@ router_test_intern(char *metric, char *firstspace, route *routes)
 						destination dst[CONN_DESTS_SIZE];
 						int i;
 
+						char *key = metric;
+						char *space = firstspace;
+						if (route_using) {
+							key = newmetric;
+							space = newfirstspace;
+						}
 						fprintf(stdout, "    %s_ch(%s)\n",
 								d->cl->type == CARBON_CH ? "carbon" :
 								d->cl->type == FNV1A_CH ? "fnv1a" :
@@ -3384,19 +3473,22 @@ router_test_intern(char *metric, char *firstspace, route *routes)
 						if (mode & MODE_DEBUG) {
 							fprintf(stdout, "        hash_pos(%d)\n",
 									ch_gethashpos(d->cl->members.ch->ring,
-										metric, firstspace));
+										key, space));
 						}
 						ch_get_nodes(dst,
 								d->cl->members.ch->ring,
 								d->cl->members.ch->repl_factor,
-								metric,
-								firstspace);
+								key,
+								space);
+						*firstspace = '\0';
 						for (i = 0; i < d->cl->members.ch->repl_factor; i++) {
-							fprintf(stdout, "        %s:%d\n",
+							fprintf(stdout, "        %s  ->  %s:%d\n",
+									metric,
 									server_ip(dst[i].dest),
 									server_port(dst[i].dest));
 							free((char *)dst[i].metric);
 						}
+						*firstspace = ' ';
 					}	break;
 					case FAILOVER:
 					case ANYOF: {
@@ -3438,6 +3530,25 @@ router_test_intern(char *metric, char *firstspace, route *routes)
 							while (d->next != NULL)
 								d = d->next;
 						}
+					}	break;
+					case ROUTE_USING: {
+						if ((len = router_rewrite_metric(
+									&newmetric, &newfirstspace,
+									metric, firstspace,
+									d->cl->members.replacement,
+									w->nmatch, pmatch)) == 0)
+						{
+							fprintf(stderr, "router_test: failed to transform "
+									"metric: newmetric size too small to hold "
+									"replacement (%s -> %s)\n",
+									metric, d->cl->members.replacement);
+							break;
+						};
+						*newfirstspace = '\0';
+						fprintf(stdout, "    route using %s\n",
+								d->cl->members.replacement);
+						*newfirstspace = ' ';
+						route_using = 1;
 					}	break;
 					default: {
 						fprintf(stdout, "    cluster(%s)\n", d->cl->name);
