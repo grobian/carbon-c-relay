@@ -551,22 +551,24 @@ router_readconfig(router *orig,
 			} else if (strncmp(p, "forward", 7) == 0 && isspace(*(p + 7))) {
 				p += 8;
 
+				/* allow useall keyword */
+				useall = 2;
+
 				cl->type = FORWARD;
 				cl->members.forward = NULL;
 			} else if (strncmp(p, "any_of", 6) == 0 && isspace(*(p + 6))) {
 				p += 7;
 
-				for (; *p != '\0' && isspace(*p); p++)
-					;
-				if (strncmp(p, "useall", 6) == 0 && isspace(*(p + 6))) {
-					p += 7;
-					useall = 1;
-				}
+				/* allow useall keyword */
+				useall = 2;
 
 				cl->type = ANYOF;
 				cl->members.anyof = NULL;
 			} else if (strncmp(p, "failover", 8) == 0 && isspace(*(p + 8))) {
 				p += 9;
+
+				/* allow useall keyword */
+				useall = 2;
 
 				cl->type = FAILOVER;
 				cl->members.anyof = NULL;
@@ -593,6 +595,18 @@ router_readconfig(router *orig,
 						type, name);
 				router_free(ret);
 				return NULL;
+			}
+
+			/* parse optional useall */
+			if (useall == 2) {
+				useall = 0;
+
+				for (; *p != '\0' && isspace(*p); p++)
+					;
+				if (strncmp(p, "useall", 6) == 0 && isspace(*(p + 6))) {
+					p += 7;
+					useall = 1;
+				}
 			}
 
 			/* parse ips */

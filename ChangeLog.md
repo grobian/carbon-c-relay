@@ -1,5 +1,10 @@
 # 2.6 (unreleased master branch)
 
+### New Features
+
+* **router** `useall` is now also allowed for `forward` and `failover`
+             clusters
+
 
 # 2.5 (2017-01-09)
 

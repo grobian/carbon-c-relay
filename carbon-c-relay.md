@@ -185,8 +185,8 @@ input until the end of that line:
 
 ```
 cluster <name>
-    <forward | any_of [useall] | failover |
-    <carbon_ch | fnv1a_ch | jump_fnv1a_ch> [replication <count>]>
+    < <forward | any_of | failover> [useall] |
+      <carbon_ch | fnv1a_ch | jump_fnv1a_ch> [replication <count>] >
         <host[:port][=instance] [proto <udp | tcp>]> ...
     ;
 
