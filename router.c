@@ -3394,6 +3394,17 @@ router_test_intern(char *metric, char *firstspace, route *routes)
 							fprintf(stdout, "        %s:%d\n",
 									serverip(s->server), server_port(s->server));
 					}	break;
+					case FILELOG:
+					case FILELOGIP: {
+						servers *s;
+
+						fprintf(stdout, "    file%s(%s)\n",
+								d->cl->type == FILELOGIP ? " ip" : "",
+								d->cl->name);
+						for (s = d->cl->members.forward; s != NULL; s = s->next)
+							fprintf(stdout, "        %s\n",
+									serverip(s->server));
+					}	break;
 					case CARBON_CH:
 					case FNV1A_CH:
 					case JUMP_CH: {
