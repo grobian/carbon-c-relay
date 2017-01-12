@@ -806,7 +806,7 @@ router_readconfig(router *orig,
 								*proto == 'f' ? CON_FILE :
 								*proto == 'u' ? CON_UDP : CON_TCP,
 								saddrs,
-								cannonicate ? NULL : &hint,
+								(cannonicate || *proto == 'f') ? NULL : &hint,
 								queuesize, batchsize, maxstalls,
 								iotimeout, sockbufsize);
 						if (newserver == NULL) {
