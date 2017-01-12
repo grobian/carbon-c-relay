@@ -19,6 +19,7 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <unistd.h>
+#include <netdb.h>
 #include <string.h>
 #include <signal.h>
 #include <time.h>
@@ -788,7 +789,7 @@ main(int argc, char * const argv[])
 	/* server used for delivering metrics produced inside the relay,
 	 * that is, the collector (statistics) */
 	if ((internal_submission = server_new(
-					"internal", listenport, CON_PIPE, NULL, 3000,
+					"internal", listenport, CON_PIPE, NULL, NULL, 3000,
 					batchsize, maxstalls, iotimeout, sockbufsize)) == NULL)
 	{
 		logerr("failed to create internal submission queue, shutting down\n");

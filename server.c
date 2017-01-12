@@ -43,6 +43,8 @@ struct _server {
 	unsigned short port;
 	char *instance;
 	struct addrinfo *saddr;
+	struct addrinfo *hint;
+	char reresolve:1;
 	int fd;
 	queue *queue;
 	size_t bsize;
@@ -235,6 +237,20 @@ server_queuereader(void *d)
 
 		/* try to connect */
 		if (self->fd < 0) {
+			if (self->reresolve) {  /* can only be CON_UDP/CON_TCP */
+				struct addrinfo *saddr;
+				char sport[8];
+
+				/* re-lookup the address info, if it fails, stay with
+				 * whatever we have such that resolution errors incurred
+				 * after starting the relay won't make it fail */
+				snprintf(sport, sizeof(sport), "%u", self->port);
+				if (getaddrinfo(self->ip, sport, self->hint, &saddr) != 0) {
+					freeaddrinfo(self->saddr);
+					self->saddr = saddr;
+				}
+			}
+
 			if (self->ctype == CON_PIPE) {
 				int intconn[2];
 				if (pipe(intconn) < 0) {
@@ -244,26 +260,6 @@ server_queuereader(void *d)
 				}
 				dispatch_addconnection(intconn[0]);
 				self->fd = intconn[1];
-			} else if (self->ctype == CON_UDP) {
-				if ((self->fd = socket(self->saddr->ai_family,
-								self->saddr->ai_socktype,
-								self->saddr->ai_protocol)) < 0)
-				{
-					if (__sync_fetch_and_add(&(self->failure), 1) == 0)
-						logerr("failed to create udp socket: %s\n",
-								strerror(errno));
-					continue;
-				}
-				if (connect(self->fd,
-						self->saddr->ai_addr, self->saddr->ai_addrlen) < 0)
-				{
-					if (__sync_fetch_and_add(&(self->failure), 1) == 0)
-						logerr("failed to connect udp socket: %s\n",
-								strerror(errno));
-					close(self->fd);
-					self->fd = -1;
-					continue;
-				}
 			} else if (self->ctype == CON_FILE) {
 				if ((self->fd = open(self->ip,
 								O_WRONLY | O_APPEND | O_CREAT,
@@ -274,92 +270,132 @@ server_queuereader(void *d)
 								self->ip, strerror(errno));
 					continue;
 				}
-			} else {
+			} else if (self->ctype == CON_UDP) {
+				struct addrinfo *walk;
+
+				for (walk = self->saddr; walk != NULL; walk = walk->ai_next) {
+					if ((self->fd = socket(walk->ai_family,
+									walk->ai_socktype,
+									walk->ai_protocol)) < 0)
+					{
+						if (walk->ai_next == NULL &&
+								__sync_fetch_and_add(&(self->failure), 1) == 0)
+							logerr("failed to create udp socket: %s\n",
+									strerror(errno));
+						continue;
+					}
+					if (connect(self->fd, walk->ai_addr, walk->ai_addrlen) < 0)
+					{
+						if (walk->ai_next == NULL &&
+								__sync_fetch_and_add(&(self->failure), 1) == 0)
+							logerr("failed to connect udp socket: %s\n",
+									strerror(errno));
+						close(self->fd);
+						self->fd = -1;
+						continue;
+					}
+				}
+				if (self->fd < 0)
+					continue;
+			} else {  /* CON_TCP */
 				int ret;
 				int args;
+				struct addrinfo *walk;
 
-				if ((self->fd = socket(self->saddr->ai_family,
-								self->saddr->ai_socktype,
-								self->saddr->ai_protocol)) < 0)
-				{
-					if (__sync_fetch_and_add(&(self->failure), 1) == 0)
-						logerr("failed to create socket: %s\n",
+				for (walk = self->saddr; walk != NULL; walk = walk->ai_next) {
+					if ((self->fd = socket(walk->ai_family,
+									walk->ai_socktype,
+									walk->ai_protocol)) < 0)
+					{
+						if (walk->ai_next == NULL &&
+								__sync_fetch_and_add(&(self->failure), 1) == 0)
+							logerr("failed to create socket: %s\n",
+									strerror(errno));
+						continue;
+					}
+
+					/* put socket in non-blocking mode such that we can
+					 * poll() (time-out) on the connect() call */
+					args = fcntl(self->fd, F_GETFL, NULL);
+					if (fcntl(self->fd, F_SETFL, args | O_NONBLOCK) < 0) {
+						logerr("failed to set socket non-blocking mode: %s\n",
 								strerror(errno));
-					continue;
-				}
-
-				/* put socket in non-blocking mode such that we can
-				 * poll() (time-out) on the connect() call */
-				args = fcntl(self->fd, F_GETFL, NULL);
-				if (fcntl(self->fd, F_SETFL, args | O_NONBLOCK) < 0) {
-					logerr("failed to set socket non-blocking mode: %s\n",
-							strerror(errno));
-					close(self->fd);
-					self->fd = -1;
-					continue;
-				}
-				ret = connect(self->fd,
-						self->saddr->ai_addr, self->saddr->ai_addrlen);
-
-				if (ret < 0 && errno == EINPROGRESS) {
-					/* wait for connection to succeed if the OS thinks
-					 * it can succeed */
-					struct pollfd ufds[1];
-					ufds[0].fd = self->fd;
-					ufds[0].events = POLLIN | POLLOUT;
-					ret = poll(ufds, 1, self->iotimeout + (rand() % 100));
-					if (ret == 0) {
-						/* time limit expired */
-						if (__sync_fetch_and_add(&(self->failure), 1) == 0)
-							logerr("failed to connect() to "
-									"%s:%u: Operation timed out\n",
-									self->ip, self->port);
 						close(self->fd);
 						self->fd = -1;
 						continue;
-					} else if (ret < 0) {
-						/* some select error occurred */
-						if (__sync_fetch_and_add(&(self->failure), 1) == 0)
-							logerr("failed to poll() for %s:%u: %s\n",
-									self->ip, self->port, strerror(errno));
-						close(self->fd);
-						self->fd = -1;
-						continue;
-					} else {
-						if (ufds[0].revents & POLLHUP) {
-							if (__sync_fetch_and_add(&(self->failure), 1) == 0)
-								logerr("failed to connect() for %s:%u: "
-										"Hangup\n", self->ip, self->port);
+					}
+					ret = connect(self->fd, walk->ai_addr, walk->ai_addrlen);
+
+					if (ret < 0 && errno == EINPROGRESS) {
+						/* wait for connection to succeed if the OS thinks
+						 * it can succeed */
+						struct pollfd ufds[1];
+						ufds[0].fd = self->fd;
+						ufds[0].events = POLLIN | POLLOUT;
+						ret = poll(ufds, 1, self->iotimeout + (rand() % 100));
+						if (ret == 0) {
+							/* time limit expired */
+							if (walk->ai_next == NULL &&
+									__sync_fetch_and_add(
+										&(self->failure), 1) == 0)
+								logerr("failed to connect() to "
+										"%s:%u: Operation timed out\n",
+										self->ip, self->port);
 							close(self->fd);
 							self->fd = -1;
 							continue;
+						} else if (ret < 0) {
+							/* some select error occurred */
+							if (walk->ai_next &&
+									__sync_fetch_and_add(
+										&(self->failure), 1) == 0)
+								logerr("failed to poll() for %s:%u: %s\n",
+										self->ip, self->port, strerror(errno));
+							close(self->fd);
+							self->fd = -1;
+							continue;
+						} else {
+							if (ufds[0].revents & POLLHUP) {
+								if (walk->ai_next == NULL &&
+										__sync_fetch_and_add(
+											&(self->failure), 1) == 0)
+									logerr("failed to connect() for %s:%u: "
+											"Hangup\n", self->ip, self->port);
+								close(self->fd);
+								self->fd = -1;
+								continue;
+							}
 						}
+					} else if (ret < 0) {
+						if (walk->ai_next == NULL &&
+								__sync_fetch_and_add(&(self->failure), 1) == 0)
+						{
+							logerr("failed to connect() to %s:%u: %s\n",
+									self->ip, self->port, strerror(errno));
+							dispatch_check_rlimit_and_warn();
+						}
+						close(self->fd);
+						self->fd = -1;
+						continue;
 					}
-				} else if (ret < 0) {
-					if (__sync_fetch_and_add(&(self->failure), 1) == 0) {
-						logerr("failed to connect() to %s:%u: %s\n",
-								self->ip, self->port, strerror(errno));
-						dispatch_check_rlimit_and_warn();
+
+					/* make socket blocking again */
+					if (fcntl(self->fd, F_SETFL, args) < 0) {
+						logerr("failed to remove socket non-blocking mode: %s\n",
+								strerror(errno));
+						close(self->fd);
+						self->fd = -1;
+						continue;
 					}
-					close(self->fd);
-					self->fd = -1;
-					continue;
-				}
 
-				/* make socket blocking again */
-				if (fcntl(self->fd, F_SETFL, args) < 0) {
-					logerr("failed to remove socket non-blocking mode: %s\n",
-							strerror(errno));
-					close(self->fd);
-					self->fd = -1;
-					continue;
+					/* disable Nagle's algorithm, issue #208 */
+					args = 1;
+					if (setsockopt(self->fd, IPPROTO_TCP, TCP_NODELAY,
+								&args, sizeof(args)) != 0)
+						; /* ignore */
 				}
-
-				/* disable Nagle's algorithm, issue #208 */
-				args = 1;
-				if (setsockopt(self->fd, IPPROTO_TCP, TCP_NODELAY,
-							&args, sizeof(args)) != 0)
-					; /* ignore */
+				if (self->fd < 0)
+					continue;
 			}
 
 			/* ensure we will break out of connections being stuck more
@@ -367,11 +403,11 @@ server_queuereader(void *d)
 			timeout.tv_sec = 10;
 			timeout.tv_usec = (rand() % 300) * 1000;
 			if (setsockopt(self->fd, SOL_SOCKET, SO_SNDTIMEO,
-					&timeout, sizeof(timeout)) != 0)
+						&timeout, sizeof(timeout)) != 0)
 				; /* ignore */
 			if (self->sockbufsize > 0)
 				if (setsockopt(self->fd, SOL_SOCKET, SO_SNDBUF,
-						&self->sockbufsize, sizeof(self->sockbufsize)) != 0)
+							&self->sockbufsize, sizeof(self->sockbufsize)) != 0)
 					; /* ignore */
 #ifdef SO_NOSIGPIPE
 			if (self->ctype == CON_TCP || self->ctype == CON_UDP)
@@ -478,6 +514,7 @@ server_new(
 		unsigned short port,
 		serv_ctype ctype,
 		struct addrinfo *saddr,
+		struct addrinfo *hint,
 		size_t qsize,
 		size_t bsize,
 		int maxstalls,
@@ -511,8 +548,23 @@ server_new(
 	}
 	ret->fd = -1;
 	ret->saddr = saddr;
+	ret->reresolve = 0;
+	ret->hint = NULL;
+	if (hint != NULL) {
+		ret->reresolve = 1;
+		ret->hint = malloc(sizeof(*hint));
+		if (ret->hint == NULL) {
+			free(ret->batch);
+			free((char *)ret->ip);
+			free(ret);
+			return NULL;
+		}
+		memcpy(ret->hint, hint, sizeof(*hint));
+	}
 	ret->queue = queue_new(qsize);
 	if (ret->queue == NULL) {
+		if (ret->hint)
+			free(ret->hint);
 		free(ret->batch);
 		free((char *)ret->ip);
 		free(ret);
@@ -691,6 +743,8 @@ server_free(server *s) {
 		free(s->instance);
 	if (s->saddr != NULL)
 		freeaddrinfo(s->saddr);
+	if (s->hint)
+		free(s->hint);
 	free((char *)s->ip);
 	s->ip = NULL;
 	free(s);

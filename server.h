@@ -31,6 +31,7 @@ server *server_new(
 		unsigned short port,
 		serv_ctype ctype,
 		struct addrinfo *saddr,
+		struct addrinfo *hint,
 		size_t queuesize,
 		size_t batchsize,
 		int maxstalls,

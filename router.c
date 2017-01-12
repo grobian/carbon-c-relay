@@ -23,6 +23,7 @@
 #include <glob.h>
 #include <regex.h>
 #include <sys/stat.h>
+#include <netdb.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -636,10 +637,11 @@ router_readconfig(router *orig,
 				char *proto = "tcp";
 				int port = 2003;
 				server *newserver = NULL;
-				struct addrinfo hint;
-				char sport[8];
 				int err;
 				struct addrinfo *walk = NULL;
+				struct addrinfo hint;
+				char cannonicate;
+				char sport[8];
 				char hnbuf[256];
 
 				for (; *p != '\0' && !isspace(*p) && *p != ';'; p++) {
@@ -730,36 +732,50 @@ router_readconfig(router *orig,
 					}
 				}
 
-				if (cl->type != FILELOG && cl->type != FILELOGIP) {
-					/* resolve host/IP */
-					memset(&hint, 0, sizeof(hint));
-
-					hint.ai_family = PF_UNSPEC;
-					hint.ai_socktype = *proto == 'u' ? SOCK_DGRAM : SOCK_STREAM;
-					hint.ai_protocol = *proto == 'u' ? IPPROTO_UDP : IPPROTO_TCP;
-					hint.ai_flags = AI_NUMERICSERV;
-					snprintf(sport, sizeof(sport), "%u", port);  /* for default */
-
-					if ((err = getaddrinfo(ip, sport, &hint, &saddrs)) != 0) {
-						logerr("failed to resolve server %s:%s (%s) "
-								"for cluster %s: %s\n",
-								ip, sport, proto, name, gai_strerror(err));
-						router_free(ret);
-						return NULL;
-					}
-				} else {
+				saddrs = NULL;
+				cannonicate = 0;
+				if (cl->type == FILELOG || cl->type == FILELOGIP) {
 					/* TODO: try to create/append to file */
 
 					proto = "file";
+				} else {
+					/* try to see if this is a "numeric" IP address, in
+					 * which case we take the cannonical representation so
+					 * as to ensure (string) comparisons will match lateron */
+					memset(&hint, 0, sizeof(hint));
+
+					hint.ai_family = PF_UNSPEC;
+					hint.ai_socktype =
+						*proto == 'u' ? SOCK_DGRAM : SOCK_STREAM;
+					hint.ai_protocol =
+						*proto == 'u' ? IPPROTO_UDP : IPPROTO_TCP;
+					hint.ai_flags = AI_NUMERICHOST | AI_NUMERICSERV;
+					snprintf(sport, sizeof(sport), "%u", port);
+
+					if ((err = getaddrinfo(ip, sport, &hint, &saddrs)) == 0)
+						cannonicate = 1;
+
+					/* now resolve this the normal way to check validity */
+					if (saddrs == NULL) {
+						hint.ai_flags = AI_NUMERICSERV;
+						if ((err = getaddrinfo(ip, sport, &hint, &saddrs)) != 0) {
+							logerr("failed to resolve server %s, port %s, "
+									"proto %s, for cluster %s: %s\n",
+									ip, sport, proto, name, gai_strerror(err));
+							router_free(ret);
+							return NULL;
+						}
+					}
 				}
 
 				walk = saddrs;  /* NULL if file */
 				do {
 					servers *s;
 
-					if (useall) {
-						/* unfold whatever we resolved, for human
-						 * readability issues */
+					if (useall || cannonicate) {
+						/* serialise the IP address, to make the targets
+						 * explicit in case of useall, cannonical
+						 * representation otherwise */
 						if (walk->ai_family == AF_INET) {
 							if (inet_ntop(walk->ai_family,
 									&((struct sockaddr_in *)walk->ai_addr)->sin_addr,
@@ -789,13 +805,13 @@ router_readconfig(router *orig,
 						newserver = server_new(ip, (unsigned short)port,
 								*proto == 'f' ? CON_FILE :
 								*proto == 'u' ? CON_UDP : CON_TCP,
-								walk,
+								saddrs,
+								cannonicate ? NULL : &hint,
 								queuesize, batchsize, maxstalls,
 								iotimeout, sockbufsize);
 						if (newserver == NULL) {
 							logerr("failed to add server %s:%d (%s) "
-									"to cluster %s: %s\n", ip, port, proto,
-									name, strerror(errno));
+									"to cluster %s\n", ip, port, proto, name);
 							router_free(ret);
 							freeaddrinfo(saddrs);
 							return NULL;
