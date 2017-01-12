@@ -4,6 +4,8 @@
 
 * **router** `useall` is now also allowed for `forward` and `failover`
              clusters
+* **server** hostnames are now re-resolved at every connect
+             [Issue #115](https://github.com/grobian/carbon-c-relay/issues/115)
 
 
 # 2.5 (2017-01-09)
