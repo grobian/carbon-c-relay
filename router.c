@@ -382,6 +382,21 @@ determine_if_regex(route *r, char *pat, int flags)
 	return 0;
 }
 
+static char serverip_server[256];  /* RFC1035 = 250 */
+static const char *
+serverip(server *s)
+{
+	const char *srvr = server_ip(s);
+
+	if (strchr(srvr, ':') != NULL) {
+		snprintf(serverip_server, sizeof(serverip_server), "[%s]", srvr);
+		return serverip_server;
+	}
+
+	return srvr;
+}
+
+
 /**
  * Populates the routing tables by reading the config file.
  */
@@ -828,7 +843,7 @@ router_readconfig(router *orig,
 								logerr("cannot set instance '%s' for "
 										"server %s:%d: server was previously "
 										"defined without instance\n",
-										inst, server_ip(newserver),
+										inst, serverip(newserver),
 										server_port(newserver));
 								router_free(ret);
 								freeaddrinfo(saddrs);
@@ -837,7 +852,7 @@ router_readconfig(router *orig,
 								logerr("cannot define server %s:%d without "
 										"instance: server was previously "
 										"defined with instance '%s'\n",
-										server_ip(newserver),
+										serverip(newserver),
 										server_port(newserver), sinst);
 								router_free(ret);
 								freeaddrinfo(saddrs);
@@ -848,7 +863,7 @@ router_readconfig(router *orig,
 								logerr("cannot set instance '%s' for "
 										"server %s:%d: server was previously "
 										"defined with instance '%s'\n",
-										inst, server_ip(newserver),
+										inst, serverip(newserver),
 										server_port(newserver), sinst);
 								router_free(ret);
 								freeaddrinfo(saddrs);
@@ -901,7 +916,7 @@ router_readconfig(router *orig,
 							if (s->refcnt > 1) {
 								logerr("cannot share server %s:%d with "
 										"any_of/failover cluster '%s'\n",
-										server_ip(newserver),
+										serverip(newserver),
 										server_port(newserver),
 										cl->name);
 								router_free(ret);
@@ -2406,17 +2421,17 @@ router_printconfig(router *rtr, FILE *f, char pmode)
 			fprintf(f, "    forward\n");
 			for (s = c->members.forward; s != NULL; s = s->next)
 				fprintf(f, "        %s:%d%s\n",
-						server_ip(s->server), server_port(s->server), PPROTO);
+						serverip(s->server), server_port(s->server), PPROTO);
 		} else if (c->type == FILELOG || c->type == FILELOGIP) {
 			fprintf(f, "    file%s\n", c->type == FILELOGIP ? " ip" : "");
 			for (s = c->members.forward; s != NULL; s = s->next)
 				fprintf(f, "        %s\n",
-						server_ip(s->server));
+						serverip(s->server));
 		} else if (c->type == ANYOF || c->type == FAILOVER) {
 			fprintf(f, "    %s\n", c->type == ANYOF ? "any_of" : "failover");
 			for (s = c->members.anyof->list; s != NULL; s = s->next)
 				fprintf(f, "        %s:%d%s\n",
-						server_ip(s->server), server_port(s->server), PPROTO);
+						serverip(s->server), server_port(s->server), PPROTO);
 		} else if (c->type == CARBON_CH ||
 				c->type == FNV1A_CH ||
 				c->type == JUMP_CH)
@@ -2427,7 +2442,7 @@ router_printconfig(router *rtr, FILE *f, char pmode)
 					c->members.ch->repl_factor);
 			for (s = c->members.ch->servers; s != NULL; s = s->next)
 				fprintf(f, "        %s:%d%s%s%s\n",
-						server_ip(s->server), server_port(s->server),
+						serverip(s->server), server_port(s->server),
 						server_instance(s->server) ? "=" : "",
 						server_instance(s->server) ? server_instance(s->server) : "",
 						PPROTO);
@@ -2718,7 +2733,7 @@ router_start(router *rtr)
 	for (s = rtr->srvrs; s != NULL; s = s->next) {
 		if ((err = server_start(s->server)) != 0) {
 			logerr("failed to start server %s:%u: %s\n",
-					server_ip(s->server),
+					serverip(s->server),
 					server_port(s->server),
 					strerror(err));
 			ret = 1;
@@ -3366,7 +3381,7 @@ router_test_intern(char *metric, char *firstspace, route *routes)
 						fprintf(stdout, "    forward(%s)\n", d->cl->name);
 						for (s = d->cl->members.forward; s != NULL; s = s->next)
 							fprintf(stdout, "        %s:%d\n",
-									server_ip(s->server), server_port(s->server));
+									serverip(s->server), server_port(s->server));
 					}	break;
 					case CARBON_CH:
 					case FNV1A_CH:
@@ -3392,7 +3407,7 @@ router_test_intern(char *metric, char *firstspace, route *routes)
 								firstspace);
 						for (i = 0; i < d->cl->members.ch->repl_factor; i++) {
 							fprintf(stdout, "        %s:%d\n",
-									server_ip(dst[i].dest),
+									serverip(dst[i].dest),
 									server_port(dst[i].dest));
 							free((char *)dst[i].metric);
 						}
@@ -3414,7 +3429,7 @@ router_test_intern(char *metric, char *firstspace, route *routes)
 							hash = 0;
 						}
 						fprintf(stdout, "        %s:%d\n",
-								server_ip(d->cl->members.anyof->servers[hash]),
+								serverip(d->cl->members.anyof->servers[hash]),
 								server_port(d->cl->members.anyof->servers[hash]));
 					}	break;
 					case VALIDATION: {
