@@ -625,7 +625,6 @@ router_readconfig(router *orig,
 				char sport[8];
 				int err;
 				struct addrinfo *walk = NULL;
-				struct addrinfo *next = NULL;
 				char hnbuf[256];
 
 				for (; *p != '\0' && !isspace(*p) && *p != ';'; p++) {
@@ -733,29 +732,15 @@ router_readconfig(router *orig,
 						router_free(ret);
 						return NULL;
 					}
-
-					if (!useall && saddrs->ai_next != NULL) {
-						/* take first result only */
-						freeaddrinfo(saddrs->ai_next);
-						saddrs->ai_next = NULL;
-					}
 				} else {
 					/* TODO: try to create/append to file */
 
 					proto = "file";
-					saddrs = (void *)1;
 				}
 
-				walk = saddrs;
-				while (walk != NULL) {
+				walk = saddrs;  /* NULL if file */
+				do {
 					servers *s;
-
-					/* disconnect from the rest to avoid double
-					 * frees by freeaddrinfo() in server_destroy() */
-					if (walk != (void *)1) {
-						next = walk->ai_next;
-						walk->ai_next = NULL;
-					}
 
 					if (useall) {
 						/* unfold whatever we resolved, for human
@@ -794,7 +779,7 @@ router_readconfig(router *orig,
 						newserver = server_new(ip, (unsigned short)port,
 								*proto == 'f' ? CON_FILE :
 								*proto == 'u' ? CON_UDP : CON_TCP,
-								walk == (void *)1 ? NULL : walk,
+								walk,
 								queuesize, batchsize, maxstalls,
 								iotimeout, sockbufsize);
 						if (newserver == NULL) {
@@ -942,8 +927,8 @@ router_readconfig(router *orig,
 						}
 					}
 
-					walk = next;
-				}
+					walk = useall ? walk->ai_next : NULL;
+				} while (walk != NULL);
 
 				*p = termchr;
 				for (; *p != '\0' && isspace(*p); p++)
