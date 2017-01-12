@@ -6,6 +6,8 @@
              clusters
 * **server** hostnames are now re-resolved at every connect
              [Issue #115](https://github.com/grobian/carbon-c-relay/issues/115)
+* **server** when connecting to a hostname, now /all/ resolved addresses
+             are tried in order before failing
 
 
 # 2.5 (2017-01-09)
