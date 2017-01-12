@@ -768,13 +768,8 @@ router_readconfig(router *orig,
 						} else if (walk->ai_family == AF_INET6) {
 							if (inet_ntop(walk->ai_family,
 									&((struct sockaddr_in6 *)walk->ai_addr)->sin6_addr,
-									hnbuf + 1, sizeof(hnbuf) - 2) != NULL)
-							{
-								hnbuf[0] = '[';
-								/* space is reserved above */
-								strcat(hnbuf, "]");
+									hnbuf, sizeof(hnbuf)) != NULL)
 								ip = hnbuf;
-							}
 						}
 					}
 
