@@ -449,14 +449,19 @@ server_queuereader(void *d)
 			 * resuming to complete.  So, use a loop, but to avoid
 			 * getting endlessly stuck on this, only try a limited
 			 * number of times for a single metric. */
-			for (cnt = 0, p = *metric;
-					cnt < 10 &&
-						(slen = write(self->fd, p, len)) != len &&
-						slen >= 0;
-					cnt++)
-			{
-				p += slen;
-				len -= slen;
+			for (cnt = 0, p = *metric; cnt < 10; cnt++) {
+				if ((slen = write(self->fd, p, len)) != len) {
+					if (slen >= 0) {
+						p += slen;
+						len -= slen;
+					} else if (errno != EINTR) {
+						break;
+					}
+					/* allow the remote to catch up */
+					usleep((50 + (rand() % 150)) * 1000);  /* 50ms - 200ms */
+				} else {
+					break;
+				}
 			}
 			if (slen != len) {
 				/* not fully sent (after tries), or failure
