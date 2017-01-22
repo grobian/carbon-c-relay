@@ -119,6 +119,10 @@ Override hostname determined by a call to \fBgethostname\fR(3) with \fIhostname\
 \fB\-P\fR \fIpidfile\fR
 Write the pid of the relay process to a file called \fIpidfile\fR\. This is in particular useful when daemonised in combination with init managers\.
 .
+.TP
+\fB\-O\fR \fItreshold\fR
+The minimum number of rules to find before trying to optimise the ruleset\. The default is \fB50\fR, to disable the optimiser, use \fB\-1\fR, to always run the optimiser use \fB0\fR\. The optimiser tries to group rules to avoid spending excessive time on matching expressions\.
+.
 .SH "CONFIGURATION SYNTAX"
 The config file supports the following syntax, where comments start with a \fB#\fR character and can appear at any position on a line and suppress input until the end of that line:
 .

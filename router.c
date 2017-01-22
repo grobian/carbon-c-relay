@@ -2118,7 +2118,7 @@ typedef struct _block {
  * specific and expensive matches to confirm fit.
  */
 void
-router_optimise(router *r)
+router_optimise(router *r, int treshold)
 {
 	char *p;
 	char pblock[64];
@@ -2133,12 +2133,14 @@ router_optimise(router *r)
 	size_t bsum;
 	size_t seq;
 
-	/* avoid optimising anything if it won't pay off */
+	/* avoid optimising anything if it won't pay off, note that treshold
+	 * can be negative, meaning it will never optimise */
 	seq = 0;
-	for (rwalk = r->routes; rwalk != NULL && seq < 50; rwalk = rwalk->next)
+	for (rwalk = r->routes; rwalk != NULL && seq < treshold; rwalk = rwalk->next)
 		seq++;
-	if (seq < 50)
+	if (seq < treshold)
 		return;
+	tracef("triggering optimiser, seq: %zd, treshold: %d\n", seq, treshold);
 
 	/* Heuristic: the last part of the matching regex is the most
 	 * discriminating part of the metric.  The last part is defined as a
@@ -2160,6 +2162,7 @@ router_optimise(router *r)
 	for (rwalk = r->routes; rwalk != NULL; rwalk = rnext) {
 		/* matchall and rewrite rules cannot be in a group (issue #218) */
 		if (rwalk->matchtype == MATCHALL || rwalk->dests->cl->type == REWRITE) {
+			tracef("skipping %s\n", rwalk->pattern ? rwalk->pattern : "*");
 			blast->next = malloc(sizeof(block));
 			blast->next->prev = blast;
 			blast = blast->next;
@@ -2205,6 +2208,7 @@ router_optimise(router *r)
 		}
 		if (p == rwalk->pattern) {
 			/* nothing we can do with a pattern like this */
+			tracef("skipping unusable %s\n", p);
 			blast->next = malloc(sizeof(block));
 			blast->next->prev = blast;
 			blast = blast->next;
@@ -2240,6 +2244,8 @@ router_optimise(router *r)
 		b = pblock;
 		if (strlen(b) < 3) {
 			/* this probably isn't selective enough, don't put in a group */
+			tracef("skipping too small pattern %s from %s\n",
+					b, rwalk->pattern);
 			blast->next = malloc(sizeof(block));
 			blast->next->prev = blast;
 			blast = blast->next;
@@ -2256,6 +2262,7 @@ router_optimise(router *r)
 			rlast = NULL;
 			continue;
 		}
+		tracef("found pattern %s from %s\n", b, rwalk->pattern);
 
 		/* at this point, b points to the tail block in reverse, see if
 		 * we already had such tail in place */

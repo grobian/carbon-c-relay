@@ -177,6 +177,12 @@ These options control the behaviour of **carbon-c-relay**.
     is in particular useful when daemonised in combination with init
     managers.
 
+  * `-O` *treshold*:
+    The minimum number of rules to find before trying to optimise the
+	ruleset.  The default is `50`, to disable the optimiser, use `-1`,
+	to always run the optimiser use `0`.  The optimiser tries to group
+	rules to avoid spending excessive time on matching expressions.
+
 ## CONFIGURATION SYNTAX
 
 The config file supports the following syntax, where comments start with

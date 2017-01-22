@@ -49,6 +49,7 @@ static int batchsize = 2500;
 static int queuesize = 25000;
 static int maxstalls = 4;
 static unsigned short iotimeout = 600;
+static int optimisertreshold = 50;
 static int sockbufsize = 0;
 static dispatcher **workers = NULL;
 static char workercnt = 0;
@@ -159,7 +160,7 @@ do_reload(void)
 		logerr("failed to read configuration '%s', aborting reload\n", config);
 		return;
 	}
-	router_optimise(newrtr);
+	router_optimise(newrtr, optimisertreshold);
 
 	/* compare the configs first, if there is no diff, then
 	 * just refrain from reloading anything */
@@ -326,6 +327,7 @@ do_usage(char *name, int exitcode)
 	printf("  -H  hostname: override hostname (used in statistics)\n");
 	printf("  -D  daemonise: run in a background\n");
 	printf("  -P  pidfile: write a pid to a specified pidfile\n");
+	printf("  -O  minimum number of rules before optimising the ruleset, default: %d\n", optimisertreshold); 
 
 	exit(exitcode);
 }
@@ -352,7 +354,7 @@ main(int argc, char * const argv[])
 	if (gethostname(relay_hostname, sizeof(relay_hostname)) < 0)
 		snprintf(relay_hostname, sizeof(relay_hostname), "127.0.0.1");
 
-	while ((ch = getopt(argc, argv, ":hvdmstf:i:l:p:w:b:q:L:S:T:c:H:B:U:DP:")) != -1) {
+	while ((ch = getopt(argc, argv, ":hvdmstf:i:l:p:w:b:q:L:S:T:c:H:B:U:DP:O:")) != -1) {
 		switch (ch) {
 			case 'v':
 				do_version();
@@ -498,6 +500,10 @@ main(int argc, char * const argv[])
 			case 'P':
 				pidfile = optarg;
 				break;
+			case 'O': {
+				int val = atoi(optarg);
+				optimisertreshold = val < 0 ? -1 : val;
+			}	break;
 			case '?':
 			case ':':
 				do_usage(argv[0], 1);
@@ -687,7 +693,7 @@ main(int argc, char * const argv[])
 		logerr("failed to read configuration '%s'\n", config);
 		return 1;
 	}
-	router_optimise(rtr);
+	router_optimise(rtr, optimisertreshold);
 
 	aggrs = router_getaggregators(rtr);
 	numaggregators = aggregator_numaggregators(aggrs);
