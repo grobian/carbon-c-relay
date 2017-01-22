@@ -2272,6 +2272,7 @@ router_optimise(router *r, int treshold)
 			break;
 		}
 		if (bwalk == NULL) {
+			tracef("creating new group %s for %s\n", b, rwalk->pattern);
 			blast->next = malloc(sizeof(block));
 			blast->next->prev = blast;
 			blast = blast->next;
@@ -2292,6 +2293,7 @@ router_optimise(router *r, int treshold)
 			continue;
 		}
 
+		tracef("adding %s to existing group %s\n", rwalk->pattern, b);
 		bwalk->refcnt++;
 		bwalk->lastroute = bwalk->lastroute->next = rwalk;
 		rnext = rwalk->next;
@@ -2565,6 +2567,7 @@ router_printconfig(router *rtr, FILE *f, char pmode)
 				srtr.routes = r->dests->cl->members.routes;
 				/* recurse */
 				router_printconfig(&srtr, f, pmode);
+				fprintf(f, "# end of group '%s'\n", b);
 			}
 		} else if (r->dests->cl->type == AGGRSTUB ||
 				r->dests->cl->type == STATSTUB)
