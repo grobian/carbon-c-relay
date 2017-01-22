@@ -2559,7 +2559,7 @@ router_printconfig(router *rtr, FILE *f, char pmode)
 			fprintf(f, "# common pattern group '%s' "
 					"contains %zu aggregations/matches\n",
 					++b, cnt);
-			if (mode & PMODE_AGGR) {
+			if (pmode & PMODE_AGGR) {
 				router srtr;
 				memset(&srtr, 0, sizeof(srtr));
 				srtr.routes = r->dests->cl->members.routes;
