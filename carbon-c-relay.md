@@ -179,9 +179,9 @@ These options control the behaviour of **carbon-c-relay**.
 
   * `-O` *treshold*:
     The minimum number of rules to find before trying to optimise the
-	ruleset.  The default is `50`, to disable the optimiser, use `-1`,
-	to always run the optimiser use `0`.  The optimiser tries to group
-	rules to avoid spending excessive time on matching expressions.
+    ruleset.  The default is `50`, to disable the optimiser, use `-1`,
+    to always run the optimiser use `0`.  The optimiser tries to group
+    rules to avoid spending excessive time on matching expressions.
 
 ## CONFIGURATION SYNTAX
 
