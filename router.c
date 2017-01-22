@@ -3184,11 +3184,11 @@ router_route_intern(
 					}	break;
 				}
 			}
-
-			/* stop processing further rules if requested */
-			if (stop)
-				break;
 		}
+
+		/* stop processing further rules if requested */
+		if (stop)
+			break;
 	}
 	if (!wassent)
 		*blackholed = 1;

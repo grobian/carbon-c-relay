@@ -11,6 +11,12 @@
 * **relay** A new `-O` flag allows to set the minimum rules treshold
             before trying to optimise the rules.
 
+### Bugfixes
+
+* [Issue #246](https://github.com/grobian/carbon-c-relay/issues/246)
+  using `stop` in a `match` tule does not stop metrics from being
+  processed afterwards
+
 
 # 2.5 (2017-01-09)
 
