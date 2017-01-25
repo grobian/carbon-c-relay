@@ -49,7 +49,7 @@ static int batchsize = 2500;
 static int queuesize = 25000;
 static int maxstalls = 4;
 static unsigned short iotimeout = 600;
-static int optimisertreshold = 50;
+static int optimiserthreshold = 50;
 static int sockbufsize = 0;
 static dispatcher **workers = NULL;
 static char workercnt = 0;
@@ -160,7 +160,7 @@ do_reload(void)
 		logerr("failed to read configuration '%s', aborting reload\n", config);
 		return;
 	}
-	router_optimise(newrtr, optimisertreshold);
+	router_optimise(newrtr, optimiserthreshold);
 
 	/* compare the configs first, if there is no diff, then
 	 * just refrain from reloading anything */
@@ -327,7 +327,7 @@ do_usage(char *name, int exitcode)
 	printf("  -H  hostname: override hostname (used in statistics)\n");
 	printf("  -D  daemonise: run in a background\n");
 	printf("  -P  pidfile: write a pid to a specified pidfile\n");
-	printf("  -O  minimum number of rules before optimising the ruleset, default: %d\n", optimisertreshold); 
+	printf("  -O  minimum number of rules before optimising the ruleset, default: %d\n", optimiserthreshold); 
 
 	exit(exitcode);
 }
@@ -502,7 +502,7 @@ main(int argc, char * const argv[])
 				break;
 			case 'O': {
 				int val = atoi(optarg);
-				optimisertreshold = val < 0 ? -1 : val;
+				optimiserthreshold = val < 0 ? -1 : val;
 			}	break;
 			case '?':
 			case ':':
@@ -693,7 +693,7 @@ main(int argc, char * const argv[])
 		logerr("failed to read configuration '%s'\n", config);
 		return 1;
 	}
-	router_optimise(rtr, optimisertreshold);
+	router_optimise(rtr, optimiserthreshold);
 
 	aggrs = router_getaggregators(rtr);
 	numaggregators = aggregator_numaggregators(aggrs);

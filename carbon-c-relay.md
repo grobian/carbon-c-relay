@@ -177,7 +177,7 @@ These options control the behaviour of **carbon-c-relay**.
     is in particular useful when daemonised in combination with init
     managers.
 
-  * `-O` *treshold*:
+  * `-O` *threshold*:
     The minimum number of rules to find before trying to optimise the
     ruleset.  The default is `50`, to disable the optimiser, use `-1`,
     to always run the optimiser use `0`.  The optimiser tries to group

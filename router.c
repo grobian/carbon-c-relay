@@ -2118,7 +2118,7 @@ typedef struct _block {
  * specific and expensive matches to confirm fit.
  */
 void
-router_optimise(router *r, int treshold)
+router_optimise(router *r, int threshold)
 {
 	char *p;
 	char pblock[64];
@@ -2133,14 +2133,14 @@ router_optimise(router *r, int treshold)
 	size_t bsum;
 	size_t seq;
 
-	/* avoid optimising anything if it won't pay off, note that treshold
+	/* avoid optimising anything if it won't pay off, note that threshold
 	 * can be negative, meaning it will never optimise */
 	seq = 0;
-	for (rwalk = r->routes; rwalk != NULL && seq < treshold; rwalk = rwalk->next)
+	for (rwalk = r->routes; rwalk != NULL && seq < threshold; rwalk = rwalk->next)
 		seq++;
-	if (seq < treshold)
+	if (seq < threshold)
 		return;
-	tracef("triggering optimiser, seq: %zd, treshold: %d\n", seq, treshold);
+	tracef("triggering optimiser, seq: %zd, threshold: %d\n", seq, threshold);
 
 	/* Heuristic: the last part of the matching regex is the most
 	 * discriminating part of the metric.  The last part is defined as a
