@@ -8,7 +8,7 @@
              [Issue #115](https://github.com/grobian/carbon-c-relay/issues/115)
 * **server** when connecting to a hostname, now /all/ resolved addresses
              are tried in order before failing
-* **relay** A new `-O` flag allows to set the minimum rules treshold
+* **relay** A new `-O` flag allows to set the minimum rules threshold
             before trying to optimise the rules.
 
 ### Bugfixes
