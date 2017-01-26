@@ -1,5 +1,10 @@
 # 2.7 (unreleased master branch)
 
+### Bugfixes
+
+* [Issue #249](https://github.com/grobian/carbon-c-relay/issues/249)
+  `send statistics` changes metric prefix from dots into underscores
+
 
 # 2.6 (2017-01-26)
 
