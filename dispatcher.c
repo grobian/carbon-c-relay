@@ -484,11 +484,15 @@ dispatch_connection(connection *conn, dispatcher *self, struct timeval start)
 					if (*(q - 1) != *p && (q - 1) != firstspace)
 						*q++ = *p;
 				}
-			} else if (firstspace != NULL ||
-					(*p >= 'a' && *p <= 'z') ||
-					(*p >= 'A' && *p <= 'Z') ||
-					(*p >= '0' && *p <= '9') ||
-					strchr(self->allowed_chars, *p))
+			} else if (
+					*p != '\0' && (
+						firstspace != NULL ||
+						(*p >= 'a' && *p <= 'z') ||
+						(*p >= 'A' && *p <= 'Z') ||
+						(*p >= '0' && *p <= '9') ||
+						strchr(self->allowed_chars, *p)
+					)
+				)
 			{
 				/* copy char */
 				*q++ = *p;
