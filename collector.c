@@ -125,9 +125,10 @@ collector_runner(void *s)
 			numaggregators = aggregator_numaggregators(aggrs);
 
 			/* prepare hostname for graphite metrics */
-			snprintf(metric, sizeof(metric), "%scarbon.relays.%s",
+			i = snprintf(metric, sizeof(metric), "%scarbon.relays.%s",
 					stub == NULL ? "" : stub, relay_hostname);
-			for (m = metric + strlen("carbon.relays."); *m != '\0'; m++)
+			i -= strlen(relay_hostname);
+			for (m = metric + i; *m != '\0'; m++)
 				if (*m == '.')
 					*m = '_';
 			*m++ = '.';
