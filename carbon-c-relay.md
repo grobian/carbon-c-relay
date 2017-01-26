@@ -78,8 +78,8 @@ These options control the behaviour of **carbon-c-relay**.
 
   * `-f` *config-file*:
     Read configuration from *config-file*.  A configuration consists of
-    clusters and routes.  See [CONFIGURATION SYNTAX][] for more
-    information on the options and syntax of this file.
+    clusters and routes.  See [CONFIGURATION SYNTAX](#configuration-syntax)
+    for more information on the options and syntax of this file.
 
   * `-i` *iface*:
     Open up connections on interface *iface*.  Currently only one
