@@ -16,6 +16,8 @@
 * [Issue #246](https://github.com/grobian/carbon-c-relay/issues/246)
   using `stop` in a `match` tule does not stop metrics from being
   processed afterwards
+* [Issue #206](https://github.com/grobian/carbon-c-relay/issues/206)
+  some metrics are randomly prefixed with garbage characters
 
 
 # 2.5 (2017-01-09)
