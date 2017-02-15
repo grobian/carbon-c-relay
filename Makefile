@@ -36,6 +36,8 @@ OBJS = \
 	consistent-hash.o \
 	receptor.o \
 	dispatcher.o \
+	conffile.tab.o \
+	conffile.yy.o \
 	router.o \
 	queue.o \
 	server.o \
@@ -44,6 +46,12 @@ OBJS = \
 
 relay: $(OBJS)
 	$(CC) -o $@ $(LDFLAGS) $^ $(LIBS)
+
+conffile.tab.c conffile.tab.h: conffile.y
+	bison -d $^
+
+conffile.yy.c: conffile.l conffile.tab.h
+	flex -o $@ $<
 
 man:
 	sed -e '/travis-ci.org\/grobian\/carbon-c-relay.svg/d' carbon-c-relay.md | \
@@ -61,4 +69,4 @@ dist:
 		> carbon-c-relay-$(VERSION).tar.gz
 
 clean:
-	rm -f *.o relay
+	rm -f *.o *.tab.* *.yy.c relay

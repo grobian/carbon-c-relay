@@ -37,85 +37,8 @@
 #include "aggregator.h"
 #include "relay.h"
 #include "router.h"
-
-enum clusttype {
-	BLACKHOLE,  /* /dev/null-like destination */
-	GROUP,      /* pseudo type to create a matching tree */
-	AGGRSTUB,   /* pseudo type to have stub matches for aggregation returns */
-	STATSTUB,   /* pseudo type to have stub matches for collector returns */
-	VALIDATION, /* pseudo type to perform additional data validation */
-	FORWARD,
-	FILELOG,    /* like forward, write metric to file */
-	FILELOGIP,  /* like forward, write ip metric to file */
-	CARBON_CH,  /* original carbon-relay.py consistent-hash */
-	FNV1A_CH,   /* FNV1a-based consistent-hash */
-	JUMP_CH,    /* jump consistent hash with fnv1a input */
-	ANYOF,      /* FNV1a-based hash, but with backup by others */
-	FAILOVER,   /* ordered attempt delivery list */
-	AGGREGATION,
-	REWRITE
-};
-
-typedef struct _servers {
-	server *server;
-	int refcnt;
-	struct _servers *next;
-} servers;
-
-typedef struct {
-	unsigned char repl_factor;
-	ch_ring *ring;
-	servers *servers;
-} chashring;
-
-typedef struct {
-	unsigned short count;
-	server **servers;
-	servers *list;
-} serverlist;
-
-typedef struct _validate {
-	struct _route *rule;
-	enum { VAL_LOG, VAL_DROP } action;
-} validate;
-
-typedef struct _cluster {
-	char *name;
-	enum clusttype type;
-	union {
-		chashring *ch;
-		servers *forward;
-		serverlist *anyof;
-		aggregator *aggregation;
-		struct _route *routes;
-		char *replacement;
-		struct _validate *validation;
-	} members;
-	struct _cluster *next;
-} cluster;
-
-typedef struct _destinations {
-	cluster *cl;
-	struct _destinations *next;
-} destinations;
-
-typedef struct _route {
-	char *pattern;    /* original regex input, used for printing only */
-	regex_t rule;     /* regex on metric, only if type == REGEX */
-	size_t nmatch;    /* number of match groups */
-	char *strmatch;   /* string to search for if type not REGEX or MATCHALL */
-	destinations *dests; /* where matches should go */
-	char stop:1;      /* whether to continue matching rules after this one */
-	enum {
-		MATCHALL,     /* the '*', don't do anything, just match everything */
-		REGEX,        /* a regex match */
-		CONTAINS,     /* find string occurrence */
-		STARTS_WITH,  /* metric must start with string */
-		ENDS_WITH,    /* metric must end with string */
-		MATCHES       /* metric matches string exactly */
-	} matchtype;      /* how to interpret the pattern */
-	struct _route *next;
-} route;
+#include "conffile.h"
+#include "conffile.tab.h"
 
 struct _router {
 	cluster *clusters;
@@ -123,6 +46,12 @@ struct _router {
 	aggregator *aggregators;
 	servers *srvrs;
 	char *collector_stub;
+	struct _router_parser_err {
+		const char *msg;
+		size_t line;
+		size_t start;
+		size_t stop;
+	} parser_err;
 	struct _router_allocator {
 		void *memory_region;
 		void *nextp;
@@ -130,6 +59,11 @@ struct _router {
 		struct _router_allocator *next;
 	} *allocator;
 };
+
+/* declarations to avoid symbol/include hell when doing config.yy.h */
+int router_yylex_init(void **);
+void router_yy_scan_string(char *, void *);
+int router_yylex_destroy(void *);
 
 /* custom constant, meant to force regex mode matching */
 #define REG_FORCE   01000000
@@ -162,7 +96,7 @@ ra_free(router *rtr)
  * that fails, NULL is returned, else a pointer that can be written to
  * up to sz bytes.
  */
-static void *
+void *
 ra_malloc(router *rtr, size_t sz)
 {
 	struct _router_allocator *ra;
@@ -209,7 +143,7 @@ ra_malloc(router *rtr, size_t sz)
  * strdup using ra_malloc, e.g. get memory from the allocator associated
  * to the given router.
  */
-static char *
+char *
 ra_strdup(router *rtr, const char *s)
 {
 	size_t sz = strlen(s) + 1;
@@ -399,6 +333,31 @@ serverip(server *s)
 
 
 /**
+ * Callback for the bison parser when it fails.
+ */
+void
+router_yyerror(ROUTER_YYLTYPE *locp, void *s, router *r, const char *msg)
+{
+	(void)s;
+
+	if (r->parser_err.msg != NULL)
+		return;
+
+	r->parser_err.msg = ra_strdup(r, msg);
+	if (locp != NULL) {
+		r->parser_err.line = 1 + locp->first_line;
+		r->parser_err.start = locp->first_column;
+		if (locp->first_line == locp->last_line) {
+			r->parser_err.stop = locp->last_column;
+		} else {
+			r->parser_err.stop = locp->first_column;
+		}
+	} else {
+		r->parser_err.line = 0;
+	}
+}
+
+/**
  * Populates the routing tables by reading the config file.
  */
 router *
@@ -421,6 +380,7 @@ router_readconfig(router *orig,
 	cluster *cl = NULL;
 	aggregator *a = NULL;
 	route *r = NULL;
+	void *lptr = NULL;
 
 	/* if there is no config, don't try anything */
 	if (stat(path, &st) == -1) {
@@ -466,16 +426,67 @@ router_readconfig(router *orig,
 
 	if ((buf = ra_malloc(ret, st.st_size + 1)) == NULL) {
 		logerr("malloc failed for config file buffer\n");
+		router_free(ret);
 		return NULL;
 	}
 	if ((cnf = fopen(path, "r")) == NULL) {
 		logerr("failed to open config file '%s': %s\n", path, strerror(errno));
+		router_free(ret);
 		return NULL;
 	}
+
 	while ((len = fread(buf + len, 1, st.st_size - len, cnf)) != 0)
 		;
 	buf[st.st_size] = '\0';
 	fclose(cnf);
+
+	if (router_yylex_init(&lptr) != 0) {
+		logerr("lex init failed\n");
+		router_free(ret);
+	}
+	/* copies buf due to modifications, we need orig for error reporting */
+	router_yy_scan_string(buf, lptr);
+	ret->parser_err.msg = NULL;
+	if (router_yyparse(lptr, ret) != 0) {
+		if (ret->parser_err.msg == NULL) {
+			logerr("parsing %s failed\n", path);
+		} else if (ret->parser_err.line != 0) {
+			char *line;
+			char *p;
+			char *carrets;
+			size_t carlen;
+			logerr("%s:%d:%d: %s\n", path, ret->parser_err.line,
+					ret->parser_err.start, ret->parser_err.msg);
+			/* get some relevant context from buff and put ^^^^ below it
+			 * to point out the position of the error */
+			line = buf;
+			while (ret->parser_err.line-- > 1 && line != NULL) {
+				line = strchr(line, '\n');
+				if (line)
+					line++;
+			}
+			if (line == NULL)
+				line = buf;  /* fallback, but will cause misplacement */
+			if ((p = strchr(line + ret->parser_err.stop, '\n')) != NULL)
+				*p = '\0';
+			carlen = ret->parser_err.stop - ret->parser_err.start + 1;
+			carrets = ra_malloc(ret, carlen + 1);
+			memset(carrets, '^', carlen);
+			carrets[carlen] = '\0';
+			fprintf(stderr, "%s\n%*s%s\n",
+					line, (int)ret->parser_err.start, "", carrets);
+		} else {
+			logerr("%s: %s\n", path, ret->parser_err.msg);
+		}
+		router_yylex_destroy(lptr);
+		router_free(ret);
+		return NULL;
+	}
+	router_yylex_destroy(lptr);
+
+	logerr("terminating after parsing\n");
+	exit(1);
+
 
 	/* remove all comments to ease parsing below */
 	p = buf;
