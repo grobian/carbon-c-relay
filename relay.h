@@ -36,8 +36,6 @@ extern unsigned char mode;
 #define tracef(...) /* noop */
 #endif
 
-typedef enum { CON_TCP, CON_UDP, CON_PIPE, CON_FILE } serv_ctype;
-
 extern char relay_hostname[];
 
 enum logdst { LOGOUT, LOGERR };
