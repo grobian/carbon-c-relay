@@ -106,5 +106,8 @@ void *ra_malloc(router *r, size_t sz);
 char *ra_strdup(router *r, const char *s);
 
 void router_yyerror(ROUTER_YYLTYPE *locp, void *, router *r, const char *msg);
+char *router_validate_address(router *rtr, char **retip, int *retport, void **retsaddr, void **rethint, char *ip, serv_ctype proto);
+char *router_add_server(router *ret, char *ip, int port, char *inst, serv_ctype proto, struct addrinfo *saddrs, struct addrinfo *hint, char useall, cluster *cl);
+void router_add_cluster(router *r, cluster *cl);
 
 #endif

@@ -136,15 +136,17 @@ include				return crINCLUDE;
 						yylval_param->crCOMMENT = ra_strdup(rtr, yytext);
 						return crCOMMENT;
 						*/
+						yycolumn = 0;
 						;
 					}
 
-<*>[ \t\r\n]+		; /* whitespace */
-[0-9]+				{
+<*>[ \t\r]+			; /* whitespace */
+<*>\n				yycolumn = 0;
+<*>[0-9]+				{
 						yylval_param->crINTVAL = atoi(yytext);
 						return crINTVAL;
 					}
-<*>[a-zA-Z0-9:/._+-]+	{
+<*>[a-zA-Z0-9[\]:/._+-]+	{
 						yylval_param->crSTRING = ra_strdup(rtr, yytext);
 						return crSTRING;
 					}

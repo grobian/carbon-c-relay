@@ -557,14 +557,7 @@ server_new(
 	ret->hint = NULL;
 	if (hint != NULL) {
 		ret->reresolve = 1;
-		ret->hint = malloc(sizeof(*hint));
-		if (ret->hint == NULL) {
-			free(ret->batch);
-			free((char *)ret->ip);
-			free(ret);
-			return NULL;
-		}
-		memcpy(ret->hint, hint, sizeof(*hint));
+		ret->hint = hint;
 	}
 	ret->queue = queue_new(qsize);
 	if (ret->queue == NULL) {

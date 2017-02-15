@@ -46,12 +46,24 @@ struct _router {
 	aggregator *aggregators;
 	servers *srvrs;
 	char *collector_stub;
+	struct _router_last_ptrs {
+		cluster *cl;
+		route *r;
+		aggregator *a;
+	} last;
 	struct _router_parser_err {
 		const char *msg;
 		size_t line;
 		size_t start;
 		size_t stop;
 	} parser_err;
+	struct _router_conf {
+		size_t queuesize;
+		size_t batchsize;
+		int maxstalls;
+		unsigned short iotimeout;
+		unsigned int sockbufsize;
+	} conf;
 	struct _router_allocator {
 		void *memory_region;
 		void *nextp;
@@ -358,6 +370,332 @@ router_yyerror(ROUTER_YYLTYPE *locp, void *s, router *r, const char *msg)
 }
 
 /**
+ * Parse ip string and validate it.
+ */
+char *
+router_validate_address(
+		router *rtr,
+		char **retip, int *retport, void **retsaddr, void **rethint,
+		char *ip, serv_ctype proto)
+{
+	int port = 2003;
+	struct addrinfo *saddr = NULL;
+	struct addrinfo hint;
+	char sport[8];
+	char hnbuf[256];
+	char *p;
+	char *lastcolon = NULL;
+
+	for (p = ip; *p != '\0'; p++)
+		if (*p == ':')
+			lastcolon = p;
+
+	if (*(p - 1) == ']')
+		lastcolon = NULL;
+	if (lastcolon != NULL) {
+		char *endp = NULL;
+		*lastcolon = '\0';
+		port = (int)strtol(lastcolon + 1, &endp, 10);
+		if (port < 1 || endp != p)
+			return(ra_strdup(rtr, "invalid port number"));
+	}
+	if (*ip == '[') {
+		ip++;
+		if (lastcolon != NULL && *(lastcolon - 1) == ']') {
+			*(lastcolon - 1) = '\0';
+		} else if (lastcolon == NULL && *(p - 1) == ']') {
+			*(p - 1) = '\0';
+		} else {
+			return(ra_strdup(rtr, "expected ']'"));
+		}
+	}
+
+	/* try to see if this is a "numeric" IP address, in
+	 * which case we take the cannonical representation so
+	 * as to ensure (string) comparisons will match lateron */
+	memset(&hint, 0, sizeof(hint));
+	saddr = NULL;
+
+	hint.ai_family = PF_UNSPEC;
+	hint.ai_socktype = proto == CON_UDP ? SOCK_DGRAM : SOCK_STREAM;
+	hint.ai_protocol = proto == CON_UDP ? IPPROTO_UDP : IPPROTO_TCP;
+	hint.ai_flags = AI_NUMERICHOST | AI_NUMERICSERV;
+	snprintf(sport, sizeof(sport), "%u", port);
+
+	if (getaddrinfo(ip, sport, &hint, &saddr) != 0) {
+		int err;
+		/* now resolve this the normal way to check validity */
+		hint.ai_flags = AI_NUMERICSERV;
+		if ((err = getaddrinfo(ip, sport, &hint, &saddr)) != 0) {
+			char errmsg[512];
+			snprintf(errmsg, sizeof(errmsg), "failed to resolve %s, port %s, "
+					"proto %s: %s", ip, sport, proto == CON_UDP ? "udp" : "tcp",
+					gai_strerror(err));
+			return(ra_strdup(rtr, errmsg));
+		}
+
+		/* no ra_malloc, it gets owned by server */
+		*rethint = malloc(sizeof(hint));
+		if (*rethint == NULL)
+			return(ra_strdup(rtr, "out of memory copying hint structure"));
+		memcpy(*rethint, &hint, sizeof(hint));
+	} else {
+		/* serialise the IP address, to make sure we use cannonical form
+		 * which we can then string-match lateron (to do duplicate
+		 * detection) */
+		if (saddr->ai_family == AF_INET) {
+			if (inet_ntop(saddr->ai_family,
+						&((struct sockaddr_in *)saddr->ai_addr)->sin_addr,
+						hnbuf, sizeof(hnbuf)) != NULL)
+				ip = ra_strdup(rtr, hnbuf);
+		} else if (saddr->ai_family == AF_INET6) {
+			if (inet_ntop(saddr->ai_family,
+						&((struct sockaddr_in6 *)saddr->ai_addr)->sin6_addr,
+						hnbuf, sizeof(hnbuf)) != NULL)
+				ip = ra_strdup(rtr, hnbuf);
+		}
+	}
+
+	*retip = ip;
+	*retport = port;
+	*retsaddr = saddr;
+	return NULL;
+}
+
+/**
+ * Adds a server to the chain in router, expands if necessary.
+ */
+char *
+router_add_server(
+		router *ret,
+		char *ip,
+		int port,
+		char *inst,
+		serv_ctype proto,
+		struct addrinfo *saddrs,
+		struct addrinfo *hint,
+		char useall,
+		cluster *cl)
+{
+	struct addrinfo *walk;
+	char hnbuf[256];
+	char errbuf[512];
+	server *newserver;
+	servers *w;
+
+	walk = saddrs;  /* NULL if file */
+	do {
+		servers *s;
+
+		if (useall) {
+			/* serialise the IP address, to make the targets explicit
+			 * (since we're expanding all A/AAAA records) */
+			if (walk->ai_family == AF_INET) {
+				if (inet_ntop(walk->ai_family,
+							&((struct sockaddr_in *)walk->ai_addr)->sin_addr,
+							hnbuf, sizeof(hnbuf)) != NULL)
+					ip = hnbuf;
+			} else if (walk->ai_family == AF_INET6) {
+				if (inet_ntop(walk->ai_family,
+							&((struct sockaddr_in6 *)walk->ai_addr)->sin6_addr,
+							hnbuf, sizeof(hnbuf)) != NULL)
+					ip = hnbuf;
+			}
+		}
+
+		newserver = NULL;
+		for (s = ret->srvrs; s != NULL; s = s->next) {
+			if (strcmp(server_ip(s->server), ip) == 0 &&
+					server_port(s->server) == port &&
+					server_ctype(s->server) == proto)
+			{
+				newserver = s->server;
+				s->refcnt++;
+				break;
+			}
+		}
+		if (newserver == NULL) {
+			newserver = server_new(ip, (unsigned short)port,
+					proto, saddrs, hint,
+					ret->conf.queuesize, ret->conf.batchsize,
+					ret->conf.maxstalls, ret->conf.iotimeout,
+					ret->conf.sockbufsize);
+			if (newserver == NULL) {
+				freeaddrinfo(saddrs);
+				if (hint)
+					free(hint);
+				snprintf(errbuf, sizeof(errbuf),
+						"failed to add server %s:%d (%s) "
+						"to cluster %s", ip, port,
+						proto == CON_UDP ? "udp" :
+						proto == CON_TCP ? "tcp" :
+						proto == CON_FILE ? "file" : "???", cl->name);
+				return ra_strdup(ret, errbuf);
+			}
+			if (ret->srvrs == NULL) {
+				s = ret->srvrs = ra_malloc(ret, sizeof(servers));
+			} else {
+				for (s = ret->srvrs; s->next != NULL; s = s->next)
+					;
+				s = s->next = ra_malloc(ret, sizeof(servers));
+			}
+			s->next = NULL;
+			s->refcnt = 1;
+			s->server = newserver;
+		}
+
+		if (cl->type == CARBON_CH ||
+				cl->type == FNV1A_CH ||
+				cl->type == JUMP_CH)
+		{
+			if (w == NULL) {
+				cl->members.ch->servers = w =
+					ra_malloc(ret, sizeof(servers));
+			} else {
+				w = w->next = ra_malloc(ret, sizeof(servers));
+			}
+			if (w == NULL) {
+				snprintf(errbuf, sizeof(errbuf), "malloc failed for %s_ch %s",
+						cl->type == CARBON_CH ? "carbon" :
+						cl->type == FNV1A_CH ? "fnv1a" :
+						"jump_fnv1a", ip);
+				freeaddrinfo(saddrs);
+				if (hint)
+					free(hint);
+				return ra_strdup(ret, errbuf);
+			}
+			w->next = NULL;
+			if (s->refcnt > 1) {
+				char *sinst = server_instance(newserver);
+				if (sinst == NULL && inst != NULL) {
+					freeaddrinfo(saddrs);
+					if (hint)
+						free(hint);
+					snprintf(errbuf, sizeof(errbuf),
+							"cannot set instance '%s' for "
+							"server %s:%d: server was previously "
+							"defined without instance",
+							inst, serverip(newserver),
+							server_port(newserver));
+					return ra_strdup(ret, errbuf);
+				} else if (sinst != NULL && inst == NULL) {
+					freeaddrinfo(saddrs);
+					if (hint)
+						free(hint);
+					snprintf(errbuf, sizeof(errbuf),
+							"cannot define server %s:%d without "
+							"instance: server was previously "
+							"defined with instance '%s'",
+							serverip(newserver),
+							server_port(newserver), sinst);
+					return ra_strdup(ret, errbuf);
+				} else if (sinst != NULL && inst != NULL &&
+						strcmp(sinst, inst) != 0)
+				{
+					freeaddrinfo(saddrs);
+					if (hint)
+						free(hint);
+					snprintf(errbuf, sizeof(errbuf),
+							"cannot set instance '%s' for "
+							"server %s:%d: server was previously "
+							"defined with instance '%s'",
+							inst, serverip(newserver),
+							server_port(newserver), sinst);
+					return ra_strdup(ret, errbuf);
+				} /* else: sinst == inst == NULL */
+			}
+			if (inst != NULL)
+				server_set_instance(newserver, inst);
+			w->server = newserver;
+			cl->members.ch->ring = ch_addnode(
+					cl->members.ch->ring,
+					w->server);
+			if (cl->members.ch->ring == NULL) {
+				freeaddrinfo(saddrs);
+				if (hint)
+					free(hint);
+				snprintf(errbuf, sizeof(errbuf),
+						"failed to add server %s:%d "
+						"to ring for cluster %s: out of memory",
+						ip, port, cl->name);
+				return ra_strdup(ret, errbuf);
+			}
+		} else if (cl->type == FORWARD ||
+				cl->type == ANYOF ||
+				cl->type == FAILOVER ||
+				cl->type == FILELOG ||
+				cl->type == FILELOGIP)
+		{
+			if (w == NULL) {
+				w = ra_malloc(ret, sizeof(servers));
+			} else {
+				w = w->next = ra_malloc(ret, sizeof(servers));
+			}
+			if (w == NULL) {
+				freeaddrinfo(saddrs);
+				if (hint)
+					free(hint);
+				snprintf(errbuf, sizeof(errbuf),
+						"malloc failed for %s %s",
+						cl->type == FORWARD ? "forward" :
+						cl->type == ANYOF ? "any_of" :
+						cl->type == FAILOVER ? "failover" :
+						"file",
+						ip);
+				return ra_strdup(ret, errbuf);
+			}
+			w->next = NULL;
+			w->server = newserver;
+			if ((cl->type == FORWARD ||
+						cl->type == FILELOG || cl->type == FILELOGIP)
+					&& cl->members.forward == NULL)
+				cl->members.forward = w;
+			if (cl->type == ANYOF || cl->type == FAILOVER) {
+				if (s->refcnt > 1) {
+					freeaddrinfo(saddrs);
+					if (hint)
+						free(hint);
+					snprintf(errbuf, sizeof(errbuf),
+							"cannot share server %s:%d with "
+							"any_of/failover cluster '%s'",
+							serverip(newserver),
+							server_port(newserver),
+							cl->name);
+					return ra_strdup(ret, errbuf);
+				}
+				if (cl->members.anyof == NULL) {
+					cl->members.anyof =
+						ra_malloc(ret, sizeof(serverlist));
+					if (cl->members.anyof == NULL) {
+						freeaddrinfo(saddrs);
+						if (hint)
+							free(hint);
+						snprintf(errbuf, sizeof(errbuf),
+								"malloc failed for %s anyof list", ip);
+						return ra_strdup(ret, errbuf);
+					}
+					cl->members.anyof->count = 1;
+					cl->members.anyof->servers = NULL;
+					cl->members.anyof->list = w;
+				} else {
+					cl->members.anyof->count++;
+				}
+			}
+		}
+
+		walk = useall ? walk->ai_next : NULL;
+	} while (walk != NULL);
+
+	return NULL;
+}
+
+inline void
+router_add_cluster(router *r, cluster *cl)
+{
+	r->last.cl = r->last.cl->next = cl;
+}
+
+/**
  * Populates the routing tables by reading the config file.
  */
 router *
@@ -401,6 +739,12 @@ router_readconfig(router *orig,
 		ret->srvrs = NULL;
 		ret->clusters = NULL;
 
+		ret->conf.queuesize = queuesize;
+		ret->conf.batchsize = batchsize;
+		ret->conf.maxstalls = maxstalls;
+		ret->conf.iotimeout = iotimeout;
+		ret->conf.sockbufsize = sockbufsize;
+
 		/* create virtual blackhole cluster */
 		cl = ra_malloc(ret, sizeof(cluster));
 		if (cl == NULL) {
@@ -412,7 +756,9 @@ router_readconfig(router *orig,
 		cl->type = BLACKHOLE;
 		cl->members.forward = NULL;
 		cl->next = NULL;
-		ret->clusters = cl;
+		ret->clusters = ret->last.cl = cl;
+		ret->last.a = a;
+		ret->last.r = r;
 	} else {
 		ret = orig;
 		/* position a, cl and r at the end of chains */
@@ -429,6 +775,7 @@ router_readconfig(router *orig,
 		router_free(ret);
 		return NULL;
 	}
+
 	if ((cnf = fopen(path, "r")) == NULL) {
 		logerr("failed to open config file '%s': %s\n", path, strerror(errno));
 		router_free(ret);
@@ -484,6 +831,7 @@ router_readconfig(router *orig,
 	}
 	router_yylex_destroy(lptr);
 
+	router_printconfig(ret, stdout, PMODE_AGGR);
 	logerr("terminating after parsing\n");
 	exit(1);
 
@@ -818,8 +1166,11 @@ router_readconfig(router *orig,
 								*proto == 'u' ? CON_UDP : CON_TCP,
 								saddrs,
 								(cannonicate || *proto == 'f') ? NULL : &hint,
-								queuesize, batchsize, maxstalls,
-								iotimeout, sockbufsize);
+								ret->conf.queuesize,
+								ret->conf.batchsize,
+								ret->conf.maxstalls,
+								ret->conf.iotimeout,
+								ret->conf.sockbufsize);
 						if (newserver == NULL) {
 							logerr("failed to add server %s:%d (%s) "
 									"to cluster %s\n", ip, port, proto, name);
