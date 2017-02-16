@@ -476,7 +476,7 @@ router_add_server(
 	char hnbuf[256];
 	char errbuf[512];
 	server *newserver;
-	servers *w;
+	servers *w = NULL;
 
 	walk = saddrs;  /* NULL if file */
 	do {
@@ -538,6 +538,49 @@ router_add_server(
 			s->refcnt = 1;
 			s->server = newserver;
 		}
+		
+		/* check instance matches the existing server */
+		if (s->refcnt > 1) {
+			char *sinst = server_instance(newserver);
+			if (sinst == NULL && inst != NULL) {
+				freeaddrinfo(saddrs);
+				if (hint)
+					free(hint);
+				snprintf(errbuf, sizeof(errbuf),
+						"cannot set instance '%s' for "
+						"server %s:%d: server was previously "
+						"defined without instance",
+						inst, serverip(newserver),
+						server_port(newserver));
+				return ra_strdup(ret, errbuf);
+			} else if (sinst != NULL && inst == NULL) {
+				freeaddrinfo(saddrs);
+				if (hint)
+					free(hint);
+				snprintf(errbuf, sizeof(errbuf),
+						"cannot define server %s:%d without "
+						"instance: server was previously "
+						"defined with instance '%s'",
+						serverip(newserver),
+						server_port(newserver), sinst);
+				return ra_strdup(ret, errbuf);
+			} else if (sinst != NULL && inst != NULL &&
+					strcmp(sinst, inst) != 0)
+			{
+				freeaddrinfo(saddrs);
+				if (hint)
+					free(hint);
+				snprintf(errbuf, sizeof(errbuf),
+						"cannot set instance '%s' for "
+						"server %s:%d: server was previously "
+						"defined with instance '%s'",
+						inst, serverip(newserver),
+						server_port(newserver), sinst);
+				return ra_strdup(ret, errbuf);
+			} /* else: sinst == inst == NULL */
+		}
+		if (inst != NULL)
+			server_set_instance(newserver, inst);
 
 		if (cl->type == CARBON_CH ||
 				cl->type == FNV1A_CH ||
@@ -560,47 +603,6 @@ router_add_server(
 				return ra_strdup(ret, errbuf);
 			}
 			w->next = NULL;
-			if (s->refcnt > 1) {
-				char *sinst = server_instance(newserver);
-				if (sinst == NULL && inst != NULL) {
-					freeaddrinfo(saddrs);
-					if (hint)
-						free(hint);
-					snprintf(errbuf, sizeof(errbuf),
-							"cannot set instance '%s' for "
-							"server %s:%d: server was previously "
-							"defined without instance",
-							inst, serverip(newserver),
-							server_port(newserver));
-					return ra_strdup(ret, errbuf);
-				} else if (sinst != NULL && inst == NULL) {
-					freeaddrinfo(saddrs);
-					if (hint)
-						free(hint);
-					snprintf(errbuf, sizeof(errbuf),
-							"cannot define server %s:%d without "
-							"instance: server was previously "
-							"defined with instance '%s'",
-							serverip(newserver),
-							server_port(newserver), sinst);
-					return ra_strdup(ret, errbuf);
-				} else if (sinst != NULL && inst != NULL &&
-						strcmp(sinst, inst) != 0)
-				{
-					freeaddrinfo(saddrs);
-					if (hint)
-						free(hint);
-					snprintf(errbuf, sizeof(errbuf),
-							"cannot set instance '%s' for "
-							"server %s:%d: server was previously "
-							"defined with instance '%s'",
-							inst, serverip(newserver),
-							server_port(newserver), sinst);
-					return ra_strdup(ret, errbuf);
-				} /* else: sinst == inst == NULL */
-			}
-			if (inst != NULL)
-				server_set_instance(newserver, inst);
 			w->server = newserver;
 			cl->members.ch->ring = ch_addnode(
 					cl->members.ch->ring,
