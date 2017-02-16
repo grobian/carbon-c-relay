@@ -476,7 +476,7 @@ router_add_server(
 	char hnbuf[256];
 	char errbuf[512];
 	server *newserver;
-	servers *w = NULL;
+	servers *w;
 
 	walk = saddrs;  /* NULL if file */
 	do {
@@ -586,10 +586,12 @@ router_add_server(
 				cl->type == FNV1A_CH ||
 				cl->type == JUMP_CH)
 		{
-			if (w == NULL) {
+			if (cl->members.ch->servers == NULL) {
 				cl->members.ch->servers = w =
 					ra_malloc(ret, sizeof(servers));
 			} else {
+				for (w = cl->members.ch->servers; w->next != NULL; w = w->next)
+					;
 				w = w->next = ra_malloc(ret, sizeof(servers));
 			}
 			if (w == NULL) {
