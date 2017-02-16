@@ -695,15 +695,51 @@ router_add_server(
 char *
 router_add_cluster(router *r, cluster *cl)
 {
-	cluster *w;
+	cluster *cw;
 	cluster *last = NULL;
+	servers *w;
 
-	for (w = r->clusters; w != NULL; last = w, w = w->next)
-		if (strcmp(w->name, cl->name) == 0)
+	for (cw = r->clusters; cw != NULL; last = cw, cw = cw->next)
+		if (strcmp(cw->name, cl->name) == 0)
 			return(ra_strdup(r, "cluster with the same name already defined"));
 	if (last == NULL)
 		last = r->clusters;
 	last->next = cl;
+
+	/* post checks/fixups */
+	if (cl->type == ANYOF || cl->type == FAILOVER) {
+		size_t i = 0;
+		cl->members.anyof->servers =
+			ra_malloc(r, sizeof(server *) * cl->members.anyof->count);
+		if (cl->members.anyof->servers == NULL)
+			return(ra_strdup(r, "malloc failed for anyof servers"));
+		for (w = cl->members.anyof->list; w != NULL; w = w->next)
+			cl->members.anyof->servers[i++] = w->server;
+		for (w = cl->members.anyof->list; w != NULL; w = w->next) {
+			server_add_secondaries(w->server,
+					cl->members.anyof->servers,
+					cl->members.anyof->count);
+			if (cl->type == FAILOVER)
+				server_set_failover(w->server);
+		}
+	} else if (cl->type == CARBON_CH ||
+			cl->type == FNV1A_CH ||
+			cl->type == JUMP_CH)
+	{
+		/* check that replication count is actually <= the
+		 * number of servers */
+		size_t i = 0;
+		char errbuf[512];
+		for (w = cl->members.ch->servers; w != NULL; w = w->next)
+			i++;
+		if (i < cl->members.ch->repl_factor) {
+			snprintf(errbuf, sizeof(errbuf),
+					"invalid cluster '%s': replication count (%u) is "
+					"larger than the number of servers (%zu)\n",
+					cl->name, cl->members.ch->repl_factor, i);
+			return(ra_strdup(r, errbuf));
+		}
+	}
 	return NULL;
 }
 
