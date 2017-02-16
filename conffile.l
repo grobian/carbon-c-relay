@@ -9,6 +9,8 @@
 	llocp->first_column = yycolumn; llocp->last_column = yycolumn+yyleng-1; \
 	yycolumn += yyleng;
 #define YY_USER_INIT yycolumn = 0; yylineno = 0;
+
+int identstate = 0;
 %}
 
 %option nostdinit
@@ -21,39 +23,86 @@
 %option nounput
 
 %x cl ma re ag st in qu
+%x idcl idma
 
 %%
 
 	char string_buf[1024];
 	char *strbuf;
-	int strretstate;
 
-cluster				{ BEGIN(cl); return crCLUSTER; }
-<cl>forward				return crFORWARD;
-<cl>any_of				return crANY_OF;
-<cl>failover			return crFAILOVER;
-<cl>carbon_ch			return crCARBON_CH;
-<cl>fnv1a_ch			return crFNV1A_CH;
-<cl>jump_fnv1a_ch		return crJUMP_FNV1A_CH;
-<cl>useall				return crUSEALL;
-<cl>replication			return crREPLICATION;
-<cl>proto				return crPROTO;
-<cl>udp					return crUDP;
-<cl>tcp					return crTCP;
-<cl>file				return crFILE;
-<cl>ip					return crIP;
-<cl>=					return '=';
+cluster				{
+						identstate = cl;
+						BEGIN(idcl);
+						return crCLUSTER;
+					}
+<cl>forward			{
+						identstate = idcl;
+						BEGIN(idcl);
+						return crFORWARD;
+					}
+<cl>any_of			{
+						identstate = idcl;
+						BEGIN(idcl);
+						return crANY_OF;
+					}
+<cl>failover		{
+						identstate = idcl;
+						BEGIN(idcl);
+						return crFAILOVER;
+					}
+<idcl>useall			return crUSEALL;
+<cl>carbon_ch		{
+						identstate = idcl;
+						BEGIN(idcl);
+						return crCARBON_CH;
+					}
+<cl>fnv1a_ch		{
+						identstate = idcl;
+						BEGIN(idcl);
+						return crFNV1A_CH;
+					}
+<cl>jump_fnv1a_ch	{
+						identstate = idcl;
+						BEGIN(idcl);
+						return crJUMP_FNV1A_CH;
+					}
+<idcl>replication		return crREPLICATION;
+<cl>file			{
+						identstate = idcl;
+						BEGIN(idcl);
+						return crFILE;
+					}
+<idcl>ip				return crIP;
+<idcl>proto				return crPROTO;
+<idcl>udp				return crUDP;
+<idcl>tcp				return crTCP;
+<idcl>=					return '=';
 
-match				{ BEGIN(ma); return crMATCH; }
-<ma>\*					return '*';
-<ma>validate			return crVALIDATE;
+match				{
+						identstate = idma;
+						BEGIN(idma);
+						return crMATCH;
+					}
+<idma>\*				return '*';
+<idma>validate		{
+						identstate = ma;
+						BEGIN(idma);
+						return crVALIDATE;
+					}
 <ma>else				return crELSE;
 <ma>log					return crLOG;
 <ma>drop				return crDROP;
-<ma>send				return crSEND;
-<ma>to					return crTO;
-<ma>blackhole			return crBLACKHOLE;
-<ma>stop				return crSTOP;
+<idma>send			{
+						BEGIN(ma);
+						return crSEND;
+					}
+<ma>to				{
+						identstate = idcl;
+						BEGIN(idcl);
+						return crTO;
+					}
+<idcl>blackhole			return crBLACKHOLE;
+<idcl>stop				return crSTOP;
 
 rewrite				return crREWRITE;
 into				return crINTO;
@@ -92,9 +141,8 @@ statistics			return crSTATISTICS;
 include				return crINCLUDE;
 
 	/* handle quoted strings */
-<INITIAL,cl,ma>\"		{
+<idcl,idma>\"		{
 						strbuf = string_buf;
-						strretstate = YY_START;
 						BEGIN(qu);
 					}
 <qu>{
@@ -103,7 +151,7 @@ include				return crINCLUDE;
 							router_yyerror(llocp, NULL, rtr, "empty string");
 							yyterminate();
 						}
-						BEGIN(strretstate);
+						BEGIN(identstate);
 						*strbuf = '\0';
 						yylval_param->crSTRING = ra_strdup(rtr, string_buf);
 						return crSTRING;
@@ -144,12 +192,13 @@ include				return crINCLUDE;
 
 <*>[ \t\r]+			; /* whitespace */
 <*>\n+				yycolumn = 0;
-<*>[0-9]+			{
+<idcl>[0-9]+		{
 						yylval_param->crINTVAL = atoi(yytext);
 						return crINTVAL;
 					}
-<*>[a-zA-Z0-9[\]:/._+-]+	{
+<idcl,idma>[a-zA-Z0-9[\]:/._+-]+	{
 						yylval_param->crSTRING = ra_strdup(rtr, yytext);
+						BEGIN(identstate);
 						return crSTRING;
 					}
 <*>;				{ BEGIN(INITIAL); return ';'; }
