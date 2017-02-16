@@ -46,11 +46,6 @@ struct _router {
 	aggregator *aggregators;
 	servers *srvrs;
 	char *collector_stub;
-	struct _router_last_ptrs {
-		cluster *cl;
-		route *r;
-		aggregator *a;
-	} last;
 	struct _router_parser_err {
 		const char *msg;
 		size_t line;
@@ -689,10 +684,19 @@ router_add_server(
 	return NULL;
 }
 
-inline void
+char *
 router_add_cluster(router *r, cluster *cl)
 {
-	r->last.cl = r->last.cl->next = cl;
+	cluster *w;
+	cluster *last = NULL;
+
+	for (w = r->clusters; w != NULL; last = w, w = w->next)
+		if (strcmp(w->name, cl->name) == 0)
+			return(ra_strdup(r, "cluster with the same name already defined"));
+	if (last == NULL)
+		last = r->clusters;
+	last->next = cl;
+	return NULL;
 }
 
 /**
@@ -756,9 +760,7 @@ router_readconfig(router *orig,
 		cl->type = BLACKHOLE;
 		cl->members.forward = NULL;
 		cl->next = NULL;
-		ret->clusters = ret->last.cl = cl;
-		ret->last.a = a;
-		ret->last.r = r;
+		ret->clusters = cl;
 	} else {
 		ret = orig;
 		/* position a, cl and r at the end of chains */

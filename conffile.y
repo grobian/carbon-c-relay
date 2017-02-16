@@ -36,8 +36,7 @@ struct _clhost {
 %type <serv_ctype> cluster_opt_proto
 %type <char *> cluster_opt_instance
 %type <cluster *> cluster
-%type <struct _clhost> cluster_host
-%type <struct _clhost *> cluster_hosts cluster_opt_host
+%type <struct _clhost *> cluster_host cluster_hosts cluster_opt_host
 
 %token crMATCH
 %token crVALIDATE crELSE crLOG crDROP crSEND crTO crSTOP
@@ -127,7 +126,11 @@ cluster: crCLUSTER crSTRING[name] cluster_type[type] cluster_hosts[servers]
 			}
 		}
 
-		router_add_cluster(rtr, $$);
+		err = router_add_cluster(rtr, $$);
+		if (err != NULL) {
+			router_yyerror(&yylloc, yyscanner, rtr, err);
+			YYERROR;
+		}
 	   }
 	   | crCLUSTER crSTRING[name] cluster_file[type] cluster_paths[paths]
 	   ;
@@ -169,21 +172,26 @@ cluster_opt_path:
 cluster_path: crSTRING
 			;
 
-cluster_hosts: cluster_host[l] cluster_opt_host[r] { $l.next = $r; $$ = &$l; }
+cluster_hosts: cluster_host[l] cluster_opt_host[r] { $l->next = $r; $$ = $l; }
 			 ;
 cluster_opt_host:               { $$ = NULL; }
 				| cluster_hosts { $$ = $1; }
 				;
 cluster_host: crSTRING[ip] cluster_opt_instance[inst] cluster_opt_proto[prot]
 			  {
+			  	struct _clhost *ret = ra_malloc(rtr, sizeof(struct _clhost));
 				char *err = router_validate_address(
 						rtr,
-						&($$.ip), &($$.port), &($$.saddr), &($$.hint),
+						&(ret->ip), &(ret->port), &(ret->saddr), &(ret->hint),
 						$ip, $prot);
 				if (err != NULL) {
 					router_yyerror(&yylloc, yyscanner, rtr, err);
 					YYERROR;
 				}
+				ret->inst = $inst;
+				ret->proto = $prot;
+				ret->next = NULL;
+				$$ = ret;
 			  }
 			;
 cluster_opt_instance:                    { $$ = NULL; }
