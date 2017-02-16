@@ -365,7 +365,8 @@ router_yyerror(ROUTER_YYLTYPE *locp, void *s, router *r, const char *msg)
 }
 
 /**
- * Parse ip string and validate it.
+ * Parse ip string and validate it.  When it is a numeric address, write
+ * the cannonical version in retip.
  */
 char *
 router_validate_address(
@@ -454,6 +455,35 @@ router_validate_address(
 	*retip = ip;
 	*retport = port;
 	*retsaddr = saddr;
+	return NULL;
+}
+
+/**
+ * Parse path string and validate it can be written to.
+ */
+char *
+router_validate_path(router *rtr, char *path)
+{
+	struct stat st;
+	char fileexists = 1;
+	FILE *probe;
+
+	/* if the file doesn't exist, remove it after trying to create it */
+	if (stat(path, &st) == -1)
+		fileexists = 0;
+
+	if ((probe = fopen(path, "w+")) == NULL) {
+		char errbuf[512];
+		snprintf(errbuf, sizeof(errbuf),
+				"failed to open file '%s' for writing: %s",
+				path, strerror(errno));
+		return ra_strdup(rtr, errbuf);
+	}
+	fclose(probe);
+
+	if (!fileexists)
+		unlink(path);
+
 	return NULL;
 }
 
@@ -701,7 +731,7 @@ router_add_cluster(router *r, cluster *cl)
 
 	for (cw = r->clusters; cw != NULL; last = cw, cw = cw->next)
 		if (strcmp(cw->name, cl->name) == 0)
-			return(ra_strdup(r, "cluster with the same name already defined"));
+			return ra_strdup(r, "cluster with the same name already defined");
 	if (last == NULL)
 		last = r->clusters;
 	last->next = cl;
@@ -712,7 +742,7 @@ router_add_cluster(router *r, cluster *cl)
 		cl->members.anyof->servers =
 			ra_malloc(r, sizeof(server *) * cl->members.anyof->count);
 		if (cl->members.anyof->servers == NULL)
-			return(ra_strdup(r, "malloc failed for anyof servers"));
+			return ra_strdup(r, "malloc failed for anyof servers");
 		for (w = cl->members.anyof->list; w != NULL; w = w->next)
 			cl->members.anyof->servers[i++] = w->server;
 		for (w = cl->members.anyof->list; w != NULL; w = w->next) {
@@ -737,7 +767,7 @@ router_add_cluster(router *r, cluster *cl)
 					"invalid cluster '%s': replication count (%u) is "
 					"larger than the number of servers (%zu)\n",
 					cl->name, cl->members.ch->repl_factor, i);
-			return(ra_strdup(r, errbuf));
+			return ra_strdup(r, errbuf);
 		}
 	}
 	return NULL;

@@ -30,13 +30,14 @@ struct _clhost {
 %token crCLUSTER
 %token crFORWARD crANY_OF crFAILOVER crCARBON_CH crFNV1A_CH crJUMP_FNV1A_CH
 	crFILE crIP crREPLICATION crPROTO crUSEALL crUDP crTCP
-%type <enum clusttype> cluster_useall cluster_ch cluster_file
-%type <struct _clust> cluster_type
+%type <enum clusttype> cluster_useall cluster_ch
+%type <struct _clust> cluster_type cluster_file
 %type <int> cluster_opt_repl cluster_opt_useall
 %type <serv_ctype> cluster_opt_proto
 %type <char *> cluster_opt_instance
 %type <cluster *> cluster
 %type <struct _clhost *> cluster_host cluster_hosts cluster_opt_host
+	cluster_path cluster_paths cluster_opt_path
 
 %token crMATCH
 %token crVALIDATE crELSE crLOG crDROP crSEND crTO crSTOP
@@ -133,6 +134,42 @@ cluster: crCLUSTER crSTRING[name] cluster_type[type] cluster_hosts[servers]
 		}
 	   }
 	   | crCLUSTER crSTRING[name] cluster_file[type] cluster_paths[paths]
+	   {
+	   	struct _clhost *w;
+		char *err;
+
+		if (($$ = ra_malloc(rtr, sizeof(cluster))) == NULL) {
+			logerr("malloc failed for cluster '%s'\n", $name);
+			YYABORT;
+		}
+		$$->name = ra_strdup(rtr, $name);
+		$$->next = NULL;
+		$$->type = $type.t;
+		switch ($$->type) {
+			case FILELOG:
+			case FILELOGIP:
+				$$->members.forward = NULL;
+				break;
+			default:
+				logerr("unknown cluster type %zd!\n", $$->type);
+				YYABORT;
+		}
+		
+		for (w = $paths; w != NULL; w = w->next) {
+			err = router_add_server(rtr, w->ip, w->port, w->inst,
+					w->proto, w->saddr, w->hint, $type.ival, $$);
+			if (err != NULL) {
+				router_yyerror(&yylloc, yyscanner, rtr, err);
+				YYERROR;
+			}
+		}
+
+		err = router_add_cluster(rtr, $$);
+		if (err != NULL) {
+			router_yyerror(&yylloc, yyscanner, rtr, err);
+			YYERROR;
+		}
+	   }
 	   ;
 
 cluster_type:
@@ -160,16 +197,32 @@ cluster_opt_repl:                             { $$ = 1; }
 				| crREPLICATION crINTVAL[cnt] { $$ = $cnt; }
 				;
 
-cluster_file: crFILE crIP { $$ = FILELOGIP; }
-			| crFILE      { $$ = FILELOG; }
+cluster_file: crFILE crIP { $$.t = FILELOGIP; $$.ival = 0; }
+			| crFILE      { $$.t = FILELOG; $$.ival = 0; }
 			;
 
-cluster_paths: cluster_path cluster_opt_path
+cluster_paths: cluster_path[l] cluster_opt_path[r] { $l->next = $r; $$ = $l; }
 			 ;
-cluster_opt_path:
-				| cluster_path
+cluster_opt_path:              { $$ = NULL; }
+				| cluster_path { $$ = $1; }
 				;
-cluster_path: crSTRING
+cluster_path: crSTRING[path]
+			{
+				struct _clhost *ret = ra_malloc(rtr, sizeof(struct _clhost));
+				char *err = router_validate_path(rtr, $path);
+				if (err != NULL) {
+					router_yyerror(&yylloc, yyscanner, rtr, err);
+					YYERROR;
+				}
+				ret->ip = $path;
+				ret->port = 2003;
+				ret->saddr = NULL;
+				ret->hint = NULL;
+				ret->inst = NULL;
+				ret->proto = CON_FILE;
+				ret->next = NULL;
+				$$ = ret;
+			}
 			;
 
 cluster_hosts: cluster_host[l] cluster_opt_host[r] { $l->next = $r; $$ = $l; }
