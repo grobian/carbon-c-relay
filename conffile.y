@@ -18,6 +18,11 @@ struct _clhost {
 	void *hint;
 	struct _clhost *next;
 };
+struct _maexpr {
+	route *r;
+	char drop;
+	struct _maexpr *next;
+};
 }
 
 %define api.prefix {router_yy}
@@ -40,7 +45,11 @@ struct _clhost {
 	cluster_path cluster_paths cluster_opt_path
 
 %token crMATCH
-%token crVALIDATE crELSE crLOG crDROP crSEND crTO crSTOP
+%token crVALIDATE crELSE crLOG crDROP crSEND crTO crBLACKHOLE crSTOP
+%type <destinations *> match_dst match_opt_dst match_dsts match_send_to
+%type <int> match_opt_stop match_log_or_drop
+%type <struct _maexpr *> match_opt_validate match_expr match_opt_expr
+	match_exprs
 
 %token crREWRITE
 %token crINTO
@@ -67,13 +76,14 @@ commands:
 
 command:
 	     cluster
-/*	   | match
+	   | match /*
 	   | rewrite
 	   | aggregate
 	   | send
 	   | include */
 	   ;
 
+/*** {{{ BEGIN cluster ***/
 cluster: crCLUSTER crSTRING[name] cluster_type[type] cluster_hosts[servers]
 	   {
 	   	struct _clhost *w;
@@ -254,3 +264,150 @@ cluster_opt_proto:               { $$ = CON_TCP; }
 				 | crPROTO crUDP { $$ = CON_UDP; }
 				 | crPROTO crTCP { $$ = CON_TCP; }
 				 ;
+/*** }}} END cluster ***/
+
+/*** {{{ BEGIN match ***/
+match: crMATCH match_exprs[exprs] match_opt_validate[val] match_send_to[dsts]
+	 match_opt_stop[stop]
+	 {
+	 	/* each expr comes with an allocated route, populate it */
+		struct _maexpr *we;
+		destinations *d = NULL;
+		if ($val != NULL) {
+			/* optional validate clause */
+			if ((d = ra_malloc(rtr, sizeof(destinations))) == NULL) {
+				logerr("out of memory\n");
+				YYABORT;
+			}
+			d->next = NULL;
+			if ((d->cl = ra_malloc(rtr, sizeof(cluster))) == NULL) {
+				logerr("out of memory\n");
+				YYABORT;
+			}
+			d->cl->name = NULL;
+			d->cl->type = VALIDATION;
+			d->cl->next = NULL;
+			d->cl->members.validation = ra_malloc(rtr, sizeof(validate));
+			if (d->cl->members.validation == NULL) {
+				logerr("out of memory\n");
+				YYABORT;
+			}
+			d->cl->members.validation->rule = $val->r;
+			d->cl->members.validation->action = $val->drop ? VAL_DROP : VAL_LOG;
+		}
+		/* add destinations to the chain */
+		if (d != NULL) {
+			d->next = $dsts;
+		} else {
+			d = $dsts;
+		}
+		for (we = $exprs; we != NULL; we = we->next) {
+			we->r->next = NULL;
+			we->r->dests = d;
+			we->r->stop = $dsts->cl->type == BLACKHOLE ? 1 : $stop;
+		}
+	 }
+	 ;
+
+match_exprs: '*'
+		   {
+			if (($$ = ra_malloc(rtr, sizeof(struct _maexpr))) == NULL) {
+				logerr("out of memory\n");
+				YYABORT;
+			}
+		   	$$->r = NULL;
+			if (router_validate_expression(rtr, &($$->r), "*") != NULL)
+				YYABORT;
+			$$->drop = 0;
+			$$->next = NULL;
+		   }
+		   | match_expr[l] match_opt_expr[r] { $l->next = $r; $$ = $l; }
+		   ;
+
+match_opt_expr:            { $$ = NULL; }
+			  | match_expr { $$ = $1; }
+			  ;
+
+match_expr: crSTRING[expr]
+		  {
+			char *err;
+			if (($$ = ra_malloc(rtr, sizeof(struct _maexpr))) == NULL) {
+				logerr("out of memory\n");
+				YYABORT;
+			}
+		   	$$->r = NULL;
+		  	err = router_validate_expression(rtr, &($$->r), $expr);
+			if (err != NULL) {
+				router_yyerror(&yylloc, yyscanner, rtr, err);
+				YYERROR;
+			}
+			$$->drop = 0;
+			$$->next = NULL;
+		  }
+		  ;
+
+match_opt_validate: { $$ = NULL; }
+				  | crVALIDATE crSTRING[expr] crELSE match_log_or_drop[drop]
+				  {
+					char *err;
+					if (($$ = ra_malloc(rtr, sizeof(struct _maexpr))) == NULL) {
+						logerr("out of memory\n");
+						YYABORT;
+					}
+					$$->r = NULL;
+					err = router_validate_expression(rtr, &($$->r), $expr);
+					if (err != NULL) {
+						router_yyerror(&yylloc, yyscanner, rtr, err);
+						YYERROR;
+					}
+					$$->drop = $drop;
+					$$->next = NULL;
+				  }
+				  ;
+
+match_log_or_drop: crLOG  { $$ = 0; }
+				 | crDROP { $$ = 1; }
+				 ;
+
+match_send_to: crSEND crTO match_dsts[dsts] { $$ = $dsts; }
+			 ;
+
+match_dsts: crBLACKHOLE
+		  {
+			if (($$ = ra_malloc(rtr, sizeof(destinations))) == NULL) {
+				logerr("out of memory\n");
+				YYABORT;
+			}
+			if (router_validate_cluster(rtr, &($$->cl), "blackhole") != NULL)
+				YYABORT;
+			$$->next = NULL;
+		  }
+		  | match_dst[l] match_opt_dst[r] { $l->next = $r; $$ = $l; }
+		  ;
+
+match_opt_dst:           { $$ = NULL; }
+			 | match_dst { $$ = $1; }
+			 ;
+
+match_dst: crSTRING[cluster]
+		 {
+			char *err;
+			if (($$ = ra_malloc(rtr, sizeof(destinations))) == NULL) {
+				logerr("out of memory\n");
+				YYABORT;
+			}
+			err = router_validate_cluster(rtr, &($$->cl), $1);
+			if (err != NULL) {
+				router_yyerror(&yylloc, yyscanner, rtr, err);
+				YYERROR;
+			}
+			$$->next = NULL;
+		 }
+		 ;
+
+match_opt_stop:        { $$ = 0; }
+			  | crSTOP { $$ = 1; }
+			  ;
+/*** }}} END match ***/
+
+/* vim: set ts=4 sw=4 foldmethod=marker: */

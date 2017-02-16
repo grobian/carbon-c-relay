@@ -44,14 +44,16 @@ cluster				{ BEGIN(cl); return crCLUSTER; }
 <cl>ip					return crIP;
 <cl>=					return '=';
 
-match				return crMATCH;
-validate			return crVALIDATE;
-else				return crELSE;
-log					return crLOG;
-drop				return crDROP;
-send				return crSEND;
-to					return crTO;
-stop				return crSTOP;
+match				{ BEGIN(ma); return crMATCH; }
+<ma>\*					return '*';
+<ma>validate			return crVALIDATE;
+<ma>else				return crELSE;
+<ma>log					return crLOG;
+<ma>drop				return crDROP;
+<ma>send				return crSEND;
+<ma>to					return crTO;
+<ma>blackhole			return crBLACKHOLE;
+<ma>stop				return crSTOP;
 
 rewrite				return crREWRITE;
 into				return crINTO;
@@ -90,7 +92,7 @@ statistics			return crSTATISTICS;
 include				return crINCLUDE;
 
 	/* handle quoted strings */
-<INITIAL,cl>\"		{
+<INITIAL,cl,ma>\"		{
 						strbuf = string_buf;
 						strretstate = YY_START;
 						BEGIN(qu);
@@ -141,8 +143,8 @@ include				return crINCLUDE;
 					}
 
 <*>[ \t\r]+			; /* whitespace */
-<*>\n				yycolumn = 0;
-<*>[0-9]+				{
+<*>\n+				yycolumn = 0;
+<*>[0-9]+			{
 						yylval_param->crINTVAL = atoi(yytext);
 						return crINTVAL;
 					}

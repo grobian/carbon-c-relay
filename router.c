@@ -488,6 +488,67 @@ router_validate_path(router *rtr, char *path)
 }
 
 /**
+ * Checks pat against regular expression syntax (or being '*') and
+ * returns a route struct with the parsed info.  If retr is NULL a route
+ * struct is allocated.
+ */
+char *
+router_validate_expression(router *rtr, route **retr, char *pat)
+{
+	route *r = *retr;
+	if (r == NULL) {
+		r = *retr = ra_malloc(rtr, sizeof(route));
+		if (r == NULL)
+			return ra_strdup(rtr, "out of memory allocating route");
+		r->next = NULL;
+		r->dests = NULL;
+	}
+	if (strcmp(pat, "*") == 0) {
+		r->pattern = NULL;
+		r->strmatch = NULL;
+		r->matchtype = MATCHALL;
+	} else {
+		int err = determine_if_regex(r, pat,
+				REG_EXTENDED | REG_NOSUB);
+		if (err != 0) {
+			char ebuf[512];
+			size_t s = snprintf(ebuf, sizeof(ebuf),
+					"invalid expression '%s': ", pat);
+			regerror(err, &r->rule, ebuf + s, sizeof(ebuf) - s);
+			return ra_strdup(rtr, ebuf);
+		}
+	}
+
+	return NULL;
+}
+
+/**
+ * Check if cluster is defined, and set the pointer to it.
+ */
+char *
+router_validate_cluster(router *rtr, cluster **clptr, char *cl)
+{
+	cluster *w;
+
+	/* lookup cluster */
+	for (w = rtr->clusters; w != NULL; w = w->next) {
+		if (w->type != GROUP &&
+				w->type != AGGRSTUB &&
+				w->type != STATSTUB &&
+				w->type != AGGREGATION &&
+				w->type != REWRITE &&
+				w->type != VALIDATION &&
+				strcmp(w->name, cl) == 0)
+			break;
+	}
+	if (w == NULL)
+		return ra_strdup(rtr, "unknown cluster");
+
+	*clptr = w;
+	return NULL;
+}
+
+/**
  * Adds a server to the chain in router, expands if necessary.
  */
 char *
