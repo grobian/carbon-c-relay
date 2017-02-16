@@ -620,65 +620,69 @@ router_add_server(
 				return ra_strdup(ret, errbuf);
 			}
 		} else if (cl->type == FORWARD ||
-				cl->type == ANYOF ||
-				cl->type == FAILOVER ||
 				cl->type == FILELOG ||
 				cl->type == FILELOGIP)
 		{
-			if (w == NULL) {
-				w = ra_malloc(ret, sizeof(servers));
+			if (cl->members.forward == NULL) {
+				cl->members.forward = w =
+					ra_malloc(ret, sizeof(servers));
 			} else {
+				for (w = cl->members.forward; w->next != NULL; w = w->next)
+					;
 				w = w->next = ra_malloc(ret, sizeof(servers));
 			}
 			if (w == NULL) {
+				snprintf(errbuf, sizeof(errbuf), "malloc failed for %s %s",
+						cl->type == FORWARD ? "forward" :
+						cl->type == FILELOG ? "file" :
+						"file ip", ip);
 				freeaddrinfo(saddrs);
 				if (hint)
 					free(hint);
-				snprintf(errbuf, sizeof(errbuf),
-						"malloc failed for %s %s",
-						cl->type == FORWARD ? "forward" :
-						cl->type == ANYOF ? "any_of" :
-						cl->type == FAILOVER ? "failover" :
-						"file",
-						ip);
 				return ra_strdup(ret, errbuf);
 			}
 			w->next = NULL;
 			w->server = newserver;
-			if ((cl->type == FORWARD ||
-						cl->type == FILELOG || cl->type == FILELOGIP)
-					&& cl->members.forward == NULL)
-				cl->members.forward = w;
-			if (cl->type == ANYOF || cl->type == FAILOVER) {
-				if (s->refcnt > 1) {
-					freeaddrinfo(saddrs);
-					if (hint)
-						free(hint);
-					snprintf(errbuf, sizeof(errbuf),
-							"cannot share server %s:%d with "
-							"any_of/failover cluster '%s'",
-							serverip(newserver),
-							server_port(newserver),
-							cl->name);
-					return ra_strdup(ret, errbuf);
-				}
-				if (cl->members.anyof == NULL) {
-					cl->members.anyof =
-						ra_malloc(ret, sizeof(serverlist));
-					if (cl->members.anyof == NULL) {
-						freeaddrinfo(saddrs);
-						if (hint)
-							free(hint);
-						snprintf(errbuf, sizeof(errbuf),
-								"malloc failed for %s anyof list", ip);
-						return ra_strdup(ret, errbuf);
-					}
+		} else if (cl->type == ANYOF ||
+				cl->type == FAILOVER)
+		{
+			if (cl->members.anyof == NULL) {
+				cl->members.anyof = ra_malloc(ret, sizeof(serverlist));
+				if (cl->members.anyof != NULL) {
+					cl->members.anyof->list = w =
+						ra_malloc(ret, sizeof(servers));
 					cl->members.anyof->count = 1;
 					cl->members.anyof->servers = NULL;
-					cl->members.anyof->list = w;
-				} else {
-					cl->members.anyof->count++;
 				}
+			} else {
+				for (w = cl->members.anyof->list; w->next != NULL; w = w->next)
+					;
+				w = w->next = ra_malloc(ret, sizeof(servers));
+				cl->members.anyof->count++;
+			}
+			if (w == NULL) {
+				snprintf(errbuf, sizeof(errbuf), "malloc failed for %s %s",
+						cl->type == ANYOF ? "any_of" :
+						"failover", ip);
+				freeaddrinfo(saddrs);
+				if (hint)
+					free(hint);
+				return ra_strdup(ret, errbuf);
+			}
+			w->next = NULL;
+			w->server = newserver;
+
+			if (s->refcnt > 1) {
+				freeaddrinfo(saddrs);
+				if (hint)
+					free(hint);
+				snprintf(errbuf, sizeof(errbuf),
+						"cannot share server %s:%d with "
+						"any_of/failover cluster '%s'",
+						serverip(newserver),
+						server_port(newserver),
+						cl->name);
+				return ra_strdup(ret, errbuf);
 			}
 		}
 
