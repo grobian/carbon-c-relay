@@ -90,9 +90,9 @@ statistics			return crSTATISTICS;
 include				return crINCLUDE;
 
 	/* handle quoted strings */
-<INITIAL,cl>\"					{
+<INITIAL,cl>\"		{
 						strbuf = string_buf;
-						strretstate = yyg->yy_start;
+						strretstate = YY_START;
 						BEGIN(qu);
 					}
 <qu>{
