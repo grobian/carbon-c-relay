@@ -273,6 +273,8 @@ match: crMATCH match_exprs[exprs] match_opt_validate[val] match_send_to[dsts]
 	 	/* each expr comes with an allocated route, populate it */
 		struct _maexpr *we;
 		destinations *d = NULL;
+		char *err;
+
 		if ($val != NULL) {
 			/* optional validate clause */
 			if ((d = ra_malloc(rtr, sizeof(destinations))) == NULL) {
@@ -305,6 +307,11 @@ match: crMATCH match_exprs[exprs] match_opt_validate[val] match_send_to[dsts]
 			we->r->next = NULL;
 			we->r->dests = d;
 			we->r->stop = $dsts->cl->type == BLACKHOLE ? 1 : $stop;
+			err = router_add_route(rtr, we->r);
+			if (err != NULL) {
+				router_yyerror(&yylloc, yyscanner, rtr, err);
+				YYERROR;
+			}
 		}
 	 }
 	 ;

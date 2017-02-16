@@ -834,6 +834,29 @@ router_add_cluster(router *r, cluster *cl)
 	return NULL;
 }
 
+char *
+router_add_route(router *rtr, route *rte)
+{
+	route *rw;
+	route *last = NULL;
+	char hadmatchall = 0;
+
+	for (rw = rtr->routes; rw != NULL; last = rw, rw = rw->next)
+		if (rw->matchtype == MATCHALL && rw->stop)
+			hadmatchall = 1;
+	if (last == NULL) {
+		rtr->routes = rte;
+		return NULL;
+	}
+	if (hadmatchall) {
+		logerr("warning: match %s will never match "
+				"due to preceding match * ... stop\n",
+				rw->pattern == NULL ? "*" : rw->pattern);
+	}
+	last->next = rte;
+	return NULL;
+}
+
 /**
  * Populates the routing tables by reading the config file.
  */
