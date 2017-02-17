@@ -104,8 +104,16 @@ match				{
 <idcl>blackhole			return crBLACKHOLE;
 <idcl>stop				return crSTOP;
 
-rewrite				return crREWRITE;
-into				return crINTO;
+rewrite				{
+						identstate = re;
+						BEGIN(idma);
+						return crREWRITE;
+					}
+<re>into			{
+						identstate = re;
+						BEGIN(idma);
+						return crINTO;
+					}
 
 aggregate			return crAGGREGATE;
 every				return crEVERY;

@@ -76,8 +76,8 @@ commands:
 
 command:
 	     cluster
-	   | match /*
-	   | rewrite
+	   | match
+	   | rewrite /*
 	   | aggregate
 	   | send
 	   | include */
@@ -416,5 +416,50 @@ match_opt_stop:        { $$ = 0; }
 			  | crSTOP { $$ = 1; }
 			  ;
 /*** }}} END match ***/
+
+/*** {{{ BEGIN rewrite ***/
+rewrite: crREWRITE crSTRING[expr] crINTO crSTRING[replacement]
+	   {
+		char *err;
+		route *r;
+		cluster *cl;
+
+		err = router_validate_expression(rtr, &r, $expr);
+		if (err != NULL) {
+			router_yyerror(&yylloc, yyscanner, rtr, err);
+			YYERROR;
+		}
+		
+		cl = ra_malloc(rtr, sizeof(cluster));
+		if (cl == NULL) {
+			logerr("out of memory\n");
+			YYABORT;
+		}
+		cl->type = REWRITE;
+		cl->name = NULL;
+		cl->members.replacement = ra_strdup(rtr, $replacement);
+		cl->next = NULL;
+		if (cl->members.replacement == NULL) {
+			logerr("out of memory");
+			YYABORT;
+		}
+		r->dests = ra_malloc(rtr, sizeof(destinations));
+		if (r->dests == NULL) {
+			logerr("out of memory");
+			YYABORT;
+		}
+		r->dests->cl = cl;
+		r->dests->next = NULL;
+		r->stop = 0;
+		r->next = NULL;
+
+		err = router_add_route(rtr, r);
+		if (err != NULL) {
+			router_yyerror(&yylloc, yyscanner, rtr, err);
+			YYERROR;
+		}
+	   }
+	   ;
+/*** }}} END rewrite ***/
 
 /* vim: set ts=4 sw=4 foldmethod=marker: */
