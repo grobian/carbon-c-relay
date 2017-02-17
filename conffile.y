@@ -46,10 +46,11 @@ struct _maexpr {
 
 %token crMATCH
 %token crVALIDATE crELSE crLOG crDROP crSEND crTO crBLACKHOLE crSTOP
-%type <destinations *> match_dst match_opt_dst match_dsts match_send_to
+%type <destinations *> match_dst match_opt_dst match_dsts
+	match_dsts2 match_send_to
 %type <int> match_opt_stop match_log_or_drop
 %type <struct _maexpr *> match_opt_validate match_expr match_opt_expr
-	match_exprs
+	match_exprs match_exprs2
 
 %token crREWRITE
 %token crINTO
@@ -70,12 +71,17 @@ struct _maexpr {
 
 %%
 
-commands:
-		| commands command ';'
+stmts: stmt opt_stmt
+	 ;
+
+opt_stmt:
+		| stmts
 		;
 
-command:
-	     cluster
+stmt: command ';'
+	;
+
+command: cluster
 	   | match
 	   | rewrite /*
 	   | aggregate
@@ -328,11 +334,13 @@ match_exprs: '*'
 			$$->drop = 0;
 			$$->next = NULL;
 		   }
-		   | match_expr[l] match_opt_expr[r] { $l->next = $r; $$ = $l; }
+		   | match_exprs2 { $$ = $1; }
 		   ;
 
-match_opt_expr:            { $$ = NULL; }
-			  | match_expr { $$ = $1; }
+match_exprs2: match_expr[l] match_opt_expr[r] { $l->next = $r; $$ = $l; }
+
+match_opt_expr:              { $$ = NULL; }
+			  | match_exprs2 { $$ = $1; }
 			  ;
 
 match_expr: crSTRING[expr]
@@ -389,11 +397,13 @@ match_dsts: crBLACKHOLE
 				YYABORT;
 			$$->next = NULL;
 		  }
-		  | match_dst[l] match_opt_dst[r] { $l->next = $r; $$ = $l; }
+		  | match_dsts2 { $$ = $1; }
 		  ;
 
-match_opt_dst:           { $$ = NULL; }
-			 | match_dst { $$ = $1; }
+match_dsts2: match_dst[l] match_opt_dst[r] { $l->next = $r; $$ = $l; }
+
+match_opt_dst:             { $$ = NULL; }
+			 | match_dsts2 { $$ = $1; }
 			 ;
 
 match_dst: crSTRING[cluster]
@@ -421,7 +431,7 @@ match_opt_stop:        { $$ = 0; }
 rewrite: crREWRITE crSTRING[expr] crINTO crSTRING[replacement]
 	   {
 		char *err;
-		route *r;
+		route *r = NULL;
 		cluster *cl;
 
 		err = router_validate_expression(rtr, &r, $expr);
