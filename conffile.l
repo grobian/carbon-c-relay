@@ -168,6 +168,10 @@ include				return crINCLUDE;
 						router_yyerror(llocp, NULL, rtr, "unterminated string");
 						yyterminate();
 					}
+	<<EOF>>			{
+						router_yyerror(llocp, NULL, rtr, "unterminated string");
+						yyterminate();
+					}
 	\\.  			{
 						*strbuf++ = yytext[1];
 						if (strbuf == string_buf + sizeof(string_buf)) {
@@ -211,9 +215,10 @@ include				return crINCLUDE;
 					}
 <*>;				{ BEGIN(INITIAL); return ';'; }
 <*>.				{
-						router_yyerror(llocp, NULL, rtr,
-								"unexpected character");
-						yyterminate();
+						/* feed this back to the parser, it will give a
+						 * nice error message */
+						yylval_param->crSTRING = ra_strdup(rtr, yytext);
+						return crSTRING;
 					}
 
 %%
