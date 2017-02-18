@@ -69,4 +69,4 @@ dist:
 		> carbon-c-relay-$(VERSION).tar.gz
 
 clean:
-	rm -f *.o *.tab.* *.yy.c relay
+	rm -f *.o relay
