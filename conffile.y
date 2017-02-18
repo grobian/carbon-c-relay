@@ -54,7 +54,7 @@ struct _agcomp {
 %token crMATCH
 %token crVALIDATE crELSE crLOG crDROP crSEND crTO crBLACKHOLE crSTOP
 %type <destinations *> match_dst match_opt_dst match_dsts
-	match_dsts2 match_send_to
+	match_dsts2 match_send_to aggregate_opt_send_to
 %type <int> match_opt_stop match_log_or_drop
 %type <struct _maexpr *> match_opt_validate match_expr match_opt_expr
 	match_exprs match_exprs2
@@ -489,7 +489,7 @@ aggregate: crAGGREGATE match_exprs[exprs] crEVERY crINTVAL[intv] crSECONDS
 		 crEXPIRE crAFTER crINTVAL[expire] crSECONDS
 		 aggregate_opt_timestamp[tswhen]
 		 aggregate_computes[computes]
-		 match_send_to[dsts]
+		 aggregate_opt_send_to[dsts]
 		 match_opt_stop[stop]
 		 {
 		 	cluster *w;
@@ -627,6 +627,10 @@ aggregate_comp_type: crSUM        { $$.ctype = SUM; }
 				   | crVARIANCE   { $$.ctype = VAR; }
 				   | crSTDDEV     { $$.ctype = SDEV; }
 				   ;
+
+aggregate_opt_send_to:               { $$ = NULL; }
+					 | match_send_to { $$ = $1; }
+					 ;
 /*** }}} END aggregate ***/
 
 /*** {{{ BEGIN send ***/

@@ -162,6 +162,8 @@ union ROUTER_YYSTYPE
   destinations * match_opt_dst;
   /* match_dst  */
   destinations * match_dst;
+  /* aggregate_opt_send_to  */
+  destinations * aggregate_opt_send_to;
   /* aggregate_opt_timestamp  */
   enum _aggr_timestamp aggregate_opt_timestamp;
   /* aggregate_ts_when  */
@@ -218,7 +220,7 @@ union ROUTER_YYSTYPE
   struct _maexpr * match_expr;
   /* match_opt_validate  */
   struct _maexpr * match_opt_validate;
-#line 222 "conffile.tab.h" /* yacc.c:1909  */
+#line 224 "conffile.tab.h" /* yacc.c:1909  */
 };
 
 typedef union ROUTER_YYSTYPE ROUTER_YYSTYPE;
