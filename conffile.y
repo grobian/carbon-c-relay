@@ -97,8 +97,8 @@ command: cluster
 	   | match
 	   | rewrite
 	   | aggregate
-	   | send /*
-	   | include */
+	   | send
+	   | include
 	   ;
 
 /*** {{{ BEGIN cluster ***/
@@ -640,5 +640,13 @@ send: crSEND crSTATISTICS crTO match_dsts[dsts] match_opt_stop[stop]
 	}
 	;
 /*** }}} END send ***/
+
+/*** {{{ BEGIN include ***/
+include: crINCLUDE crSTRING[path]
+	   {
+	   	router_readconfig(rtr, $path, 0, 0, 0, 0, 0);
+	   }
+	   ;
+/*** }}} END include ***/
 
 /* vim: set ts=4 sw=4 foldmethod=marker: */

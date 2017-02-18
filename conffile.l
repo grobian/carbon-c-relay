@@ -22,8 +22,8 @@ int identstate = 0;
 %option noinput
 %option nounput
 
-%x cl ma re ag st in qu
-%x idcl idma idag
+%x cl ma re ag st qu
+%x idcl idma idag idin
 
 %%
 
@@ -175,10 +175,14 @@ send				{
 						return crSTATISTICS;
 					}
 
-include				return crINCLUDE;
+include				{
+						identstate = INITIAL;
+						BEGIN(idin);
+						return crINCLUDE;
+					}
 
 	/* handle quoted strings */
-<idcl,idma,idag>\"		{
+<idcl,idma,idag,idin>\"		{
 						strbuf = string_buf;
 						BEGIN(qu);
 					}
@@ -237,7 +241,7 @@ include				return crINCLUDE;
 						yylval_param->crINTVAL = atoi(yytext);
 						return crINTVAL;
 					}
-<idcl,idma,idag>[a-zA-Z0-9[\]()|\\^*$:/._+-]+	{
+<idcl,idma,idag,idin>[a-zA-Z0-9[\]()|\\^*$:/._+-]+	{
 						yylval_param->crSTRING = ra_strdup(rtr, yytext);
 						BEGIN(identstate);
 						return crSTRING;
