@@ -948,8 +948,6 @@ router_add_stubroute(
 char *
 router_set_statistics(router *rtr, destinations *dsts)
 {
-	route *m;
-
 	if (rtr->collector_stub != NULL)
 		return ra_strdup(rtr,
 				"duplicate 'send statistics to' not allowed, "
@@ -973,7 +971,6 @@ router_readconfig(router *orig,
 	FILE *cnf;
 	char *buf;
 	size_t len = 0;
-	char *p;
 	struct stat st;
 	router *ret = NULL;
 	void *lptr = NULL;
