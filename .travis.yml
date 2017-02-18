@@ -13,6 +13,11 @@ matrix:
     - os: osx
       compiler: gcc
 
+script:
+  # workaround git not retaining mtimes and bison/flex not being uptodate
+  - touch conffile.yy.c conffile.tab.c conffile.tab.h
+  - make
+
 env:
   global:
     # The next declaration is the encrypted COVERITY_SCAN_TOKEN, created
