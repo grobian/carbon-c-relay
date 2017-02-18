@@ -1096,6 +1096,7 @@ router_readconfig(router *orig,
 	if (router_yylex_init(&lptr) != 0) {
 		logerr("lex init failed\n");
 		router_free(ret);
+		return NULL;
 	}
 	/* copies buf due to modifications, we need orig for error reporting */
 	router_yy_scan_string(buf, lptr);
