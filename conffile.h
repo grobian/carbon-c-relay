@@ -115,6 +115,6 @@ char *router_add_cluster(router *r, cluster *cl);
 char *router_add_route(router *r, route *rte);
 char *router_add_aggregator(router *rtr, aggregator *a);
 char *router_add_stubroute(router *rtr, enum clusttype type, cluster *w, destinations *dw);
-
+char *router_set_statistics(router *rtr, destinations *dsts);
 
 #endif

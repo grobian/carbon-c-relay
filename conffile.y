@@ -96,8 +96,8 @@ stmt: command ';'
 command: cluster
 	   | match
 	   | rewrite
-	   | aggregate /*
-	   | send
+	   | aggregate
+	   | send /*
 	   | include */
 	   ;
 
@@ -628,5 +628,17 @@ aggregate_comp_type: crSUM        { $$.ctype = SUM; }
 				   | crSTDDEV     { $$.ctype = SDEV; }
 				   ;
 /*** }}} END aggregate ***/
+
+/*** {{{ BEGIN send ***/
+send: crSEND crSTATISTICS crTO match_dsts[dsts] match_opt_stop[stop]
+	{
+		char *err = router_set_statistics(rtr, $dsts);
+		if (err != NULL) {
+			router_yyerror(&yylloc, yyscanner, rtr, err);
+			YYERROR;
+		}
+	}
+	;
+/*** }}} END send ***/
 
 /* vim: set ts=4 sw=4 foldmethod=marker: */

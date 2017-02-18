@@ -916,6 +916,9 @@ router_add_stubroute(
 	if (type == AGGRSTUB) {
 		snprintf(stubname, sizeof(stubname),
 				STUB_AGGR "%p__", w->members.aggregation);
+	} else if (type == STATSTUB) {
+		snprintf(stubname, sizeof(stubname),
+				STUB_STATS "%p__", rtr);
 	} else {
 		return ra_strdup(rtr, "unknown stub type");
 	}
@@ -933,10 +936,26 @@ router_add_stubroute(
 	m->next = rtr->routes;
 	rtr->routes = m;
 
-	if (type == AGGRSTUB)
+	if (type == AGGRSTUB) {
 		aggregator_set_stub(w->members.aggregation, stubname);
+	} else if (type == STATSTUB) {
+		rtr->collector_stub = m->pattern;
+	}
 
 	return NULL;
+}
+
+char *
+router_set_statistics(router *rtr, destinations *dsts)
+{
+	route *m;
+
+	if (rtr->collector_stub != NULL)
+		return ra_strdup(rtr,
+				"duplicate 'send statistics to' not allowed, "
+				"use multiple destinations instead");
+
+	return router_add_stubroute(rtr, STATSTUB, NULL, dsts);
 }
 
 /**

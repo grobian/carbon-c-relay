@@ -165,7 +165,15 @@ aggregate			{
 						return crSEND;
 					}
 
-statistics			return crSTATISTICS;
+send				{
+						BEGIN(st);
+						return crSEND;
+					}
+<st>statistics		{
+						/* reuse the match logic for send to ... stop */
+						BEGIN(ma);
+						return crSTATISTICS;
+					}
 
 include				return crINCLUDE;
 
