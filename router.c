@@ -343,9 +343,10 @@ serverip(server *s)
  * Callback for the bison parser when it fails.
  */
 void
-router_yyerror(ROUTER_YYLTYPE *locp, void *s, router *r, const char *msg)
+router_yyerror(void *locptr, void *s, router *r, const char *msg)
 {
 	(void)s;
+	ROUTER_YYLTYPE *locp = (ROUTER_YYLTYPE *)locptr;
 
 	if (r->parser_err.msg != NULL)
 		return;

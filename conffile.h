@@ -100,12 +100,10 @@ typedef struct _route {
 	struct _route *next;
 } route;
 
-typedef struct ROUTER_YYLTYPE ROUTER_YYLTYPE;
-
 void *ra_malloc(router *r, size_t sz);
 char *ra_strdup(router *r, const char *s);
 
-void router_yyerror(ROUTER_YYLTYPE *locp, void *, router *r, const char *msg);
+void router_yyerror(void *locp, void *, router *r, const char *msg);
 char *router_validate_address(router *rtr, char **retip, int *retport, void **retsaddr, void **rethint, char *ip, serv_ctype proto);
 char *router_validate_path(router *rtr, char *path);
 char *router_validate_expression(router *rtr, route **retr, char *pat);
