@@ -462,12 +462,12 @@ rewrite: crREWRITE crSTRING[expr] crINTO crSTRING[replacement]
 		cl->members.replacement = ra_strdup(rtr, $replacement);
 		cl->next = NULL;
 		if (cl->members.replacement == NULL) {
-			logerr("out of memory");
+			logerr("out of memory\n");
 			YYABORT;
 		}
 		r->dests = ra_malloc(rtr, sizeof(destinations));
 		if (r->dests == NULL) {
-			logerr("out of memory");
+			logerr("out of memory\n");
 			YYABORT;
 		}
 		r->dests->cl = cl;
@@ -517,7 +517,7 @@ aggregate: crAGGREGATE match_exprs[exprs] crEVERY crINTVAL[intv] crSECONDS
 
 			w = ra_malloc(rtr, sizeof(cluster));
 			if (w == NULL) {
-				logerr("malloc failed for aggregate");
+				logerr("malloc failed for aggregate\n");
 				YYABORT;
 			}
 			w->name = NULL;
@@ -598,7 +598,7 @@ aggregate_compute: crCOMPUTE aggregate_comp_type[type] crWRITE crTO
 				 {
 					$$ = ra_malloc(rtr, sizeof(struct _agcomp));
 					if ($$ == NULL) {
-						logerr("malloc failed");
+						logerr("malloc failed\n");
 						YYABORT;
 					}
 				 	$$->ctype = $type.ctype;
