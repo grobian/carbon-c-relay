@@ -840,19 +840,25 @@ router_add_route(router *rtr, route *rte)
 {
 	route *rw;
 	route *last = NULL;
-	char hadmatchall = 0;
+	route *matchallstop = NULL;
 
 	for (rw = rtr->routes; rw != NULL; last = rw, rw = rw->next)
 		if (rw->matchtype == MATCHALL && rw->stop)
-			hadmatchall = 1;
+			matchallstop = rw;
 	if (last == NULL) {
 		rtr->routes = rte;
 		return NULL;
 	}
-	if (hadmatchall) {
-		logerr("warning: match %s will never match "
-				"due to preceding match * ... stop\n",
-				rw->pattern == NULL ? "*" : rw->pattern);
+
+#define matchtype(r) \
+	r->dests->cl->type == AGGREGATION ? "aggregate" : \
+	r->dests->cl->type == REWRITE ? "rewrite" : \
+	"match"
+	if (matchallstop != NULL) {
+		logerr("warning: %s %s will never match "
+				"due to preceding %s * ... stop\n",
+				matchtype(rte), rte->pattern == NULL ? "*" : rte->pattern,
+				matchtype(matchallstop));
 	}
 	last->next = rte;
 	return NULL;
