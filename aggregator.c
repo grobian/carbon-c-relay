@@ -89,43 +89,17 @@ char
 aggregator_add_compute(
 		aggregator *s,
 		const char *metric,
-		const char *type)
+		enum _aggr_compute_type act,
+		unsigned char pctl)
 {
 	struct _aggr_computes *ac = s->computes;
-	enum _aggr_compute_type act;
 	char store = 0;
-	int pctl = 0;
 
-	if (strcmp(type, "sum") == 0) {
-		act = SUM;
-	} else if (strcmp(type, "count") == 0 || strcmp(type, "cnt") == 0) {
-		act = CNT;
-	} else if (strcmp(type, "max") == 0) {
-		act = MAX;
-	} else if (strcmp(type, "min") == 0) {
-		act = MIN;
-	} else if (strcmp(type, "average") == 0 || strcmp(type, "avg") == 0) {
-		act = AVG;
-	} else if (strcmp(type, "median") == 0) {
-		act = MEDN;
+	if (act == MEDN) {
 		pctl = 50;
 		store = 1;
-	} else if (strncmp(type, "percentile", strlen("percentile")) == 0) {
-		pctl = atoi(type + strlen("percentile"));
-		if (pctl > 100 || pctl <= 0) {
-			return -1;
-		} else {
-			act = PCTL;
-			store = 1;
-		}
-	} else if (strcmp(type, "variance") == 0) {
-		act = VAR;
+	} else if (act == PCTL || act == VAR || act == SDEV) {
 		store = 1;
-	} else if (strcmp(type, "stddev") == 0) {
-		act = SDEV;
-		store = 1;
-	} else {
-		return -1;
 	}
 
 	if (ac == NULL) {
@@ -135,10 +109,14 @@ aggregator_add_compute(
 			ac = ac->next;
 		ac = ac->next = malloc(sizeof(*ac));
 	}
+	if (ac == NULL)
+		return -1;
 
 	ac->type = act;
-	ac->percentile = (unsigned char)pctl;
+	ac->percentile = pctl;
 	ac->metric = strdup(metric);
+	if (ac->metric == NULL)
+		return -1;
 	memset(ac->invocations_ht, 0, sizeof(ac->invocations_ht));
 	ac->entries_needed = store;
 	pthread_rwlock_init(&ac->invlock, NULL);

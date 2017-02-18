@@ -791,7 +791,8 @@ router_add_cluster(router *r, cluster *cl)
 	servers *w;
 
 	for (cw = r->clusters; cw != NULL; last = cw, cw = cw->next)
-		if (strcmp(cw->name, cl->name) == 0)
+		if (cw->name != NULL && cl->name != NULL &&
+				strcmp(cw->name, cl->name) == 0)
 			return ra_strdup(r, "cluster with the same name already defined");
 	if (last == NULL)
 		last = r->clusters;
@@ -854,6 +855,87 @@ router_add_route(router *rtr, route *rte)
 				rw->pattern == NULL ? "*" : rw->pattern);
 	}
 	last->next = rte;
+	return NULL;
+}
+
+char *
+router_add_aggregator(router *rtr, aggregator *a)
+{
+	aggregator *aw;
+	aggregator *last = NULL;
+
+	for (aw = rtr->aggregators; aw != NULL; last = aw, aw = aw->next)
+		;
+	if (last == NULL) {
+		rtr->aggregators = a;
+		return NULL;
+	}
+	last->next = a;
+	return NULL;
+}
+
+char *
+router_add_stubroute(
+		router *rtr,
+		enum clusttype type,
+		cluster *w,
+		destinations *dw)
+{
+	char stubname[48];
+	route *m;
+	destinations *d;
+	cluster *cl;
+	char *err;
+
+	m = ra_malloc(rtr, sizeof(route));
+	if (m == NULL)
+		return ra_strdup(rtr, "malloc failed for stub route");
+	m->pattern = NULL;
+	m->strmatch = NULL;
+	m->dests = dw;
+	m->stop = 1;
+	m->matchtype = MATCHALL;
+	m->next = NULL;
+
+	/* inject stub route for dests */
+	d = ra_malloc(rtr, sizeof(destinations));
+	if (d == NULL)
+		return ra_strdup(rtr, "malloc failed for stub destinations");
+	d->next = NULL;
+	cl = d->cl = ra_malloc(rtr, sizeof(cluster));
+	if (cl == NULL)
+		return ra_strdup(rtr, "malloc failed for stub cluster");
+	cl->name = NULL;
+	cl->type = type;
+	cl->members.routes = m;
+	cl->next = NULL;
+	err = router_add_cluster(rtr, cl);
+	if (err != NULL)
+		return err;
+
+	if (type == AGGRSTUB) {
+		snprintf(stubname, sizeof(stubname),
+				STUB_AGGR "%p__", w->members.aggregation);
+	} else {
+		return ra_strdup(rtr, "unknown stub type");
+	}
+	m = ra_malloc(rtr, sizeof(route));
+	if (m == NULL)
+		return ra_strdup(rtr, "malloc failed for catch stub route");
+	m->pattern = ra_strdup(rtr, stubname);
+	m->strmatch = ra_strdup(rtr, stubname);
+	if (m->pattern == NULL || m->strmatch == NULL)
+		ra_strdup(rtr, "malloc failed for catch stub pattern");
+	m->dests = d;
+	m->stop = 1;
+	m->matchtype = STARTS_WITH;
+	/* enforce first match to avoid interference */
+	m->next = rtr->routes;
+	rtr->routes = m;
+
+	if (type == AGGRSTUB)
+		aggregator_set_stub(w->members.aggregation, stubname);
+
 	return NULL;
 }
 
@@ -991,10 +1073,8 @@ router_readconfig(router *orig,
 	}
 	router_yylex_destroy(lptr);
 
-	router_printconfig(ret, stdout, PMODE_AGGR);
-	logerr("terminating after parsing\n");
-	exit(1);
-
+	/* TODO: more cleanup? */
+	return ret;
 
 	/* remove all comments to ease parsing below */
 	p = buf;
@@ -2072,6 +2152,7 @@ router_readconfig(router *orig,
 				}
 			 	*p++ = '\0';
 
+				/*
 				if (aggregator_add_compute(w->members.aggregation, pat, type) != 0) {
 					logerr("expected sum, count, max, min, average, "
 							"median, percentile<%>, variance or stddev "
@@ -2079,6 +2160,7 @@ router_readconfig(router *orig,
 					router_free(ret);
 					return NULL;
 				}
+				*/
 
 				for (; *p != '\0' && isspace(*p); p++)
 					;

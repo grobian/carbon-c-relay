@@ -23,7 +23,7 @@ int identstate = 0;
 %option nounput
 
 %x cl ma re ag st in qu
-%x idcl idma
+%x idcl idma idag
 
 %%
 
@@ -115,41 +115,62 @@ rewrite				{
 						return crINTO;
 					}
 
-aggregate			return crAGGREGATE;
-every				return crEVERY;
-seconds				return crSECONDS;
-expire				return crEXPIRE;
-after				return crAFTER;
-timestamp			return crTIMESTAMP;
-at					return crAT;
-start				return crSTART;
-middle				return crMIDDLE;
-end					return crEND;
-of					return crOF;
-bucket				return crBUCKET;
-compute				return crCOMPUTE;
-summary				return crSUM;
-sum					return crSUM;
-count				return crCOUNT;
-cnt					return crCOUNT;
-maximum				return crMAX;
-max					return crMAX;
-minimum				return crMIN;
-min					return crMIN;
-average				return crAVERAGE;
-avg					return crAVERAGE;
-median				return crMEDIAN;
-percentile[0-9][0-9]?	return crPERCENTILE;
-variance			return crVARIANCE;
-stddev				return crSTDDEV;
-write				return crWRITE;
+aggregate			{
+						identstate = idag;
+						BEGIN(idag);
+						return crAGGREGATE;
+					}
+<idag>every			{
+						BEGIN(ag);
+						return crEVERY;
+					}
+<ag>seconds				return crSECONDS;
+<ag>expire				return crEXPIRE;
+<ag>after				return crAFTER;
+<ag>timestamp			return crTIMESTAMP;
+<ag>at					return crAT;
+<ag>start				return crSTART;
+<ag>middle				return crMIDDLE;
+<ag>end					return crEND;
+<ag>of					return crOF;
+<ag>bucket				return crBUCKET;
+<ag>compute				return crCOMPUTE;
+<ag>summary				return crSUM;
+<ag>sum					return crSUM;
+<ag>count				return crCOUNT;
+<ag>cnt					return crCOUNT;
+<ag>maximum				return crMAX;
+<ag>max					return crMAX;
+<ag>minimum				return crMIN;
+<ag>min					return crMIN;
+<ag>average				return crAVERAGE;
+<ag>avg					return crAVERAGE;
+<ag>median				return crMEDIAN;
+<ag>percentile[0-9]* {
+						yylval_param->crINTVAL =
+							atoi(yytext + strlen("percentile"));
+						return crPERCENTILE;
+					}
+<ag>variance			return crVARIANCE;
+<ag>stddev				return crSTDDEV;
+<ag>write				return crWRITE;
+<ag>to				{
+						identstate = ag;
+						BEGIN(idag);
+						return crTO;
+					}
+<ag>send			{
+						/* reuse the match logic for send to ... stop */
+						BEGIN(ma);
+						return crSEND;
+					}
 
 statistics			return crSTATISTICS;
 
 include				return crINCLUDE;
 
 	/* handle quoted strings */
-<idcl,idma>\"		{
+<idcl,idma,idag>\"		{
 						strbuf = string_buf;
 						BEGIN(qu);
 					}
@@ -204,11 +225,11 @@ include				return crINCLUDE;
 
 <*>[ \t\r]+			; /* whitespace */
 <*>\n+				yycolumn = 0;
-<idcl>[0-9]+		{
+<idcl,ag>[0-9]+		{
 						yylval_param->crINTVAL = atoi(yytext);
 						return crINTVAL;
 					}
-<idcl,idma>[a-zA-Z0-9[\]:/._+-]+	{
+<idcl,idma,idag>[a-zA-Z0-9[\]()|\\^*$:/._+-]+	{
 						yylval_param->crSTRING = ra_strdup(rtr, yytext);
 						BEGIN(identstate);
 						return crSTRING;

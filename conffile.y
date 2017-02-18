@@ -1,6 +1,7 @@
 %{
 #include "conffile.h"
 #include "conffile.tab.h"
+#include "aggregator.h"
 
 int router_yylex(ROUTER_YYSTYPE *, ROUTER_YYLTYPE *, void *, router *);
 %}
@@ -22,6 +23,12 @@ struct _maexpr {
 	route *r;
 	char drop;
 	struct _maexpr *next;
+};
+struct _agcomp {
+	enum _aggr_compute_type ctype;
+	unsigned char pctl;
+	char *metric;
+	struct _agcomp *next;
 };
 }
 
@@ -59,8 +66,13 @@ struct _maexpr {
 %token crEVERY crSECONDS crEXPIRE crAFTER crTIMESTAMP crAT
 %token crSTART crMIDDLE crEND crOF crBUCKET
 %token crCOMPUTE crSUM crCOUNT crMAX crMIN crAVERAGE crMEDIAN
-%token crPERCENTILE crVARIANCE crSTDDEV
+%token crVARIANCE crSTDDEV
+%token <int> crPERCENTILE
 %token crWRITE
+%type <enum _aggr_timestamp> aggregate_ts_when aggregate_opt_timestamp
+%type <struct _agcomp> aggregate_comp_type
+%type <struct _agcomp *> aggregate_compute aggregate_computes
+	aggregate_opt_compute
 
 %token crSTATISTICS
 
@@ -83,8 +95,8 @@ stmt: command ';'
 
 command: cluster
 	   | match
-	   | rewrite /*
-	   | aggregate
+	   | rewrite
+	   | aggregate /*
 	   | send
 	   | include */
 	   ;
@@ -471,5 +483,150 @@ rewrite: crREWRITE crSTRING[expr] crINTO crSTRING[replacement]
 	   }
 	   ;
 /*** }}} END rewrite ***/
+
+/*** {{{ BEGIN aggregate ***/
+aggregate: crAGGREGATE match_exprs[exprs] crEVERY crINTVAL[intv] crSECONDS
+		 crEXPIRE crAFTER crINTVAL[expire] crSECONDS
+		 aggregate_opt_timestamp[tswhen]
+		 aggregate_computes[computes]
+		 match_send_to[dsts]
+		 match_opt_stop[stop]
+		 {
+		 	cluster *w;
+			aggregator *a;
+			destinations *d;
+			struct _agcomp *acw;
+			struct _maexpr *we;
+			char *err;
+
+			if ($intv <= 0) {
+				router_yyerror(&yylloc, yyscanner, rtr,
+					"interval must be > 0");
+				YYERROR;
+			}
+			if ($expire <= 0) {
+				router_yyerror(&yylloc, yyscanner, rtr,
+					"expire must be > 0");
+				YYERROR;
+			}
+			if ($expire < $intv) {
+				router_yyerror(&yylloc, yyscanner, rtr,
+					"expire must be greater than interval");
+				YYERROR;
+			}
+
+			w = ra_malloc(rtr, sizeof(cluster));
+			if (w == NULL) {
+				logerr("malloc failed for aggregate");
+				YYABORT;
+			}
+			w->name = NULL;
+			w->type = AGGREGATION;
+			w->next = NULL;
+
+			a = aggregator_new($intv, $expire, $tswhen);
+			if (a == NULL) {
+				logerr("out of memory\n");
+				YYABORT;
+			}
+			if ((err = router_add_aggregator(rtr, a)) != NULL) {
+				router_yyerror(&yylloc, yyscanner, rtr, err);
+				YYERROR;
+			}
+
+			w->members.aggregation = a;
+			
+			for (acw = $computes; acw != NULL; acw = acw->next) {
+				if (aggregator_add_compute(a,
+							acw->metric, acw->ctype, acw->pctl) != 0)
+				{
+					logerr("out of memory\n");
+					YYABORT;
+				}
+			}
+
+			err = router_add_cluster(rtr, w);
+			if (err != NULL) {
+				router_yyerror(&yylloc, yyscanner, rtr, err);
+				YYERROR;
+			}
+
+			d = ra_malloc(rtr, sizeof(destinations));
+			if (d == NULL) {
+				logerr("out of memory\n");
+				YYABORT;
+			}
+			d->cl = w;
+			d->next = $dsts;
+
+			for (we = $exprs; we != NULL; we = we->next) {
+				we->r->next = NULL;
+				we->r->dests = d;
+				we->r->stop = $stop;
+				err = router_add_route(rtr, we->r);
+				if (err != NULL) {
+					router_yyerror(&yylloc, yyscanner, rtr, err);
+					YYERROR;
+				}
+			}
+
+			if ($dsts != NULL)
+				router_add_stubroute(rtr, AGGRSTUB, w, $dsts);
+		 }
+		 ;
+
+aggregate_opt_timestamp: { $$ = TS_END; }
+					   | crTIMESTAMP crAT aggregate_ts_when[tswhen] crOF
+					   crBUCKET
+					   { $$ = $tswhen; }
+					   ;
+
+aggregate_ts_when: crSTART  { $$ = TS_START; }
+				 | crMIDDLE { $$ = TS_MIDDLE; }
+				 | crEND    { $$ = TS_END; }
+				 ;
+
+aggregate_computes: aggregate_compute[l] aggregate_opt_compute[r]
+				  { $l->next = $r; $$ = $l; }
+				  ;
+
+aggregate_opt_compute:                    { $$ = NULL; }
+					 | aggregate_computes { $$ = $1; }
+
+aggregate_compute: crCOMPUTE aggregate_comp_type[type] crWRITE crTO
+				 crSTRING[metric]
+				 {
+					$$ = ra_malloc(rtr, sizeof(struct _agcomp));
+					if ($$ == NULL) {
+						logerr("malloc failed");
+						YYABORT;
+					}
+				 	$$->ctype = $type.ctype;
+					$$->pctl = $type.pctl;
+					$$->metric = $metric;
+					$$->next = NULL;
+				 }
+				 ;
+
+aggregate_comp_type: crSUM        { $$.ctype = SUM; }
+				   | crCOUNT      { $$.ctype = CNT; }
+				   | crMAX        { $$.ctype = MAX; }
+				   | crMIN        { $$.ctype = MIN; }
+				   | crAVERAGE    { $$.ctype = AVG; }
+				   | crMEDIAN     { $$.ctype = MEDN; }
+				   | crPERCENTILE
+				   {
+				    if ($1 < 1 || $1 > 99) {
+						router_yyerror(&yylloc, yyscanner, rtr,
+							"percentile<x>: value x must be between 1 and 99");
+						YYERROR;
+					}
+				   	$$.ctype = PCTL;
+					$$.pctl = (unsigned char)$1;
+				   }
+				   | crVARIANCE   { $$.ctype = VAR; }
+				   | crSTDDEV     { $$.ctype = SDEV; }
+				   ;
+/*** }}} END aggregate ***/
 
 /* vim: set ts=4 sw=4 foldmethod=marker: */
