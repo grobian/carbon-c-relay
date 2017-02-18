@@ -94,7 +94,7 @@ match				{
 <ma>else				return crELSE;
 <ma>log					return crLOG;
 <ma>drop				return crDROP;
-<idma>send			{
+<ma,idma>send			{
 						BEGIN(ma);
 						return crSEND;
 					}
