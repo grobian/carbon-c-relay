@@ -1102,7 +1102,7 @@ router_readconfig(router *orig,
 		} else if (ret->parser_err.line != 0) {
 			char *line;
 			char *p;
-			char *carrets;
+			char *carets;
 			size_t carlen;
 			logerr("%s:%d:%d: %s\n", path, ret->parser_err.line,
 					ret->parser_err.start, ret->parser_err.msg);
@@ -1119,16 +1119,16 @@ router_readconfig(router *orig,
 			if ((p = strchr(line + ret->parser_err.stop, '\n')) != NULL)
 				*p = '\0';
 			carlen = ret->parser_err.stop - ret->parser_err.start + 1;
-			carrets = ra_malloc(ret, carlen + 1);
-			memset(carrets, '^', carlen);
-			carrets[carlen] = '\0';
+			carets = ra_malloc(ret, carlen + 1);
+			memset(carets, '^', carlen);
+			carets[carlen] = '\0';
 			fprintf(stderr, "%s\n", line);
 			/* deal with tabs in the input */
 			for (p = line; p - line < ret->parser_err.start; p++)
 				if (*p != '\t')
 					*p = ' ';
 			*p = '\0';
-			fprintf(stderr, "%s%s\n", line, carrets);
+			fprintf(stderr, "%s%s\n", line, carets);
 		} else {
 			logerr("%s: %s\n", path, ret->parser_err.msg);
 		}
