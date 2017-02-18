@@ -1122,8 +1122,13 @@ router_readconfig(router *orig,
 			carrets = ra_malloc(ret, carlen + 1);
 			memset(carrets, '^', carlen);
 			carrets[carlen] = '\0';
-			fprintf(stderr, "%s\n%*s%s\n",
-					line, (int)ret->parser_err.start, "", carrets);
+			fprintf(stderr, "%s\n", line);
+			/* deal with tabs in the input */
+			for (p = line; p - line < ret->parser_err.start; p++)
+				if (*p != '\t')
+					*p = ' ';
+			*p = '\0';
+			fprintf(stderr, "%s%s\n", line, carrets);
 		} else {
 			logerr("%s: %s\n", path, ret->parser_err.msg);
 		}
