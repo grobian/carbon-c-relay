@@ -977,7 +977,7 @@ YY_DECL
 
 
 	char string_buf[1024];
-	char *strbuf;
+	char *strbuf = NULL;
 
 #line 983 "conffile.yy.c"
 

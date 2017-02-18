@@ -568,7 +568,7 @@ router_add_server(
 	char hnbuf[256];
 	char errbuf[512];
 	server *newserver;
-	servers *w;
+	servers *w = NULL;
 
 	walk = saddrs;  /* NULL if file */
 	do {

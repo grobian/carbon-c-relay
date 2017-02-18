@@ -28,7 +28,7 @@ int identstate = 0;
 %%
 
 	char string_buf[1024];
-	char *strbuf;
+	char *strbuf = NULL;
 
 cluster				{
 						identstate = cl;
