@@ -25,6 +25,8 @@ int identstate = 0;
 %x cl ma re ag st qu
 %x idcl idma idag idin
 
+IDCHR	[a-zA-Z0-9[\]()|\\^*$:/._+-]
+
 %%
 
 	char string_buf[1024];
@@ -241,7 +243,7 @@ include				{
 						yylval_param->crINTVAL = atoi(yytext);
 						return crINTVAL;
 					}
-<idcl,idma,idag,idin>[a-zA-Z0-9[\]()|\\^*$:/._+-]+	{
+<idcl,idma,idag,idin>{IDCHR}+(\\[ ]{IDCHR}+)*	{
 						yylval_param->crSTRING = ra_strdup(rtr, yytext);
 						BEGIN(identstate);
 						return crSTRING;
