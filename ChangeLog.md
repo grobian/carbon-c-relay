@@ -1,4 +1,9 @@
-# 2.7 (unreleased master branch)
+# 3.0 (unreleased master branch)
+
+### Notes
+* Parsing of the configuration file has changed implementation in this
+  version.  Should you find problems with configurations that worked
+  fine before, please report the problem.
 
 ### Bugfixes
 
