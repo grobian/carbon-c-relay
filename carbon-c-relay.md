@@ -229,12 +229,12 @@ send statistics to <cluster ...>
     [stop]
     ;
 statistics
-	[submit every <interval> seconds]
-	[reset counters after interval]
-	[prefix with <prefix>]
-	[send to <cluster ...>]
-	[stop]
-	;
+    [submit every <interval> seconds]
+    [reset counters after interval]
+    [prefix with <prefix>]
+    [send to <cluster ...>]
+    [stop]
+    ;
 
 include </path/to/file/or/glob>
     ;
