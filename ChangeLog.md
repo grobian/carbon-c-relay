@@ -1,9 +1,18 @@
 # 3.0 (unreleased master branch)
 
 ### Notes
+
 * Parsing of the configuration file has changed implementation in this
   version.  Should you find problems with configurations that worked
   fine before, please report the problem.
+* The use of `send statistics to` is now deprecated, use the new
+  `statistics send to` instead.
+
+### New Features
+
+* **collector** statistics now can be controlled via the configuration
+  file using the new `statistics` clause.  This overrides some command
+  line flags, and adds some new posibilities.
 
 ### Bugfixes
 
@@ -27,7 +36,7 @@
 ### Bugfixes
 
 * [Issue #246](https://github.com/grobian/carbon-c-relay/issues/246)
-  using `stop` in a `match` tule does not stop metrics from being
+  using `stop` in a `match` rule does not stop metrics from being
   processed afterwards
 * [Issue #206](https://github.com/grobian/carbon-c-relay/issues/206)
   some metrics are randomly prefixed with garbage characters

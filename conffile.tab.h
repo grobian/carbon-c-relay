@@ -131,10 +131,16 @@ struct _agcomp {
     crPERCENTILE = 304,
     crWRITE = 305,
     crSTATISTICS = 306,
-    crINCLUDE = 307,
-    crCOMMENT = 308,
-    crSTRING = 309,
-    crINTVAL = 310
+    crSUBMIT = 307,
+    crRESET = 308,
+    crCOUNTERS = 309,
+    crINTERVAL = 310,
+    crPREFIX = 311,
+    crWITH = 312,
+    crINCLUDE = 313,
+    crCOMMENT = 314,
+    crSTRING = 315,
+    crINTVAL = 316
   };
 #endif
 
@@ -150,6 +156,8 @@ union ROUTER_YYSTYPE
   char * crSTRING;
   /* cluster_opt_instance  */
   char * cluster_opt_instance;
+  /* statistics_opt_prefix  */
+  char * statistics_opt_prefix;
   /* cluster  */
   cluster * cluster;
   /* match_send_to  */
@@ -184,6 +192,10 @@ union ROUTER_YYSTYPE
   int match_log_or_drop;
   /* match_opt_stop  */
   int match_opt_stop;
+  /* statistics_opt_interval  */
+  int statistics_opt_interval;
+  /* statistics_opt_counters  */
+  int statistics_opt_counters;
   /* cluster_opt_proto  */
   serv_ctype cluster_opt_proto;
   /* aggregate_comp_type  */
@@ -220,7 +232,7 @@ union ROUTER_YYSTYPE
   struct _maexpr * match_expr;
   /* match_opt_validate  */
   struct _maexpr * match_opt_validate;
-#line 224 "conffile.tab.h" /* yacc.c:1909  */
+#line 236 "conffile.tab.h" /* yacc.c:1909  */
 };
 
 typedef union ROUTER_YYSTYPE ROUTER_YYSTYPE;

@@ -75,6 +75,9 @@ struct _agcomp {
 	aggregate_opt_compute
 
 %token crSTATISTICS
+%token crSUBMIT crRESET crCOUNTERS crINTERVAL crPREFIX crWITH
+%type <int> statistics_opt_interval statistics_opt_counters
+%type <char *> statistics_opt_prefix
 
 %token crINCLUDE
 
@@ -98,6 +101,7 @@ command: cluster
 	   | rewrite
 	   | aggregate
 	   | send
+	   | statistics
 	   | include
 	   ;
 
@@ -644,6 +648,37 @@ send: crSEND crSTATISTICS crTO match_dsts[dsts] match_opt_stop[stop]
 	}
 	;
 /*** }}} END send ***/
+
+/*** {{{ BEGIN statistics ***/
+statistics: statistics_opt_interval[interval]
+		  statistics_opt_counters[counters]
+		  statistics_opt_prefix[prefix]
+		  aggregate_opt_send_to[sendto]
+		  match_opt_stop[stop]
+		  {
+		  }
+		  ;
+
+statistics_opt_interval: { $$ = 0; }
+					   | crSUBMIT crEVERY crINTVAL[intv] crSECONDS
+					   {
+					   	if ($intv <= 0) {
+							router_yyerror(&yylloc, yyscanner, rtr,
+									ra_strdup(rtr, "interval must be > 0"));
+							YYERROR;
+						}
+						$$ = $intv;
+					   }
+					   ;
+
+statistics_opt_counters:                                       { $$ = 0; }
+					   | crRESET crCOUNTERS crAFTER crINTERVAL { $$ = 1; }
+					   ;
+
+statistics_opt_prefix:                                  { $$ = NULL; }
+					 | crPREFIX crWITH crSTRING[prefix] { $$ = $prefix; }
+					 ;
+/*** }}} END statistics ***/
 
 /*** {{{ BEGIN include ***/
 include: crINCLUDE crSTRING[path]

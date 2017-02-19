@@ -22,7 +22,7 @@ int identstate = 0;
 %option noinput
 %option nounput
 
-%x cl ma re ag st qu
+%x cl ma re ag se st qu
 %x idcl idma idag idin
 
 IDCHR	[a-zA-Z0-9[\]()|\\^*$:/._+-]
@@ -168,13 +168,36 @@ aggregate			{
 					}
 
 send				{
-						BEGIN(st);
+						BEGIN(se);
 						return crSEND;
 					}
-<st>statistics		{
+<se>statistics		{
 						/* reuse the match logic for send to ... stop */
 						BEGIN(ma);
 						return crSTATISTICS;
+					}
+
+statistics			{
+						BEGIN(st);
+						return crSTATISTICS;
+					}
+<st>submit				return crSUBMIT;
+<st>every				return crEVERY;
+<st>seconds				return crSECONDS;
+<st>reset				return crRESET;
+<st>counters			return crCOUNTERS;
+<st>after				return crAFTER;
+<st>interval			return crINTERVAL;
+<st>prefix				return crPREFIX;
+<st>with			{
+						identstate = st;
+						BEGIN(idag);
+						return crWITH;
+					}
+<st>send			{
+						/* reuse the match logic for send to ... stop */
+						BEGIN(ma);
+						return crSEND;
 					}
 
 include				{
@@ -239,7 +262,7 @@ include				{
 
 <*>[ \t\r]+			; /* whitespace */
 <*>\n+				yycolumn = 0;
-<idcl,ag>[0-9]+		{
+<idcl,ag,st>[0-9]+	{
 						yylval_param->crINTVAL = atoi(yytext);
 						return crINTVAL;
 					}
