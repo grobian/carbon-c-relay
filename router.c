@@ -1046,6 +1046,7 @@ router_readconfig(router *orig,
 
 	if (orig == NULL) {
 		cluster *cl;
+		char *err;
 
 		/* get a return structure (and allocator) in place */
 		if ((ret = malloc(sizeof(router))) == NULL) {
@@ -1058,7 +1059,12 @@ router_readconfig(router *orig,
 		ret->srvrs = NULL;
 		ret->clusters = NULL;
 
-		router_setcollectorvals(ret, 60, "carbon.relays.\\.1", CUM);
+		err = router_set_collectorvals(ret, 60, "carbon.relays.\\.1", CUM);
+		if (err != NULL) {
+			logerr("setcollectorvals: %s\n");
+			router_free(ret);
+			return NULL;
+		}
 		ret->collector.stub = NULL;
 
 		ret->conf.queuesize = queuesize;
@@ -1505,8 +1511,8 @@ router_getcollectormode(router *rtr)
  * Sets the collector interval in seconds, the metric prefix string, and
  * the emission mode (cumulative or sum).
  */
-inline void
-router_setcollectorvals(router *rtr, int intv, char *prefix, col_mode smode)
+inline char *
+router_set_collectorvals(router *rtr, int intv, char *prefix, col_mode smode)
 {
 	if (intv > 0)
 		rtr->collector.interval = intv;
@@ -1518,15 +1524,22 @@ router_setcollectorvals(router *rtr, int intv, char *prefix, col_mode smode)
 		size_t nmatch = 3;
 		regmatch_t pmatch[3];
 
-		regcomp(&re, expr, REG_EXTENDED);
-		regexec(&re, relay_hostname, nmatch, pmatch, 0);
-		router_rewrite_metric(
+		if (regcomp(&re, expr, REG_EXTENDED) != 0)
+			return ra_strdup(rtr, "failed to compile hostname regexp");
+		if (regexec(&re, relay_hostname, nmatch, pmatch, 0) != 0)
+			return ra_strdup(rtr, "failed to execute hostname regext");
+		if (router_rewrite_metric(
 				&cprefix, &dummy,
 				relay_hostname, dummy, prefix,
-				nmatch, pmatch);
+				nmatch, pmatch) == 0)
+			return ra_strdup(rtr, "rewriting statistics prefix filed");
 		rtr->collector.prefix = ra_strdup(rtr, cprefix);
+		if (rtr->collector.prefix == NULL)
+			return ra_strdup(rtr, "out of memory");
 	}
 	rtr->collector.mode = smode;
+
+	return NULL;
 }
 
 /**

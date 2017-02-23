@@ -643,8 +643,8 @@ static const yytype_uint16 yyrline[] =
      382,   400,   401,   404,   407,   417,   420,   422,   423,   426,
      442,   443,   448,   493,   583,   584,   589,   590,   591,   594,
      598,   599,   601,   616,   617,   618,   619,   620,   621,   622,
-     632,   633,   636,   637,   642,   657,   677,   678,   689,   690,
-     693,   694,   699
+     632,   633,   636,   637,   642,   657,   681,   682,   693,   694,
+     697,   698,   703
 };
 #endif
 
@@ -2433,7 +2433,11 @@ yyreduce:
 #line 663 "conffile.y" /* yacc.c:1646  */
     {
 		  	char *err;
-		  	router_setcollectorvals(rtr, (*(int*)(&yyvsp[-4])), (*(char **)(&yyvsp[-2])), (*(col_mode*)(&yyvsp[-3])));
+		  	err = router_set_collectorvals(rtr, (*(int*)(&yyvsp[-4])), (*(char **)(&yyvsp[-2])), (*(col_mode*)(&yyvsp[-3])));
+			if (err != NULL) {
+				router_yyerror(&yylloc, yyscanner, rtr, err);
+				YYERROR;
+			}
 
 			if ((*(destinations **)(&yyvsp[-1])) != NULL) {
 				err = router_set_statistics(rtr, (*(destinations **)(&yyvsp[-1])));
@@ -2443,17 +2447,17 @@ yyreduce:
 				}
 			}
 		  }
-#line 2447 "conffile.tab.c" /* yacc.c:1646  */
+#line 2451 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 86:
-#line 677 "conffile.y" /* yacc.c:1646  */
+#line 681 "conffile.y" /* yacc.c:1646  */
     { (*(int*)(&yyval)) = 0; }
-#line 2453 "conffile.tab.c" /* yacc.c:1646  */
+#line 2457 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 87:
-#line 679 "conffile.y" /* yacc.c:1646  */
+#line 683 "conffile.y" /* yacc.c:1646  */
     {
 					   	if ((*(int*)(&yyvsp[-1])) <= 0) {
 							router_yyerror(&yylloc, yyscanner, rtr,
@@ -2462,43 +2466,43 @@ yyreduce:
 						}
 						(*(int*)(&yyval)) = (*(int*)(&yyvsp[-1]));
 					   }
-#line 2466 "conffile.tab.c" /* yacc.c:1646  */
+#line 2470 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 88:
-#line 689 "conffile.y" /* yacc.c:1646  */
+#line 693 "conffile.y" /* yacc.c:1646  */
     { (*(col_mode*)(&yyval)) = CUM; }
-#line 2472 "conffile.tab.c" /* yacc.c:1646  */
+#line 2476 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 89:
-#line 690 "conffile.y" /* yacc.c:1646  */
+#line 694 "conffile.y" /* yacc.c:1646  */
     { (*(col_mode*)(&yyval)) = SUB; }
-#line 2478 "conffile.tab.c" /* yacc.c:1646  */
+#line 2482 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 90:
-#line 693 "conffile.y" /* yacc.c:1646  */
+#line 697 "conffile.y" /* yacc.c:1646  */
     { (*(char **)(&yyval)) = NULL; }
-#line 2484 "conffile.tab.c" /* yacc.c:1646  */
+#line 2488 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 91:
-#line 694 "conffile.y" /* yacc.c:1646  */
+#line 698 "conffile.y" /* yacc.c:1646  */
     { (*(char **)(&yyval)) = (*(char **)(&yyvsp[0])); }
-#line 2490 "conffile.tab.c" /* yacc.c:1646  */
+#line 2494 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 92:
-#line 700 "conffile.y" /* yacc.c:1646  */
+#line 704 "conffile.y" /* yacc.c:1646  */
     {
 	   	router_readconfig(rtr, (*(char **)(&yyvsp[0])), 0, 0, 0, 0, 0);
 	   }
-#line 2498 "conffile.tab.c" /* yacc.c:1646  */
+#line 2502 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
 
-#line 2502 "conffile.tab.c" /* yacc.c:1646  */
+#line 2506 "conffile.tab.c" /* yacc.c:1646  */
       default: break;
     }
   /* User semantic actions sometimes alter yychar, and that requires

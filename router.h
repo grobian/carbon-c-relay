@@ -56,7 +56,6 @@ char *router_getcollectorstub(router *r);
 int router_getcollectorinterval(router *r);
 char *router_getcollectorprefix(router *r);
 col_mode router_getcollectormode(router *r);
-void router_setcollectorvals(router *rtr, int val, char *prefix, col_mode m);
 void router_shutdown(router *r);
 void router_free(router *r);
 

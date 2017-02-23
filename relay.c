@@ -38,6 +38,7 @@
 #include "dispatcher.h"
 #include "aggregator.h"
 #include "collector.h"
+#include "conffile.h"
 
 unsigned char keep_running = 1;
 int pending_signal = -1;
@@ -163,7 +164,7 @@ do_reload(void)
 		logerr("failed to create router configuration\n");
 		return;
 	}
-	router_setcollectorvals(newrtr, collector_interval, NULL, smode);
+	router_set_collectorvals(newrtr, collector_interval, NULL, smode);
 	if ((newrtr = router_readconfig(newrtr, config,
 					queuesize, batchsize, maxstalls,
 					iotimeout, sockbufsize)) == NULL)
@@ -708,7 +709,7 @@ main(int argc, char * const argv[])
 		logerr("failed to create router configuration\n");
 		return 1;
 	}
-	router_setcollectorvals(rtr, collector_interval, NULL, smode);
+	router_set_collectorvals(rtr, collector_interval, NULL, smode);
 
 	if ((rtr = router_readconfig(rtr, config,
 					queuesize, batchsize, maxstalls,

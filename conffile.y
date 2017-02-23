@@ -662,7 +662,11 @@ statistics: crSTATISTICS
 		  match_opt_stop[stop]
 		  {
 		  	char *err;
-		  	router_setcollectorvals(rtr, $interval, $prefix, $counters);
+		  	err = router_set_collectorvals(rtr, $interval, $prefix, $counters);
+			if (err != NULL) {
+				router_yyerror(&yylloc, yyscanner, rtr, err);
+				YYERROR;
+			}
 
 			if ($dsts != NULL) {
 				err = router_set_statistics(rtr, $dsts);
