@@ -381,6 +381,9 @@ main(int argc, char * const argv[])
 				break;
 			case 'm':
 				smode = SUB;
+				fprintf(stderr, "warning: -m flag will be removed in a "
+						"future version, set the summary mode from the "
+						"config instead\n");
 				break;
 			case 's':
 				mode |= MODE_SUBMISSION;
@@ -440,6 +443,9 @@ main(int argc, char * const argv[])
 							"a number >0\n");
 					do_usage(argv[0], 1);
 				}
+				fprintf(stderr, "warning: -S flag will be removed in a "
+						"future version, set the interval from the "
+						"config instead\n");
 				break;
 			case 'T': {
 				int val = atoi(optarg);
