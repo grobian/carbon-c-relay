@@ -16,6 +16,10 @@
 * **router** the rewrite rule got a new replacement mode: `\.`  This
   mode replaces all dots with underscores in the matched group.  A
   combination with upper/lowercasing is possible, e.g. `\_.`.
+* **collector** one can now set the internal statistics prefix
+  [Issue #25](https://github.com/grobian/carbon-c-relay/issues/25)
+  [Issue #113](https://github.com/grobian/carbon-c-relay/issues/113)
+  [Issue #249](https://github.com/grobian/carbon-c-relay/issues/249).
 
 ### Bugfixes
 

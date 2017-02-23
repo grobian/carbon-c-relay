@@ -32,7 +32,6 @@ static dispatcher **dispatchers;
 static char debug = 0;
 static pthread_t collectorid;
 static char keep_running = 1;
-int collector_interval = 60;
 static char cluster_refresh_pending = 0;
 static router *pending_router = NULL;
 
@@ -61,6 +60,7 @@ collector_runner(void *s)
 	time_t nextcycle;
 	char destbuf[1024];  /* sort of POSIX_MAX_PATH */
 	char *p;
+	int collector_interval = 60;
 	size_t numaggregators = 0;
 	aggregator *aggrs = NULL;
 	server *submission = (server *)s;
@@ -80,33 +80,6 @@ collector_runner(void *s)
 	size_t (*a_sent)(aggregator *);
 	size_t (*a_dropped)(aggregator *);
 
-	/* setup functions to target what the user wants */
-	if (debug & 2) {
-		s_ticks = server_get_ticks_sub;
-		s_metrics = server_get_metrics_sub;
-		s_stalls = server_get_stalls_sub;
-		s_dropped = server_get_dropped_sub;
-		d_ticks = dispatch_get_ticks_sub;
-		d_metrics = dispatch_get_metrics_sub;
-		d_blackholes = dispatch_get_blackholes_sub;
-		d_sleeps = dispatch_get_sleeps_sub;
-		a_received = aggregator_get_received_sub;
-		a_sent = aggregator_get_sent_sub;
-		a_dropped = aggregator_get_dropped_sub;
-	} else {
-		s_ticks = server_get_ticks;
-		s_metrics = server_get_metrics;
-		s_stalls = server_get_stalls;
-		s_dropped = server_get_dropped;
-		d_ticks = dispatch_get_ticks;
-		d_metrics = dispatch_get_metrics;
-		d_blackholes = dispatch_get_blackholes;
-		d_sleeps = dispatch_get_sleeps;
-		a_received = aggregator_get_received;
-		a_sent = aggregator_get_sent;
-		a_dropped = aggregator_get_dropped;
-	}
-
 #define send(metric) \
 	if (debug & 1) \
 		logout("%s", metric); \
@@ -117,20 +90,47 @@ collector_runner(void *s)
 	while (__sync_bool_compare_and_swap(&keep_running, 1, 1)) {
 		if (cluster_refresh_pending) {
 			char *stub = router_getcollectorstub(pending_router);
+			char *prefix = router_getcollectorprefix(pending_router);
 			server **newservers = router_getservers(pending_router);
 			if (srvs != NULL)
 				free(srvs);
 			srvs = newservers;
 			aggrs = router_getaggregators(pending_router);
 			numaggregators = aggregator_numaggregators(aggrs);
+			collector_interval = router_getcollectorinterval(pending_router);
+			nextcycle = time(NULL) + collector_interval;
 
-			/* prepare hostname for graphite metrics */
-			i = snprintf(metric, sizeof(metric), "%scarbon.relays.%s",
-					stub == NULL ? "" : stub, relay_hostname);
-			i -= strlen(relay_hostname);
-			for (m = metric + i; *m != '\0'; m++)
-				if (*m == '.')
-					*m = '_';
+			/* setup functions to target what the user wants */
+			if (router_getcollectormode(pending_router)) {
+				s_ticks = server_get_ticks_sub;
+				s_metrics = server_get_metrics_sub;
+				s_stalls = server_get_stalls_sub;
+				s_dropped = server_get_dropped_sub;
+				d_ticks = dispatch_get_ticks_sub;
+				d_metrics = dispatch_get_metrics_sub;
+				d_blackholes = dispatch_get_blackholes_sub;
+				d_sleeps = dispatch_get_sleeps_sub;
+				a_received = aggregator_get_received_sub;
+				a_sent = aggregator_get_sent_sub;
+				a_dropped = aggregator_get_dropped_sub;
+			} else {
+				s_ticks = server_get_ticks;
+				s_metrics = server_get_metrics;
+				s_stalls = server_get_stalls;
+				s_dropped = server_get_dropped;
+				d_ticks = dispatch_get_ticks;
+				d_metrics = dispatch_get_metrics;
+				d_blackholes = dispatch_get_blackholes;
+				d_sleeps = dispatch_get_sleeps;
+				a_received = aggregator_get_received;
+				a_sent = aggregator_get_sent;
+				a_dropped = aggregator_get_dropped;
+			}
+
+			/* prepare prefix for graphite metrics */
+			i = snprintf(metric, sizeof(metric), "%s%s",
+					stub == NULL ? "" : stub, prefix);
+			m = metric + i;
 			*m++ = '.';
 			*m = '\0';
 			sizem = sizeof(metric) - (m - metric);
@@ -304,6 +304,7 @@ collector_writer(void *unused)
 	size_t numaggregators = 0;
 	server **srvs = NULL;
 	aggregator *aggrs = NULL;
+	int collector_interval = 60;
 
 	while (keep_running) {
 		if (cluster_refresh_pending) {
@@ -313,6 +314,7 @@ collector_writer(void *unused)
 			srvs = newservers;
 			aggrs = router_getaggregators(pending_router);
 			numaggregators = aggregator_numaggregators(aggrs);
+			collector_interval = router_getcollectorinterval(pending_router);
 			cluster_refresh_pending = 0;
 		}
 		assert(srvs != NULL);

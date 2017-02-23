@@ -45,7 +45,12 @@ struct _router {
 	route *routes;
 	aggregator *aggregators;
 	servers *srvrs;
-	char *collector_stub;
+	struct _router_collector {
+		char *stub;
+		int interval;
+		char *prefix;
+		col_mode mode;
+	} collector;
 	struct _router_parser_err {
 		const char *msg;
 		size_t line;
@@ -946,7 +951,7 @@ router_add_stubroute(
 	if (type == AGGRSTUB) {
 		aggregator_set_stub(w->members.aggregation, stubname);
 	} else if (type == STATSTUB) {
-		rtr->collector_stub = m->pattern;
+		rtr->collector.stub = m->pattern;
 	}
 
 	return NULL;
@@ -955,7 +960,7 @@ router_add_stubroute(
 char *
 router_set_statistics(router *rtr, destinations *dsts)
 {
-	if (rtr->collector_stub != NULL)
+	if (rtr->collector.stub != NULL)
 		return ra_strdup(rtr,
 				"duplicate 'send statistics to' not allowed, "
 				"use multiple destinations instead");
@@ -1048,11 +1053,13 @@ router_readconfig(router *orig,
 			return NULL;
 		}
 		ret->allocator = NULL;
-		ret->collector_stub = NULL;
 		ret->routes = NULL;
 		ret->aggregators = NULL;
 		ret->srvrs = NULL;
 		ret->clusters = NULL;
+
+		router_setcollectorvals(ret, 60, "carbon.relays.\\.1", CUM);
+		ret->collector.stub = NULL;
 
 		ret->conf.queuesize = queuesize;
 		ret->conf.batchsize = batchsize;
@@ -1464,7 +1471,62 @@ router_getaggregators(router *rtr)
 inline char *
 router_getcollectorstub(router *rtr)
 {
-	return rtr->collector_stub;
+	return rtr->collector.stub;
+}
+
+/**
+ * Returns the interval in seconds for collector stats.
+ */
+inline int
+router_getcollectorinterval(router *rtr)
+{
+	return rtr->collector.interval;
+}
+
+/**
+ * Returns the interval in seconds for collector stats.
+ */
+inline char *
+router_getcollectorprefix(router *rtr)
+{
+	return rtr->collector.prefix;
+}
+
+/**
+ * Returns the mode (SUB or CUM) in which the collector should operate.
+ */
+inline col_mode
+router_getcollectormode(router *rtr)
+{
+	return rtr->collector.mode;
+}
+
+/**
+ * Sets the collector interval in seconds, the metric prefix string, and
+ * the emission mode (cumulative or sum).
+ */
+inline void
+router_setcollectorvals(router *rtr, int intv, char *prefix, col_mode smode)
+{
+	if (intv > 0)
+		rtr->collector.interval = intv;
+	if (prefix != NULL) {
+		regex_t re;
+		char cprefix[METRIC_BUFSIZ];
+		char *expr = "^(([^.]+)(\\..*)?)$";
+		char *dummy = relay_hostname + strlen(relay_hostname);
+		size_t nmatch = 3;
+		regmatch_t pmatch[3];
+
+		regcomp(&re, expr, REG_EXTENDED);
+		regexec(&re, relay_hostname, nmatch, pmatch, 0);
+		router_rewrite_metric(
+				&cprefix, &dummy,
+				relay_hostname, dummy, prefix,
+				nmatch, pmatch);
+		rtr->collector.prefix = ra_strdup(rtr, cprefix);
+	}
+	rtr->collector.mode = smode;
 }
 
 /**
@@ -1479,6 +1541,32 @@ router_printconfig(router *rtr, FILE *f, char pmode)
 	cluster *c;
 	route *r;
 	servers *s;
+
+	/* start with configuration wise standard components */
+	fprintf(f, "statistics\n    submit every %d seconds\n",
+			rtr->collector.interval);
+	if (rtr->collector.mode == SUB)
+		fprintf(f, "    reset counters after interval\n");
+	fprintf(f, "    prefix with %s\n", rtr->collector.prefix);
+	if (rtr->collector.stub != NULL) {
+		fprintf(f, "    send to");
+		for (r = rtr->routes; r != NULL; r = r->next) {
+			if (r->dests->cl->type == STATSTUB) {
+				destinations *d = r->dests->cl->members.routes->dests;
+				if (d->next == NULL) {
+					fprintf(f, " %s", d->cl->name);
+				} else {
+					for ( ; d != NULL; d = d->next)
+						fprintf(f, "\n        %s", d->cl->name);
+				}
+				fprintf(f, "\n    stop\n");
+				break;
+			}
+		}
+	}
+	fprintf(f, "    ;\n");
+
+	fprintf(f, "\n");
 
 #define PPROTO \
 	server_ctype(s->server) == CON_UDP ? " proto udp" : ""
@@ -1637,16 +1725,6 @@ router_printconfig(router *rtr, FILE *f, char pmode)
 						fprintf(f, "\n        %s", d->cl->name);
 				}
 				fprintf(f, "%s\n    ;\n", r->stop ? "\n    stop" : "");
-			} else if (r->dests->cl->type == STATSTUB) {
-				destinations *d = r->dests->cl->members.routes->dests;
-				fprintf(f, "send statistics to");
-				if (d->next == NULL) {
-					fprintf(f, " %s", d->cl->name);
-				} else {
-					for ( ; d != NULL; d = d->next)
-						fprintf(f, "\n        %s", d->cl->name);
-				}
-				fprintf(f, "\n    stop\n    ;\n");
 			}
 		} else {
 			route *or = r;

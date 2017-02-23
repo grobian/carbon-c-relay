@@ -37,6 +37,7 @@ typedef struct {
 } destination;
 
 typedef struct _router router;
+typedef enum { SUB, CUM } col_mode;
 
 #define RE_MAX_MATCHES     64
 
@@ -52,6 +53,10 @@ void router_test(router *r, char *metric_path);
 server **router_getservers(router *r);
 aggregator *router_getaggregators(router *r);
 char *router_getcollectorstub(router *r);
+int router_getcollectorinterval(router *r);
+char *router_getcollectorprefix(router *r);
+col_mode router_getcollectormode(router *r);
+void router_setcollectorvals(router *rtr, int val, char *prefix, col_mode m);
 void router_shutdown(router *r);
 void router_free(router *r);
 

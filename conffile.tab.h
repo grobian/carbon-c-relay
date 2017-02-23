@@ -160,6 +160,8 @@ union ROUTER_YYSTYPE
   char * statistics_opt_prefix;
   /* cluster  */
   cluster * cluster;
+  /* statistics_opt_counters  */
+  col_mode statistics_opt_counters;
   /* match_send_to  */
   destinations * match_send_to;
   /* match_dsts  */
@@ -194,8 +196,6 @@ union ROUTER_YYSTYPE
   int match_opt_stop;
   /* statistics_opt_interval  */
   int statistics_opt_interval;
-  /* statistics_opt_counters  */
-  int statistics_opt_counters;
   /* cluster_opt_proto  */
   serv_ctype cluster_opt_proto;
   /* aggregate_comp_type  */

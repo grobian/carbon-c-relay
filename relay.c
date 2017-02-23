@@ -51,6 +51,8 @@ static int maxstalls = 4;
 static unsigned short iotimeout = 600;
 static int optimiserthreshold = 50;
 static int sockbufsize = 0;
+static int collector_interval = 60;
+static col_mode smode = CUM;
 static dispatcher **workers = NULL;
 static char workercnt = 0;
 static router *rtr = NULL;
@@ -153,7 +155,16 @@ do_reload(void)
 	}
 
 	logout("reloading config from '%s'\n", config);
-	if ((newrtr = router_readconfig(NULL, config,
+	/* hack to set defaults from command line flags */
+	if ((newrtr = router_readconfig(NULL, "/dev/null",
+					queuesize, batchsize, maxstalls,
+					iotimeout, sockbufsize)) == NULL)
+	{
+		logerr("failed to create router configuration\n");
+		return;
+	}
+	router_setcollectorvals(newrtr, collector_interval, NULL, smode);
+	if ((newrtr = router_readconfig(newrtr, config,
 					queuesize, batchsize, maxstalls,
 					iotimeout, sockbufsize)) == NULL)
 	{
@@ -346,7 +357,6 @@ main(int argc, char * const argv[])
 	size_t numaggregators;
 	char *listeninterface = NULL;
 	char *allowed_chars = NULL;
-	enum { SUB, CUM } smode = CUM;
 	char *pidfile = NULL;
 	FILE *pidfile_handle = NULL;
 	aggregator *aggrs = NULL;
@@ -663,8 +673,6 @@ main(int argc, char * const argv[])
 	fprintf(relay_stdout, "    send batch size = %d\n", batchsize);
 	fprintf(relay_stdout, "    server queue size = %d\n", queuesize);
 	fprintf(relay_stdout, "    server max stalls = %d\n", maxstalls);
-	fprintf(relay_stdout, "    statistics submission interval = %ds\n",
-			collector_interval);
 	fprintf(relay_stdout, "    listen backlog = %u\n", listenbacklog);
 	if (sockbufsize > 0)
 		fprintf(relay_stdout, "    socket bufsize = %u\n", sockbufsize);
@@ -683,10 +691,20 @@ main(int argc, char * const argv[])
 		fprintf(relay_stdout, "    submission = true\n");
 	else if (mode & MODE_DAEMON)
 		fprintf(relay_stdout, "    daemon = true\n");
-	fprintf(relay_stdout, "    routes configuration = %s\n", config);
+	fprintf(relay_stdout, "    configuration = %s\n", config);
 	fprintf(relay_stdout, "\n");
 
-	if ((rtr = router_readconfig(NULL, config,
+	/* hack to set defaults from command line flags */
+	if ((rtr = router_readconfig(NULL, "/dev/null",
+					queuesize, batchsize, maxstalls,
+					iotimeout, sockbufsize)) == NULL)
+	{
+		logerr("failed to create router configuration\n");
+		return 1;
+	}
+	router_setcollectorvals(rtr, collector_interval, NULL, smode);
+
+	if ((rtr = router_readconfig(rtr, config,
 					queuesize, batchsize, maxstalls,
 					iotimeout, sockbufsize)) == NULL)
 	{

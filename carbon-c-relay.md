@@ -374,11 +374,25 @@ possible.  Like for match rules, it is possible to define multiple
 cluster targets.  Also, like match rules, the `stop` keyword applies to
 control the flow of metrics in the matching process.
 
-The special `send statistics to` construct is much like a `match` rule
-which matches the (internal) statistics produced by the relay.  It can
+The `send statistics to` construct deprecated and will be removed in the
+next release.  Use the special `statistics` construct instead.  This
+construct can control a couple of things about the (internal) statistics
+produced by the relay.  It can
 be used to avoid router loops when sending the statistics to a certain
-destination.  The `send statistics` construct can only be used once, but
-multiple destinations can be used then required.
+destination.  The destinations are much like a `match` rule, and can be
+multiple.  The interval in which statistics are produced can be set, in
+addition to the command line flag `-S`.  The latter will be removed in
+the next release.  This also is the case for the `-m` flag, which can
+now be expressed via the `reset counters after interval` clause of the
+`statistics` construct.  Finally, the prefix for internal statistics can
+be defined.  This prefix can be set like a rewrite rule target, where
+the input match is based on the hostname with expression
+`"^(([^.]+)(\..*)?)$"`.  The default prefix is defined as
+`carbon.relays.\.1`.  Note that this uses the
+replace-dot-with-underscore replacement feature from rewrite rules.
+Given the input expression, the following match groups are available:
+`\1` the entire hostname, `\2` the short hostname, `\3` the domainname
+(with leading dot).
 
 In case configuration becomes very long, or is managed better in
 separate files, the `include` directive can be used to read another

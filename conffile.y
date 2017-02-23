@@ -76,7 +76,8 @@ struct _agcomp {
 
 %token crSTATISTICS
 %token crSUBMIT crRESET crCOUNTERS crINTERVAL crPREFIX crWITH
-%type <int> statistics_opt_interval statistics_opt_counters
+%type <int> statistics_opt_interval
+%type <col_mode> statistics_opt_counters
 %type <char *> statistics_opt_prefix
 
 %token crINCLUDE
@@ -86,11 +87,11 @@ struct _agcomp {
 
 %%
 
-stmts: stmt opt_stmt
+stmts: opt_stmt
 	 ;
 
 opt_stmt:
-		| stmts
+		| stmt opt_stmt
 		;
 
 stmt: command ';'
@@ -645,17 +646,31 @@ send: crSEND crSTATISTICS crTO match_dsts[dsts] match_opt_stop[stop]
 			router_yyerror(&yylloc, yyscanner, rtr, err);
 			YYERROR;
 		}
+		logerr("warning: 'send statistics to ...' is deprecated and will be "
+				"removed in a future version, use 'statistics send to ...' "
+				"instead\n");
 	}
 	;
 /*** }}} END send ***/
 
 /*** {{{ BEGIN statistics ***/
-statistics: statistics_opt_interval[interval]
+statistics: crSTATISTICS
+		  statistics_opt_interval[interval]
 		  statistics_opt_counters[counters]
 		  statistics_opt_prefix[prefix]
-		  aggregate_opt_send_to[sendto]
+		  aggregate_opt_send_to[dsts]
 		  match_opt_stop[stop]
 		  {
+		  	char *err;
+		  	router_setcollectorvals(rtr, $interval, $prefix, $counters);
+
+			if ($dsts != NULL) {
+				err = router_set_statistics(rtr, $dsts);
+				if (err != NULL) {
+					router_yyerror(&yylloc, yyscanner, rtr, err);
+					YYERROR;
+				}
+			}
 		  }
 		  ;
 
@@ -671,8 +686,8 @@ statistics_opt_interval: { $$ = 0; }
 					   }
 					   ;
 
-statistics_opt_counters:                                       { $$ = 0; }
-					   | crRESET crCOUNTERS crAFTER crINTERVAL { $$ = 1; }
+statistics_opt_counters:                                       { $$ = CUM; }
+					   | crRESET crCOUNTERS crAFTER crINTERVAL { $$ = SUB; }
 					   ;
 
 statistics_opt_prefix:                                  { $$ = NULL; }
