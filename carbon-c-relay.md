@@ -325,8 +325,9 @@ present, destinations need not to be present, this allows for applying a
 global validation rule.  Note that the cleansing rules are applied
 before validation is done, thus the data will not have duplicate spaces.
 
-Rewrite rules take a regular input to match incoming metrics, and
-transform them into the desired new metric name.  In the replacement,
+Rewrite rules take a regular expression as input to match incoming
+metrics, and transform them into the desired new metric name.  In the
+replacement,
 backreferences are allowed to match capture groups defined in the input
 regular expression.  A match of `server\.(x|y|z)\.` allows to use e.g.
 `role.\1.` in the substitution.  A few caveats apply to the current
@@ -348,7 +349,11 @@ Obviously the second instance will cleanse the metrics as they come in.
 The backreference notation allows to lowercase and uppercase the
 replacement string with the use of the underscore (`_`) and carret
 (`^`) symbols following directly after the backslash.  For example,
-`role.\_1.` as substitution will lowercase the contents of `\1`.
+`role.\_1.` as substitution will lowercase the contents of `\1`.  The
+dot (`.`) can be used in a similar fashion, or followed after the
+underscore or caret to replace dots with underscores in the
+substitution.  This can be handy for some situations where metrics are
+sent to graphite.
 
 The aggregations defined take one or more input metrics expressed by one
 or more regular expresions, similar to the match rules.  Incoming

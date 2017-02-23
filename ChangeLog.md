@@ -13,6 +13,9 @@
 * **collector** statistics now can be controlled via the configuration
   file using the new `statistics` clause.  This overrides some command
   line flags, and adds some new posibilities.
+* **router** the rewrite rule got a new replacement mode: `\.`  This
+  mode replaces all dots with underscores in the matched group.  A
+  combination with upper/lowercasing is possible, e.g. `\_.`.
 
 ### Bugfixes
 

@@ -1911,7 +1911,8 @@ router_rewrite_metric(
 	const char *p;
 	const char *q;
 	const char *t;
-	enum rewrite_case { RETAIN, LOWER, UPPER } rcase = RETAIN;
+	enum rewrite_case { RETAIN, LOWER, UPPER,
+	                    RETAIN_DOT, LOWER_DOT, UPPER_DOT } rcase = RETAIN;
 
 	assert(pmatch != NULL);
 
@@ -1939,6 +1940,14 @@ router_rewrite_metric(
 					rcase = LOWER;
 				} else if (escape == 1 && rcase == RETAIN && *p == '^') {
 					rcase = UPPER;
+				} else if (escape == 1 && *p == '.') {
+					if (rcase == LOWER) {
+						rcase = LOWER_DOT;
+					} else if (rcase == UPPER) {
+						rcase = UPPER_DOT;
+					} else {
+						rcase = RETAIN_DOT;
+					}
 				} else if (escape && *p >= '0' && *p <= '9') {
 					escape = 2;
 					ref *= 10;
@@ -1964,6 +1973,34 @@ router_rewrite_metric(
 									case UPPER:
 										while (q < t)
 											*s++ = (char)toupper(*q++);
+										break;
+
+									case RETAIN_DOT:
+										while (q < t) {
+											if (*q == '.')
+												*s++ = '_';
+											else
+												*s++ = *q;
+											q++;
+										}
+										break;
+									case LOWER_DOT:
+										while (q < t) {
+											if (*q == '.')
+												*s++ = '_';
+											else
+												*s++ = (char)tolower(*q);
+											q++;
+										}
+										break;
+									case UPPER_DOT:
+										while (q < t) {
+											if (*q == '.')
+												*s++ = '_';
+											else
+												*s++ = (char)toupper(*q);
+											q++;
+										}
 										break;
 								}
 							}
