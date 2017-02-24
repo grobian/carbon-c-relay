@@ -345,18 +345,93 @@ serverip(server *s)
 
 
 /**
- * Callback for the bison parser when it fails.
+ * Callback for the bison parser for yyerror
  */
 void
 router_yyerror(void *locptr, void *s, router *r, const char *msg)
 {
 	(void)s;
 	ROUTER_YYLTYPE *locp = (ROUTER_YYLTYPE *)locptr;
+	regex_t re;
+	size_t nmatch = 3;
+	regmatch_t pmatch[3];
+	char buf1[METRIC_BUFSIZ];
+	char buf2[METRIC_BUFSIZ];
+	char *dummy;
+	char (*a)[METRIC_BUFSIZ];
+	char (*b)[METRIC_BUFSIZ];
+	char (*t)[METRIC_BUFSIZ];
 
 	if (r->parser_err.msg != NULL)
 		return;
 
-	r->parser_err.msg = ra_strdup(r, msg);
+	/* clean up the "value" types */
+	if (regcomp(&re, "cr(STRING|COMMENT|INTVAL)", REG_EXTENDED) != 0) {
+		r->parser_err.msg = ra_strdup(r, msg);
+		return;
+	}
+	snprintf(buf1, sizeof(buf1), "%s", msg);
+	a = &buf1;
+	b = &buf2;
+	while (regexec(&re, *a, nmatch, pmatch, 0) == 0) {
+		if (nmatch == 0)
+			break;
+		dummy = *a + strlen(*a);
+		if (router_rewrite_metric(b, &dummy,
+					*a, dummy, "\\_1", nmatch, pmatch) == 0)
+		{
+			r->parser_err.msg = ra_strdup(r, msg);
+			return;
+		}
+		t = a;
+		a = b;
+		b = t;
+	}
+	regfree(&re);
+
+	/* clean up the keywords */
+	if (regcomp(&re, "cr([A-Z]+)", REG_EXTENDED) != 0) {
+		r->parser_err.msg = ra_strdup(r, msg);
+		return;
+	}
+	while (regexec(&re, *a, nmatch, pmatch, 0) == 0) {
+		if (nmatch == 0)
+			break;
+		dummy = *a + strlen(*a);
+		if (router_rewrite_metric(b, &dummy,
+					*a, dummy, "'\\_1'", nmatch, pmatch) == 0)
+		{
+			r->parser_err.msg = ra_strdup(r, msg);
+			return;
+		}
+		t = a;
+		a = b;
+		b = t;
+	}
+	regfree(&re);
+
+	/* clean up bison speak */
+	if (regcomp(&re, "\\$end", REG_EXTENDED) != 0) {
+		r->parser_err.msg = ra_strdup(r, msg);
+		return;
+	}
+	while (regexec(&re, *a, nmatch, pmatch, 0) == 0) {
+		if (nmatch == 0)
+			break;
+		dummy = *a + strlen(*a);
+		if (router_rewrite_metric(b, &dummy,
+					*a, dummy, "end of file", nmatch, pmatch) == 0)
+		{
+			r->parser_err.msg = ra_strdup(r, msg);
+			return;
+		}
+		t = a;
+		a = b;
+		b = t;
+	}
+	regfree(&re);
+
+	r->parser_err.msg = ra_strdup(r, *a);
 	if (locp != NULL) {
 		r->parser_err.line = 1 + locp->first_line;
 		r->parser_err.start = locp->first_column;
@@ -1533,6 +1608,7 @@ router_set_collectorvals(router *rtr, int intv, char *prefix, col_mode smode)
 				relay_hostname, dummy, prefix,
 				nmatch, pmatch) == 0)
 			return ra_strdup(rtr, "rewriting statistics prefix filed");
+		regfree(&re);
 		rtr->collector.prefix = ra_strdup(rtr, cprefix);
 		if (rtr->collector.prefix == NULL)
 			return ra_strdup(rtr, "out of memory");
