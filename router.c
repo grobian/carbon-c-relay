@@ -1191,13 +1191,13 @@ router_readconfig(router *orig,
 	ret->parser_err.msg = NULL;
 	if (router_yyparse(lptr, ret) != 0) {
 		if (ret->parser_err.msg == NULL) {
-			logerr("parsing %s failed\n", path);
+			fprintf(stderr, "parsing %s failed\n", path);
 		} else if (ret->parser_err.line != 0) {
 			char *line;
 			char *p;
 			char *carets;
 			size_t carlen;
-			logerr("%s:%d:%d: %s\n", path, ret->parser_err.line,
+			fprintf(stderr, "%s:%zd:%zd: %s\n", path, ret->parser_err.line,
 					ret->parser_err.start, ret->parser_err.msg);
 			/* get some relevant context from buff and put ^^^^ below it
 			 * to point out the position of the error */
@@ -1223,7 +1223,7 @@ router_readconfig(router *orig,
 			*p = '\0';
 			fprintf(stderr, "%s%s\n", line, carets);
 		} else {
-			logerr("%s: %s\n", path, ret->parser_err.msg);
+			fprintf(stderr, "%s: %s\n", path, ret->parser_err.msg);
 		}
 		router_yylex_destroy(lptr);
 		router_free(ret);
