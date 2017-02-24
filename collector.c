@@ -68,17 +68,17 @@ collector_runner(void *s)
 	char metric[METRIC_BUFSIZ];
 	char *m = NULL;
 	size_t sizem = 0;
-	size_t (*s_ticks)(server *);
-	size_t (*s_metrics)(server *);
-	size_t (*s_stalls)(server *);
-	size_t (*s_dropped)(server *);
-	size_t (*d_ticks)(dispatcher *);
-	size_t (*d_metrics)(dispatcher *);
-	size_t (*d_blackholes)(dispatcher *);
-	size_t (*d_sleeps)(dispatcher *);
-	size_t (*a_received)(aggregator *);
-	size_t (*a_sent)(aggregator *);
-	size_t (*a_dropped)(aggregator *);
+	size_t (*s_ticks)(server *) = NULL;
+	size_t (*s_metrics)(server *) = NULL;
+	size_t (*s_stalls)(server *) = NULL;
+	size_t (*s_dropped)(server *) = NULL;
+	size_t (*d_ticks)(dispatcher *) = NULL;
+	size_t (*d_metrics)(dispatcher *) = NULL;
+	size_t (*d_blackholes)(dispatcher *) = NULL;
+	size_t (*d_sleeps)(dispatcher *) = NULL;
+	size_t (*a_received)(aggregator *) = NULL;
+	size_t (*a_sent)(aggregator *) = NULL;
+	size_t (*a_dropped)(aggregator *) = NULL;
 
 #define send(metric) \
 	if (debug & 1) \
