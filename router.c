@@ -374,8 +374,6 @@ router_yyerror(void *locptr, void *s, router *r, const char *msg)
 	a = &buf1;
 	b = &buf2;
 	while (regexec(&re, *a, nmatch, pmatch, 0) == 0) {
-		if (nmatch == 0)
-			break;
 		dummy = *a + strlen(*a);
 		if (router_rewrite_metric(b, &dummy,
 					*a, dummy, "\\_1", nmatch, pmatch) == 0)
@@ -395,8 +393,6 @@ router_yyerror(void *locptr, void *s, router *r, const char *msg)
 		return;
 	}
 	while (regexec(&re, *a, nmatch, pmatch, 0) == 0) {
-		if (nmatch == 0)
-			break;
 		dummy = *a + strlen(*a);
 		if (router_rewrite_metric(b, &dummy,
 					*a, dummy, "'\\_1'", nmatch, pmatch) == 0)
@@ -416,8 +412,6 @@ router_yyerror(void *locptr, void *s, router *r, const char *msg)
 		return;
 	}
 	while (regexec(&re, *a, nmatch, pmatch, 0) == 0) {
-		if (nmatch == 0)
-			break;
 		dummy = *a + strlen(*a);
 		if (router_rewrite_metric(b, &dummy,
 					*a, dummy, "end of file", nmatch, pmatch) == 0)
