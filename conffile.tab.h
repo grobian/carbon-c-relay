@@ -162,6 +162,8 @@ union ROUTER_YYSTYPE
   cluster * cluster;
   /* statistics_opt_counters  */
   col_mode statistics_opt_counters;
+  /* match_opt_send_to  */
+  destinations * match_opt_send_to;
   /* match_send_to  */
   destinations * match_send_to;
   /* match_dsts  */
@@ -232,7 +234,7 @@ union ROUTER_YYSTYPE
   struct _maexpr * match_expr;
   /* match_opt_validate  */
   struct _maexpr * match_opt_validate;
-#line 236 "conffile.tab.h" /* yacc.c:1909  */
+#line 238 "conffile.tab.h" /* yacc.c:1909  */
 };
 
 typedef union ROUTER_YYSTYPE ROUTER_YYSTYPE;

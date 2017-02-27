@@ -54,7 +54,7 @@ struct _agcomp {
 %token crMATCH
 %token crVALIDATE crELSE crLOG crDROP crSEND crTO crBLACKHOLE crSTOP
 %type <destinations *> match_dst match_opt_dst match_dsts
-	match_dsts2 match_send_to aggregate_opt_send_to
+	match_dsts2 match_opt_send_to match_send_to aggregate_opt_send_to
 %type <int> match_opt_stop match_log_or_drop
 %type <struct _maexpr *> match_opt_validate match_expr match_opt_expr
 	match_exprs match_exprs2
@@ -290,8 +290,8 @@ cluster_opt_proto:               { $$ = CON_TCP; }
 /*** }}} END cluster ***/
 
 /*** {{{ BEGIN match ***/
-match: crMATCH match_exprs[exprs] match_opt_validate[val] match_send_to[dsts]
-	 match_opt_stop[stop]
+match: crMATCH match_exprs[exprs] match_opt_validate[val]
+	 match_opt_send_to[dsts] match_opt_stop[stop]
 	 {
 	 	/* each expr comes with an allocated route, populate it */
 		struct _maexpr *we;
@@ -329,7 +329,8 @@ match: crMATCH match_exprs[exprs] match_opt_validate[val] match_send_to[dsts]
 		for (we = $exprs; we != NULL; we = we->next) {
 			we->r->next = NULL;
 			we->r->dests = d;
-			we->r->stop = $dsts->cl->type == BLACKHOLE ? 1 : $stop;
+			we->r->stop = $dsts == NULL ? 0 :
+					$dsts->cl->type == BLACKHOLE ? 1 : $stop;
 			err = router_add_route(rtr, we->r);
 			if (err != NULL) {
 				router_yyerror(&yylloc, yyscanner, rtr, err);
@@ -399,6 +400,10 @@ match_opt_validate: { $$ = NULL; }
 
 match_log_or_drop: crLOG  { $$ = 0; }
 				 | crDROP { $$ = 1; }
+				 ;
+
+match_opt_send_to: { $$ = NULL; }
+				 | match_send_to { $$ = $1; }
 				 ;
 
 match_send_to: crSEND crTO match_dsts[dsts] { $$ = $dsts; }
