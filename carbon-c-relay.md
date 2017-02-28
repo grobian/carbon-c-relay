@@ -51,9 +51,11 @@ These options control the behaviour of **carbon-c-relay**.
     (test mode) this also prints stub routes and consistent-hash ring
     contents.
 
-  * `-m`:
+  * `-m`: (deprecated)
     Change statistics submission to be like carbon-cache.py, e.g. not
     cumulative.  After each submission, all counters are reset to `0`.
+    You should set this mode via the configuration file instead using
+    `statistics reset counters after interval`.
 
   * `-s`:
     Enable submission mode.  In this mode, internal statistics are not
@@ -136,9 +138,11 @@ These options control the behaviour of **carbon-c-relay**.
     occasional disruption scenario and max effort to not loose metrics
     with moderate slowing down of clients.
 
-  * `-S` *interval*:
+  * `-S` *interval*: (deprecated)
     Set the interval in which statistics are being generated and sent by
-    the relay to *interval* seconds.  The default is *60*.
+    the relay to *interval* seconds.  The default is *60*.  You should
+    set this value through the config file instead using `statistics
+    submit every <interval> seconds`.
 
   * `-B` *backlog*:
     Sets TCP connection listen backlog to *backlog* connections.  The
@@ -374,25 +378,30 @@ possible.  Like for match rules, it is possible to define multiple
 cluster targets.  Also, like match rules, the `stop` keyword applies to
 control the flow of metrics in the matching process.
 
-The `send statistics to` construct deprecated and will be removed in the
-next release.  Use the special `statistics` construct instead.  This
-construct can control a couple of things about the (internal) statistics
-produced by the relay.  It can
-be used to avoid router loops when sending the statistics to a certain
-destination.  The destinations are much like a `match` rule, and can be
-multiple.  The interval in which statistics are produced can be set, in
-addition to the command line flag `-S`.  The latter will be removed in
-the next release.  This also is the case for the `-m` flag, which can
-now be expressed via the `reset counters after interval` clause of the
-`statistics` construct.  Finally, the prefix for internal statistics can
-be defined.  This prefix can be set like a rewrite rule target, where
-the input match is based on the hostname with expression
-`"^(([^.]+)(\..*)?)$"`.  The default prefix is defined as
-`carbon.relays.\.1`.  Note that this uses the
+The `send statistics to` construct is deprecated and will be removed in
+the next release.  Use the special `statistics` construct instead.
+
+The `statistics` construct can control a couple of things about the
+(internal) statistics produced by the relay.  The `send to` target can
+be used to avoid router loops by sending the statistics to a certain
+destination cluster(s).  By default the metrics are prefixed with
+`carbon.relays.<hostname>`, where hostname is determinted on startup and
+can be overridden using the `-H` argument.  This prefix can be set using
+the `prefix with` clause similar to a rewrite rule target.  The input
+match in this case is the pre-set regular expression
+`^(([^.]+)(\..*)?)$` on the hostname.  As such, one can see that the
+default prefix is set by `carbon.relays.\.1`.  Note that this uses the
 replace-dot-with-underscore replacement feature from rewrite rules.
 Given the input expression, the following match groups are available:
-`\1` the entire hostname, `\2` the short hostname, `\3` the domainname
-(with leading dot).
+`\1` the entire hostname, `\2` the short hostname and `\3` the domainname
+(with leading dot).  It may make sense to replace the default by
+something like `carbon.relays.\_2` for certain scenarios, to always use
+the lowercased short hostname, which following the expression doesn't
+contain a dot.  By default, the metrics are submitted every 60 seconds,
+this can be changed using the `submit every <interval> seconds` clause.  
+To obtain a more compatible set of values to carbon-cache.py, use the
+`reset counters after interval` clause to make values non-cumulative,
+that is, they will report the change compared to the previous value.
 
 In case configuration becomes very long, or is managed better in
 separate files, the `include` directive can be used to read another
@@ -588,7 +597,7 @@ global validation for just number (no floating point) values could be:
 ```
 match *
     validate ^[0-9]+\ [0-9]+$ else drop
-	;
+    ;
 ```
 
 (Note the escape with backslash `\` of the space, you might be able to
@@ -600,13 +609,13 @@ the following is valid:
 
 ```
 match ^foo
-	validate ^[0-9]+\ [0-9]+$ else drop
-	send to integer-cluster
-	;
+    validate ^[0-9]+\ [0-9]+$ else drop
+    send to integer-cluster
+    ;
 match ^foo
-	validate ^[0-9.e+-]+\ [0-9.e+-]+$ else drop
-	send to float-cluster
-	stop;
+    validate ^[0-9.e+-]+\ [0-9.e+-]+$ else drop
+    send to float-cluster
+    stop;
 ```
 
 Note that the behaviour is different in the previous two examples.  When
@@ -757,20 +766,17 @@ for the output now directly goes to the cluster.
 
 ## STATISTICS
 
-When **carbon-c-relay** is run without `-d` or `-s` arguments, statistics
-will be produced and sent to the relay itself in the form of
-`carbon.relays.<hostname>.*`.  The hostname is determined on startup,
-and can be overriden using the `-H` argument.  While many metrics have a
-similar name to what carbon-cache.py would produce, their values are
-different.  To obtain a more compatible set of values, the `-m` argument
-can be used to make values non-cumulative, that is, they will report the
-change compared to the previous value.  By default, most values are
-running counters which only increase over time.  The use of the
-nonNegativeDerivative() function from graphite is useful with these.
-The default sending interval is 1 minute (60 seconds), but can be
-overridden using the `-S` argument specified in seconds.
+When **carbon-c-relay** is run without `-d` or `-s` arguments,
+statistics will be produced.  By default they are sent to the relay
+itself in the form of `carbon.relays.<hostname>.*`.  See the
+`statistics` construct to override this prefix, sending interval and
+values produced.  While many metrics have a similar name to what
+carbon-cache.py would produce, their values are likely different.  By
+default, most values are running counters which only increase over time.
+The use of the nonNegativeDerivative() function from graphite is useful
+with these.
 
-The following metrics are produced in the `carbon.relays.<hostname>`
+The following metrics are produced under the `carbon.relays.<hostname>`
 namespace:
 
 * metricsReceived
