@@ -800,22 +800,23 @@ static const flex_int32_t yy_rule_can_match_eol[85] =
 #define YY_RESTORE_YY_MORE_OFFSET
 #line 1 "conffile.l"
 #line 2 "conffile.l"
+#include "allocator.h"
 #include "conffile.h"
 #include "conffile.tab.h"
 #define YYSTYPE ROUTER_YYSTYPE
 
 #define YY_DECL int router_yylex \
-	(YYSTYPE *yylval_param, ROUTER_YYLTYPE *llocp, yyscan_t yyscanner, router *rtr)
+	(YYSTYPE *yylval_param, ROUTER_YYLTYPE *llocp, yyscan_t yyscanner, router *rtr, allocator *alloc)
 #define YY_USER_ACTION llocp->first_line = llocp->last_line = yylineno; \
 	llocp->first_column = yycolumn; llocp->last_column = yycolumn+yyleng-1; \
 	yycolumn += yyleng;
 #define YY_USER_INIT yycolumn = 0; yylineno = 0;
 
 int identstate = 0;
-#line 815 "conffile.yy.c"
+#line 816 "conffile.yy.c"
 #define YY_NO_INPUT 1
 
-#line 818 "conffile.yy.c"
+#line 819 "conffile.yy.c"
 
 #define INITIAL 0
 #define cl 1
@@ -1098,14 +1099,14 @@ YY_DECL
 		}
 
 	{
-#line 30 "conffile.l"
+#line 31 "conffile.l"
 
 
-#line 33 "conffile.l"
+#line 34 "conffile.l"
 	char string_buf[1024];
 	char *strbuf = NULL;
 
-#line 1108 "conffile.yy.c"
+#line 1109 "conffile.yy.c"
 
 	while ( /*CONSTCOND*/1 )		/* loops until end-of-file is reached */
 		{
@@ -1176,7 +1177,7 @@ do_action:	/* This label is used only to access EOF actions. */
 
 case 1:
 YY_RULE_SETUP
-#line 36 "conffile.l"
+#line 37 "conffile.l"
 {
 						identstate = cl;
 						BEGIN(idcl);
@@ -1185,7 +1186,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 2:
 YY_RULE_SETUP
-#line 41 "conffile.l"
+#line 42 "conffile.l"
 {
 						identstate = idcl;
 						BEGIN(idcl);
@@ -1194,7 +1195,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 3:
 YY_RULE_SETUP
-#line 46 "conffile.l"
+#line 47 "conffile.l"
 {
 						identstate = idcl;
 						BEGIN(idcl);
@@ -1203,7 +1204,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 4:
 YY_RULE_SETUP
-#line 51 "conffile.l"
+#line 52 "conffile.l"
 {
 						identstate = idcl;
 						BEGIN(idcl);
@@ -1212,12 +1213,12 @@ YY_RULE_SETUP
 	YY_BREAK
 case 5:
 YY_RULE_SETUP
-#line 56 "conffile.l"
+#line 57 "conffile.l"
 return crUSEALL;
 	YY_BREAK
 case 6:
 YY_RULE_SETUP
-#line 57 "conffile.l"
+#line 58 "conffile.l"
 {
 						identstate = idcl;
 						BEGIN(idcl);
@@ -1226,7 +1227,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 7:
 YY_RULE_SETUP
-#line 62 "conffile.l"
+#line 63 "conffile.l"
 {
 						identstate = idcl;
 						BEGIN(idcl);
@@ -1235,7 +1236,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 8:
 YY_RULE_SETUP
-#line 67 "conffile.l"
+#line 68 "conffile.l"
 {
 						identstate = idcl;
 						BEGIN(idcl);
@@ -1244,12 +1245,12 @@ YY_RULE_SETUP
 	YY_BREAK
 case 9:
 YY_RULE_SETUP
-#line 72 "conffile.l"
+#line 73 "conffile.l"
 return crREPLICATION;
 	YY_BREAK
 case 10:
 YY_RULE_SETUP
-#line 73 "conffile.l"
+#line 74 "conffile.l"
 {
 						identstate = idcl;
 						BEGIN(idcl);
@@ -1258,32 +1259,32 @@ YY_RULE_SETUP
 	YY_BREAK
 case 11:
 YY_RULE_SETUP
-#line 78 "conffile.l"
+#line 79 "conffile.l"
 return crIP;
 	YY_BREAK
 case 12:
 YY_RULE_SETUP
-#line 79 "conffile.l"
+#line 80 "conffile.l"
 return crPROTO;
 	YY_BREAK
 case 13:
 YY_RULE_SETUP
-#line 80 "conffile.l"
+#line 81 "conffile.l"
 return crUDP;
 	YY_BREAK
 case 14:
 YY_RULE_SETUP
-#line 81 "conffile.l"
+#line 82 "conffile.l"
 return crTCP;
 	YY_BREAK
 case 15:
 YY_RULE_SETUP
-#line 82 "conffile.l"
+#line 83 "conffile.l"
 return '=';
 	YY_BREAK
 case 16:
 YY_RULE_SETUP
-#line 84 "conffile.l"
+#line 85 "conffile.l"
 {
 						identstate = idma;
 						BEGIN(idma);
@@ -1292,12 +1293,12 @@ YY_RULE_SETUP
 	YY_BREAK
 case 17:
 YY_RULE_SETUP
-#line 89 "conffile.l"
+#line 90 "conffile.l"
 return '*';
 	YY_BREAK
 case 18:
 YY_RULE_SETUP
-#line 90 "conffile.l"
+#line 91 "conffile.l"
 {
 						identstate = ma;
 						BEGIN(idma);
@@ -1306,22 +1307,22 @@ YY_RULE_SETUP
 	YY_BREAK
 case 19:
 YY_RULE_SETUP
-#line 95 "conffile.l"
+#line 96 "conffile.l"
 return crELSE;
 	YY_BREAK
 case 20:
 YY_RULE_SETUP
-#line 96 "conffile.l"
+#line 97 "conffile.l"
 return crLOG;
 	YY_BREAK
 case 21:
 YY_RULE_SETUP
-#line 97 "conffile.l"
+#line 98 "conffile.l"
 return crDROP;
 	YY_BREAK
 case 22:
 YY_RULE_SETUP
-#line 98 "conffile.l"
+#line 99 "conffile.l"
 {
 						BEGIN(ma);
 						return crSEND;
@@ -1329,7 +1330,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 23:
 YY_RULE_SETUP
-#line 102 "conffile.l"
+#line 103 "conffile.l"
 {
 						identstate = idcl;
 						BEGIN(idcl);
@@ -1338,17 +1339,17 @@ YY_RULE_SETUP
 	YY_BREAK
 case 24:
 YY_RULE_SETUP
-#line 107 "conffile.l"
+#line 108 "conffile.l"
 return crBLACKHOLE;
 	YY_BREAK
 case 25:
 YY_RULE_SETUP
-#line 108 "conffile.l"
+#line 109 "conffile.l"
 return crSTOP;
 	YY_BREAK
 case 26:
 YY_RULE_SETUP
-#line 110 "conffile.l"
+#line 111 "conffile.l"
 {
 						identstate = re;
 						BEGIN(idma);
@@ -1357,7 +1358,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 27:
 YY_RULE_SETUP
-#line 115 "conffile.l"
+#line 116 "conffile.l"
 {
 						identstate = re;
 						BEGIN(idma);
@@ -1366,7 +1367,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 28:
 YY_RULE_SETUP
-#line 121 "conffile.l"
+#line 122 "conffile.l"
 {
 						identstate = idag;
 						BEGIN(idag);
@@ -1375,7 +1376,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 29:
 YY_RULE_SETUP
-#line 126 "conffile.l"
+#line 127 "conffile.l"
 {
 						BEGIN(ag);
 						return crEVERY;
@@ -1383,117 +1384,117 @@ YY_RULE_SETUP
 	YY_BREAK
 case 30:
 YY_RULE_SETUP
-#line 130 "conffile.l"
+#line 131 "conffile.l"
 return crSECONDS;
 	YY_BREAK
 case 31:
 YY_RULE_SETUP
-#line 131 "conffile.l"
+#line 132 "conffile.l"
 return crEXPIRE;
 	YY_BREAK
 case 32:
 YY_RULE_SETUP
-#line 132 "conffile.l"
+#line 133 "conffile.l"
 return crAFTER;
 	YY_BREAK
 case 33:
 YY_RULE_SETUP
-#line 133 "conffile.l"
+#line 134 "conffile.l"
 return crTIMESTAMP;
 	YY_BREAK
 case 34:
 YY_RULE_SETUP
-#line 134 "conffile.l"
+#line 135 "conffile.l"
 return crAT;
 	YY_BREAK
 case 35:
 YY_RULE_SETUP
-#line 135 "conffile.l"
+#line 136 "conffile.l"
 return crSTART;
 	YY_BREAK
 case 36:
 YY_RULE_SETUP
-#line 136 "conffile.l"
+#line 137 "conffile.l"
 return crMIDDLE;
 	YY_BREAK
 case 37:
 YY_RULE_SETUP
-#line 137 "conffile.l"
+#line 138 "conffile.l"
 return crEND;
 	YY_BREAK
 case 38:
 YY_RULE_SETUP
-#line 138 "conffile.l"
+#line 139 "conffile.l"
 return crOF;
 	YY_BREAK
 case 39:
 YY_RULE_SETUP
-#line 139 "conffile.l"
+#line 140 "conffile.l"
 return crBUCKET;
 	YY_BREAK
 case 40:
 YY_RULE_SETUP
-#line 140 "conffile.l"
+#line 141 "conffile.l"
 return crCOMPUTE;
 	YY_BREAK
 case 41:
 YY_RULE_SETUP
-#line 141 "conffile.l"
+#line 142 "conffile.l"
 return crSUM;
 	YY_BREAK
 case 42:
 YY_RULE_SETUP
-#line 142 "conffile.l"
+#line 143 "conffile.l"
 return crSUM;
 	YY_BREAK
 case 43:
 YY_RULE_SETUP
-#line 143 "conffile.l"
+#line 144 "conffile.l"
 return crCOUNT;
 	YY_BREAK
 case 44:
 YY_RULE_SETUP
-#line 144 "conffile.l"
+#line 145 "conffile.l"
 return crCOUNT;
 	YY_BREAK
 case 45:
 YY_RULE_SETUP
-#line 145 "conffile.l"
+#line 146 "conffile.l"
 return crMAX;
 	YY_BREAK
 case 46:
 YY_RULE_SETUP
-#line 146 "conffile.l"
+#line 147 "conffile.l"
 return crMAX;
 	YY_BREAK
 case 47:
 YY_RULE_SETUP
-#line 147 "conffile.l"
+#line 148 "conffile.l"
 return crMIN;
 	YY_BREAK
 case 48:
 YY_RULE_SETUP
-#line 148 "conffile.l"
+#line 149 "conffile.l"
 return crMIN;
 	YY_BREAK
 case 49:
 YY_RULE_SETUP
-#line 149 "conffile.l"
+#line 150 "conffile.l"
 return crAVERAGE;
 	YY_BREAK
 case 50:
 YY_RULE_SETUP
-#line 150 "conffile.l"
+#line 151 "conffile.l"
 return crAVERAGE;
 	YY_BREAK
 case 51:
 YY_RULE_SETUP
-#line 151 "conffile.l"
+#line 152 "conffile.l"
 return crMEDIAN;
 	YY_BREAK
 case 52:
 YY_RULE_SETUP
-#line 152 "conffile.l"
+#line 153 "conffile.l"
 {
 						yylval_param->crINTVAL =
 							atoi(yytext + strlen("percentile"));
@@ -1502,22 +1503,22 @@ YY_RULE_SETUP
 	YY_BREAK
 case 53:
 YY_RULE_SETUP
-#line 157 "conffile.l"
+#line 158 "conffile.l"
 return crVARIANCE;
 	YY_BREAK
 case 54:
 YY_RULE_SETUP
-#line 158 "conffile.l"
+#line 159 "conffile.l"
 return crSTDDEV;
 	YY_BREAK
 case 55:
 YY_RULE_SETUP
-#line 159 "conffile.l"
+#line 160 "conffile.l"
 return crWRITE;
 	YY_BREAK
 case 56:
 YY_RULE_SETUP
-#line 160 "conffile.l"
+#line 161 "conffile.l"
 {
 						identstate = ag;
 						BEGIN(idag);
@@ -1526,7 +1527,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 57:
 YY_RULE_SETUP
-#line 165 "conffile.l"
+#line 166 "conffile.l"
 {
 						/* reuse the match logic for send to ... stop */
 						BEGIN(ma);
@@ -1535,7 +1536,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 58:
 YY_RULE_SETUP
-#line 171 "conffile.l"
+#line 172 "conffile.l"
 {
 						BEGIN(se);
 						return crSEND;
@@ -1543,7 +1544,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 59:
 YY_RULE_SETUP
-#line 175 "conffile.l"
+#line 176 "conffile.l"
 {
 						/* reuse the match logic for send to ... stop */
 						BEGIN(ma);
@@ -1552,7 +1553,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 60:
 YY_RULE_SETUP
-#line 181 "conffile.l"
+#line 182 "conffile.l"
 {
 						BEGIN(st);
 						return crSTATISTICS;
@@ -1560,47 +1561,47 @@ YY_RULE_SETUP
 	YY_BREAK
 case 61:
 YY_RULE_SETUP
-#line 185 "conffile.l"
+#line 186 "conffile.l"
 return crSUBMIT;
 	YY_BREAK
 case 62:
 YY_RULE_SETUP
-#line 186 "conffile.l"
+#line 187 "conffile.l"
 return crEVERY;
 	YY_BREAK
 case 63:
 YY_RULE_SETUP
-#line 187 "conffile.l"
+#line 188 "conffile.l"
 return crSECONDS;
 	YY_BREAK
 case 64:
 YY_RULE_SETUP
-#line 188 "conffile.l"
+#line 189 "conffile.l"
 return crRESET;
 	YY_BREAK
 case 65:
 YY_RULE_SETUP
-#line 189 "conffile.l"
+#line 190 "conffile.l"
 return crCOUNTERS;
 	YY_BREAK
 case 66:
 YY_RULE_SETUP
-#line 190 "conffile.l"
+#line 191 "conffile.l"
 return crAFTER;
 	YY_BREAK
 case 67:
 YY_RULE_SETUP
-#line 191 "conffile.l"
+#line 192 "conffile.l"
 return crINTERVAL;
 	YY_BREAK
 case 68:
 YY_RULE_SETUP
-#line 192 "conffile.l"
+#line 193 "conffile.l"
 return crPREFIX;
 	YY_BREAK
 case 69:
 YY_RULE_SETUP
-#line 193 "conffile.l"
+#line 194 "conffile.l"
 {
 						identstate = st;
 						BEGIN(idag);
@@ -1609,7 +1610,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 70:
 YY_RULE_SETUP
-#line 198 "conffile.l"
+#line 199 "conffile.l"
 {
 						/* reuse the match logic for send to ... stop */
 						BEGIN(ma);
@@ -1618,7 +1619,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 71:
 YY_RULE_SETUP
-#line 204 "conffile.l"
+#line 205 "conffile.l"
 {
 						identstate = INITIAL;
 						BEGIN(idin);
@@ -1628,7 +1629,7 @@ YY_RULE_SETUP
 /* handle quoted strings */
 case 72:
 YY_RULE_SETUP
-#line 211 "conffile.l"
+#line 212 "conffile.l"
 {
 						strbuf = string_buf;
 						BEGIN(qu);
@@ -1637,41 +1638,44 @@ YY_RULE_SETUP
 
 case 73:
 YY_RULE_SETUP
-#line 216 "conffile.l"
+#line 217 "conffile.l"
 {
 						if (strbuf == string_buf) {
-							router_yyerror(llocp, NULL, rtr, "empty string");
+							router_yyerror(llocp, NULL, rtr, alloc,
+									"empty string");
 							yyterminate();
 						}
 						BEGIN(identstate);
 						*strbuf = '\0';
-						yylval_param->crSTRING = ra_strdup(rtr, string_buf);
+						yylval_param->crSTRING = ra_strdup(alloc, string_buf);
 						return crSTRING;
 					}
 	YY_BREAK
 case 74:
 /* rule 74 can match eol */
 YY_RULE_SETUP
-#line 226 "conffile.l"
+#line 228 "conffile.l"
 {
-						router_yyerror(llocp, NULL, rtr, "unterminated string");
+						router_yyerror(llocp, NULL, rtr, alloc,
+								"unterminated string");
 						yyterminate();
 					}
 	YY_BREAK
 case YY_STATE_EOF(qu):
-#line 230 "conffile.l"
+#line 233 "conffile.l"
 {
-						router_yyerror(llocp, NULL, rtr, "unterminated string");
+						router_yyerror(llocp, NULL, rtr, alloc,
+								"unterminated string");
 						yyterminate();
 					}
 	YY_BREAK
 case 75:
 YY_RULE_SETUP
-#line 234 "conffile.l"
+#line 238 "conffile.l"
 {
 						*strbuf++ = yytext[1];
 						if (strbuf == string_buf + sizeof(string_buf)) {
-							router_yyerror(llocp, NULL, rtr,
+							router_yyerror(llocp, NULL, rtr, alloc,
 									"string too large");
 							yyterminate();
 						}
@@ -1679,13 +1683,13 @@ YY_RULE_SETUP
 	YY_BREAK
 case 76:
 YY_RULE_SETUP
-#line 242 "conffile.l"
+#line 246 "conffile.l"
 {
 						char *yptr = yytext;
 						while (*yptr) {
 							*strbuf++ = *yptr++;
 							if (strbuf == string_buf + sizeof(string_buf)) {
-								router_yyerror(llocp, NULL, rtr,
+								router_yyerror(llocp, NULL, rtr, alloc,
 										"string too large");
 								yyterminate();
 							}
@@ -1696,10 +1700,10 @@ YY_RULE_SETUP
 case 77:
 /* rule 77 can match eol */
 YY_RULE_SETUP
-#line 255 "conffile.l"
+#line 259 "conffile.l"
 {
 						/* ignore for now
-						yylval_param->crCOMMENT = ra_strdup(rtr, yytext);
+						yylval_param->crCOMMENT = ra_strdup(alloc, yytext);
 						return crCOMMENT;
 						*/
 						yycolumn = 0;
@@ -1708,18 +1712,18 @@ YY_RULE_SETUP
 	YY_BREAK
 case 78:
 YY_RULE_SETUP
-#line 264 "conffile.l"
+#line 268 "conffile.l"
 ; /* whitespace */
 	YY_BREAK
 case 79:
 /* rule 79 can match eol */
 YY_RULE_SETUP
-#line 265 "conffile.l"
+#line 269 "conffile.l"
 yycolumn = 0;
 	YY_BREAK
 case 80:
 YY_RULE_SETUP
-#line 266 "conffile.l"
+#line 270 "conffile.l"
 {
 						yylval_param->crINTVAL = atoi(yytext);
 						return crINTVAL;
@@ -1727,34 +1731,34 @@ YY_RULE_SETUP
 	YY_BREAK
 case 81:
 YY_RULE_SETUP
-#line 270 "conffile.l"
+#line 274 "conffile.l"
 {
-						yylval_param->crSTRING = ra_strdup(rtr, yytext);
+						yylval_param->crSTRING = ra_strdup(alloc, yytext);
 						BEGIN(identstate);
 						return crSTRING;
 					}
 	YY_BREAK
 case 82:
 YY_RULE_SETUP
-#line 275 "conffile.l"
+#line 279 "conffile.l"
 { BEGIN(INITIAL); return ';'; }
 	YY_BREAK
 case 83:
 YY_RULE_SETUP
-#line 276 "conffile.l"
+#line 280 "conffile.l"
 {
 						/* feed this back to the parser, it will give a
 						 * nice error message */
-						yylval_param->crSTRING = ra_strdup(rtr, yytext);
+						yylval_param->crSTRING = ra_strdup(alloc, yytext);
 						return crSTRING;
 					}
 	YY_BREAK
 case 84:
 YY_RULE_SETUP
-#line 283 "conffile.l"
+#line 287 "conffile.l"
 ECHO;
 	YY_BREAK
-#line 1757 "conffile.yy.c"
+#line 1761 "conffile.yy.c"
 case YY_STATE_EOF(INITIAL):
 case YY_STATE_EOF(cl):
 case YY_STATE_EOF(ma):
@@ -2910,6 +2914,6 @@ void router_yyfree (void * ptr , yyscan_t yyscanner)
 
 #define YYTABLES_NAME "yytables"
 
-#line 283 "conffile.l"
+#line 287 "conffile.l"
 
 

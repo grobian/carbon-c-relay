@@ -38,6 +38,7 @@ OBJS = \
 	dispatcher.o \
 	conffile.tab.o \
 	conffile.yy.o \
+	allocator.o \
 	router.o \
 	queue.o \
 	server.o \

@@ -1,9 +1,10 @@
 %{
+#include "allocator.h"
 #include "conffile.h"
 #include "conffile.tab.h"
 #include "aggregator.h"
 
-int router_yylex(ROUTER_YYSTYPE *, ROUTER_YYLTYPE *, void *, router *);
+int router_yylex(ROUTER_YYSTYPE *, ROUTER_YYLTYPE *, void *, router *, allocator *);
 %}
 %code requires {
 struct _clust {
@@ -37,7 +38,7 @@ struct _agcomp {
 %locations
 %define parse.error verbose
 %define api.value.type union
-%param {void *yyscanner} {router *rtr}
+%param {void *yyscanner} {router *rtr} {allocator *alloc}
 
 %token crCLUSTER
 %token crFORWARD crANY_OF crFAILOVER crCARBON_CH crFNV1A_CH crJUMP_FNV1A_CH
@@ -112,24 +113,24 @@ cluster: crCLUSTER crSTRING[name] cluster_type[type] cluster_hosts[servers]
 	   	struct _clhost *w;
 		char *err;
 
-		if (($$ = ra_malloc(rtr, sizeof(cluster))) == NULL) {
+		if (($$ = ra_malloc(alloc, sizeof(cluster))) == NULL) {
 			logerr("malloc failed for cluster '%s'\n", $name);
 			YYABORT;
 		}
-		$$->name = ra_strdup(rtr, $name);
+		$$->name = ra_strdup(alloc, $name);
 		$$->next = NULL;
 		$$->type = $type.t;
 		switch ($$->type) {
 			case CARBON_CH:
 			case FNV1A_CH:
 			case JUMP_CH:
-				$$->members.ch = ra_malloc(rtr, sizeof(chashring));
+				$$->members.ch = ra_malloc(alloc, sizeof(chashring));
 				if ($$->members.ch == NULL) {
 					logerr("malloc failed for ch in cluster '%s'\n", $name);
 					YYABORT;
 				}
 				if ($type.ival < 1 || $type.ival > 255) {
-					router_yyerror(&yylloc, yyscanner, rtr,
+					router_yyerror(&yylloc, yyscanner, rtr, alloc,
 						"replication count must be between 1 and 255");
 					YYERROR;
 				}
@@ -155,14 +156,14 @@ cluster: crCLUSTER crSTRING[name] cluster_type[type] cluster_hosts[servers]
 			err = router_add_server(rtr, w->ip, w->port, w->inst,
 					w->proto, w->saddr, w->hint, $type.ival, $$);
 			if (err != NULL) {
-				router_yyerror(&yylloc, yyscanner, rtr, err);
+				router_yyerror(&yylloc, yyscanner, rtr, alloc, err);
 				YYERROR;
 			}
 		}
 
 		err = router_add_cluster(rtr, $$);
 		if (err != NULL) {
-			router_yyerror(&yylloc, yyscanner, rtr, err);
+			router_yyerror(&yylloc, yyscanner, rtr, alloc, err);
 			YYERROR;
 		}
 	   }
@@ -171,11 +172,11 @@ cluster: crCLUSTER crSTRING[name] cluster_type[type] cluster_hosts[servers]
 	   	struct _clhost *w;
 		char *err;
 
-		if (($$ = ra_malloc(rtr, sizeof(cluster))) == NULL) {
+		if (($$ = ra_malloc(alloc, sizeof(cluster))) == NULL) {
 			logerr("malloc failed for cluster '%s'\n", $name);
 			YYABORT;
 		}
-		$$->name = ra_strdup(rtr, $name);
+		$$->name = ra_strdup(alloc, $name);
 		$$->next = NULL;
 		$$->type = $type.t;
 		switch ($$->type) {
@@ -192,14 +193,14 @@ cluster: crCLUSTER crSTRING[name] cluster_type[type] cluster_hosts[servers]
 			err = router_add_server(rtr, w->ip, w->port, w->inst,
 					w->proto, w->saddr, w->hint, $type.ival, $$);
 			if (err != NULL) {
-				router_yyerror(&yylloc, yyscanner, rtr, err);
+				router_yyerror(&yylloc, yyscanner, rtr, alloc, err);
 				YYERROR;
 			}
 		}
 
 		err = router_add_cluster(rtr, $$);
 		if (err != NULL) {
-			router_yyerror(&yylloc, yyscanner, rtr, err);
+			router_yyerror(&yylloc, yyscanner, rtr, alloc, err);
 			YYERROR;
 		}
 	   }
@@ -241,10 +242,10 @@ cluster_opt_path:              { $$ = NULL; }
 				;
 cluster_path: crSTRING[path]
 			{
-				struct _clhost *ret = ra_malloc(rtr, sizeof(struct _clhost));
+				struct _clhost *ret = ra_malloc(alloc, sizeof(struct _clhost));
 				char *err = router_validate_path(rtr, $path);
 				if (err != NULL) {
-					router_yyerror(&yylloc, yyscanner, rtr, err);
+					router_yyerror(&yylloc, yyscanner, rtr, alloc, err);
 					YYERROR;
 				}
 				ret->ip = $path;
@@ -265,13 +266,13 @@ cluster_opt_host:               { $$ = NULL; }
 				;
 cluster_host: crSTRING[ip] cluster_opt_instance[inst] cluster_opt_proto[prot]
 			  {
-			  	struct _clhost *ret = ra_malloc(rtr, sizeof(struct _clhost));
+			  	struct _clhost *ret = ra_malloc(alloc, sizeof(struct _clhost));
 				char *err = router_validate_address(
 						rtr,
 						&(ret->ip), &(ret->port), &(ret->saddr), &(ret->hint),
 						$ip, $prot);
 				if (err != NULL) {
-					router_yyerror(&yylloc, yyscanner, rtr, err);
+					router_yyerror(&yylloc, yyscanner, rtr, alloc, err);
 					YYERROR;
 				}
 				ret->inst = $inst;
@@ -300,19 +301,19 @@ match: crMATCH match_exprs[exprs] match_opt_validate[val]
 
 		if ($val != NULL) {
 			/* optional validate clause */
-			if ((d = ra_malloc(rtr, sizeof(destinations))) == NULL) {
+			if ((d = ra_malloc(alloc, sizeof(destinations))) == NULL) {
 				logerr("out of memory\n");
 				YYABORT;
 			}
 			d->next = NULL;
-			if ((d->cl = ra_malloc(rtr, sizeof(cluster))) == NULL) {
+			if ((d->cl = ra_malloc(alloc, sizeof(cluster))) == NULL) {
 				logerr("out of memory\n");
 				YYABORT;
 			}
 			d->cl->name = NULL;
 			d->cl->type = VALIDATION;
 			d->cl->next = NULL;
-			d->cl->members.validation = ra_malloc(rtr, sizeof(validate));
+			d->cl->members.validation = ra_malloc(alloc, sizeof(validate));
 			if (d->cl->members.validation == NULL) {
 				logerr("out of memory\n");
 				YYABORT;
@@ -333,7 +334,7 @@ match: crMATCH match_exprs[exprs] match_opt_validate[val]
 					$dsts->cl->type == BLACKHOLE ? 1 : $stop;
 			err = router_add_route(rtr, we->r);
 			if (err != NULL) {
-				router_yyerror(&yylloc, yyscanner, rtr, err);
+				router_yyerror(&yylloc, yyscanner, rtr, alloc, err);
 				YYERROR;
 			}
 		}
@@ -342,7 +343,7 @@ match: crMATCH match_exprs[exprs] match_opt_validate[val]
 
 match_exprs: '*'
 		   {
-			if (($$ = ra_malloc(rtr, sizeof(struct _maexpr))) == NULL) {
+			if (($$ = ra_malloc(alloc, sizeof(struct _maexpr))) == NULL) {
 				logerr("out of memory\n");
 				YYABORT;
 			}
@@ -364,14 +365,14 @@ match_opt_expr:              { $$ = NULL; }
 match_expr: crSTRING[expr]
 		  {
 			char *err;
-			if (($$ = ra_malloc(rtr, sizeof(struct _maexpr))) == NULL) {
+			if (($$ = ra_malloc(alloc, sizeof(struct _maexpr))) == NULL) {
 				logerr("out of memory\n");
 				YYABORT;
 			}
 		   	$$->r = NULL;
 		  	err = router_validate_expression(rtr, &($$->r), $expr);
 			if (err != NULL) {
-				router_yyerror(&yylloc, yyscanner, rtr, err);
+				router_yyerror(&yylloc, yyscanner, rtr, alloc, err);
 				YYERROR;
 			}
 			$$->drop = 0;
@@ -383,14 +384,14 @@ match_opt_validate: { $$ = NULL; }
 				  | crVALIDATE crSTRING[expr] crELSE match_log_or_drop[drop]
 				  {
 					char *err;
-					if (($$ = ra_malloc(rtr, sizeof(struct _maexpr))) == NULL) {
+					if (($$ = ra_malloc(alloc, sizeof(struct _maexpr))) == NULL) {
 						logerr("out of memory\n");
 						YYABORT;
 					}
 					$$->r = NULL;
 					err = router_validate_expression(rtr, &($$->r), $expr);
 					if (err != NULL) {
-						router_yyerror(&yylloc, yyscanner, rtr, err);
+						router_yyerror(&yylloc, yyscanner, rtr, alloc, err);
 						YYERROR;
 					}
 					$$->drop = $drop;
@@ -411,7 +412,7 @@ match_send_to: crSEND crTO match_dsts[dsts] { $$ = $dsts; }
 
 match_dsts: crBLACKHOLE
 		  {
-			if (($$ = ra_malloc(rtr, sizeof(destinations))) == NULL) {
+			if (($$ = ra_malloc(alloc, sizeof(destinations))) == NULL) {
 				logerr("out of memory\n");
 				YYABORT;
 			}
@@ -431,13 +432,13 @@ match_opt_dst:             { $$ = NULL; }
 match_dst: crSTRING[cluster]
 		 {
 			char *err;
-			if (($$ = ra_malloc(rtr, sizeof(destinations))) == NULL) {
+			if (($$ = ra_malloc(alloc, sizeof(destinations))) == NULL) {
 				logerr("out of memory\n");
 				YYABORT;
 			}
 			err = router_validate_cluster(rtr, &($$->cl), $1);
 			if (err != NULL) {
-				router_yyerror(&yylloc, yyscanner, rtr, err);
+				router_yyerror(&yylloc, yyscanner, rtr, alloc, err);
 				YYERROR;
 			}
 			$$->next = NULL;
@@ -458,24 +459,24 @@ rewrite: crREWRITE crSTRING[expr] crINTO crSTRING[replacement]
 
 		err = router_validate_expression(rtr, &r, $expr);
 		if (err != NULL) {
-			router_yyerror(&yylloc, yyscanner, rtr, err);
+			router_yyerror(&yylloc, yyscanner, rtr, alloc, err);
 			YYERROR;
 		}
 		
-		cl = ra_malloc(rtr, sizeof(cluster));
+		cl = ra_malloc(alloc, sizeof(cluster));
 		if (cl == NULL) {
 			logerr("out of memory\n");
 			YYABORT;
 		}
 		cl->type = REWRITE;
 		cl->name = NULL;
-		cl->members.replacement = ra_strdup(rtr, $replacement);
+		cl->members.replacement = ra_strdup(alloc, $replacement);
 		cl->next = NULL;
 		if (cl->members.replacement == NULL) {
 			logerr("out of memory\n");
 			YYABORT;
 		}
-		r->dests = ra_malloc(rtr, sizeof(destinations));
+		r->dests = ra_malloc(alloc, sizeof(destinations));
 		if (r->dests == NULL) {
 			logerr("out of memory\n");
 			YYABORT;
@@ -487,7 +488,7 @@ rewrite: crREWRITE crSTRING[expr] crINTO crSTRING[replacement]
 
 		err = router_add_route(rtr, r);
 		if (err != NULL) {
-			router_yyerror(&yylloc, yyscanner, rtr, err);
+			router_yyerror(&yylloc, yyscanner, rtr, alloc, err);
 			YYERROR;
 		}
 	   }
@@ -510,22 +511,22 @@ aggregate: crAGGREGATE match_exprs[exprs] crEVERY crINTVAL[intv] crSECONDS
 			char *err;
 
 			if ($intv <= 0) {
-				router_yyerror(&yylloc, yyscanner, rtr,
+				router_yyerror(&yylloc, yyscanner, rtr, alloc,
 					"interval must be > 0");
 				YYERROR;
 			}
 			if ($expire <= 0) {
-				router_yyerror(&yylloc, yyscanner, rtr,
+				router_yyerror(&yylloc, yyscanner, rtr, alloc,
 					"expire must be > 0");
 				YYERROR;
 			}
 			if ($expire < $intv) {
-				router_yyerror(&yylloc, yyscanner, rtr,
+				router_yyerror(&yylloc, yyscanner, rtr, alloc,
 					"expire must be greater than interval");
 				YYERROR;
 			}
 
-			w = ra_malloc(rtr, sizeof(cluster));
+			w = ra_malloc(alloc, sizeof(cluster));
 			if (w == NULL) {
 				logerr("malloc failed for aggregate\n");
 				YYABORT;
@@ -540,7 +541,7 @@ aggregate: crAGGREGATE match_exprs[exprs] crEVERY crINTVAL[intv] crSECONDS
 				YYABORT;
 			}
 			if ((err = router_add_aggregator(rtr, a)) != NULL) {
-				router_yyerror(&yylloc, yyscanner, rtr, err);
+				router_yyerror(&yylloc, yyscanner, rtr, alloc, err);
 				YYERROR;
 			}
 
@@ -557,11 +558,11 @@ aggregate: crAGGREGATE match_exprs[exprs] crEVERY crINTVAL[intv] crSECONDS
 
 			err = router_add_cluster(rtr, w);
 			if (err != NULL) {
-				router_yyerror(&yylloc, yyscanner, rtr, err);
+				router_yyerror(&yylloc, yyscanner, rtr, alloc, err);
 				YYERROR;
 			}
 
-			d = ra_malloc(rtr, sizeof(destinations));
+			d = ra_malloc(alloc, sizeof(destinations));
 			if (d == NULL) {
 				logerr("out of memory\n");
 				YYABORT;
@@ -575,7 +576,7 @@ aggregate: crAGGREGATE match_exprs[exprs] crEVERY crINTVAL[intv] crSECONDS
 				we->r->stop = $stop;
 				err = router_add_route(rtr, we->r);
 				if (err != NULL) {
-					router_yyerror(&yylloc, yyscanner, rtr, err);
+					router_yyerror(&yylloc, yyscanner, rtr, alloc, err);
 					YYERROR;
 				}
 			}
@@ -606,7 +607,7 @@ aggregate_opt_compute:                    { $$ = NULL; }
 aggregate_compute: crCOMPUTE aggregate_comp_type[type] crWRITE crTO
 				 crSTRING[metric]
 				 {
-					$$ = ra_malloc(rtr, sizeof(struct _agcomp));
+					$$ = ra_malloc(alloc, sizeof(struct _agcomp));
 					if ($$ == NULL) {
 						logerr("malloc failed\n");
 						YYABORT;
@@ -627,7 +628,7 @@ aggregate_comp_type: crSUM        { $$.ctype = SUM; }
 				   | crPERCENTILE
 				   {
 				    if ($1 < 1 || $1 > 99) {
-						router_yyerror(&yylloc, yyscanner, rtr,
+						router_yyerror(&yylloc, yyscanner, rtr, alloc,
 							"percentile<x>: value x must be between 1 and 99");
 						YYERROR;
 					}
@@ -648,7 +649,7 @@ send: crSEND crSTATISTICS crTO match_dsts[dsts] match_opt_stop[stop]
 	{
 		char *err = router_set_statistics(rtr, $dsts);
 		if (err != NULL) {
-			router_yyerror(&yylloc, yyscanner, rtr, err);
+			router_yyerror(&yylloc, yyscanner, rtr, alloc, err);
 			YYERROR;
 		}
 		logerr("warning: 'send statistics to ...' is deprecated and will be "
@@ -669,14 +670,14 @@ statistics: crSTATISTICS
 		  	char *err;
 		  	err = router_set_collectorvals(rtr, $interval, $prefix, $counters);
 			if (err != NULL) {
-				router_yyerror(&yylloc, yyscanner, rtr, err);
+				router_yyerror(&yylloc, yyscanner, rtr, alloc, err);
 				YYERROR;
 			}
 
 			if ($dsts != NULL) {
 				err = router_set_statistics(rtr, $dsts);
 				if (err != NULL) {
-					router_yyerror(&yylloc, yyscanner, rtr, err);
+					router_yyerror(&yylloc, yyscanner, rtr, alloc, err);
 					YYERROR;
 				}
 			}
@@ -687,8 +688,8 @@ statistics_opt_interval: { $$ = 0; }
 					   | crSUBMIT crEVERY crINTVAL[intv] crSECONDS
 					   {
 					   	if ($intv <= 0) {
-							router_yyerror(&yylloc, yyscanner, rtr,
-									ra_strdup(rtr, "interval must be > 0"));
+							router_yyerror(&yylloc, yyscanner, rtr, alloc,
+									ra_strdup(alloc, "interval must be > 0"));
 							YYERROR;
 						}
 						$$ = $intv;

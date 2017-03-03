@@ -35,6 +35,7 @@
 #include "server.h"
 #include "queue.h"
 #include "aggregator.h"
+#include "allocator.h"
 #include "relay.h"
 #include "router.h"
 #include "conffile.h"
@@ -64,12 +65,7 @@ struct _router {
 		unsigned short iotimeout;
 		unsigned int sockbufsize;
 	} conf;
-	struct _router_allocator {
-		void *memory_region;
-		void *nextp;
-		size_t sz;
-		struct _router_allocator *next;
-	} *allocator;
+	allocator *a;
 };
 
 /* declarations to avoid symbol/include hell when doing config.yy.h */
@@ -84,87 +80,6 @@ int router_yylex_destroy(void *);
 #define STUB_AGGR   "_aggregator_stub_"
 /* catch string used for collector output */
 #define STUB_STATS  "_collector_stub_"
-
-/**
- * Free the allocators associated to this router.
- */
-static void
-ra_free(router *rtr)
-{
-	struct _router_allocator *ra;
-	struct _router_allocator *ra_next;
-
-	for (ra = rtr->allocator; ra != NULL; ra = ra_next) {
-		free(ra->memory_region);
-		ra_next = ra->next;
-		free(ra);
-		ra = NULL;
-	}
-}
-
-/**
- * malloc() in one of the allocators for this router.  If insufficient
- * memory is available in the allocator, a new one is allocated.  If
- * that fails, NULL is returned, else a pointer that can be written to
- * up to sz bytes.
- */
-void *
-ra_malloc(router *rtr, size_t sz)
-{
-	struct _router_allocator *ra;
-	void *retp = NULL;
-	size_t nsz;
-
-#define ra_alloc(RA, SZ) { \
-		assert(SZ >= 0); \
-		nsz = 256 * 1024; \
-		if (SZ > nsz) \
-			nsz = ((SZ / 1024) + 1) * 1024; \
-		RA = malloc(sizeof(struct _router_allocator)); \
-		if (RA == NULL) \
-			return NULL; \
-		RA->memory_region = malloc(sizeof(char) * nsz); \
-		if (RA->memory_region == NULL) { \
-			free(RA); \
-			RA = NULL; \
-			return NULL; \
-		} \
-		RA->nextp = RA->memory_region; \
-		RA->sz = nsz; \
-		RA->next = NULL; \
-	}
-
-	if (rtr->allocator == NULL)
-		ra_alloc(rtr->allocator, 0);
-
-	for (ra = rtr->allocator; ra != NULL; ra = ra->next) {
-		if (ra->sz - (ra->nextp - ra->memory_region) >= sz) {
-			retp = ra->nextp;
-			ra->nextp += sz;
-			return retp;
-		}
-		if (ra->next == NULL)
-			ra_alloc(ra->next, sz);
-	}
-
-	/* this should be unreachable code */
-	return NULL;
-}
-
-/**
- * strdup using ra_malloc, e.g. get memory from the allocator associated
- * to the given router.
- */
-char *
-ra_strdup(router *rtr, const char *s)
-{
-	size_t sz = strlen(s) + 1;
-	char *m = ra_malloc(rtr, sz);
-	if (m == NULL)
-		return m;
-	memcpy(m, s, sz);
-	return m;
-}
 
 /**
  * Frees routes and clusters.
@@ -348,7 +263,7 @@ serverip(server *s)
  * Callback for the bison parser for yyerror
  */
 void
-router_yyerror(void *locptr, void *s, router *r, const char *msg)
+router_yyerror(void *locptr, void *s, router *r, allocator *a, const char *msg)
 {
 	(void)s;
 	ROUTER_YYLTYPE *locp = (ROUTER_YYLTYPE *)locptr;
@@ -358,74 +273,74 @@ router_yyerror(void *locptr, void *s, router *r, const char *msg)
 	char buf1[METRIC_BUFSIZ];
 	char buf2[METRIC_BUFSIZ];
 	char *dummy;
-	char (*a)[METRIC_BUFSIZ];
-	char (*b)[METRIC_BUFSIZ];
-	char (*t)[METRIC_BUFSIZ];
+	char (*sa)[METRIC_BUFSIZ];
+	char (*sb)[METRIC_BUFSIZ];
+	char (*st)[METRIC_BUFSIZ];
 
 	if (r->parser_err.msg != NULL)
 		return;
 
 	/* clean up the "value" types */
 	if (regcomp(&re, "cr(STRING|COMMENT|INTVAL)", REG_EXTENDED) != 0) {
-		r->parser_err.msg = ra_strdup(r, msg);
+		r->parser_err.msg = ra_strdup(a, msg);
 		return;
 	}
 	snprintf(buf1, sizeof(buf1), "%s", msg);
-	a = &buf1;
-	b = &buf2;
-	while (regexec(&re, *a, nmatch, pmatch, 0) == 0) {
-		dummy = *a + strlen(*a);
-		if (router_rewrite_metric(b, &dummy,
-					*a, dummy, "\\_1", nmatch, pmatch) == 0)
+	sa = &buf1;
+	sb = &buf2;
+	while (regexec(&re, *sa, nmatch, pmatch, 0) == 0) {
+		dummy = *sa + strlen(*sa);
+		if (router_rewrite_metric(sb, &dummy,
+					*sa, dummy, "\\_1", nmatch, pmatch) == 0)
 		{
-			r->parser_err.msg = ra_strdup(r, msg);
+			r->parser_err.msg = ra_strdup(a, msg);
 			return;
 		}
-		t = a;
-		a = b;
-		b = t;
+		st = sa;
+		sa = sb;
+		sb = st;
 	}
 	regfree(&re);
 
 	/* clean up the keywords */
 	if (regcomp(&re, "cr([A-Z]+)", REG_EXTENDED) != 0) {
-		r->parser_err.msg = ra_strdup(r, msg);
+		r->parser_err.msg = ra_strdup(a, msg);
 		return;
 	}
-	while (regexec(&re, *a, nmatch, pmatch, 0) == 0) {
-		dummy = *a + strlen(*a);
-		if (router_rewrite_metric(b, &dummy,
-					*a, dummy, "'\\_1'", nmatch, pmatch) == 0)
+	while (regexec(&re, *sa, nmatch, pmatch, 0) == 0) {
+		dummy = *sa + strlen(*sa);
+		if (router_rewrite_metric(sb, &dummy,
+					*sa, dummy, "'\\_1'", nmatch, pmatch) == 0)
 		{
-			r->parser_err.msg = ra_strdup(r, msg);
+			r->parser_err.msg = ra_strdup(a, msg);
 			return;
 		}
-		t = a;
-		a = b;
-		b = t;
+		st = sa;
+		sa = sb;
+		sb = st;
 	}
 	regfree(&re);
 
 	/* clean up bison speak */
 	if (regcomp(&re, "\\$end", REG_EXTENDED) != 0) {
-		r->parser_err.msg = ra_strdup(r, msg);
+		r->parser_err.msg = ra_strdup(a, msg);
 		return;
 	}
-	while (regexec(&re, *a, nmatch, pmatch, 0) == 0) {
-		dummy = *a + strlen(*a);
-		if (router_rewrite_metric(b, &dummy,
-					*a, dummy, "end of file", nmatch, pmatch) == 0)
+	while (regexec(&re, *sa, nmatch, pmatch, 0) == 0) {
+		dummy = *sa + strlen(*sa);
+		if (router_rewrite_metric(sb, &dummy,
+					*sa, dummy, "end of file", nmatch, pmatch) == 0)
 		{
-			r->parser_err.msg = ra_strdup(r, msg);
+			r->parser_err.msg = ra_strdup(a, msg);
 			return;
 		}
-		t = a;
-		a = b;
-		b = t;
+		st = sa;
+		sa = sb;
+		sb = st;
 	}
 	regfree(&re);
 
-	r->parser_err.msg = ra_strdup(r, *a);
+	r->parser_err.msg = ra_strdup(a, *sa);
 	if (locp != NULL) {
 		r->parser_err.line = 1 + locp->first_line;
 		r->parser_err.start = locp->first_column;
@@ -468,7 +383,7 @@ router_validate_address(
 		*lastcolon = '\0';
 		port = (int)strtol(lastcolon + 1, &endp, 10);
 		if (port < 1 || endp != p)
-			return(ra_strdup(rtr, "invalid port number"));
+			return(ra_strdup(rtr->a, "invalid port number"));
 	}
 	if (*ip == '[') {
 		ip++;
@@ -477,7 +392,7 @@ router_validate_address(
 		} else if (lastcolon == NULL && *(p - 1) == ']') {
 			*(p - 1) = '\0';
 		} else {
-			return(ra_strdup(rtr, "expected ']'"));
+			return(ra_strdup(rtr->a, "expected ']'"));
 		}
 	}
 
@@ -502,13 +417,13 @@ router_validate_address(
 			snprintf(errmsg, sizeof(errmsg), "failed to resolve %s, port %s, "
 					"proto %s: %s", ip, sport, proto == CON_UDP ? "udp" : "tcp",
 					gai_strerror(err));
-			return(ra_strdup(rtr, errmsg));
+			return(ra_strdup(rtr->a, errmsg));
 		}
 
 		/* no ra_malloc, it gets owned by server */
 		*rethint = malloc(sizeof(hint));
 		if (*rethint == NULL)
-			return(ra_strdup(rtr, "out of memory copying hint structure"));
+			return(ra_strdup(rtr->a, "out of memory copying hint structure"));
 		memcpy(*rethint, &hint, sizeof(hint));
 	} else {
 		/* serialise the IP address, to make sure we use cannonical form
@@ -518,12 +433,12 @@ router_validate_address(
 			if (inet_ntop(saddr->ai_family,
 						&((struct sockaddr_in *)saddr->ai_addr)->sin_addr,
 						hnbuf, sizeof(hnbuf)) != NULL)
-				ip = ra_strdup(rtr, hnbuf);
+				ip = ra_strdup(rtr->a, hnbuf);
 		} else if (saddr->ai_family == AF_INET6) {
 			if (inet_ntop(saddr->ai_family,
 						&((struct sockaddr_in6 *)saddr->ai_addr)->sin6_addr,
 						hnbuf, sizeof(hnbuf)) != NULL)
-				ip = ra_strdup(rtr, hnbuf);
+				ip = ra_strdup(rtr->a, hnbuf);
 		}
 	}
 
@@ -552,7 +467,7 @@ router_validate_path(router *rtr, char *path)
 		snprintf(errbuf, sizeof(errbuf),
 				"failed to open file '%s' for writing: %s",
 				path, strerror(errno));
-		return ra_strdup(rtr, errbuf);
+		return ra_strdup(rtr->a, errbuf);
 	}
 	fclose(probe);
 
@@ -572,9 +487,9 @@ router_validate_expression(router *rtr, route **retr, char *pat)
 {
 	route *r = *retr;
 	if (r == NULL) {
-		r = *retr = ra_malloc(rtr, sizeof(route));
+		r = *retr = ra_malloc(rtr->a, sizeof(route));
 		if (r == NULL)
-			return ra_strdup(rtr, "out of memory allocating route");
+			return ra_strdup(rtr->a, "out of memory allocating route");
 		r->next = NULL;
 		r->dests = NULL;
 	}
@@ -590,7 +505,7 @@ router_validate_expression(router *rtr, route **retr, char *pat)
 			size_t s = snprintf(ebuf, sizeof(ebuf),
 					"invalid expression '%s': ", pat);
 			regerror(err, &r->rule, ebuf + s, sizeof(ebuf) - s);
-			return ra_strdup(rtr, ebuf);
+			return ra_strdup(rtr->a, ebuf);
 		}
 	}
 
@@ -617,7 +532,7 @@ router_validate_cluster(router *rtr, cluster **clptr, char *cl)
 			break;
 	}
 	if (w == NULL)
-		return ra_strdup(rtr, "unknown cluster");
+		return ra_strdup(rtr->a, "unknown cluster");
 
 	*clptr = w;
 	return NULL;
@@ -691,14 +606,14 @@ router_add_server(
 						proto == CON_UDP ? "udp" :
 						proto == CON_TCP ? "tcp" :
 						proto == CON_FILE ? "file" : "???", cl->name);
-				return ra_strdup(ret, errbuf);
+				return ra_strdup(ret->a, errbuf);
 			}
 			if (ret->srvrs == NULL) {
-				s = ret->srvrs = ra_malloc(ret, sizeof(servers));
+				s = ret->srvrs = ra_malloc(ret->a, sizeof(servers));
 			} else {
 				for (s = ret->srvrs; s->next != NULL; s = s->next)
 					;
-				s = s->next = ra_malloc(ret, sizeof(servers));
+				s = s->next = ra_malloc(ret->a, sizeof(servers));
 			}
 			s->next = NULL;
 			s->refcnt = 1;
@@ -718,7 +633,7 @@ router_add_server(
 						"defined without instance",
 						inst, serverip(newserver),
 						server_port(newserver));
-				return ra_strdup(ret, errbuf);
+				return ra_strdup(ret->a, errbuf);
 			} else if (sinst != NULL && inst == NULL) {
 				freeaddrinfo(saddrs);
 				if (hint)
@@ -729,7 +644,7 @@ router_add_server(
 						"defined with instance '%s'",
 						serverip(newserver),
 						server_port(newserver), sinst);
-				return ra_strdup(ret, errbuf);
+				return ra_strdup(ret->a, errbuf);
 			} else if (sinst != NULL && inst != NULL &&
 					strcmp(sinst, inst) != 0)
 			{
@@ -742,7 +657,7 @@ router_add_server(
 						"defined with instance '%s'",
 						inst, serverip(newserver),
 						server_port(newserver), sinst);
-				return ra_strdup(ret, errbuf);
+				return ra_strdup(ret->a, errbuf);
 			} /* else: sinst == inst == NULL */
 		}
 		if (inst != NULL)
@@ -754,11 +669,11 @@ router_add_server(
 		{
 			if (cl->members.ch->servers == NULL) {
 				cl->members.ch->servers = w =
-					ra_malloc(ret, sizeof(servers));
+					ra_malloc(ret->a, sizeof(servers));
 			} else {
 				for (w = cl->members.ch->servers; w->next != NULL; w = w->next)
 					;
-				w = w->next = ra_malloc(ret, sizeof(servers));
+				w = w->next = ra_malloc(ret->a, sizeof(servers));
 			}
 			if (w == NULL) {
 				snprintf(errbuf, sizeof(errbuf), "malloc failed for %s_ch %s",
@@ -768,7 +683,7 @@ router_add_server(
 				freeaddrinfo(saddrs);
 				if (hint)
 					free(hint);
-				return ra_strdup(ret, errbuf);
+				return ra_strdup(ret->a, errbuf);
 			}
 			w->next = NULL;
 			w->server = newserver;
@@ -783,7 +698,7 @@ router_add_server(
 						"failed to add server %s:%d "
 						"to ring for cluster %s: out of memory",
 						ip, port, cl->name);
-				return ra_strdup(ret, errbuf);
+				return ra_strdup(ret->a, errbuf);
 			}
 		} else if (cl->type == FORWARD ||
 				cl->type == FILELOG ||
@@ -791,11 +706,11 @@ router_add_server(
 		{
 			if (cl->members.forward == NULL) {
 				cl->members.forward = w =
-					ra_malloc(ret, sizeof(servers));
+					ra_malloc(ret->a, sizeof(servers));
 			} else {
 				for (w = cl->members.forward; w->next != NULL; w = w->next)
 					;
-				w = w->next = ra_malloc(ret, sizeof(servers));
+				w = w->next = ra_malloc(ret->a, sizeof(servers));
 			}
 			if (w == NULL) {
 				snprintf(errbuf, sizeof(errbuf), "malloc failed for %s %s",
@@ -805,7 +720,7 @@ router_add_server(
 				freeaddrinfo(saddrs);
 				if (hint)
 					free(hint);
-				return ra_strdup(ret, errbuf);
+				return ra_strdup(ret->a, errbuf);
 			}
 			w->next = NULL;
 			w->server = newserver;
@@ -813,17 +728,17 @@ router_add_server(
 				cl->type == FAILOVER)
 		{
 			if (cl->members.anyof == NULL) {
-				cl->members.anyof = ra_malloc(ret, sizeof(serverlist));
+				cl->members.anyof = ra_malloc(ret->a, sizeof(serverlist));
 				if (cl->members.anyof != NULL) {
 					cl->members.anyof->list = w =
-						ra_malloc(ret, sizeof(servers));
+						ra_malloc(ret->a, sizeof(servers));
 					cl->members.anyof->count = 1;
 					cl->members.anyof->servers = NULL;
 				}
 			} else {
 				for (w = cl->members.anyof->list; w->next != NULL; w = w->next)
 					;
-				w = w->next = ra_malloc(ret, sizeof(servers));
+				w = w->next = ra_malloc(ret->a, sizeof(servers));
 				cl->members.anyof->count++;
 			}
 			if (w == NULL) {
@@ -833,7 +748,7 @@ router_add_server(
 				freeaddrinfo(saddrs);
 				if (hint)
 					free(hint);
-				return ra_strdup(ret, errbuf);
+				return ra_strdup(ret->a, errbuf);
 			}
 			w->next = NULL;
 			w->server = newserver;
@@ -848,7 +763,7 @@ router_add_server(
 						serverip(newserver),
 						server_port(newserver),
 						cl->name);
-				return ra_strdup(ret, errbuf);
+				return ra_strdup(ret->a, errbuf);
 			}
 		}
 
@@ -868,7 +783,7 @@ router_add_cluster(router *r, cluster *cl)
 	for (cw = r->clusters; cw != NULL; last = cw, cw = cw->next)
 		if (cw->name != NULL && cl->name != NULL &&
 				strcmp(cw->name, cl->name) == 0)
-			return ra_strdup(r, "cluster with the same name already defined");
+			return ra_strdup(r->a, "cluster with the same name already defined");
 	if (last == NULL)
 		last = r->clusters;
 	last->next = cl;
@@ -877,9 +792,9 @@ router_add_cluster(router *r, cluster *cl)
 	if (cl->type == ANYOF || cl->type == FAILOVER) {
 		size_t i = 0;
 		cl->members.anyof->servers =
-			ra_malloc(r, sizeof(server *) * cl->members.anyof->count);
+			ra_malloc(r->a, sizeof(server *) * cl->members.anyof->count);
 		if (cl->members.anyof->servers == NULL)
-			return ra_strdup(r, "malloc failed for anyof servers");
+			return ra_strdup(r->a, "malloc failed for anyof servers");
 		for (w = cl->members.anyof->list; w != NULL; w = w->next)
 			cl->members.anyof->servers[i++] = w->server;
 		for (w = cl->members.anyof->list; w != NULL; w = w->next) {
@@ -904,7 +819,7 @@ router_add_cluster(router *r, cluster *cl)
 					"invalid cluster '%s': replication count (%u) is "
 					"larger than the number of servers (%zu)\n",
 					cl->name, cl->members.ch->repl_factor, i);
-			return ra_strdup(r, errbuf);
+			return ra_strdup(r->a, errbuf);
 		}
 	}
 	return NULL;
@@ -968,9 +883,9 @@ router_add_stubroute(
 	cluster *cl;
 	char *err;
 
-	m = ra_malloc(rtr, sizeof(route));
+	m = ra_malloc(rtr->a, sizeof(route));
 	if (m == NULL)
-		return ra_strdup(rtr, "malloc failed for stub route");
+		return ra_strdup(rtr->a, "malloc failed for stub route");
 	m->pattern = NULL;
 	m->strmatch = NULL;
 	m->dests = dw;
@@ -979,13 +894,13 @@ router_add_stubroute(
 	m->next = NULL;
 
 	/* inject stub route for dests */
-	d = ra_malloc(rtr, sizeof(destinations));
+	d = ra_malloc(rtr->a, sizeof(destinations));
 	if (d == NULL)
-		return ra_strdup(rtr, "malloc failed for stub destinations");
+		return ra_strdup(rtr->a, "malloc failed for stub destinations");
 	d->next = NULL;
-	cl = d->cl = ra_malloc(rtr, sizeof(cluster));
+	cl = d->cl = ra_malloc(rtr->a, sizeof(cluster));
 	if (cl == NULL)
-		return ra_strdup(rtr, "malloc failed for stub cluster");
+		return ra_strdup(rtr->a, "malloc failed for stub cluster");
 	cl->name = NULL;
 	cl->type = type;
 	cl->members.routes = m;
@@ -1001,15 +916,15 @@ router_add_stubroute(
 		snprintf(stubname, sizeof(stubname),
 				STUB_STATS "%p__", rtr);
 	} else {
-		return ra_strdup(rtr, "unknown stub type");
+		return ra_strdup(rtr->a, "unknown stub type");
 	}
-	m = ra_malloc(rtr, sizeof(route));
+	m = ra_malloc(rtr->a, sizeof(route));
 	if (m == NULL)
-		return ra_strdup(rtr, "malloc failed for catch stub route");
-	m->pattern = ra_strdup(rtr, stubname);
-	m->strmatch = ra_strdup(rtr, stubname);
+		return ra_strdup(rtr->a, "malloc failed for catch stub route");
+	m->pattern = ra_strdup(rtr->a, stubname);
+	m->strmatch = ra_strdup(rtr->a, stubname);
 	if (m->pattern == NULL || m->strmatch == NULL)
-		ra_strdup(rtr, "malloc failed for catch stub pattern");
+		ra_strdup(rtr->a, "malloc failed for catch stub pattern");
 	m->dests = d;
 	m->stop = 1;
 	m->matchtype = STARTS_WITH;
@@ -1030,7 +945,7 @@ char *
 router_set_statistics(router *rtr, destinations *dsts)
 {
 	if (rtr->collector.stub != NULL)
-		return ra_strdup(rtr,
+		return ra_strdup(rtr->a,
 				"duplicate 'send statistics to' not allowed, "
 				"use multiple destinations instead");
 
@@ -1122,7 +1037,11 @@ router_readconfig(router *orig,
 			logerr("malloc failed for router return struct\n");
 			return NULL;
 		}
-		ret->allocator = NULL;
+		ret->a = ra_new();
+		if (ret->a == NULL) {
+			logerr("malloc failed for allocator\n");
+			return NULL;
+		}
 		ret->routes = NULL;
 		ret->aggregators = NULL;
 		ret->srvrs = NULL;
@@ -1143,13 +1062,13 @@ router_readconfig(router *orig,
 		ret->conf.sockbufsize = sockbufsize;
 
 		/* create virtual blackhole cluster */
-		cl = ra_malloc(ret, sizeof(cluster));
+		cl = ra_malloc(ret->a, sizeof(cluster));
 		if (cl == NULL) {
 			logerr("malloc failed for blackhole cluster\n");
 			router_free(ret);
 			return NULL;
 		}
-		cl->name = ra_strdup(ret, "blackhole");
+		cl->name = ra_strdup(ret->a, "blackhole");
 		cl->type = BLACKHOLE;
 		cl->members.forward = NULL;
 		cl->next = NULL;
@@ -1158,7 +1077,7 @@ router_readconfig(router *orig,
 		ret = orig;
 	}
 
-	if ((buf = ra_malloc(ret, st.st_size + 1)) == NULL) {
+	if ((buf = ra_malloc(ret->a, st.st_size + 1)) == NULL) {
 		logerr("malloc failed for config file buffer\n");
 		router_free(ret);
 		return NULL;
@@ -1183,7 +1102,7 @@ router_readconfig(router *orig,
 	/* copies buf due to modifications, we need orig for error reporting */
 	router_yy_scan_string(buf, lptr);
 	ret->parser_err.msg = NULL;
-	if (router_yyparse(lptr, ret) != 0) {
+	if (router_yyparse(lptr, ret, ret->a) != 0) {
 		if (ret->parser_err.msg == NULL) {
 			fprintf(stderr, "parsing %s failed\n", path);
 		} else if (ret->parser_err.line != 0) {
@@ -1206,7 +1125,7 @@ router_readconfig(router *orig,
 			if ((p = strchr(line + ret->parser_err.stop, '\n')) != NULL)
 				*p = '\0';
 			carlen = ret->parser_err.stop - ret->parser_err.start + 1;
-			carets = ra_malloc(ret, carlen + 1);
+			carets = ra_malloc(ret->a, carlen + 1);
 			memset(carets, '^', carlen);
 			carets[carlen] = '\0';
 			fprintf(stderr, "%s\n", line);
@@ -1594,18 +1513,18 @@ router_set_collectorvals(router *rtr, int intv, char *prefix, col_mode smode)
 		regmatch_t pmatch[3];
 
 		if (regcomp(&re, expr, REG_EXTENDED) != 0)
-			return ra_strdup(rtr, "failed to compile hostname regexp");
+			return ra_strdup(rtr->a, "failed to compile hostname regexp");
 		if (regexec(&re, relay_hostname, nmatch, pmatch, 0) != 0)
-			return ra_strdup(rtr, "failed to execute hostname regext");
+			return ra_strdup(rtr->a, "failed to execute hostname regext");
 		if (router_rewrite_metric(
 				&cprefix, &dummy,
 				relay_hostname, dummy, prefix,
 				nmatch, pmatch) == 0)
-			return ra_strdup(rtr, "rewriting statistics prefix filed");
+			return ra_strdup(rtr->a, "rewriting statistics prefix failed");
 		regfree(&re);
-		rtr->collector.prefix = ra_strdup(rtr, cprefix);
+		rtr->collector.prefix = ra_strdup(rtr->a, cprefix);
 		if (rtr->collector.prefix == NULL)
-			return ra_strdup(rtr, "out of memory");
+			return ra_strdup(rtr->a, "out of memory");
 	}
 	rtr->collector.mode = smode;
 
@@ -2007,7 +1926,7 @@ router_free(router *rtr)
 	for (s = rtr->srvrs; s != NULL; s = s->next)
 		server_free(s->server);
 
-	ra_free(rtr);
+	ra_free(rtr->a);
 	free(rtr);
 }
 

@@ -48,7 +48,7 @@
 extern int router_yydebug;
 #endif
 /* "%code requires" blocks.  */
-#line 8 "conffile.y" /* yacc.c:1909  */
+#line 9 "conffile.y" /* yacc.c:1909  */
 
 struct _clust {
 	enum clusttype t;
@@ -258,6 +258,6 @@ struct ROUTER_YYLTYPE
 
 
 
-int router_yyparse (void *yyscanner, router *rtr);
+int router_yyparse (void *yyscanner, router *rtr, allocator *alloc);
 
 #endif /* !YY_ROUTER_YY_CONFFILE_TAB_H_INCLUDED  */
