@@ -1040,6 +1040,7 @@ router_readconfig(router *orig,
 		ret->a = ra_new();
 		if (ret->a == NULL) {
 			logerr("malloc failed for allocator\n");
+			free(ret);
 			return NULL;
 		}
 		ret->routes = NULL;
