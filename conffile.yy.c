@@ -806,7 +806,7 @@ static const flex_int32_t yy_rule_can_match_eol[85] =
 #define YYSTYPE ROUTER_YYSTYPE
 
 #define YY_DECL int router_yylex \
-	(YYSTYPE *yylval_param, ROUTER_YYLTYPE *llocp, yyscan_t yyscanner, router *rtr, allocator *alloc)
+	(YYSTYPE *yylval_param, ROUTER_YYLTYPE *llocp, yyscan_t yyscanner, router *rtr, allocator *ralloc, allocator *palloc)
 #define YY_USER_ACTION llocp->first_line = llocp->last_line = yylineno; \
 	llocp->first_column = yycolumn; llocp->last_column = yycolumn+yyleng-1; \
 	yycolumn += yyleng;
@@ -1641,13 +1641,13 @@ YY_RULE_SETUP
 #line 217 "conffile.l"
 {
 						if (strbuf == string_buf) {
-							router_yyerror(llocp, NULL, rtr, alloc,
+							router_yyerror(llocp, NULL, rtr, ralloc, palloc,
 									"empty string");
 							yyterminate();
 						}
 						BEGIN(identstate);
 						*strbuf = '\0';
-						yylval_param->crSTRING = ra_strdup(alloc, string_buf);
+						yylval_param->crSTRING = ra_strdup(palloc, string_buf);
 						return crSTRING;
 					}
 	YY_BREAK
@@ -1656,7 +1656,7 @@ case 74:
 YY_RULE_SETUP
 #line 228 "conffile.l"
 {
-						router_yyerror(llocp, NULL, rtr, alloc,
+						router_yyerror(llocp, NULL, rtr, ralloc, palloc,
 								"unterminated string");
 						yyterminate();
 					}
@@ -1664,7 +1664,7 @@ YY_RULE_SETUP
 case YY_STATE_EOF(qu):
 #line 233 "conffile.l"
 {
-						router_yyerror(llocp, NULL, rtr, alloc,
+						router_yyerror(llocp, NULL, rtr, ralloc, palloc,
 								"unterminated string");
 						yyterminate();
 					}
@@ -1675,7 +1675,7 @@ YY_RULE_SETUP
 {
 						*strbuf++ = yytext[1];
 						if (strbuf == string_buf + sizeof(string_buf)) {
-							router_yyerror(llocp, NULL, rtr, alloc,
+							router_yyerror(llocp, NULL, rtr, ralloc, palloc,
 									"string too large");
 							yyterminate();
 						}
@@ -1689,8 +1689,8 @@ YY_RULE_SETUP
 						while (*yptr) {
 							*strbuf++ = *yptr++;
 							if (strbuf == string_buf + sizeof(string_buf)) {
-								router_yyerror(llocp, NULL, rtr, alloc,
-										"string too large");
+								router_yyerror(llocp, NULL, rtr,
+										ralloc, palloc, "string too large");
 								yyterminate();
 							}
 						}
@@ -1703,7 +1703,7 @@ YY_RULE_SETUP
 #line 259 "conffile.l"
 {
 						/* ignore for now
-						yylval_param->crCOMMENT = ra_strdup(alloc, yytext);
+						yylval_param->crCOMMENT = ra_strdup(palloc, yytext);
 						return crCOMMENT;
 						*/
 						yycolumn = 0;
@@ -1733,7 +1733,7 @@ case 81:
 YY_RULE_SETUP
 #line 274 "conffile.l"
 {
-						yylval_param->crSTRING = ra_strdup(alloc, yytext);
+						yylval_param->crSTRING = ra_strdup(palloc, yytext);
 						BEGIN(identstate);
 						return crSTRING;
 					}
@@ -1749,7 +1749,7 @@ YY_RULE_SETUP
 {
 						/* feed this back to the parser, it will give a
 						 * nice error message */
-						yylval_param->crSTRING = ra_strdup(alloc, yytext);
+						yylval_param->crSTRING = ra_strdup(palloc, yytext);
 						return crSTRING;
 					}
 	YY_BREAK

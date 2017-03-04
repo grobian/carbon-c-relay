@@ -101,7 +101,7 @@ typedef struct _route {
 	struct _route *next;
 } route;
 
-void router_yyerror(void *locp, void *, router *r, allocator *a, const char *msg);
+void router_yyerror(void *locp, void *, router *r, allocator *ra, allocator *pa, const char *msg);
 char *router_validate_address(router *rtr, char **retip, int *retport, void **retsaddr, void **rethint, char *ip, serv_ctype proto);
 char *router_validate_path(router *rtr, char *path);
 char *router_validate_expression(router *rtr, route **retr, char *pat);

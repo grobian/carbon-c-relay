@@ -263,7 +263,13 @@ serverip(server *s)
  * Callback for the bison parser for yyerror
  */
 void
-router_yyerror(void *locptr, void *s, router *r, allocator *a, const char *msg)
+router_yyerror(
+		void *locptr,
+		void *s,
+		router *r,
+		allocator *ra,
+		allocator *a,
+		const char *msg)
 {
 	(void)s;
 	ROUTER_YYLTYPE *locp = (ROUTER_YYLTYPE *)locptr;
@@ -970,6 +976,7 @@ router_readconfig(router *orig,
 	struct stat st;
 	router *ret = NULL;
 	void *lptr = NULL;
+	allocator *palloc;
 
 	if (strchr(path, '*') || strchr(path, '?') ||
 			(strchr(path, '[') && strchr(path, ']')))
@@ -1077,7 +1084,15 @@ router_readconfig(router *orig,
 		ret = orig;
 	}
 
-	if ((buf = ra_malloc(ret->a, st.st_size + 1)) == NULL) {
+	/* parser allocator for memory needs during parsing only */
+	palloc = ra_new();
+	if (palloc == NULL) {
+		logerr("malloc failed for parse allocator\n");
+		router_free(ret);
+		return NULL;
+	}
+
+	if ((buf = ra_malloc(palloc, st.st_size + 1)) == NULL) {
 		logerr("malloc failed for config file buffer\n");
 		router_free(ret);
 		return NULL;
@@ -1102,7 +1117,7 @@ router_readconfig(router *orig,
 	/* copies buf due to modifications, we need orig for error reporting */
 	router_yy_scan_string(buf, lptr);
 	ret->parser_err.msg = NULL;
-	if (router_yyparse(lptr, ret, ret->a) != 0) {
+	if (router_yyparse(lptr, ret, ret->a, palloc) != 0) {
 		if (ret->parser_err.msg == NULL) {
 			fprintf(stderr, "parsing %s failed\n", path);
 		} else if (ret->parser_err.line != 0) {
@@ -1125,7 +1140,7 @@ router_readconfig(router *orig,
 			if ((p = strchr(line + ret->parser_err.stop, '\n')) != NULL)
 				*p = '\0';
 			carlen = ret->parser_err.stop - ret->parser_err.start + 1;
-			carets = ra_malloc(ret->a, carlen + 1);
+			carets = ra_malloc(palloc, carlen + 1);
 			memset(carets, '^', carlen);
 			carets[carlen] = '\0';
 			fprintf(stderr, "%s\n", line);
@@ -1140,9 +1155,11 @@ router_readconfig(router *orig,
 		}
 		router_yylex_destroy(lptr);
 		router_free(ret);
+		ra_free(palloc);
 		return NULL;
 	}
 	router_yylex_destroy(lptr);
+	ra_free(palloc);
 
 	return ret;
 }

@@ -5,7 +5,7 @@
 #define YYSTYPE ROUTER_YYSTYPE
 
 #define YY_DECL int router_yylex \
-	(YYSTYPE *yylval_param, ROUTER_YYLTYPE *llocp, yyscan_t yyscanner, router *rtr, allocator *alloc)
+	(YYSTYPE *yylval_param, ROUTER_YYLTYPE *llocp, yyscan_t yyscanner, router *rtr, allocator *ralloc, allocator *palloc)
 #define YY_USER_ACTION llocp->first_line = llocp->last_line = yylineno; \
 	llocp->first_column = yycolumn; llocp->last_column = yycolumn+yyleng-1; \
 	yycolumn += yyleng;
@@ -215,29 +215,29 @@ include				{
 <qu>{
 	\"				{
 						if (strbuf == string_buf) {
-							router_yyerror(llocp, NULL, rtr, alloc,
+							router_yyerror(llocp, NULL, rtr, ralloc, palloc,
 									"empty string");
 							yyterminate();
 						}
 						BEGIN(identstate);
 						*strbuf = '\0';
-						yylval_param->crSTRING = ra_strdup(alloc, string_buf);
+						yylval_param->crSTRING = ra_strdup(palloc, string_buf);
 						return crSTRING;
 					}
 	\n				{
-						router_yyerror(llocp, NULL, rtr, alloc,
+						router_yyerror(llocp, NULL, rtr, ralloc, palloc,
 								"unterminated string");
 						yyterminate();
 					}
 	<<EOF>>			{
-						router_yyerror(llocp, NULL, rtr, alloc,
+						router_yyerror(llocp, NULL, rtr, ralloc, palloc,
 								"unterminated string");
 						yyterminate();
 					}
 	\\.  			{
 						*strbuf++ = yytext[1];
 						if (strbuf == string_buf + sizeof(string_buf)) {
-							router_yyerror(llocp, NULL, rtr, alloc,
+							router_yyerror(llocp, NULL, rtr, ralloc, palloc,
 									"string too large");
 							yyterminate();
 						}
@@ -247,8 +247,8 @@ include				{
 						while (*yptr) {
 							*strbuf++ = *yptr++;
 							if (strbuf == string_buf + sizeof(string_buf)) {
-								router_yyerror(llocp, NULL, rtr, alloc,
-										"string too large");
+								router_yyerror(llocp, NULL, rtr,
+										ralloc, palloc, "string too large");
 								yyterminate();
 							}
 						}
@@ -257,7 +257,7 @@ include				{
 
 <*>#.*\n			{
 						/* ignore for now
-						yylval_param->crCOMMENT = ra_strdup(alloc, yytext);
+						yylval_param->crCOMMENT = ra_strdup(palloc, yytext);
 						return crCOMMENT;
 						*/
 						yycolumn = 0;
@@ -271,7 +271,7 @@ include				{
 						return crINTVAL;
 					}
 <idcl,idma,idag,idin>{IDCHR}+(\\[ ]{IDCHR}+)*	{
-						yylval_param->crSTRING = ra_strdup(alloc, yytext);
+						yylval_param->crSTRING = ra_strdup(palloc, yytext);
 						BEGIN(identstate);
 						return crSTRING;
 					}
@@ -279,7 +279,7 @@ include				{
 <*>.				{
 						/* feed this back to the parser, it will give a
 						 * nice error message */
-						yylval_param->crSTRING = ra_strdup(alloc, yytext);
+						yylval_param->crSTRING = ra_strdup(palloc, yytext);
 						return crSTRING;
 					}
 

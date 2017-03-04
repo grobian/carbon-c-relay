@@ -258,6 +258,6 @@ struct ROUTER_YYLTYPE
 
 
 
-int router_yyparse (void *yyscanner, router *rtr, allocator *alloc);
+int router_yyparse (void *yyscanner, router *rtr, allocator *ralloc, allocator *palloc);
 
 #endif /* !YY_ROUTER_YY_CONFFILE_TAB_H_INCLUDED  */
