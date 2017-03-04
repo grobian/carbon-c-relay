@@ -1003,8 +1003,7 @@ router_readconfig(router *orig,
 		}
 
 		/* read all files matched by glob */
-		if (orig != NULL)
-			ret = orig;
+		ret = orig;
 		for (i = 0; i < globbuf.gl_pathc; i++) {
 			globpath = globbuf.gl_pathv[i];
 			ret = router_readconfig(ret, globpath, queuesize,
