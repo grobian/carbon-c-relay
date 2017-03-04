@@ -43,24 +43,23 @@ ra_free(allocator *ra)
 	}
 }
 
-#define ra_alloc(RA, SZ) { \
-		assert(SZ >= 0); \
-		nsz = 256 * 1024; \
-		if (SZ > nsz) \
-			nsz = ((SZ / 1024) + 1) * 1024; \
-		RA = malloc(sizeof(allocator)); \
-		if (RA == NULL) \
-			return NULL; \
-		RA->memory_region = malloc(sizeof(char) * nsz); \
-		if (RA->memory_region == NULL) { \
-			free(RA); \
-			RA = NULL; \
-			return NULL; \
-		} \
-		RA->nextp = RA->memory_region; \
-		RA->sz = nsz; \
-		RA->next = NULL; \
-	}
+#define ra_alloc(RA, SZ) \
+	assert(SZ >= 0); \
+	nsz = 256 * 1024; \
+	if (SZ > nsz) \
+		nsz = ((SZ / 1024) + 1) * 1024; \
+	RA = malloc(sizeof(allocator)); \
+	if (RA == NULL) \
+		return NULL; \
+	RA->memory_region = malloc(sizeof(char) * nsz); \
+	if (RA->memory_region == NULL) { \
+		free(RA); \
+		RA = NULL; \
+		return NULL; \
+	} \
+	RA->nextp = RA->memory_region; \
+	RA->sz = nsz; \
+	RA->next = NULL; \
 
 /**
  * Allocate a new allocator.
