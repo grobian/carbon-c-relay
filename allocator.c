@@ -20,12 +20,12 @@
 
 #include "allocator.h"
 
-typedef	struct _cr_allocator {
+struct _cr_allocator {
 	void *memory_region;
 	void *nextp;
 	size_t sz;
 	struct _cr_allocator *next;
-} allocator;
+};
 
 /**
  * Free the resources associated to this allocator.
