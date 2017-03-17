@@ -232,9 +232,15 @@ union ROUTER_YYSTYPE
   struct _maexpr * match_opt_expr;
   /* match_expr  */
   struct _maexpr * match_expr;
+  /* match_exprs_subst  */
+  struct _maexpr * match_exprs_subst;
+  /* match_subst_opt_expr  */
+  struct _maexpr * match_subst_opt_expr;
+  /* match_subst_expr  */
+  struct _maexpr * match_subst_expr;
   /* match_opt_validate  */
   struct _maexpr * match_opt_validate;
-#line 238 "conffile.tab.h" /* yacc.c:1909  */
+#line 244 "conffile.tab.h" /* yacc.c:1909  */
 };
 
 typedef union ROUTER_YYSTYPE ROUTER_YYSTYPE;

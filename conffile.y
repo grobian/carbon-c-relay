@@ -58,7 +58,8 @@ struct _agcomp {
 	match_dsts2 match_opt_send_to match_send_to aggregate_opt_send_to
 %type <int> match_opt_stop match_log_or_drop
 %type <struct _maexpr *> match_opt_validate match_expr match_opt_expr
-	match_exprs match_exprs2
+	match_exprs match_exprs_subst match_exprs2 match_subst_expr
+	match_subst_opt_expr 
 
 %token crREWRITE
 %token crINTO
@@ -373,6 +374,32 @@ match_expr: crSTRING[expr]
 				YYABORT;
 			}
 		   	$$->r = NULL;
+		  	err = router_validate_expression(rtr, &($$->r), $expr, 0);
+			if (err != NULL) {
+				router_yyerror(&yylloc, yyscanner, rtr,
+						ralloc, palloc, err);
+				YYERROR;
+			}
+			$$->drop = 0;
+			$$->next = NULL;
+		  }
+		  ;
+
+match_exprs_subst: match_subst_expr[l] match_subst_opt_expr[r]
+				 { $l->next = $r; $$ = $l; }
+
+match_subst_opt_expr:                   { $$ = NULL; }
+					| match_exprs_subst { $$ = $1; }
+					;
+
+match_subst_expr: crSTRING[expr]
+		  {
+			char *err;
+			if (($$ = ra_malloc(palloc, sizeof(struct _maexpr))) == NULL) {
+				logerr("out of memory\n");
+				YYABORT;
+			}
+		   	$$->r = NULL;
 		  	err = router_validate_expression(rtr, &($$->r), $expr, 1);
 			if (err != NULL) {
 				router_yyerror(&yylloc, yyscanner, rtr,
@@ -501,7 +528,7 @@ rewrite: crREWRITE crSTRING[expr] crINTO crSTRING[replacement]
 /*** }}} END rewrite ***/
 
 /*** {{{ BEGIN aggregate ***/
-aggregate: crAGGREGATE match_exprs[exprs] crEVERY crINTVAL[intv] crSECONDS
+aggregate: crAGGREGATE match_exprs_subst[exprs] crEVERY crINTVAL[intv] crSECONDS
 		 crEXPIRE crAFTER crINTVAL[expire] crSECONDS
 		 aggregate_opt_timestamp[tswhen]
 		 aggregate_computes[computes]
