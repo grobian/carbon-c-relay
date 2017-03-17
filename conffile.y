@@ -351,7 +351,7 @@ match_exprs: '*'
 				YYABORT;
 			}
 		   	$$->r = NULL;
-			if (router_validate_expression(rtr, &($$->r), "*") != NULL)
+			if (router_validate_expression(rtr, &($$->r), "*", 0) != NULL)
 				YYABORT;
 			$$->drop = 0;
 			$$->next = NULL;
@@ -373,7 +373,7 @@ match_expr: crSTRING[expr]
 				YYABORT;
 			}
 		   	$$->r = NULL;
-		  	err = router_validate_expression(rtr, &($$->r), $expr);
+		  	err = router_validate_expression(rtr, &($$->r), $expr, 1);
 			if (err != NULL) {
 				router_yyerror(&yylloc, yyscanner, rtr,
 						ralloc, palloc, err);
@@ -393,7 +393,7 @@ match_opt_validate: { $$ = NULL; }
 						YYABORT;
 					}
 					$$->r = NULL;
-					err = router_validate_expression(rtr, &($$->r), $expr);
+					err = router_validate_expression(rtr, &($$->r), $expr, 0);
 					if (err != NULL) {
 						router_yyerror(&yylloc, yyscanner, rtr,
 								ralloc, palloc, err);
@@ -462,7 +462,7 @@ rewrite: crREWRITE crSTRING[expr] crINTO crSTRING[replacement]
 		route *r = NULL;
 		cluster *cl;
 
-		err = router_validate_expression(rtr, &r, $expr);
+		err = router_validate_expression(rtr, &r, $expr, 1);
 		if (err != NULL) {
 			router_yyerror(&yylloc, yyscanner, rtr, ralloc, palloc, err);
 			YYERROR;

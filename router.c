@@ -489,7 +489,7 @@ router_validate_path(router *rtr, char *path)
  * struct is allocated.
  */
 char *
-router_validate_expression(router *rtr, route **retr, char *pat)
+router_validate_expression(router *rtr, route **retr, char *pat, char subst)
 {
 	route *r = *retr;
 	if (r == NULL) {
@@ -505,7 +505,7 @@ router_validate_expression(router *rtr, route **retr, char *pat)
 		r->matchtype = MATCHALL;
 	} else {
 		int err = determine_if_regex(r, pat,
-				REG_EXTENDED | REG_NOSUB);
+				REG_EXTENDED | (subst ? 0 : REG_NOSUB));
 		if (err != 0) {
 			char ebuf[512];
 			size_t s = snprintf(ebuf, sizeof(ebuf),

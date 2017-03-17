@@ -1992,7 +1992,7 @@ yyreduce:
 				YYABORT;
 			}
 		   	(*(struct _maexpr **)(&yyval))->r = NULL;
-			if (router_validate_expression(rtr, &((*(struct _maexpr **)(&yyval))->r), "*") != NULL)
+			if (router_validate_expression(rtr, &((*(struct _maexpr **)(&yyval))->r), "*", 0) != NULL)
 				YYABORT;
 			(*(struct _maexpr **)(&yyval))->drop = 0;
 			(*(struct _maexpr **)(&yyval))->next = NULL;
@@ -2033,7 +2033,7 @@ yyreduce:
 				YYABORT;
 			}
 		   	(*(struct _maexpr **)(&yyval))->r = NULL;
-		  	err = router_validate_expression(rtr, &((*(struct _maexpr **)(&yyval))->r), (*(char **)(&yyvsp[0])));
+		  	err = router_validate_expression(rtr, &((*(struct _maexpr **)(&yyval))->r), (*(char **)(&yyvsp[0])), 1);
 			if (err != NULL) {
 				router_yyerror(&yylloc, yyscanner, rtr,
 						ralloc, palloc, err);
@@ -2060,7 +2060,7 @@ yyreduce:
 						YYABORT;
 					}
 					(*(struct _maexpr **)(&yyval))->r = NULL;
-					err = router_validate_expression(rtr, &((*(struct _maexpr **)(&yyval))->r), (*(char **)(&yyvsp[-2])));
+					err = router_validate_expression(rtr, &((*(struct _maexpr **)(&yyval))->r), (*(char **)(&yyvsp[-2])), 0);
 					if (err != NULL) {
 						router_yyerror(&yylloc, yyscanner, rtr,
 								ralloc, palloc, err);
@@ -2177,7 +2177,7 @@ yyreduce:
 		route *r = NULL;
 		cluster *cl;
 
-		err = router_validate_expression(rtr, &r, (*(char **)(&yyvsp[-2])));
+		err = router_validate_expression(rtr, &r, (*(char **)(&yyvsp[-2])), 1);
 		if (err != NULL) {
 			router_yyerror(&yylloc, yyscanner, rtr, ralloc, palloc, err);
 			YYERROR;
