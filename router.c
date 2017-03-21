@@ -435,6 +435,7 @@ router_validate_address(
 		/* serialise the IP address, to make sure we use cannonical form
 		 * which we can then string-match lateron (to do duplicate
 		 * detection) */
+		*rethint = NULL;
 		if (saddr->ai_family == AF_INET) {
 			if (inet_ntop(saddr->ai_family,
 						&((struct sockaddr_in *)saddr->ai_addr)->sin_addr,
