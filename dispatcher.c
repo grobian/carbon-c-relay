@@ -334,8 +334,9 @@ dispatch_process_dests(connection *conn, dispatcher *self, struct timeval now)
 	if (conn->destlen > 0) {
 		if (conn->maxsenddelay == 0)
 			conn->maxsenddelay = ((rand() % 750) + 250) * 1000;
-		/* force after timeout */
-		force = timediff(conn->lastwork, now) > conn->maxsenddelay;
+		/* force when aggr (don't stall it) or after timeout */
+		force = conn->isaggr ? 1 :
+			timediff(conn->lastwork, now) > conn->maxsenddelay;
 		for (i = 0; i < conn->destlen; i++) {
 			tracef("dispatcher %d, connfd %d, metric %s, queueing to %s:%d\n",
 					self->id, conn->sock, conn->dests[i].metric,
