@@ -26,7 +26,7 @@ int identstate = 0;
 %x cl ma re ag se st qu
 %x idcl idma idag idin
 
-IDCHR	[a-zA-Z0-9[\](){}|\\^?*$&:/._+-]
+IDCHR	[a-zA-Z0-9[\](){}|\\^?*$&:/,._+-]
 
 %%
 
