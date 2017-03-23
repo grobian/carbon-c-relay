@@ -101,7 +101,7 @@ collector_runner(void *s)
 			nextcycle = time(NULL) + collector_interval;
 
 			/* setup functions to target what the user wants */
-			if (router_getcollectormode(pending_router)) {
+			if (router_getcollectormode(pending_router) == SUB) {
 				s_ticks = server_get_ticks_sub;
 				s_metrics = server_get_metrics_sub;
 				s_stalls = server_get_stalls_sub;
