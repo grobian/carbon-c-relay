@@ -7,6 +7,9 @@
   fine before, please report the problem.
 * The use of `send statistics to` is now deprecated, use the new
   `statistics send to` instead.
+* The use of statistics controlling flags `-S` sending interval and `-m`
+  summary mode, are now deprecated because they can be set in the
+  configuration.
 
 ### New Features
 
