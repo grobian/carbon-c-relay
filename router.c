@@ -73,9 +73,6 @@ int router_yylex_init(void **);
 void router_yy_scan_string(char *, void *);
 int router_yylex_destroy(void *);
 
-/* custom constant, meant to force regex mode matching */
-#define REG_FORCE   01000000
-
 /* catch string used for aggrgator destinations */
 #define STUB_AGGR   "_aggregator_stub_"
 /* catch string used for collector output */
@@ -157,10 +154,8 @@ determine_if_regex(allocator *a, route *r, char *pat, int flags)
 	r->matchtype = CONTAINS;
 	r->nmatch = 0;
 
-	if (flags & REG_FORCE) {
-		flags &= ~REG_NOSUB;
-		r->matchtype = REGEX;
-	}
+	/* we always want extended mode */
+	flags |= REG_EXTENDED;
 
 	if (*e == '^' && r->matchtype == CONTAINS) {
 		e++;
@@ -221,14 +216,12 @@ determine_if_regex(allocator *a, route *r, char *pat, int flags)
 		r->strmatch = ra_strdup(a, patbuf);
 		r->pattern = ra_strdup(a, pat);
 	} else {
-		int ret = regcomp(&r->rule, pat, flags & ~REG_FORCE);
+		int ret = regcomp(&r->rule, pat, flags);
 		if (ret != 0)
 			return ret;  /* allow use of regerror */
 		r->strmatch = NULL;
 		r->pattern = ra_strdup(a, pat);
-		if (((flags & REG_NOSUB) == 0 && r->rule.re_nsub > 0) ||
-				flags & REG_FORCE)
-		{
+		if ((flags & REG_NOSUB) == 0 && r->rule.re_nsub > 0) {
 			/* we need +1 because position 0 contains the entire
 			 * expression */
 			r->nmatch = r->rule.re_nsub + 1;
@@ -504,8 +497,7 @@ router_validate_expression(router *rtr, route **retr, char *pat, char subst)
 		r->strmatch = NULL;
 		r->matchtype = MATCHALL;
 	} else {
-		int err = determine_if_regex(rtr->a, r, pat,
-				REG_EXTENDED | (subst ? 0 : REG_NOSUB));
+		int err = determine_if_regex(rtr->a, r, pat, subst ? 0 : REG_NOSUB);
 		if (err != 0) {
 			char ebuf[512];
 			size_t s = snprintf(ebuf, sizeof(ebuf),
@@ -1532,7 +1524,7 @@ router_set_collectorvals(router *rtr, int intv, char *prefix, col_mode smode)
 		if (regcomp(&re, expr, REG_EXTENDED) != 0)
 			return ra_strdup(rtr->a, "failed to compile hostname regexp");
 		if (regexec(&re, relay_hostname, nmatch, pmatch, 0) != 0)
-			return ra_strdup(rtr->a, "failed to execute hostname regext");
+			return ra_strdup(rtr->a, "failed to execute hostname regexp");
 		if (router_rewrite_metric(
 				&cprefix, &dummy,
 				relay_hostname, dummy, prefix,
