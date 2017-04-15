@@ -479,7 +479,7 @@ router_validate_path(router *rtr, char *path)
  * struct is allocated.
  */
 char *
-router_validate_expression(router *rtr, route **retr, char *pat, char subst)
+router_validate_expression(router *rtr, route **retr, char *pat)
 {
 	route *r = *retr;
 	if (r == NULL) {

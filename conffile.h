@@ -104,7 +104,7 @@ typedef struct _route {
 void router_yyerror(void *locp, void *, router *r, allocator *ra, allocator *pa, const char *msg);
 char *router_validate_address(router *rtr, char **retip, int *retport, void **retsaddr, void **rethint, char *ip, serv_ctype proto);
 char *router_validate_path(router *rtr, char *path);
-char *router_validate_expression(router *rtr, route **retr, char *pat, char subst);
+char *router_validate_expression(router *rtr, route **retr, char *pat);
 char *router_validate_cluster(router *rtr, cluster **retcl, char *cluster);
 char *router_add_server(router *ret, char *ip, int port, char *inst, serv_ctype proto, struct addrinfo *saddrs, struct addrinfo *hint, char useall, cluster *cl);
 char *router_add_cluster(router *r, cluster *cl);
