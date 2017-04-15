@@ -142,7 +142,7 @@ router_free_intern(cluster *clusters, route *routes)
  * Examines pattern and sets matchtype and rule or strmatch in route.
  */
 static inline int
-determine_if_regex(allocator *a, route *r, char *pat, int flags)
+determine_if_regex(allocator *a, route *r, char *pat)
 {
 	/* try and see if we can avoid using a regex match, for
 	 * it is simply very slow/expensive to do so: most of
@@ -153,9 +153,6 @@ determine_if_regex(allocator *a, route *r, char *pat, int flags)
 	char escape = 0;
 	r->matchtype = CONTAINS;
 	r->nmatch = 0;
-
-	/* we always want extended mode */
-	flags |= REG_EXTENDED;
 
 	if (*e == '^' && r->matchtype == CONTAINS) {
 		e++;
@@ -216,12 +213,12 @@ determine_if_regex(allocator *a, route *r, char *pat, int flags)
 		r->strmatch = ra_strdup(a, patbuf);
 		r->pattern = ra_strdup(a, pat);
 	} else {
-		int ret = regcomp(&r->rule, pat, flags);
+		int ret = regcomp(&r->rule, pat, REG_EXTENDED);
 		if (ret != 0)
 			return ret;  /* allow use of regerror */
 		r->strmatch = NULL;
 		r->pattern = ra_strdup(a, pat);
-		if ((flags & REG_NOSUB) == 0 && r->rule.re_nsub > 0) {
+		if (r->rule.re_nsub > 0) {
 			/* we need +1 because position 0 contains the entire
 			 * expression */
 			r->nmatch = r->rule.re_nsub + 1;
@@ -497,7 +494,7 @@ router_validate_expression(router *rtr, route **retr, char *pat, char subst)
 		r->strmatch = NULL;
 		r->matchtype = MATCHALL;
 	} else {
-		int err = determine_if_regex(rtr->a, r, pat, subst ? 0 : REG_NOSUB);
+		int err = determine_if_regex(rtr->a, r, pat);
 		if (err != 0) {
 			char ebuf[512];
 			size_t s = snprintf(ebuf, sizeof(ebuf),
