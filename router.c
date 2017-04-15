@@ -145,7 +145,7 @@ router_free_intern(cluster *clusters, route *routes)
  * Examines pattern and sets matchtype and rule or strmatch in route.
  */
 static int
-determine_if_regex(route *r, char *pat, int flags)
+determine_if_regex(allocator *a, route *r, char *pat, int flags)
 {
 	/* try and see if we can avoid using a regex match, for
 	 * it is simply very slow/expensive to do so: most of
@@ -218,14 +218,14 @@ determine_if_regex(route *r, char *pat, int flags)
 	}
 	if (r->matchtype != REGEX) {
 		*pb = '\0';
-		r->strmatch = strdup(patbuf);
-		r->pattern = strdup(pat);
+		r->strmatch = ra_strdup(a, patbuf);
+		r->pattern = ra_strdup(a, pat);
 	} else {
 		int ret = regcomp(&r->rule, pat, flags & ~REG_FORCE);
 		if (ret != 0)
 			return ret;  /* allow use of regerror */
 		r->strmatch = NULL;
-		r->pattern = strdup(pat);
+		r->pattern = ra_strdup(a, pat);
 		if (((flags & REG_NOSUB) == 0 && r->rule.re_nsub > 0) ||
 				flags & REG_FORCE)
 		{
@@ -235,7 +235,6 @@ determine_if_regex(route *r, char *pat, int flags)
 			if (r->nmatch > RE_MAX_MATCHES) {
 				logerr("determine_if_regex: too many match groups, "
 						"please increase RE_MAX_MATCHES in router.h\n");
-				free(r->pattern);
 				return REG_ESPACE;  /* lie closest to the truth */
 			}
 		}
@@ -505,7 +504,7 @@ router_validate_expression(router *rtr, route **retr, char *pat, char subst)
 		r->strmatch = NULL;
 		r->matchtype = MATCHALL;
 	} else {
-		int err = determine_if_regex(r, pat,
+		int err = determine_if_regex(rtr->a, r, pat,
 				REG_EXTENDED | (subst ? 0 : REG_NOSUB));
 		if (err != 0) {
 			char ebuf[512];
@@ -1222,7 +1221,7 @@ router_optimise(router *r, int threshold)
 	 * before determining that an input metric cannot match any
 	 * expression we have defined. */
 	seq = 0;
-	blast = bstart = blocks = malloc(sizeof(block));
+	blast = bstart = blocks = ra_malloc(r->a, sizeof(block));
 	blocks->refcnt = 0;
 	blocks->pattern = NULL;
 	blocks->hash = 0;
@@ -1234,7 +1233,7 @@ router_optimise(router *r, int threshold)
 		/* matchall and rewrite rules cannot be in a group (issue #218) */
 		if (rwalk->matchtype == MATCHALL || rwalk->dests->cl->type == REWRITE) {
 			tracef("skipping %s\n", rwalk->pattern ? rwalk->pattern : "*");
-			blast->next = malloc(sizeof(block));
+			blast->next = ra_malloc(r->a, sizeof(block));
 			blast->next->prev = blast;
 			blast = blast->next;
 			blast->pattern = NULL;
@@ -1280,7 +1279,7 @@ router_optimise(router *r, int threshold)
 		if (p == rwalk->pattern) {
 			/* nothing we can do with a pattern like this */
 			tracef("skipping unusable %s\n", p);
-			blast->next = malloc(sizeof(block));
+			blast->next = ra_malloc(r->a, sizeof(block));
 			blast->next->prev = blast;
 			blast = blast->next;
 			blast->pattern = NULL;
@@ -1317,7 +1316,7 @@ router_optimise(router *r, int threshold)
 			/* this probably isn't selective enough, don't put in a group */
 			tracef("skipping too small pattern %s from %s\n",
 					b, rwalk->pattern);
-			blast->next = malloc(sizeof(block));
+			blast->next = ra_malloc(r->a, sizeof(block));
 			blast->next->prev = blast;
 			blast = blast->next;
 			blast->pattern = NULL;
@@ -1344,10 +1343,10 @@ router_optimise(router *r, int threshold)
 		}
 		if (bwalk == NULL) {
 			tracef("creating new group %s for %s\n", b, rwalk->pattern);
-			blast->next = malloc(sizeof(block));
+			blast->next = ra_malloc(r->a, sizeof(block));
 			blast->next->prev = blast;
 			blast = blast->next;
-			blast->pattern = strdup(b);
+			blast->pattern = ra_strdup(r->a, b);
 			blast->hash = bsum;
 			blast->refcnt = 1;
 			blast->seqnr = seq;
@@ -1418,15 +1417,15 @@ router_optimise(router *r, int threshold)
 			free(bwalk);
 		} else {
 			if (r->routes == NULL) {
-				rwalk = r->routes = malloc(sizeof(route));
+				rwalk = r->routes = ra_malloc(r->a, sizeof(route));
 			} else {
-				rwalk = rwalk->next = malloc(sizeof(route));
+				rwalk = rwalk->next = ra_malloc(r->a, sizeof(route));
 			}
 			rwalk->pattern = NULL;
 			rwalk->stop = 0;
 			rwalk->matchtype = CONTAINS;
-			rwalk->dests = malloc(sizeof(destinations));
-			rwalk->dests->cl = malloc(sizeof(cluster));
+			rwalk->dests = ra_malloc(r->a, sizeof(destinations));
+			rwalk->dests->cl = ra_malloc(r->a, sizeof(cluster));
 			rwalk->dests->cl->name = bwalk->pattern;
 			rwalk->dests->cl->type = GROUP;
 			rwalk->dests->cl->members.routes = bwalk->firstroute;
