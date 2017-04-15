@@ -144,7 +144,7 @@ router_free_intern(cluster *clusters, route *routes)
 /**
  * Examines pattern and sets matchtype and rule or strmatch in route.
  */
-static int
+static inline int
 determine_if_regex(allocator *a, route *r, char *pat, int flags)
 {
 	/* try and see if we can avoid using a regex match, for
@@ -1956,6 +1956,10 @@ router_metric_matches(
 {
 	char ret = 0;
 	char firstspc = *firstspace;
+	union {
+		char *c;
+		size_t i;
+	} t;
 
 	switch (r->matchtype) {
 		case MATCHALL:
@@ -1968,22 +1972,38 @@ router_metric_matches(
 			break;
 		case CONTAINS:
 			*firstspace = '\0';
-			ret = strstr(metric, r->strmatch) != NULL;
+			ret = (t.c = strstr(metric, r->strmatch)) != NULL;
+			if (ret) {
+				pmatch[0].rm_so = t.c - metric;
+				pmatch[0].rm_eo = pmatch[0].rm_so + strlen(r->strmatch);
+			}
 			*firstspace = firstspc;
 			break;
 		case STARTS_WITH:
-			ret = strncmp(metric, r->strmatch, strlen(r->strmatch)) == 0;
+			t.i = strlen(r->strmatch);
+			ret = strncmp(metric, r->strmatch, t.i) == 0;
+			if (ret) {
+				pmatch[0].rm_so = 0;
+				pmatch[0].rm_eo = t.i;
+			}
 			break;
 		case ENDS_WITH:
 			*firstspace = '\0';
-			ret = strcmp(
-					firstspace - strlen(r->strmatch),
-					r->strmatch) == 0;
+			t.i = strlen(r->strmatch);
+			ret = strcmp(firstspace - t.i, r->strmatch) == 0;
+			if (ret) {
+				pmatch[0].rm_so = firstspace - t.i - metric;
+				pmatch[0].rm_eo = pmatch[0].rm_so + t.i;
+			}
 			*firstspace = firstspc;
 			break;
 		case MATCHES:
 			*firstspace = '\0';
 			ret = strcmp(metric, r->strmatch) == 0;
+			if (ret) {
+				pmatch[0].rm_so = 0;
+				pmatch[0].rm_eo = strlen(r->strmatch);
+			}
 			*firstspace = firstspc;
 			break;
 		default:
