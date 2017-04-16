@@ -33,6 +33,7 @@
  * seems reasonable, we use the same value for carbon and fnv1a hash
  * implementations. */
 #define HASH_REPLICAS  100
+#define MAX_RING_ENTRIES 65536
 
 typedef struct _ring_entry {
 	unsigned short pos;
@@ -46,6 +47,7 @@ struct _ch_ring {
 	unsigned char hash_replicas;
 	ch_ring_entry *entries;
 	ch_ring_entry **entrylist;  /* only used with jump hash */
+	ch_ring_entry* entryarray[MAX_RING_ENTRIES];  /* used for binary search */
 	int entrycnt;
 };
 
@@ -328,6 +330,25 @@ ch_addnode(ch_ring *ring, server *s)
 					"increase CONN_DESTS_SIZE in router.h\n");
 			return NULL;
 		}
+	} else {
+                // Generate ring->entryarray[pos]=entry in order to speed up ch_get_nodes()
+		ch_ring_entry *w;
+
+		memset(ring->entryarray, 0, sizeof(ring->entryarray));
+
+		for (w = ring->entries; w != NULL; w = w->next)
+			// Collision avoidance.  First entry wins.
+			if (ring->entryarray[w->pos] == 0)
+				ring->entryarray[w->pos] = w;
+
+		for (i=MAX_RING_ENTRIES-2; i>=0; i--) {
+			if (ring->entryarray[i] == 0)
+				ring->entryarray[i] = ring->entryarray[i+1];
+		}
+		// Fill in tail of array;
+		for (i=MAX_RING_ENTRIES-1; ring->entryarray[i]==0; i--) {
+			ring->entryarray[i] = ring->entryarray[0];
+		}
 	}
 
 	return ring;
@@ -398,12 +419,11 @@ ch_get_nodes(
 
 	assert(ring->entries);
 
-	/* implement behaviour of Python's bisect_left on the ring (used in
-	 * carbon hash source), one day we might want to implement it as
-	 * real binary search iso forward pointer chasing */
-	for (w = ring->entries, i = 0; w != NULL; i++, w = w->next)
-		if (w->pos >= pos)
-			break;
+	/* Instead of Python's bisect_left or doing forward pointer chaising
+	 * the ring's entryarray contains all possible pos values pointing
+	 * to the appropriate ring->entries values */
+	w = ring->entryarray[pos];
+
 	/* now fetch enough unique servers to match the requested count */
 	for (i = 0; i < replcnt; i++, w = w->next) {
 		if (w == NULL)
