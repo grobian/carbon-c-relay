@@ -2654,7 +2654,7 @@ router_test_intern(char *metric, char *firstspace, route *routes)
 										metric, w->masq);
 								break;
 							}
-							fprintf(stderr, "        using(%s) -> %s\n",
+							fprintf(stdout, "        using(%s) -> %s\n",
 									w->masq, newmetric);
 						}
 						if (mode & MODE_DEBUG) {
