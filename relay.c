@@ -21,6 +21,7 @@
 #include <unistd.h>
 #include <netdb.h>
 #include <string.h>
+#include <ctype.h>
 #include <signal.h>
 #include <time.h>
 #include <errno.h>
@@ -744,6 +745,11 @@ main(int argc, char * const argv[])
 		while (fgets(metricbuf, sizeof(metricbuf), stdin) != NULL) {
 			if ((p = strchr(metricbuf, '\n')) != NULL)
 				*p = '\0';
+			p = metricbuf;
+			while (isspace(*p))
+				p++;
+			if (*p == '\0')
+				continue;
 			router_test(rtr, metricbuf);
 		}
 
