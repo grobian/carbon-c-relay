@@ -1392,7 +1392,6 @@ router_optimise(router *r, int threshold)
 
 		if (bwalk->refcnt == 0) {
 			blast = bwalk->next;
-			free(bwalk);
 			continue;
 		} else if (bwalk->refcnt < 3) {
 			if (r->routes == NULL) {
@@ -1402,8 +1401,6 @@ router_optimise(router *r, int threshold)
 			}
 			rwalk = bwalk->lastroute;
 			blast = bwalk->next;
-			free(bwalk->pattern);
-			free(bwalk);
 		} else {
 			if (r->routes == NULL) {
 				rwalk = r->routes = ra_malloc(r->a, sizeof(route));
@@ -1422,7 +1419,6 @@ router_optimise(router *r, int threshold)
 			rwalk->dests->next = NULL;
 			rwalk->next = NULL;
 			blast = bwalk->next;
-			free(bwalk);
 		}
 	}
 }

@@ -1,1 +1,86 @@
-# fix crash due invalid free
+statistics
+    submit every 60 seconds
+    prefix with carbon.relays.test_hostname
+    ;
+
+
+aggregate
+        (foo|bar)\.(.+)
+        (foo|bar)\.(.+)
+        (foo|bar)\.(.+)
+        (foo|bar)\.(.+)
+        (foo|bar)\.(.+)
+        (foo|bar)\.(.+)
+        (foo|bar)\.(.+)
+        (foo|bar)\.(.+)
+        (foo|bar)\.(.+)
+        (foo|bar)\.(.+)
+        (foo|bar)\.(.+)
+        (foo|bar)\.(.+)
+        (foo|bar)\.(.+)
+        (foo|bar)\.(.+)
+        (foo|bar)\.(.+)
+        (foo|bar)\.(.+)
+        (foo|bar)\.(.+)
+        (foo|bar)\.(.+)
+        (foo|bar)\.(.+)
+        (foo|bar)\.(.+)
+        (foo|bar)\.(.+)
+        (foo|bar)\.(.+)
+        (foo|bar)\.(.+)
+        (foo|bar)\.(.+)
+        (foo|bar)\.(.+)
+        (foo|bar)\.(.+)
+        (foo|bar)\.(.+)
+        (foo|bar)\.(.+)
+        (foo|bar)\.(.+)
+        (foo|bar)\.(.+)
+        (foo|bar)\.(.+)
+        (foo|bar)\.(.+)
+        (foo|bar)\.(.+)
+        (foo|bar)\.(.+)
+        (foo|bar)\.(.+)
+        (foo|bar)\.(.+)
+        (foo|bar)\.(.+)
+        (foo|bar)\.(.+)
+        (foo|bar)\.(.+)
+        (foo|bar)\.(.+)
+        (foo|bar)\.(.+)
+        (foo|bar)\.(.+)
+        (foo|bar)\.(.+)
+        (foo|bar)\.(.+)
+        (foo|bar)\.(.+)
+        (foo|bar)\.(.+)
+        (foo|bar)\.(.+)
+        (foo|bar)\.(.+)
+        (foo|bar)\.(.+)
+        (foo|bar)\.(.+)
+        (foo|bar)\.(.+)
+    every 1 seconds
+    expire after 2 seconds
+    timestamp at end of bucket
+    compute sum write to
+        \1
+    ;
+# common pattern group 'dothework' contains 4 aggregations/matches
+
+aggregate
+        dothework.(foo|bar)\.(.+)
+        somethingelse.dothework\.(.+)
+        more.dothework.(yo.)
+        whatever.dothework.(yo.)
+    every 1 seconds
+    expire after 2 seconds
+    timestamp at end of bucket
+    compute sum write to
+        \1
+    ;
+# end of group 'dothework'
+aggregate a.nonmatching.thing
+    every 1 seconds
+    expire after 2 seconds
+    timestamp at end of bucket
+    compute sum write to
+        \1
+    ;
+
