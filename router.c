@@ -458,7 +458,7 @@ router_validate_path(router *rtr, char *path)
 	if (stat(path, &st) == -1)
 		fileexists = 0;
 
-	if ((probe = fopen(path, "w+")) == NULL) {
+	if ((probe = fopen(path, "a")) == NULL) {
 		char errbuf[512];
 		snprintf(errbuf, sizeof(errbuf),
 				"failed to open file '%s' for writing: %s",
