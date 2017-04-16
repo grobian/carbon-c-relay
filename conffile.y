@@ -53,13 +53,14 @@ struct _agcomp {
 	cluster_path cluster_paths cluster_opt_path
 
 %token crMATCH
-%token crVALIDATE crELSE crLOG crDROP crSEND crTO crBLACKHOLE crSTOP
+%token crVALIDATE crELSE crLOG crDROP crROUTE crUSING
+%token crSEND crTO crBLACKHOLE crSTOP
 %type <destinations *> match_dst match_opt_dst match_dsts
 	match_dsts2 match_opt_send_to match_send_to aggregate_opt_send_to
 %type <int> match_opt_stop match_log_or_drop
+%type <char *> match_opt_route
 %type <struct _maexpr *> match_opt_validate match_expr match_opt_expr
-	match_exprs match_exprs_subst match_exprs2 match_subst_expr
-	match_subst_opt_expr 
+	match_exprs match_exprs2
 
 %token crREWRITE
 %token crINTO
@@ -295,7 +296,7 @@ cluster_opt_proto:               { $$ = CON_TCP; }
 
 /*** {{{ BEGIN match ***/
 match: crMATCH match_exprs[exprs] match_opt_validate[val]
-	 match_opt_send_to[dsts] match_opt_stop[stop]
+	 match_opt_route[masq] match_opt_send_to[dsts] match_opt_stop[stop]
 	 {
 	 	/* each expr comes with an allocated route, populate it */
 		struct _maexpr *we;
@@ -330,9 +331,13 @@ match: crMATCH match_exprs[exprs] match_opt_validate[val]
 		} else {
 			d = $dsts;
 		}
+		/* replace with copy on the router allocator */
+		if ($masq != NULL)
+			$masq = ra_strdup(ralloc, $masq);
 		for (we = $exprs; we != NULL; we = we->next) {
 			we->r->next = NULL;
 			we->r->dests = d;
+			we->r->masq = $masq;
 			we->r->stop = $dsts == NULL ? 0 :
 					$dsts->cl->type == BLACKHOLE ? 1 : $stop;
 			err = router_add_route(rtr, we->r);
@@ -352,7 +357,7 @@ match_exprs: '*'
 				YYABORT;
 			}
 		   	$$->r = NULL;
-			if (router_validate_expression(rtr, &($$->r), "*", 0) != NULL)
+			if (router_validate_expression(rtr, &($$->r), "*") != NULL)
 				YYABORT;
 			$$->drop = 0;
 			$$->next = NULL;
@@ -374,33 +379,7 @@ match_expr: crSTRING[expr]
 				YYABORT;
 			}
 		   	$$->r = NULL;
-		  	err = router_validate_expression(rtr, &($$->r), $expr, 0);
-			if (err != NULL) {
-				router_yyerror(&yylloc, yyscanner, rtr,
-						ralloc, palloc, err);
-				YYERROR;
-			}
-			$$->drop = 0;
-			$$->next = NULL;
-		  }
-		  ;
-
-match_exprs_subst: match_subst_expr[l] match_subst_opt_expr[r]
-				 { $l->next = $r; $$ = $l; }
-
-match_subst_opt_expr:                   { $$ = NULL; }
-					| match_exprs_subst { $$ = $1; }
-					;
-
-match_subst_expr: crSTRING[expr]
-		  {
-			char *err;
-			if (($$ = ra_malloc(palloc, sizeof(struct _maexpr))) == NULL) {
-				logerr("out of memory\n");
-				YYABORT;
-			}
-		   	$$->r = NULL;
-		  	err = router_validate_expression(rtr, &($$->r), $expr, 1);
+		  	err = router_validate_expression(rtr, &($$->r), $expr);
 			if (err != NULL) {
 				router_yyerror(&yylloc, yyscanner, rtr,
 						ralloc, palloc, err);
@@ -420,7 +399,7 @@ match_opt_validate: { $$ = NULL; }
 						YYABORT;
 					}
 					$$->r = NULL;
-					err = router_validate_expression(rtr, &($$->r), $expr, 0);
+					err = router_validate_expression(rtr, &($$->r), $expr);
 					if (err != NULL) {
 						router_yyerror(&yylloc, yyscanner, rtr,
 								ralloc, palloc, err);
@@ -434,6 +413,10 @@ match_opt_validate: { $$ = NULL; }
 match_log_or_drop: crLOG  { $$ = 0; }
 				 | crDROP { $$ = 1; }
 				 ;
+
+match_opt_route: { $$ = NULL; }
+			   | crROUTE crUSING crSTRING[expr] { $$ = $expr; }
+			   ;
 
 match_opt_send_to: { $$ = NULL; }
 				 | match_send_to { $$ = $1; }
@@ -489,7 +472,7 @@ rewrite: crREWRITE crSTRING[expr] crINTO crSTRING[replacement]
 		route *r = NULL;
 		cluster *cl;
 
-		err = router_validate_expression(rtr, &r, $expr, 1);
+		err = router_validate_expression(rtr, &r, $expr);
 		if (err != NULL) {
 			router_yyerror(&yylloc, yyscanner, rtr, ralloc, palloc, err);
 			YYERROR;
@@ -528,7 +511,7 @@ rewrite: crREWRITE crSTRING[expr] crINTO crSTRING[replacement]
 /*** }}} END rewrite ***/
 
 /*** {{{ BEGIN aggregate ***/
-aggregate: crAGGREGATE match_exprs_subst[exprs] crEVERY crINTVAL[intv] crSECONDS
+aggregate: crAGGREGATE match_exprs2[exprs] crEVERY crINTVAL[intv] crSECONDS
 		 crEXPIRE crAFTER crINTVAL[expire] crSECONDS
 		 aggregate_opt_timestamp[tswhen]
 		 aggregate_computes[computes]

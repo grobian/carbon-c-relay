@@ -101,46 +101,48 @@ struct _agcomp {
     crELSE = 274,
     crLOG = 275,
     crDROP = 276,
-    crSEND = 277,
-    crTO = 278,
-    crBLACKHOLE = 279,
-    crSTOP = 280,
-    crREWRITE = 281,
-    crINTO = 282,
-    crAGGREGATE = 283,
-    crEVERY = 284,
-    crSECONDS = 285,
-    crEXPIRE = 286,
-    crAFTER = 287,
-    crTIMESTAMP = 288,
-    crAT = 289,
-    crSTART = 290,
-    crMIDDLE = 291,
-    crEND = 292,
-    crOF = 293,
-    crBUCKET = 294,
-    crCOMPUTE = 295,
-    crSUM = 296,
-    crCOUNT = 297,
-    crMAX = 298,
-    crMIN = 299,
-    crAVERAGE = 300,
-    crMEDIAN = 301,
-    crVARIANCE = 302,
-    crSTDDEV = 303,
-    crPERCENTILE = 304,
-    crWRITE = 305,
-    crSTATISTICS = 306,
-    crSUBMIT = 307,
-    crRESET = 308,
-    crCOUNTERS = 309,
-    crINTERVAL = 310,
-    crPREFIX = 311,
-    crWITH = 312,
-    crINCLUDE = 313,
-    crCOMMENT = 314,
-    crSTRING = 315,
-    crINTVAL = 316
+    crROUTE = 277,
+    crUSING = 278,
+    crSEND = 279,
+    crTO = 280,
+    crBLACKHOLE = 281,
+    crSTOP = 282,
+    crREWRITE = 283,
+    crINTO = 284,
+    crAGGREGATE = 285,
+    crEVERY = 286,
+    crSECONDS = 287,
+    crEXPIRE = 288,
+    crAFTER = 289,
+    crTIMESTAMP = 290,
+    crAT = 291,
+    crSTART = 292,
+    crMIDDLE = 293,
+    crEND = 294,
+    crOF = 295,
+    crBUCKET = 296,
+    crCOMPUTE = 297,
+    crSUM = 298,
+    crCOUNT = 299,
+    crMAX = 300,
+    crMIN = 301,
+    crAVERAGE = 302,
+    crMEDIAN = 303,
+    crVARIANCE = 304,
+    crSTDDEV = 305,
+    crPERCENTILE = 306,
+    crWRITE = 307,
+    crSTATISTICS = 308,
+    crSUBMIT = 309,
+    crRESET = 310,
+    crCOUNTERS = 311,
+    crINTERVAL = 312,
+    crPREFIX = 313,
+    crWITH = 314,
+    crINCLUDE = 315,
+    crCOMMENT = 316,
+    crSTRING = 317,
+    crINTVAL = 318
   };
 #endif
 
@@ -156,6 +158,8 @@ union ROUTER_YYSTYPE
   char * crSTRING;
   /* cluster_opt_instance  */
   char * cluster_opt_instance;
+  /* match_opt_route  */
+  char * match_opt_route;
   /* statistics_opt_prefix  */
   char * statistics_opt_prefix;
   /* cluster  */
@@ -232,15 +236,9 @@ union ROUTER_YYSTYPE
   struct _maexpr * match_opt_expr;
   /* match_expr  */
   struct _maexpr * match_expr;
-  /* match_exprs_subst  */
-  struct _maexpr * match_exprs_subst;
-  /* match_subst_opt_expr  */
-  struct _maexpr * match_subst_opt_expr;
-  /* match_subst_expr  */
-  struct _maexpr * match_subst_expr;
   /* match_opt_validate  */
   struct _maexpr * match_opt_validate;
-#line 244 "conffile.tab.h" /* yacc.c:1909  */
+#line 242 "conffile.tab.h" /* yacc.c:1909  */
 };
 
 typedef union ROUTER_YYSTYPE ROUTER_YYSTYPE;

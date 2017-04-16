@@ -1760,6 +1760,8 @@ router_printconfig(router *rtr, FILE *f, char pmode)
 				/* hide this pseudo target */
 				d = d->next;
 			}
+			if (r->masq != NULL)
+				fprintf(f, "    route using %s\n", r->masq);
 			if (d != NULL) {
 				fprintf(f, "    send to");
 				if (d->next == NULL) {
@@ -2294,12 +2296,26 @@ router_route_intern(
 						/* let the ring(bearer) decide */
 						failif(retsize,
 								*curlen + d->cl->members.ch->repl_factor);
+						if (w->masq != NULL) {
+							if ((len = router_rewrite_metric(
+										&newmetric, &newfirstspace,
+										metric, firstspace,
+										w->masq,
+										w->nmatch, pmatch)) == 0)
+							{
+								logerr("router_route: failed to route using: "
+										"newmetric size too small to hold "
+										"replacement (%s -> %s)\n",
+										metric, w->masq);
+								break;
+							}
+						}
 						ch_get_nodes(
 								&ret[*curlen],
 								d->cl->members.ch->ring,
 								d->cl->members.ch->repl_factor,
-								metric,
-								firstspace);
+								w->masq ? newmetric : metric,
+								w->masq ? newfirstspace : firstspace);
 						*curlen += d->cl->members.ch->repl_factor;
 						wassent = 1;
 					}	break;
@@ -2624,16 +2640,34 @@ router_test_intern(char *metric, char *firstspace, route *routes)
 								"jump_fnv1a", d->cl->name);
 						if (gotmatch & 4)
 							break;
+						if (w->masq != NULL) {
+							if ((len = router_rewrite_metric(
+										&newmetric, &newfirstspace,
+										metric, firstspace,
+										w->masq,
+										w->nmatch, pmatch)) == 0)
+							{
+								fprintf(stderr, "router_test: failed to "
+										"route using: "
+										"newmetric size too small to hold "
+										"replacement (%s -> %s)\n",
+										metric, w->masq);
+								break;
+							}
+							fprintf(stderr, "        using(%s) -> %s\n",
+									w->masq, newmetric);
+						}
 						if (mode & MODE_DEBUG) {
 							fprintf(stdout, "        hash_pos(%d)\n",
 									ch_gethashpos(d->cl->members.ch->ring,
-										metric, firstspace));
+										w->masq ? newmetric : metric,
+										w->masq ? newfirstspace : firstspace));
 						}
 						ch_get_nodes(dst,
 								d->cl->members.ch->ring,
 								d->cl->members.ch->repl_factor,
-								metric,
-								firstspace);
+								w->masq ? newmetric : metric,
+								w->masq ? newfirstspace : firstspace);
 						for (i = 0; i < d->cl->members.ch->repl_factor; i++) {
 							fprintf(stdout, "        %s:%d\n",
 									serverip(dst[i].dest),

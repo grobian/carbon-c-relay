@@ -89,6 +89,7 @@ typedef struct _route {
 	size_t nmatch;    /* number of match groups */
 	char *strmatch;   /* string to search for if type not REGEX or MATCHALL */
 	destinations *dests; /* where matches should go */
+	char *masq;       /* when set, what to feed to the hashfunc when routing */
 	char stop:1;      /* whether to continue matching rules after this one */
 	enum {
 		MATCHALL,     /* the '*', don't do anything, just match everything */

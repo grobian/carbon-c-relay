@@ -1,5 +1,11 @@
 # 3.1 (unreleased master branch)
 
+### New Features
+
+* **router** a new `route using` clause was added to `match` rules to
+  set the string to be used as key for consistent-hash based clusters.
+  [Pull Request #235](https://github.com/grobian/carbon-c-relay/pull/235)
+
 # 3.0 (2017-04-07)
 
 ### Notes

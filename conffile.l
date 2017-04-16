@@ -95,7 +95,16 @@ match				{
 <ma>else				return crELSE;
 <ma>log					return crLOG;
 <ma>drop				return crDROP;
-<ma,idma>send			{
+<ma,idma>route		{
+						BEGIN(ma);
+						return crROUTE;
+					}
+<ma>using			{	
+						identstate = ma;
+						BEGIN(idma);
+						return crUSING;
+					}
+<ma,idma>send		{
 						BEGIN(ma);
 						return crSEND;
 					}

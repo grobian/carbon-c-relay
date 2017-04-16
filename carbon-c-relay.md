@@ -328,6 +328,10 @@ taken with the latter to avoid log flooding.  When a validate clause is
 present, destinations need not to be present, this allows for applying a
 global validation rule.  Note that the cleansing rules are applied
 before validation is done, thus the data will not have duplicate spaces.
+The `route using` clause is used to perform a temporary modification to
+the key used for input to the consistent hashing routines.  The primary
+purpose is to route traffic so that appropriate data is sent to the
+needed aggregation instances.
 
 Rewrite rules take a regular expression as input to match incoming
 metrics, and transform them into the desired new metric name.  In the
