@@ -84,6 +84,7 @@ TESTS = \
 	issue218 \
 	issue228 \
 	issue235 \
+	issue236 \
 	issue238 \
 	issue246 \
 	issue252 \
