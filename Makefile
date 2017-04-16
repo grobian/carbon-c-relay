@@ -91,7 +91,7 @@ TESTS = \
 	$(NULL)
 
 test: check
-check:
+check: relay
 	@( cd test && ./run-test.sh $(TESTS) )
 
 clean:
