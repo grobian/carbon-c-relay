@@ -1,0 +1,82 @@
+statistics
+    submit every 60 seconds
+    prefix with carbon.relays.test_hostname
+    ;
+
+cluster foo
+    file ip
+        /dev/stdout
+    ;
+
+match foo.bar
+    validate ^[0-9.e+-]+\ [0-9.e+-]+$ else drop
+    send to foo
+    ;
+match foo.bar
+    validate ^[0-9]+\ [0-9]+$ else drop
+    send to foo
+    stop
+    ;
+match *
+    validate ^[0-9]+\ [0-9]+$ else drop
+    ;
+match *
+    validate ^unknown+\ [0-9]+$ else log
+    ;
+
+match
+    foo.bar (regex) -> foo.bar
+    validate
+        ^[0-9.e+-]+\ [0-9.e+-]+$ -> this wrong
+        fail -> drop
+match
+    foo.bar (regex) -> foo.bar
+    validate
+        ^[0-9]+\ [0-9]+$ -> this wrong
+        fail -> drop
+    stop
+match
+    foo.bar (regex) -> foo.bar
+    validate
+        ^[0-9.e+-]+\ [0-9.e+-]+$ -> 42 42
+        match
+    file ip(foo)
+        /dev/stdout
+match
+    foo.bar (regex) -> foo.bar
+    validate
+        ^[0-9]+\ [0-9]+$ -> 42 42
+        match
+    file ip(foo)
+        /dev/stdout
+    stop
+match
+    foo.bar (regex) -> foo.bar
+    validate
+        ^[0-9.e+-]+\ [0-9.e+-]+$ -> 4.2 4.2
+        match
+    file ip(foo)
+        /dev/stdout
+match
+    foo.bar (regex) -> foo.bar
+    validate
+        ^[0-9]+\ [0-9]+$ -> 4.2 4.2
+        fail -> drop
+    stop
+match
+    * -> blah
+    validate
+        ^[0-9]+\ [0-9]+$ -> 4.2 4.2
+        fail -> drop
+    stop
+match
+    * -> blah
+    validate
+        ^[0-9]+\ [0-9]+$ -> 42 42
+        match
+match
+    * -> blah
+    validate
+        ^unknown+\ [0-9]+$ -> 42 42
+        fail -> log
+    stop

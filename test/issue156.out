@@ -1,0 +1,4 @@
+../issues/issue156.conf:8:1: cannot set instance 'c' for server 127.0.0.1:2003: server was previously defined with instance 'a'
+	;
+	^
+failed to read configuration '../issues/issue156.conf'

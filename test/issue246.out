@@ -1,0 +1,42 @@
+statistics
+    submit every 60 seconds
+    prefix with carbon.relays.test_hostname
+    ;
+
+cluster foo
+    file
+        /dev/stdout
+    ;
+
+match ^sin\.foobar\.sin_1a_host0[0-4][0-9]\..+
+    send to foo
+    stop
+    ;
+match ^sin\.foobar\.sin_1a_host0[5-9][0-9]\..+
+    send to foo
+    stop
+    ;
+match ^sin\.foobar\.sin_1a_host1[0-4][0-9]\..+
+    send to foo
+    stop
+    ;
+match *
+    send to foo
+    stop
+    ;
+
+match
+    ^sin\.foobar\.sin_1a_host0[0-4][0-9]\..+ (regex) -> sin.foobar.sin_1a_host000.foo
+    file(foo)
+        /dev/stdout
+    stop
+match
+    ^sin\.foobar\.sin_1a_host0[5-9][0-9]\..+ (regex) -> sin.foobar.sin_1a_host050.foo
+    file(foo)
+        /dev/stdout
+    stop
+match
+    ^sin\.foobar\.sin_1a_host1[0-4][0-9]\..+ (regex) -> sin.foobar.sin_1a_host100.foo
+    file(foo)
+        /dev/stdout
+    stop

@@ -1,0 +1,13 @@
+statistics
+    submit every 60 seconds
+    prefix with carbon.relays.test_hostname
+    ;
+
+
+rewrite env\.app\.POS.\.yadda\.count
+    into env.app.POS
+    ;
+rewrite env\.app\.POS.\.yadda\.count
+    into env.app.POS#.yadda.count
+    ;
+

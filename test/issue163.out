@@ -1,0 +1,18 @@
+warning: 'send statistics to ...' is deprecated and will be removed in a future version, use 'statistics send to ...' instead
+statistics
+    submit every 60 seconds
+    prefix with carbon.relays.test_hostname
+    send to upstream
+    stop
+    ;
+
+cluster upstream
+    forward
+        127.0.0.1:2003
+    ;
+
+match *
+    send to blackhole
+    stop
+    ;
+

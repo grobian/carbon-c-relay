@@ -1,0 +1,4 @@
+../issues/issue157.conf:8:1: cannot share server 127.0.0.1:2003 with any_of/failover cluster 'two'
+	;
+	^
+failed to read configuration '../issues/issue157.conf'

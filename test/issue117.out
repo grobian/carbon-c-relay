@@ -1,0 +1,5 @@
+../issues/issue117.conf:20:1: invalid cluster 'really-doesnt-make-sense': replication count (10) is larger than the number of servers (3)
+
+	;
+	^
+failed to read configuration '../issues/issue117.conf'

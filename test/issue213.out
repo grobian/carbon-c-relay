@@ -1,0 +1,143 @@
+statistics
+    submit every 60 seconds
+    prefix with carbon.relays.test_hostname
+    ;
+
+cluster graphite
+    forward
+        127.0.0.1:2004
+    ;
+
+# stub match for aggregate/statistics rule with send to
+match ^_aggregator_stub_0xc0d3__
+    send to graphite
+    stop
+    ;
+# stub match for aggregate/statistics rule with send to
+match ^_aggregator_stub_0xc0d3__
+    send to graphite
+    stop
+    ;
+# stub match for aggregate/statistics rule with send to
+match ^_aggregator_stub_0xc0d3__
+    send to graphite
+    stop
+    ;
+# stub match for aggregate/statistics rule with send to
+match ^_aggregator_stub_0xc0d3__
+    send to graphite
+    stop
+    ;
+# stub match for aggregate/statistics rule with send to
+match ^_aggregator_stub_0xc0d3__
+    send to graphite
+    stop
+    ;
+# stub match for aggregate/statistics rule with send to
+match ^_aggregator_stub_0xc0d3__
+    send to graphite
+    stop
+    ;
+# stub match for aggregate/statistics rule with send to
+match ^_aggregator_stub_0xc0d3__
+    send to graphite
+    stop
+    ;
+# stub match for aggregate/statistics rule with send to
+match ^_aggregator_stub_0xc0d3__
+    send to graphite
+    stop
+    ;
+# stub match for aggregate/statistics rule with send to
+match ^_aggregator_stub_0xc0d3__
+    send to graphite
+    stop
+    ;
+# stub match for aggregate/statistics rule with send to
+match ^_aggregator_stub_0xc0d3__
+    send to graphite
+    stop
+    ;
+# stub match for aggregate/statistics rule with send to
+match ^_aggregator_stub_0xc0d3__
+    send to graphite
+    stop
+    ;
+aggregate ^1\.(foo|bar)\.some_instance\.([^.]+)\.(.+)
+    every 30 seconds
+    expire after 90 seconds
+    timestamp at end of bucket
+    compute sum write to
+        _aggregator_stub_0xc0d3__sums.some_instance.\2.\3
+    ;
+aggregate ^2\.(foo|bar)\.some_instance\.([^.]+)\.(.+)
+    every 30 seconds
+    expire after 90 seconds
+    timestamp at end of bucket
+    compute sum write to
+        _aggregator_stub_0xc0d3__sums.some_instance.\2.\3
+    ;
+aggregate ^3\.(foo|bar)\.some_instance\.([^.]+)\.(.+)
+    every 30 seconds
+    expire after 90 seconds
+    timestamp at end of bucket
+    compute sum write to
+        _aggregator_stub_0xc0d3__sums.some_instance.\2.\3
+    ;
+aggregate ^4\.(foo|bar)\.some_instance\.([^.]+)\.(.+)
+    every 30 seconds
+    expire after 90 seconds
+    timestamp at end of bucket
+    compute sum write to
+        _aggregator_stub_0xc0d3__sums.some_instance.\2.\3
+    ;
+aggregate ^5\.(foo|bar)\.some_instance\.([^.]+)\.(.+)
+    every 30 seconds
+    expire after 90 seconds
+    timestamp at end of bucket
+    compute sum write to
+        _aggregator_stub_0xc0d3__sums.some_instance.\2.\3
+    ;
+aggregate ^6\.(foo|bar)\.some_instance\.([^.]+)\.(.+)
+    every 30 seconds
+    expire after 90 seconds
+    timestamp at end of bucket
+    compute sum write to
+        _aggregator_stub_0xc0d3__sums.some_instance.\2.\3
+    ;
+aggregate ^7\.(foo|bar)\.some_instance\.([^.]+)\.(.+)
+    every 30 seconds
+    expire after 90 seconds
+    timestamp at end of bucket
+    compute sum write to
+        _aggregator_stub_0xc0d3__sums.some_instance.\2.\3
+    ;
+aggregate ^8\.(foo|bar)\.some_instance\.([^.]+)\.(.+)
+    every 30 seconds
+    expire after 90 seconds
+    timestamp at end of bucket
+    compute sum write to
+        _aggregator_stub_0xc0d3__sums.some_instance.\2.\3
+    ;
+aggregate ^9\.(foo|bar)\.some_instance\.([^.]+)\.(.+)
+    every 30 seconds
+    expire after 90 seconds
+    timestamp at end of bucket
+    compute sum write to
+        _aggregator_stub_0xc0d3__sums.some_instance.\2.\3
+    ;
+aggregate ^10\.(foo|bar)\.some_instance\.([^.]+)\.(.+)
+    every 30 seconds
+    expire after 90 seconds
+    timestamp at end of bucket
+    compute sum write to
+        _aggregator_stub_0xc0d3__sums.some_instance.\2.\3
+    ;
+aggregate ^11\.(foo|bar)\.some_instance\.([^.]+)\.(.+)
+    every 30 seconds
+    expire after 90 seconds
+    timestamp at end of bucket
+    compute sum write to
+        _aggregator_stub_0xc0d3__sums.some_instance.\2.\3
+    ;
+

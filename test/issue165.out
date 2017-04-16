@@ -1,0 +1,50 @@
+statistics
+    submit every 60 seconds
+    prefix with carbon.relays.test_hostname
+    ;
+
+cluster one
+    any_of
+        localhost:5000
+        localhost:6000
+        localhost:7000
+    ;
+
+rewrite ^servers\.(cloud|bc|cwwtf|telhc)\.(int|test|stage|live|eng|green|mgmt)\.([a-zA-Z]+)([0-9]+)
+    into servers.\1.\2.\3.\3\4
+    ;
+rewrite ^(.*)\.protocol_counter\.(.*)$
+    into \1.\2
+    ;
+rewrite ^(.*)\.tcp_connections\.(.*)$
+    into \1.\2
+    ;
+rewrite ^(.*)\.vmpage_action\.(.*)$
+    into \1.\2
+    ;
+rewrite tcpconns\.([0-9]+)-remote\.(.*)$
+    into tcpconns.outbound.\1.\2
+    ;
+rewrite tcpconns\.([0-9]+)-local\.(.*)$
+    into tcpconns.inbound.\1.\2
+    ;
+rewrite ^servers\.(cloud|bc|cwwtf|telhc)\.(int|test|stage|live|eng|green|mgmt)\.(.*)\.(.*)\.apps\.events\.(.*)
+    into events.\1.\2.\3.\4.\5
+    ;
+rewrite -(average|percentile-90|p9[95]|sum_sq|sum|mean|lower|upper|count|stdev|median)$
+    into .\1
+    ;
+rewrite ^(a.*)
+    into \_1_
+    ;
+rewrite ^(b.*)
+    into \^1^
+    ;
+match ^carbon\.relays\..*$
+    send to blackhole
+    stop
+    ;
+match *
+    send to one
+    ;
+

@@ -1,0 +1,61 @@
+statistics
+    submit every 60 seconds
+    prefix with carbon.relays.test_hostname
+    ;
+
+
+rewrite ^servers\.(cloud|bc|cwwtf|telhc)\.(int|test|stage|live|eng|green|mgmt)\.([a-zA-Z]+)([0-9]+)
+    into servers.\1.\2.\3.\3\4
+    ;
+rewrite ^(.*)\.protocol_counter\.(.*)$
+    into \1.\2
+    ;
+rewrite ^(.*)\.tcp_connections\.(.*)$
+    into \1.\2
+    ;
+rewrite ^(.*)\.vmpage_action\.(.*)$
+    into \1.\2
+    ;
+rewrite tcpconns\.([0-9]+)-remote\.(.*)$
+    into tcpconns.outbound.\1.\2
+    ;
+rewrite tcpconns\.([0-9]+)-local\.(.*)$
+    into tcpconns.inbound.\1.\2
+    ;
+rewrite ^servers\.(cloud|bc|cwwtf|telhc)\.(int|test|stage|live|eng|green|mgmt)\.(.*)\.(.*)\.apps\.events\.(.*)
+    into events.\1.\2.\3.\4.\5
+    ;
+rewrite -(average|percentile-90|p9[95]|sum_sq|sum|mean|lower|upper|count|stdev|median)$
+    into .\1
+    ;
+rewrite ^(a.*)
+    into \_1_
+    ;
+rewrite ^(b.*)
+    into \^1^
+    ;
+
+rewrite
+    ^servers\.(cloud|bc|cwwtf|telhc)\.(int|test|stage|live|eng|green|mgmt)\.([a-zA-Z]+)([0-9]+) (regex) -> servers.cloud.int.foo42
+    into(servers.\1.\2.\3.\3\4) -> servers.cloud.int.foo.foo42
+rewrite
+    ^(.*)\.protocol_counter\.(.*)$ (regex) -> bla.protocol_counter.foo
+    into(\1.\2) -> bla.foo
+rewrite
+    ^(b.*) (regex) -> bla.foo
+    into(\^1^) -> BLA.FOO^
+rewrite
+    tcpconns\.([0-9]+)-remote\.(.*)$ (regex) -> tcpconns.42-remote.foo
+    into(tcpconns.outbound.\1.\2) -> tcpconns.outbound.42.foo
+rewrite
+    ^servers\.(cloud|bc|cwwtf|telhc)\.(int|test|stage|live|eng|green|mgmt)\.(.*)\.(.*)\.apps\.events\.(.*) (regex) -> servers.cloud.int.foo.bar.apps.events.meh
+    into(events.\1.\2.\3.\4.\5) -> events.cloud.int.foo.bar.meh
+rewrite
+    -(average|percentile-90|p9[95]|sum_sq|sum|mean|lower|upper|count|stdev|median)$ (regex) -> foo.bar.whatever-average
+    into(.\1) -> foo.bar.whatever.average
+rewrite
+    ^(a.*) (regex) -> abLaH
+    into(\_1_) -> ablah_
+rewrite
+    ^(b.*) (regex) -> bFoO
+    into(\^1^) -> BFOO^

@@ -69,5 +69,30 @@ dist:
 		--prefix=carbon-c-relay-$(VERSION)/ v$(VERSION) \
 		> carbon-c-relay-$(VERSION).tar.gz
 
+TESTS = \
+	issue10 \
+	issue27 \
+	issue117 \
+	issue156 \
+	issue157 \
+	issue163 \
+	issue165 \
+	issue180 \
+	issue184 \
+	issue202 \
+	issue213 \
+	issue218 \
+	issue228 \
+	issue235 \
+	issue238 \
+	issue246 \
+	issue252 \
+	issue253 \
+	$(NULL)
+
+test: check
+check:
+	@( cd test && ./run-test.sh $(TESTS) )
+
 clean:
 	rm -f *.o relay

@@ -1,0 +1,37 @@
+statistics
+    submit every 60 seconds
+    prefix with carbon.relays.test_hostname
+    ;
+
+cluster default
+    fnv1a_ch replication 1
+        127.0.0.1:2103
+    ;
+
+aggregate
+        ^collectd\.(.+)\.cpu\.([0-9]+)\.percent\.idle
+        ^collectd\.(ABC-.+)\.cpu\.([0-9]+)\.percent\.idle
+        ^collectd\.ABC-(.+)\.cpu\.([0-9]+)\.percent\.idle
+        ^collectd\.([^.]+)\.cpu\.([0-9]+)\.percent\.idle
+    every 10 seconds
+    expire after 15 seconds
+    timestamp at end of bucket
+    compute count write to
+        collectd.\1.aggregated.cpu.total_cores
+    ;
+match *
+    send to default
+    stop
+    ;
+
+aggregation
+    ^collectd\.(.+)\.cpu\.([0-9]+)\.percent\.idle (regex) -> collectd.test_host.cpu.42.percent.idle
+    count(collectd.\1.aggregated.cpu.total_cores) -> collectd.test_host.aggregated.cpu.total_cores 
+aggregation
+    ^collectd\.([^.]+)\.cpu\.([0-9]+)\.percent\.idle (regex) -> collectd.test_host.cpu.42.percent.idle
+    count(collectd.\1.aggregated.cpu.total_cores) -> collectd.test_host.aggregated.cpu.total_cores 
+match
+    * -> collectd.test_host.cpu.42.percent.idle
+    fnv1a_ch(default)
+        127.0.0.1:2103
+    stop

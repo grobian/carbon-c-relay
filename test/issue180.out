@@ -1,0 +1,19 @@
+statistics
+    submit every 60 seconds
+    prefix with carbon.relays.test_hostname
+    ;
+
+
+match foo
+    send to blackhole
+    stop
+    ;
+match baz
+    send to blackhole
+    stop
+    ;
+match bar
+    send to blackhole
+    stop
+    ;
+
