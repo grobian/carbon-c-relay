@@ -287,6 +287,15 @@ cluster_host: crSTRING[ip] cluster_opt_instance[inst] cluster_opt_proto[prot]
 			;
 cluster_opt_instance:                    { $$ = NULL; }
 					| '=' crSTRING[inst] { $$ = $inst; }
+					| '=' crINTVAL[inst]
+					{
+						$$ = ra_malloc(palloc, sizeof(char) * 12);
+						if ($$ == NULL) {
+							logerr("out of memory\n");
+							YYABORT;
+						}
+						snprintf($$, 12, "%d", $inst);
+					}
 					;
 cluster_opt_proto:               { $$ = CON_TCP; }
 				 | crPROTO crUDP { $$ = CON_UDP; }
