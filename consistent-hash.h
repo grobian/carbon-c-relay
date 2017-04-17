@@ -29,7 +29,7 @@
 typedef CH_RING ch_ring;
 typedef enum { CARBON, FNV1a, JUMP_FNV1a } ch_type;
 
-ch_ring *ch_new(ch_type type);
+ch_ring *ch_new(ch_type type, int srvcnt);
 ch_ring *ch_addnode(ch_ring *ring, server *s);
 void ch_get_nodes(
 		destination ret[],

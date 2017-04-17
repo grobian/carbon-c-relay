@@ -92,6 +92,10 @@ TESTS = \
 	$(NULL)
 
 test: check
+test-%: relay
+	@( cd test && ./run-test.sh $* )
+approve-%: relay
+	@( cd test && ./run-test.sh -a $* )
 check: relay
 	@( cd test && ./run-test.sh $(TESTS) )
 

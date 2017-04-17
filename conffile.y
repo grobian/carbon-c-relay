@@ -114,6 +114,11 @@ cluster: crCLUSTER crSTRING[name] cluster_type[type] cluster_hosts[servers]
 	   {
 	   	struct _clhost *w;
 		char *err;
+		int srvcnt;
+
+		/* count number of servers for ch_new */
+		for (srvcnt = 0, w = $servers; w != NULL; w = w->next, srvcnt++)
+			;
 
 		if (($$ = ra_malloc(ralloc, sizeof(cluster))) == NULL) {
 			logerr("malloc failed for cluster '%s'\n", $name);
@@ -140,7 +145,7 @@ cluster: crCLUSTER crSTRING[name] cluster_type[type] cluster_hosts[servers]
 				$$->members.ch->ring = ch_new(
 					$$->type == CARBON_CH ? CARBON :
 					$$->type == FNV1A_CH ? FNV1a :
-					JUMP_FNV1a);
+					JUMP_FNV1a, srvcnt);
 				break;
 			case FORWARD:
 				$$->members.forward = NULL;
