@@ -21,7 +21,7 @@ POST="cat"
 CNFCLN=( sed -e '/^configuration:/,/^parsed configuration follows:/d'
              -e '/starting carbon-c-relay v/d'
              -e 's/^\[[0-9][0-9\-]* [0-9][0-9:]*\] //'
-             -e 's/_stub_0x[0-9a-f][0-9a-f]*__/_stub_0xc0d3__/')
+             -e 's/_stub_[0-9a-fx][0-9a-fx]*__/_stub_0xc0d3__/')
 
 run_test() {
 	local eflags="$1"
