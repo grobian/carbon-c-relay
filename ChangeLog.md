@@ -5,6 +5,8 @@
 * **router** a new `route using` clause was added to `match` rules to
   set the string to be used as key for consistent-hash based clusters.
   [Pull Request #235](https://github.com/grobian/carbon-c-relay/pull/235)
+* **consistent-hash** node traversal is now done through a binary search
+  instead of forward pointer chasing.
 
 # 3.0 (2017-04-07)
 

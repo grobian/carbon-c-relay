@@ -359,13 +359,29 @@ ch_get_nodes(
 	while (1) {
 		t = ((j - i) / 2) + i;
 		if (ring->entrylist[t].pos == pos)
-			break;
+			break;  /* exact match */
 		if (ring->entrylist[t].pos < pos) {
-			i = t;
-		} else if (t > 0 && ring->entrylist[t - 1].pos < pos) {
-			break;
+			i = t;  /* left is smaller, search right */
+			if (i == j - 1) {
+				if (ring->entrylist[j].pos < pos) {
+					t = j + 1;
+					break;  /* right pos is smaller than the value */
+				} else {
+					t = j;
+					break;  /* right pos is the first bigger value */
+				}
+			}
 		} else {
-			j = t;
+			j = t;  /* right is bigger, search left */
+			if (i == j - 1) {
+				if (ring->entrylist[i].pos >= pos) {
+					t = i;
+					break;  /* left pos is the first bigger than value */
+				} else {
+					t = j;
+					break;  /* right pos is the first bigger value */
+				}
+			}
 		}
 	}
 
