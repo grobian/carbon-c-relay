@@ -8,6 +8,12 @@
 * **consistent-hash** node traversal is now done through a binary search
   instead of forward pointer chasing.
 
+### Bugfixes
+
+* [Issue #261](https://github.com/grobian/carbon-c-relay/issues/261)
+  unable to use numeric instance name
+
+
 # 3.0 (2017-04-07)
 
 ### Notes
