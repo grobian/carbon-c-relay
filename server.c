@@ -245,7 +245,7 @@ server_queuereader(void *d)
 				 * whatever we have such that resolution errors incurred
 				 * after starting the relay won't make it fail */
 				snprintf(sport, sizeof(sport), "%u", self->port);
-				if (getaddrinfo(self->ip, sport, self->hint, &saddr) != 0) {
+				if (getaddrinfo(self->ip, sport, self->hint, &saddr) == 0) {
 					freeaddrinfo(self->saddr);
 					self->saddr = saddr;
 				}
