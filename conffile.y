@@ -142,7 +142,7 @@ cluster: crCLUSTER crSTRING[name] cluster_type[type] cluster_hosts[servers]
 					YYERROR;
 				}
 				$$->members.ch->repl_factor = (unsigned char)$type.ival;
-				$$->members.ch->ring = ch_new(
+				$$->members.ch->ring = ch_new(ralloc,
 					$$->type == CARBON_CH ? CARBON :
 					$$->type == FNV1A_CH ? FNV1a :
 					JUMP_FNV1a, srvcnt);

@@ -22,6 +22,7 @@
 
 #include "server.h"
 #include "router.h"
+#include "allocator.h"
 
 #ifndef CH_RING
 #define CH_RING void
@@ -29,7 +30,7 @@
 typedef CH_RING ch_ring;
 typedef enum { CARBON, FNV1a, JUMP_FNV1a } ch_type;
 
-ch_ring *ch_new(ch_type type, int srvcnt);
+ch_ring *ch_new(allocator *a, ch_type type, int srvcnt);
 ch_ring *ch_addnode(ch_ring *ring, server *s);
 void ch_get_nodes(
 		destination ret[],
@@ -39,6 +40,5 @@ void ch_get_nodes(
 		const char *firstspace);
 void ch_printhashring(ch_ring *ring, FILE *out);
 unsigned short ch_gethashpos(ch_ring *ring, const char *key, const char *end);
-void ch_free(ch_ring *ring);
 
 #endif

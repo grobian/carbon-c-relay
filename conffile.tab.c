@@ -1678,7 +1678,7 @@ yyreduce:
 					YYERROR;
 				}
 				(*(cluster **)(&yyval))->members.ch->repl_factor = (unsigned char)(*(struct _clust*)(&yyvsp[-1])).ival;
-				(*(cluster **)(&yyval))->members.ch->ring = ch_new(
+				(*(cluster **)(&yyval))->members.ch->ring = ch_new(ralloc,
 					(*(cluster **)(&yyval))->type == CARBON_CH ? CARBON :
 					(*(cluster **)(&yyval))->type == FNV1A_CH ? FNV1a :
 					JUMP_FNV1a, srvcnt);

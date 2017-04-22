@@ -23,6 +23,7 @@
 #include "fnv1a.h"
 #include "md5.h"
 #include "server.h"
+#include "allocator.h"
 
 #define CH_RING struct _ch_ring
 #include "consistent-hash.h"
@@ -181,7 +182,7 @@ entrycmp_jump_fnv1a(const void *l, const void *r)
 }
 
 ch_ring *
-ch_new(ch_type type, int servercnt)
+ch_new(allocator *a, ch_type type, int servercnt)
 {
 	ch_ring *ret;
 
@@ -191,7 +192,7 @@ ch_new(ch_type type, int servercnt)
 		return NULL;
 	}
 
-	ret = malloc(sizeof(ch_ring));
+	ret = ra_malloc(a, sizeof(ch_ring));
 	if (ret == NULL)
 		return NULL;
 	ret->type = type;
@@ -206,7 +207,7 @@ ch_new(ch_type type, int servercnt)
 	}
 	ret->entrycnt = 0;
 	ret->entrysize = ret->hash_replicas * servercnt;
-	ret->entrylist = malloc(sizeof(ch_ring_entry) * ret->entrysize);
+	ret->entrylist = ra_malloc(a, sizeof(ch_ring_entry) * ret->entrysize);
 	if (ret->entrylist == NULL) {
 		free(ret);
 		return NULL;
@@ -450,17 +451,4 @@ ch_gethashpos(ch_ring *ring, const char *key, const char *end)
 	}
 
 	return 0;  /* pacify compiler */
-}
-
-/**
- * Frees the ring structure and its added nodes, leaves the referenced
- * servers untouched.
- */
-void
-ch_free(ch_ring *ring)
-{
-	if (ring->entrylist != NULL)
-		free(ring->entrylist);
-
-	free(ring);
 }

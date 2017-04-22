@@ -79,11 +79,13 @@ int router_yylex_destroy(void *);
 #define STUB_STATS  "_collector_stub_"
 
 /**
- * Frees routes and clusters.
+ * Frees regexes from routes.
  */
 static void
-router_free_intern(cluster *clusters, route *routes)
+router_free_intern(route *routes)
 {
+	/* the only thing that isn't allocated using the allocators are the
+	 * regexes */
 	while (routes != NULL) {
 		if (routes->matchtype == REGEX)
 			regfree(&routes->rule);
@@ -93,9 +95,9 @@ router_free_intern(cluster *clusters, route *routes)
 				if (routes->dests->cl->type == GROUP ||
 						routes->dests->cl->type == AGGRSTUB ||
 						routes->dests->cl->type == STATSTUB)
-					router_free_intern(NULL, routes->dests->cl->members.routes);
+					router_free_intern(routes->dests->cl->members.routes);
 				if (routes->dests->cl->type == VALIDATION)
-					router_free_intern(NULL,
+					router_free_intern(
 							routes->dests->cl->members.validation->rule);
 
 				routes->dests = routes->dests->next;
@@ -103,38 +105,6 @@ router_free_intern(cluster *clusters, route *routes)
 		}
 
 		routes = routes->next;
-	}
-
-	while (clusters != NULL) {
-		switch (clusters->type) {
-			case CARBON_CH:
-			case FNV1A_CH:
-			case JUMP_CH:
-				ch_free(clusters->members.ch->ring);
-				break;
-			case FORWARD:
-			case FILELOG:
-			case FILELOGIP:
-			case BLACKHOLE:
-			case ANYOF:
-			case FAILOVER:
-				/* no special structures to free */
-				break;
-			case GROUP:
-			case AGGRSTUB:
-			case STATSTUB:
-			case VALIDATION:
-				/* handled at the routes above */
-				break;
-			case AGGREGATION:
-				/* aggregators starve when they get no more input */
-				break;
-			case REWRITE:
-				/* everything is in the allocators */
-				break;
-		}
-
-		clusters = clusters->next;
 	}
 }
 
@@ -1922,7 +1892,7 @@ router_free(router *rtr)
 {
 	servers *s;
 
-	router_free_intern(rtr->clusters, rtr->routes);
+	router_free_intern(rtr->routes);
 
 	/* free all servers from the pool, in case of secondaries, the
 	 * previous call to router_shutdown made sure nothing references the
