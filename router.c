@@ -1486,13 +1486,18 @@ router_set_collectorvals(router *rtr, int intv, char *prefix, col_mode smode)
 
 		if (regcomp(&re, expr, REG_EXTENDED) != 0)
 			return ra_strdup(rtr->a, "failed to compile hostname regexp");
-		if (regexec(&re, relay_hostname, nmatch, pmatch, 0) != 0)
+		if (regexec(&re, relay_hostname, nmatch, pmatch, 0) != 0) {
+			regfree(&re);
 			return ra_strdup(rtr->a, "failed to execute hostname regexp");
+		}
 		if (router_rewrite_metric(
 				&cprefix, &dummy,
 				relay_hostname, dummy, prefix,
 				nmatch, pmatch) == 0)
+		{
+			regfree(&re);
 			return ra_strdup(rtr->a, "rewriting statistics prefix failed");
+		}
 		regfree(&re);
 		rtr->collector.prefix = ra_strdup(rtr->a, cprefix);
 		if (rtr->collector.prefix == NULL)
