@@ -2524,7 +2524,7 @@ yyreduce:
 
   case 91:
 #line 718 "conffile.y" /* yacc.c:1646  */
-    { (*(int*)(&yyval)) = 0; }
+    { (*(int*)(&yyval)) = -1; }
 #line 2529 "conffile.tab.c" /* yacc.c:1646  */
     break;
 

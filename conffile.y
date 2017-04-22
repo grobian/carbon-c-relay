@@ -715,7 +715,7 @@ statistics: crSTATISTICS
 		  }
 		  ;
 
-statistics_opt_interval: { $$ = 0; }
+statistics_opt_interval: { $$ = -1; }
 					   | crSUBMIT crEVERY crINTVAL[intv] crSECONDS
 					   {
 					   	if ($intv <= 0) {

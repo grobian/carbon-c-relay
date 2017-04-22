@@ -1474,7 +1474,7 @@ router_getcollectormode(router *rtr)
 inline char *
 router_set_collectorvals(router *rtr, int intv, char *prefix, col_mode smode)
 {
-	if (intv > 0)
+	if (intv >= 0)
 		rtr->collector.interval = intv;
 	if (prefix != NULL) {
 		regex_t re;
