@@ -30,8 +30,8 @@
 #include "dispatcher.h"
 #include "server.h"
 #include "router.h"
-#include "aggregator.h"
 #include "fnv1a.h"
+#include "aggregator.h"
 
 static pthread_t aggregatorid;
 static size_t prevreceived = 0;
