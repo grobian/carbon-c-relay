@@ -906,12 +906,12 @@ router_add_stubroute(
 	return NULL;
 }
 
-char *
+inline char *
 router_set_statistics(router *rtr, destinations *dsts)
 {
 	if (rtr->collector.stub != NULL)
 		return ra_strdup(rtr->a,
-				"duplicate 'send statistics to' not allowed, "
+				"duplicate 'statistics send to' not allowed, "
 				"use multiple destinations instead");
 
 	return router_add_stubroute(rtr, STATSTUB, NULL, dsts);
