@@ -381,8 +381,8 @@ server_queuereader(void *d)
 
 					/* make socket blocking again */
 					if (fcntl(self->fd, F_SETFL, args) < 0) {
-						logerr("failed to remove socket non-blocking mode: %s\n",
-								strerror(errno));
+						logerr("failed to remove socket non-blocking "
+								"mode: %s\n", strerror(errno));
 						close(self->fd);
 						self->fd = -1;
 						continue;
