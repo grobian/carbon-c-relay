@@ -543,7 +543,8 @@ router_add_server(
 					ip = hnbuf;
 			}
 			/* now we've expanded, don't trigger re-resolving */
-			free(hint);
+			if (hint)
+				free(hint);
 			hint = NULL;
 		}
 
