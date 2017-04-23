@@ -542,6 +542,9 @@ router_add_server(
 							hnbuf, sizeof(hnbuf)) != NULL)
 					ip = hnbuf;
 			}
+			/* now we've expanded, don't trigger re-resolving */
+			free(hint);
+			hint = NULL;
 		}
 
 		newserver = NULL;
