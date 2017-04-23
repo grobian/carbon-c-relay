@@ -12,41 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+AUTOMAKE_OPTIONS = foreign
 
-CFLAGS ?= -O2 -Wall -Wshadow
+CFLAGS = -O2 -Wall -Wshadow -pipe
 
 GIT_VERSION := $(shell git describe --abbrev=6 --dirty --always 2>/dev/null || date +%F)
-GVCFLAGS += -DGIT_VERSION=\"$(GIT_VERSION)\"
+GVCFLAGS = -DGIT_VERSION=\"$(GIT_VERSION)\"
 
 override CFLAGS += $(GVCFLAGS) -pthread
-
-SOCKET_LIBS =
-ifeq ($(shell uname), SunOS)
-SOCKET_LIBS += -lsocket  -lnsl
-endif
-
-# should be accepted sort of anywhere
-MATH_LIBS = -lm
-
-override LIBS += $(SOCKET_LIBS) $(MATH_LIBS) -pthread
-
-OBJS = \
-	relay.o \
-	md5.o \
-	consistent-hash.o \
-	receptor.o \
-	dispatcher.o \
-	conffile.tab.o \
-	conffile.yy.o \
-	allocator.o \
-	router.o \
-	queue.o \
-	server.o \
-	collector.o \
-	aggregator.o
-
-relay: $(OBJS)
-	$(CC) -o $@ $(LDFLAGS) $^ $(LIBS)
 
 conffile.tab.c conffile.tab.h: conffile.y
 	bison -d $^
@@ -62,14 +35,38 @@ man:
 		--roff \
 	> carbon-c-relay.1
 
-VERSION = $(shell sed -n '/VERSION/s/^.*"\([0-9.]\+\)".*$$/\1/p' relay.h)
-dist:
-	git archive \
-		--format=tar.gz \
-		--prefix=carbon-c-relay-$(VERSION)/ v$(VERSION) \
-		> carbon-c-relay-$(VERSION).tar.gz
+bin_PROGRAMS = relay
+relay_SOURCES = \
+	relay.c \
+	md5.c \
+	consistent-hash.c \
+	receptor.c \
+	dispatcher.c \
+	conffile.tab.c \
+	conffile.yy.c \
+	allocator.c \
+	router.c \
+	queue.c \
+	server.c \
+	collector.c \
+	aggregator.c
+noinst_HEADERS = \
+	relay.h \
+	md5.h \
+	consistent-hash.h \
+	conffile.h \
+	conffile.tab.h \
+	receptor.h \
+	dispatcher.h \
+	allocator.h \
+	router.h \
+	queue.h \
+	server.h \
+	collector.h \
+	aggregator.h
+man_MANS = carbon-c-relay.1
 
-TESTS = \
+CRTESTS = \
 	issue10 \
 	issue27 \
 	issue117 \
@@ -96,7 +93,4 @@ test-%: relay
 approve-%: relay
 	@( cd test && ./run-test.sh -a $* )
 check: relay
-	@( cd test && ./run-test.sh $(TESTS) )
-
-clean:
-	rm -f *.o relay
+	@( cd test && ./run-test.sh $(CRTESTS) )

@@ -18,7 +18,9 @@
 #ifndef HAVE_RELAY_H
 #define HAVE_RELAY_H 1
 
-#define VERSION "3.0"
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
 
 #define METRIC_BUFSIZ 8192
 
