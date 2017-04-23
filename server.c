@@ -364,7 +364,8 @@ server_queuereader(void *d)
 										__sync_fetch_and_add(
 											&(self->failure), 1) == 0)
 									logerr("failed to connect() for %s:%u: "
-											"Hangup\n", self->ip, self->port);
+											"Connection refused\n",
+											self->ip, self->port);
 								close(self->fd);
 								self->fd = -1;
 								continue;
