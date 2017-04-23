@@ -13,7 +13,8 @@
 * [Issue #261](https://github.com/grobian/carbon-c-relay/issues/261)
   unable to use numeric instance name
 * [Issue #262](https://github.com/grobian/carbon-c-relay/issues/262)
-  DNS round-robin on any\_of cluster doesn't rotate
+  DNS round-robin on any\_of cluster doesn't rotate and causes lots of
+  hung connections
 
 
 # 3.0 (2017-04-07)

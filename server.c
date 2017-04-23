@@ -294,7 +294,11 @@ server_queuereader(void *d)
 						self->fd = -1;
 						continue;
 					}
+
+					/* we made it up here, so this connection is usable */
+					break;
 				}
+				/* if all addrinfos failed, try again later */
 				if (self->fd < 0)
 					continue;
 			} else {  /* CON_TCP */
@@ -393,7 +397,12 @@ server_queuereader(void *d)
 					if (setsockopt(self->fd, IPPROTO_TCP, TCP_NODELAY,
 								&args, sizeof(args)) != 0)
 						; /* ignore */
+
+					/* if we reached up here, we're good to go, so don't
+					 * continue with the other addrinfos */
+					break;
 				}
+				/* all available addrinfos failed on us */
 				if (self->fd < 0)
 					continue;
 			}
