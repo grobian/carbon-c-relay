@@ -15,6 +15,8 @@
 * [Issue #262](https://github.com/grobian/carbon-c-relay/issues/262)
   DNS round-robin on any\_of cluster doesn't rotate and causes lots of
   hung connections
+* [Issue #263](https://github.com/grobian/carbon-c-relay/issues/263)
+  parser fails on `%` in regular expressions
 
 
 # 3.0 (2017-04-07)
