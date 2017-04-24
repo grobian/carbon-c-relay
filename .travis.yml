@@ -17,14 +17,13 @@ script:
   # workaround git not retaining mtimes and bison/flex not being uptodate
   - touch conffile.yy.c conffile.tab.c conffile.tab.h
   - ./configure || cat config.log
-  - make check
+  - make CFLAGS="-O3 -Wall -Werror -Wshadow -pipe" check
 
 env:
   global:
     # The next declaration is the encrypted COVERITY_SCAN_TOKEN, created
     #   via the "travis encrypt" command using the project repo's public key
     - secure: "H844xDJC5CUXhUyB1SFsGiiz/Q4viVSALkj/KnWAuagrbrzIXJoK4tRWpPxCzUar5QsdEua1WIXTBezPA6V97w2cis2OGUXtgsMd1fWnwlG0RwPRj2+LAVxJ+i5z1Asx8hkYOiZIv8y0VkBGldjOrD0l0pBcxB+CDZC/zsGSRtnMLOs+smfEjOF6JPGw8Ye0XJ+YKrfbHOXhfS7XTMwUnjgAV7lTH/aAlKuedc3mYsuC3WHJOMptYLXaiPdbPKoIXfLdmszP91SkThr4f0elyQskugzGM3D7M1tIFhfmordSD+DfzLvvdSu32hHUNQjHvAm7Pz8QmdLC2IjjE8y8MkIkEy2+wR/5AjacnKR8OgFzXgt+yIH+CBc6qbTi40dZ7Go33Q8uNyKJGrA1CyL195NS8q0reMbuS7WIxI0rNOy7cdw8MO0sNjeofcb1RW90U5u5qciRQpbwhFwMFMCuD0LL41mjfN+IHGNeUwp148Qibbvyu+d7y4Y1F7/CsdMpZVBH9Ae7CHXetN8biT81fJp1rn0uEGQqoPuxvKeePsL40MXu6wvlrSf5wLKV3aqp5lzbjoJsPrOwV5iVwMHrvdhoAFlLc6Y1aJkCTPPt7yjLHgLBisqRXLTZ9lcD3AG8ubTLr03DsseUUM3/tWvhWfVRfxzkuOHsDRLMfdY2Q20="
-    - CFLAGS="-O3 -Wall -Werror -Wshadow -pipe"
 
 addons:
   coverity_scan:
