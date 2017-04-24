@@ -36,6 +36,7 @@ man:
 	> carbon-c-relay.1
 
 bin_PROGRAMS = relay
+relay_LINK = $(CCLD) $(AM_LDFLAGS) $(LDFLAGS) -o $@
 relay_SOURCES = \
 	relay.c \
 	md5.c \
