@@ -16,7 +16,7 @@ matrix:
 script:
   # workaround git not retaining mtimes and bison/flex not being uptodate
   - touch conffile.yy.c conffile.tab.c conffile.tab.h
-  - ./configure
+  - ./configure || cat config.log
   - make check
 
 env:
