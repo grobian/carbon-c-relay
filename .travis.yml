@@ -14,8 +14,9 @@ matrix:
       compiler: gcc
 
 script:
-  # workaround git not retaining mtimes and bison/flex/auto not being uptodate
-  - touch conffile.yy.c conffile.tab.c conffile.tab.h configure Makefile.in
+  # workaround git not retaining mtimes and bison/flex not being uptodate
+  - touch conffile.yy.c conffile.tab.c conffile.tab.h
+  - touch configure.ac Makefile.am aclocal.m4 configure Makefile.in
   - ./configure || cat config.log
   - make CFLAGS="-O3 -Wall -Werror -Wshadow -pipe" check
 
