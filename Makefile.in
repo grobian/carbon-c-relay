@@ -322,6 +322,7 @@ top_srcdir = @top_srcdir@
 AUTOMAKE_OPTIONS = foreign
 GIT_VERSION := $(shell git describe --abbrev=6 --dirty --always 2>/dev/null || date +%F)
 GVCFLAGS = -DGIT_VERSION=\"$(GIT_VERSION)\"
+relay_LINK = $(CCLD) $(AM_LDFLAGS) $(LDFLAGS) -o $@
 relay_SOURCES = \
 	relay.c \
 	md5.c \
@@ -472,7 +473,7 @@ clean-binPROGRAMS:
 
 relay$(EXEEXT): $(relay_OBJECTS) $(relay_DEPENDENCIES) $(EXTRA_relay_DEPENDENCIES) 
 	@rm -f relay$(EXEEXT)
-	$(AM_V_CCLD)$(LINK) $(relay_OBJECTS) $(relay_LDADD) $(LIBS)
+	$(AM_V_GEN)$(relay_LINK) $(relay_OBJECTS) $(relay_LDADD) $(LIBS)
 
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)

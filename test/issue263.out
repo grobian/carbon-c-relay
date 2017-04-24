@@ -1,0 +1,10 @@
+statistics
+    submit every 60 seconds
+    prefix with carbon.relays.test_hostname
+    ;
+
+
+rewrite ^(.+)\.win_([^.]+)\.(.+)\.\%_(.+)
+    into \1.win_\2.\3.Percent_\4
+    ;
+
