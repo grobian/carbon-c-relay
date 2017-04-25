@@ -48,7 +48,7 @@ void router_transplant_queues(router *new, router *old);
 char router_start(router *r);
 size_t router_rewrite_metric(char (*newmetric)[METRIC_BUFSIZ], char **newfirstspace, const char *metric, const char *firstspace, const char *replacement, const size_t nmatch, const regmatch_t *pmatch);
 void router_printconfig(router *r, FILE *f, char mode);
-char router_route(router *r, destination ret[], size_t *retcnt, size_t retsize, char *srcaddr, char *metric, char *firstspace);
+char router_route(router *r, destination ret[], size_t *retcnt, size_t retsize, char *srcaddr, char *metric, char *firstspace, int dispatcher_id);
 void router_test(router *r, char *metric_path);
 server **router_getservers(router *r);
 aggregator *router_getaggregators(router *r);

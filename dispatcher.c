@@ -449,7 +449,7 @@ dispatch_connection(connection *conn, dispatcher *self, struct timeval start)
 						router_route(self->rtr,
 						conn->dests, &conn->destlen, CONN_DESTS_SIZE,
 						conn->srcaddr,
-						conn->metric, firstspace));
+						conn->metric, firstspace, self->id));
 				tracef("dispatcher %d, connfd %d, destinations %zd\n",
 						self->id, conn->sock, conn->destlen);
 

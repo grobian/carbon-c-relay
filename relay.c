@@ -45,6 +45,7 @@ unsigned char keep_running = 1;
 int pending_signal = -1;
 char relay_hostname[256];
 unsigned char mode = 0;
+char workercnt = 0;
 
 static char *config = NULL;
 static int batchsize = 2500;
@@ -56,7 +57,6 @@ static int sockbufsize = 0;
 static int collector_interval = 60;
 static col_mode smode = CUM;
 static dispatcher **workers = NULL;
-static char workercnt = 0;
 static router *rtr = NULL;
 static server *internal_submission = NULL;
 static char *relay_logfile = NULL;

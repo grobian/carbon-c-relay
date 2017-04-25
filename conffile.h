@@ -85,7 +85,7 @@ typedef struct _destinations {
 
 typedef struct _route {
 	char *pattern;    /* original regex input, used for printing only */
-	regex_t rule;     /* regex on metric, only if type == REGEX */
+	regex_t *rule;     /* regex on metric, only if type == REGEX */
 	size_t nmatch;    /* number of match groups */
 	char *strmatch;   /* string to search for if type not REGEX or MATCHALL */
 	destinations *dests; /* where matches should go */
