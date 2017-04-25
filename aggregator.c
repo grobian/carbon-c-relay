@@ -17,6 +17,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <stddef.h>
 #include <unistd.h>
 #include <string.h>
 #include <time.h>
@@ -339,6 +340,146 @@ cmp_entry(const void *l, const void *r)
 	return *(const double *)l - *(const double *)r;
 }
 
+void
+record_metric(
+		aggregator *s,
+		struct _aggr_computes *c,
+		struct _aggr_invocations *inv,
+		struct _aggr_bucket *b,
+		long long int ts,
+		char **metric_buffer,
+		size_t *metric_buffer_offset,
+		size_t *metric_buffer_size) {
+	size_t len = 0;
+	size_t k;
+	double *values;
+	if (*metric_buffer_size < *metric_buffer_offset + METRIC_BUFSIZ) {
+		char *new = realloc(*metric_buffer, *metric_buffer_size + METRIC_BUFSIZ);
+		if (new != NULL) {
+			*metric_buffer_size += METRIC_BUFSIZ;
+			*metric_buffer = new;
+		} else {
+			logerr("aggregator: out of memory expanding output metric buffer "
+							"(%s from %s)", metric_buffer_size + METRIC_BUFSIZ, metric_buffer_size);
+			return;
+		}
+	}
+	char *buffer_start = &(*metric_buffer)[*metric_buffer_offset];
+	size_t buffer_remaining = *metric_buffer_size - *metric_buffer_offset;
+	switch (c->type) {
+		case SUM:
+			len = snprintf(buffer_start, buffer_remaining,
+					"%s %f %lld\n",
+					inv->metric, b->sum, ts);
+			break;
+		case CNT:
+			len = snprintf(buffer_start, buffer_remaining,
+					"%s %zu %lld\n",
+					inv->metric, b->cnt, ts);
+			break;
+		case MAX:
+			len = snprintf(buffer_start, buffer_remaining,
+					"%s %f %lld\n",
+					inv->metric, b->max, ts);
+			break;
+		case MIN:
+			len = snprintf(buffer_start, buffer_remaining,
+					"%s %f %lld\n",
+					inv->metric, b->min, ts);
+			break;
+		case AVG:
+			len = snprintf(buffer_start, buffer_remaining,
+					"%s %f %lld\n",
+					inv->metric,
+					b->sum / (double)b->cnt, ts);
+			break;
+		case MEDN:
+			/* median == 50th percentile */
+		case PCTL:
+			/* nearest rank method */
+			k = (int)(((double)c->percentile/100.0 *
+							(double)b->cnt) + 0.9);
+			values = b->entries.values;
+			/* TODO: lazy approach, in case
+			 * of 1 (first/last) or 2 buckets
+			 * distance we could do a
+			 * forward run picking the max
+			 * entries and returning that
+			 * iso sorting the full array */
+			qsort(values, b->cnt,
+					sizeof(double), cmp_entry);
+			len = snprintf(buffer_start, buffer_remaining,
+					"%s %f %lld\n",
+					inv->metric,
+					values[k - 1],
+					ts);
+			break;
+		case VAR:
+		case SDEV: {
+			double avg = b->sum / (double)b->cnt;
+			double ksum = 0;
+			values = b->entries.values;
+			for (k = 0; k < b->cnt; k++)
+				ksum += pow(values[k] - avg, 2);
+			ksum /= (double)b->cnt;
+			len = snprintf(buffer_start, buffer_remaining,
+					"%s %f %lld\n",
+					inv->metric,
+					c->type == VAR ? ksum :
+						sqrt(ksum),
+					ts);
+		}	break;
+		default:
+		   assert(0);  /* for compiler (len) */
+	}
+	/* Nul terminate for easier tokenization later */
+	buffer_start[len] = '\0';
+	*metric_buffer_offset += len + 1;
+
+}
+
+
+void
+write_metrics(
+		aggregator *s,
+		char *metric_buffer,
+		size_t metric_buffer_size)
+{
+	ssize_t written;
+	const char *next_nul = (char*)memchr(metric_buffer, '\0', metric_buffer_size);
+	const char *metric = metric_buffer;
+	int retries = 0;
+	while (next_nul != NULL) {
+		ptrdiff_t len = next_nul - metric;
+		written = write(s->fd, metric, len);
+		if (written < 0) {
+			logerr("aggregator: failed to write to "
+					"pipe (fd=%d): %s\n (%zu %zu %zu)\n",
+					s->fd, strerror(errno), metric_buffer_size, len, written);
+			__sync_add_and_fetch(&s->dropped, 1);
+		} else if (written < len) {
+			logerr("aggregator: uncomplete write on "
+					"pipe (fd=%d; attempt=%d)\n", s->fd, retries);
+			retries += 1;
+			/* Push pointer forward to avoid rewriting metric data. */
+			metric += written;
+			if (retries < 3) {
+				usleep(25 * 1000);  /* 25ms */
+				continue;
+			}
+			/* Fallthrough will reset retries, and move us to the next metric */
+			__sync_add_and_fetch(&s->dropped, 1);
+		} else {
+			__sync_add_and_fetch(&s->sent, 1);
+		}
+		retries = 0;
+		metric = next_nul + 1;
+		next_nul = (char*)memchr(metric, '\0', metric_buffer + metric_buffer_size - next_nul - 1);
+	}
+
+}
+
+
 /**
  * Checks if the oldest bucket should be expired, if so, sends out
  * computed aggregate metrics and moves the bucket to the end of the
@@ -358,10 +499,12 @@ aggregator_expire(void *sub)
 	double *values;
 	size_t len = 0;
 	int i;
-	size_t k;
+	char *metric_buffer = NULL;
+	size_t metric_buffer_size = 0;
+	size_t metric_buffer_offset = 0;
 	unsigned char j;
 	int work;
-	char metric[METRIC_BUFSIZ];
+	
 	char isempty;
 	long long int ts = 0;
 
@@ -374,6 +517,7 @@ aggregator_expire(void *sub)
 			 * metrics for all buckets that have completed */
 			now = time(NULL) + (__sync_bool_compare_and_swap(&keep_running, 1, 1) ? 0 : s->expire - s->interval);
 			for (c = s->computes; c != NULL; c = c->next) {
+				metric_buffer_offset = 0;
 				pthread_rwlock_wrlock(&c->invlock);
 				for (i = 0; i < (1 << AGGR_HT_POW_SIZE); i++) {
 					lastinv = NULL;
@@ -400,85 +544,7 @@ aggregator_expire(void *sub)
 									default:
 										assert(0);
 								}
-								switch (c->type) {
-									case SUM:
-										len = snprintf(metric, sizeof(metric),
-												"%s %f %lld\n",
-												inv->metric, b->sum, ts);
-										break;
-									case CNT:
-										len = snprintf(metric, sizeof(metric),
-												"%s %zu %lld\n",
-												inv->metric, b->cnt, ts);
-										break;
-									case MAX:
-										len = snprintf(metric, sizeof(metric),
-												"%s %f %lld\n",
-												inv->metric, b->max, ts);
-										break;
-									case MIN:
-										len = snprintf(metric, sizeof(metric),
-												"%s %f %lld\n",
-												inv->metric, b->min, ts);
-										break;
-									case AVG:
-										len = snprintf(metric, sizeof(metric),
-												"%s %f %lld\n",
-												inv->metric,
-												b->sum / (double)b->cnt, ts);
-										break;
-									case MEDN:
-										/* median == 50th percentile */
-									case PCTL:
-										/* nearest rank method */
-										k = (int)(((double)c->percentile/100.0 *
-														(double)b->cnt) + 0.9);
-										values = b->entries.values;
-										/* TODO: lazy approach, in case
-										 * of 1 (first/last) or 2 buckets
-										 * distance we could do a
-										 * forward run picking the max
-										 * entries and returning that
-										 * iso sorting the full array */
-										qsort(values, b->cnt,
-												sizeof(double), cmp_entry);
-										len = snprintf(metric, sizeof(metric),
-												"%s %f %lld\n",
-												inv->metric,
-												values[k - 1],
-												ts);
-										break;
-									case VAR:
-									case SDEV: {
-										double avg = b->sum / (double)b->cnt;
-										double ksum = 0;
-										values = b->entries.values;
-										for (k = 0; k < b->cnt; k++)
-											ksum += pow(values[k] - avg, 2);
-										ksum /= (double)b->cnt;
-										len = snprintf(metric, sizeof(metric),
-												"%s %f %lld\n",
-												inv->metric,
-												c->type == VAR ? ksum :
-													sqrt(ksum),
-												ts);
-									}	break;
-									default:
-									   assert(0);  /* for compiler (len) */
-								}
-								ts = write(s->fd, metric, len);
-								if (ts < 0) {
-									logerr("aggregator: failed to write to "
-											"pipe (fd=%d): %s\n",
-											s->fd, strerror(errno));
-									__sync_add_and_fetch(&s->dropped, 1);
-								} else if (ts < len) {
-									logerr("aggregator: uncomplete write on "
-											"pipe (fd=%d)\n", s->fd);
-									__sync_add_and_fetch(&s->dropped, 1);
-								} else {
-									__sync_add_and_fetch(&s->sent, 1);
-								}
+								record_metric(s, c, inv, b, ts, &metric_buffer, &metric_buffer_offset, &metric_buffer_size);
 							}
 
 							/* move the bucket to the end, to make room for
@@ -532,6 +598,7 @@ aggregator_expire(void *sub)
 					}
 				}
 				pthread_rwlock_unlock(&c->invlock);
+				write_metrics(s, metric_buffer, metric_buffer_offset);
 			}
 		}
 
@@ -576,6 +643,7 @@ aggregator_expire(void *sub)
 		free(s);
 	}
 
+    free(metric_buffer);
 	return NULL;
 }
 
