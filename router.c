@@ -360,18 +360,18 @@ router_validate_address(
 		}
 	}
 
-	/* try to see if this is a "numeric" IP address, in
-	 * which case we take the cannonical representation so
-	 * as to ensure (string) comparisons will match lateron */
 	memset(&hint, 0, sizeof(hint));
 	saddr = NULL;
 
+	/* try to see if this is a "numeric" IP address, which means
+	 * re-resolving lateron will make no difference */
 	hint.ai_family = PF_UNSPEC;
 	hint.ai_socktype = proto == CON_UDP ? SOCK_DGRAM : SOCK_STREAM;
 	hint.ai_protocol = proto == CON_UDP ? IPPROTO_UDP : IPPROTO_TCP;
 	hint.ai_flags = AI_NUMERICHOST | AI_NUMERICSERV;
 	snprintf(sport, sizeof(sport), "%u", port);
 
+	*rethint = NULL;
 	if (getaddrinfo(ip, sport, &hint, &saddr) != 0) {
 		int err;
 		/* now resolve this the normal way to check validity */
