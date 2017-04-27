@@ -390,22 +390,6 @@ router_validate_address(
 		if (*rethint == NULL)
 			return(ra_strdup(rtr->a, "out of memory copying hint structure"));
 		memcpy(*rethint, &hint, sizeof(hint));
-	} else {
-		/* serialise the IP address, to make sure we use cannonical form
-		 * which we can then string-match lateron (to do duplicate
-		 * detection) */
-		*rethint = NULL;
-		if (saddr->ai_family == AF_INET) {
-			if (inet_ntop(saddr->ai_family,
-						&((struct sockaddr_in *)saddr->ai_addr)->sin_addr,
-						hnbuf, sizeof(hnbuf)) != NULL)
-				ip = ra_strdup(rtr->a, hnbuf);
-		} else if (saddr->ai_family == AF_INET6) {
-			if (inet_ntop(saddr->ai_family,
-						&((struct sockaddr_in6 *)saddr->ai_addr)->sin6_addr,
-						hnbuf, sizeof(hnbuf)) != NULL)
-				ip = ra_strdup(rtr->a, hnbuf);
-		}
 	}
 
 	*retip = ip;
