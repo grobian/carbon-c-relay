@@ -601,6 +601,41 @@ server_new(
 }
 
 /**
+ * Compare server s against the address info in saddr.  A server is
+ * considered to be equal is it is of the same socket family, type and
+ * protocol, and if the target address and port are the same.
+ */
+char
+server_new(server *s, struct addrinfo *saddr)
+{
+	if (
+			s->saddr->ai_family == saddr->ai_family &&
+			s->saddr->ai_socktype == saddr->ai_socktype &&
+			s->saddr->ai_protocol == saddr->ai_protocol
+	   )
+	{
+		if (saddr->ai_family == AF_INET) {
+			struct sockaddr_in *l = &((struct sockaddr_in *)s->saddr->ai_addr);
+			struct sockaddr_in *r = &((struct sockaddr_in *)saddr->ai_addr);
+			if (l->sin_port == r->sin_port &&
+					l->sin_addr->s_addr = r->sin_addr->s_addr)
+				return 0;
+		} else if (saddr->ai_family == AF_INET6) {
+			struct sockaddr_in6 *l =
+				&((struct sockaddr_in6 *)s->saddr->ai_addr);
+			struct sockaddr_in6 *r =
+				&((struct sockaddr_in6 *)saddr->ai_addr);
+			if (l->sin6_port == r->sin6_port &&
+					memcmp(l->sin6_addr->s6_addr, r->sin6_addr->s6_addr,
+						sizeof(l->sin6_addr->s6_addr)) == 0)
+				return 0;
+		}
+	}
+
+	return 1;  /* not equal */
+}
+
+/**
  * Starts a previously created server using server_new().  Returns
  * errno if starting a thread failed, after which the caller should
  * server_free() the given s pointer.

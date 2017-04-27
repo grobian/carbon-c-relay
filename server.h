@@ -39,6 +39,7 @@ server *server_new(
 		int maxstalls,
 		unsigned short iotimeout,
 		unsigned int sockbufsize);
+char server_cmp(server *s, struct addrinfo *saddr);
 char server_start(server *s);
 void server_add_secondaries(server *d, server **sec, size_t cnt);
 void server_set_failover(server *d);

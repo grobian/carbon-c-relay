@@ -550,10 +550,7 @@ router_add_server(
 
 		newserver = NULL;
 		for (s = ret->srvrs; s != NULL; s = s->next) {
-			if (strcmp(server_ip(s->server), ip) == 0 &&
-					server_port(s->server) == port &&
-					server_ctype(s->server) == proto)
-			{
+			if (server_cmp(s->server, walk) == 0) {
 				newserver = s->server;
 				s->refcnt++;
 				break;
