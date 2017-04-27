@@ -333,7 +333,6 @@ router_validate_address(
 	struct addrinfo *saddr = NULL;
 	struct addrinfo hint;
 	char sport[8];
-	char hnbuf[256];
 	char *p;
 	char *lastcolon = NULL;
 
@@ -503,6 +502,7 @@ router_add_server(
 		cluster *cl)
 {
 	struct addrinfo *walk;
+	struct addrinfo *lwalk;
 	char hnbuf[256];
 	char errbuf[512];
 	server *newserver;
@@ -511,6 +511,7 @@ router_add_server(
 	walk = saddrs;  /* NULL if file */
 	do {
 		servers *s;
+		lwalk = NULL;
 
 		if (useall) {
 			/* serialise the IP address, to make the targets explicit
@@ -530,6 +531,9 @@ router_add_server(
 			if (hint)
 				free(hint);
 			hint = NULL;
+			/* and turn this into a separate entry */
+			lwalk = walk->ai_next;
+			walk->ai_next = NULL;
 		}
 
 		newserver = NULL;
@@ -542,7 +546,7 @@ router_add_server(
 		}
 		if (newserver == NULL) {
 			newserver = server_new(ip, (unsigned short)port,
-					proto, saddrs, hint,
+					proto, walk, hint,
 					ret->conf.queuesize, ret->conf.batchsize,
 					ret->conf.maxstalls, ret->conf.iotimeout,
 					ret->conf.sockbufsize);
@@ -717,7 +721,7 @@ router_add_server(
 			}
 		}
 
-		walk = useall ? walk->ai_next : NULL;
+		walk = lwalk;
 	} while (walk != NULL);
 
 	return NULL;

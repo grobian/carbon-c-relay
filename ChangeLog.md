@@ -17,6 +17,8 @@
   hung connections
 * [Issue #263](https://github.com/grobian/carbon-c-relay/issues/263)
   parser fails on `%` in regular expressions
+* [Issue #264](https://github.com/grobian/carbon-c-relay/issues/264)
+  carbon\_ch hash algorithm change between 2.6 and 3.0
 
 
 # 3.0 (2017-04-07)
