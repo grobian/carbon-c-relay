@@ -16,7 +16,7 @@
   DNS round-robin on any\_of cluster doesn't rotate and causes lots of
   hung connections
 * [Issue #263](https://github.com/grobian/carbon-c-relay/issues/263)
-  parser fails on `%` in regular expressions
+  parser fails on `%` in regular expressions, and exits with a crash
 * [Issue #264](https://github.com/grobian/carbon-c-relay/issues/264)
   carbon\_ch hash algorithm change between 2.6 and 3.0
 

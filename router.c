@@ -1066,9 +1066,8 @@ router_readconfig(router *orig,
 	router_yy_scan_string(buf, lptr);
 	ret->parser_err.msg = NULL;
 	if (router_yyparse(lptr, ret, ret->a, palloc) != 0) {
-		if (ret->parser_err.msg == NULL) {
-			fprintf(stderr, "parsing %s failed\n", path);
-		} else if (ret->parser_err.line != 0) {
+		/* parser_err.msg can be NULL on cascading, see below */
+		if (ret->parser_err.line != 0) {
 			char *line;
 			char *p;
 			char *carets;
@@ -1098,9 +1097,12 @@ router_readconfig(router *orig,
 					*p = ' ';
 			*p = '\0';
 			fprintf(stderr, "%s%s\n", line, carets);
-		} else {
+		} else if (ret->parser_err.msg != NULL) {
 			fprintf(stderr, "%s: %s\n", path, ret->parser_err.msg);
 		}
+		/* clear the message, so it isn't printed when this was an
+		 * included config */
+		ret->parser_err.msg = NULL;
 		router_yylex_destroy(lptr);
 		router_free(ret);
 		ra_free(palloc);

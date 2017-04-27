@@ -740,7 +740,8 @@ statistics_opt_prefix:                                  { $$ = NULL; }
 /*** {{{ BEGIN include ***/
 include: crINCLUDE crSTRING[path]
 	   {
-	   	router_readconfig(rtr, $path, 0, 0, 0, 0, 0);
+	   	if (router_readconfig(rtr, $path, 0, 0, 0, 0, 0) == NULL)
+			YYERROR;
 	   }
 	   ;
 /*** }}} END include ***/

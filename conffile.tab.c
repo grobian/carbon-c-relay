@@ -2569,13 +2569,14 @@ yyreduce:
   case 97:
 #line 742 "conffile.y" /* yacc.c:1646  */
     {
-	   	router_readconfig(rtr, (*(char **)(&yyvsp[0])), 0, 0, 0, 0, 0);
+	   	if (router_readconfig(rtr, (*(char **)(&yyvsp[0])), 0, 0, 0, 0, 0) == NULL)
+			YYERROR;
 	   }
-#line 2575 "conffile.tab.c" /* yacc.c:1646  */
+#line 2576 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
 
-#line 2579 "conffile.tab.c" /* yacc.c:1646  */
+#line 2580 "conffile.tab.c" /* yacc.c:1646  */
       default: break;
     }
   /* User semantic actions sometimes alter yychar, and that requires

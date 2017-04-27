@@ -1,0 +1,5 @@
+../issues/issue263-c1.conf:1:0: syntax error, unexpected string, expecting end of file
+produce a syntax error here
+^
+relay(68680,0x7fffa8e9c3c0) malloc: *** error for object 0x7fd7c4c02ab0: pointer being freed was not allocated
+*** set a breakpoint in malloc_error_break to debug
