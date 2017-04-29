@@ -14,7 +14,7 @@
 
 AUTOMAKE_OPTIONS = foreign
 
-CFLAGS = -O2 -Wall -Wshadow -pipe
+CFLAGS ?= -O2 -Wall -Wshadow -pipe
 
 GIT_VERSION := $(shell git describe --abbrev=6 --dirty --always 2>/dev/null || date +%F)
 GVCFLAGS = -DGIT_VERSION=\"$(GIT_VERSION)\"
@@ -54,6 +54,7 @@ relay_SOURCES = \
 noinst_HEADERS = \
 	relay.h \
 	md5.h \
+	fnv1a.h \
 	consistent-hash.h \
 	conffile.h \
 	conffile.tab.h \
@@ -66,6 +67,18 @@ noinst_HEADERS = \
 	collector.h \
 	aggregator.h
 man_MANS = carbon-c-relay.1
+
+EXTRA_DIST = \
+	issues \
+	test \
+	ChangeLog.md \
+	LICENSE.md \
+	carbon-c-relay.md \
+	carbon-c-relay.1 \
+	README.md \
+	conffile.tab.c conffile.tab.h conffile.y \
+	conffile.yy.c conffile.l \
+	$(NULL)
 
 CRTESTS = \
 	issue10 \

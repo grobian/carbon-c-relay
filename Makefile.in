@@ -241,7 +241,7 @@ AUTOMAKE = @AUTOMAKE@
 AWK = @AWK@
 CC = @CC@
 CCDEPMODE = @CCDEPMODE@
-CFLAGS = -O2 -Wall -Wshadow -pipe
+CFLAGS = @CFLAGS@
 CPP = @CPP@
 CPPFLAGS = @CPPFLAGS@
 CYGPATH_W = @CYGPATH_W@
@@ -341,6 +341,7 @@ relay_SOURCES = \
 noinst_HEADERS = \
 	relay.h \
 	md5.h \
+	fnv1a.h \
 	consistent-hash.h \
 	conffile.h \
 	conffile.tab.h \
@@ -354,6 +355,18 @@ noinst_HEADERS = \
 	aggregator.h
 
 man_MANS = carbon-c-relay.1
+EXTRA_DIST = \
+	issues \
+	test \
+	ChangeLog.md \
+	LICENSE.md \
+	carbon-c-relay.md \
+	carbon-c-relay.1 \
+	README.md \
+	conffile.tab.c conffile.tab.h conffile.y \
+	conffile.yy.c conffile.l \
+	$(NULL)
+
 CRTESTS = \
 	issue10 \
 	issue27 \
@@ -908,6 +921,8 @@ uninstall-man: uninstall-man1
 
 .PRECIOUS: Makefile
 
+
+CFLAGS ?= -O2 -Wall -Wshadow -pipe
 
 override CFLAGS += $(GVCFLAGS) -pthread
 
