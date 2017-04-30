@@ -608,7 +608,7 @@ main(int argc, char * const argv[])
 			exit(1);
 		} else if (p == 0) {
 			char msg[1024];
-			/* child, for again so our intermediate process can die and
+			/* child, fork again so our intermediate process can die and
 			 * its child becomes an orphan to init */
 			p = fork();
 			if (p < 0) {
@@ -793,19 +793,19 @@ main(int argc, char * const argv[])
 		logerr("failed to bind on port %s:%d: %s\n",
 				listeninterface == NULL ? "" : listeninterface,
 				listenport, strerror(errno));
-		return -1;
+		return 1;
 	}
 	dispatch_set_bufsize(sockbufsize);
 	for (ch = 0; ch < stream_socklen; ch++) {
 		if (dispatch_addlistener(stream_sock[ch]) != 0) {
 			logerr("failed to add listener\n");
-			return -1;
+			return 1;
 		}
 	}
 	for (ch = 0; ch < dgram_socklen; ch++) {
 		if (dispatch_addlistener_udp(dgram_sock[ch]) != 0) {
 			logerr("failed to listen to datagram socket\n");
-			return -1;
+			return 1;
 		}
 	}
 	if ((workers[0] = dispatch_new_listener()) == NULL)
