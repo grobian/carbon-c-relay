@@ -1,5 +1,10 @@
 # 3.2 (unreleased master branch)
 
+### Bugfixes
+
+* [Issue #265](https://github.com/grobian/carbon-c-relay/issues/265)
+  exit code is sucess on error when daemonised
+
 
 # 3.1 (29-04-2017)
 

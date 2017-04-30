@@ -362,6 +362,8 @@ main(int argc, char * const argv[])
 	char *pidfile = NULL;
 	FILE *pidfile_handle = NULL;
 	aggregator *aggrs = NULL;
+	int fds[2];
+	unsigned char startup_success = 0;
 
 	if (gethostname(relay_hostname, sizeof(relay_hostname)) < 0)
 		snprintf(relay_hostname, sizeof(relay_hostname), "127.0.0.1");
@@ -549,7 +551,7 @@ main(int argc, char * const argv[])
 	/* any_of failover maths need batchsize to be smaller than queuesize */
 	if (batchsize > queuesize) {
 		fprintf(stderr, "error: batchsize must be smaller than queuesize\n");
-		exit(-1);
+		exit(1);
 	}
 
 	if (relay_logfile != NULL && (mode & MODE_TEST) == 0) {
@@ -557,7 +559,7 @@ main(int argc, char * const argv[])
 		if (f == NULL) {
 			fprintf(stderr, "error: failed to open logfile '%s': %s\n",
 					relay_logfile, strerror(errno));
-			exit(-1);
+			exit(1);
 		}
 		relay_stdout = f;
 		relay_stderr = f;
@@ -571,13 +573,13 @@ main(int argc, char * const argv[])
 		if (relay_logfile == NULL) {
 			fprintf(stderr,
 					"You must specify logfile if you want daemonisation!\n");
-			exit(-1);
+			exit(1);
 		}
 
 		if (mode & MODE_TEST) {
 			fprintf(stderr,
 					"You cannot use test mode if you want daemonisation!\n");
-			exit(-1);
+			exit(1);
 		}
 	}
 
@@ -586,13 +588,12 @@ main(int argc, char * const argv[])
 		if (pidfile_handle == NULL) {
 			fprintf(stderr, "failed to open pidfile '%s': %s\n",
 					pidfile, strerror(errno));
-			exit(-1);
+			exit(1);
 		}
 	}
 
 	if (mode & MODE_DAEMON) {
 		pid_t p;
-		int fds[2];
 
 		if (pipe(fds) < 0) {
 			fprintf(stderr, 
@@ -612,15 +613,15 @@ main(int argc, char * const argv[])
 			 * its child becomes an orphan to init */
 			p = fork();
 			if (p < 0) {
-				snprintf(msg, sizeof(msg), "failed to fork daemon process: %s",
-						strerror(errno));
+				snprintf(msg, sizeof(msg),
+						"failed to fork daemon process: %s\n", strerror(errno));
 				/* fool compiler */
 				if (write(fds[1], msg, strlen(msg) + 1) > -2)
 					exit(1); /* not that retcode matters */
 			} else if (p == 0) {
 				/* child, this is the final daemon process */
 				if (setsid() < 0) {
-					snprintf(msg, sizeof(msg), "failed to setsid(): %s",
+					snprintf(msg, sizeof(msg), "failed to setsid(): %s\n",
 							strerror(errno));
 					/* fool compiler */
 					if (write(fds[1], msg, strlen(msg) + 1) > -2)
@@ -631,11 +632,6 @@ main(int argc, char * const argv[])
 				close(0);
 				close(1);
 				close(2);
-
-				/* we're fine, flag our grandparent (= the original
-				 * process being called) it can terminate */
-				if (write(fds[1], "OK", 3) < -2)
-					*msg = '\0';  /* unreachable dummy to fool compiler */
 			} else {
 				/* parent, die */
 				exit(0);
@@ -659,14 +655,35 @@ main(int argc, char * const argv[])
 				if (len == 1024)
 					len--;
 				msg[len] = '\0';
-				fprintf(stderr, "%s\n", msg);
+				fprintf(stderr, "%s", msg);
 				exit(1);
 			}
 		}
-
-		close(fds[0]);
-		close(fds[1]);
+	} else {
+		fds[0] = fds[1] = -1;
 	}
+#define exit_err(...) \
+	if (fds[0] != -1) { \
+		char msg[1024]; \
+		snprintf(msg, sizeof(msg), __VA_ARGS__); \
+		/* fool compiler */ \
+		if (write(fds[1], msg, strlen(msg) + 1) > -2) \
+			exit(1); /* not that retcode matters */ \
+	} else { \
+		logerr(__VA_ARGS__); \
+		exit(1); \
+	}
+#define exit_ok \
+	if (fds[0] != -1) { \
+		/* we're fine, flag our grandparent (= the original
+		 * process being called) it can terminate */ \
+		if (write(fds[1], "OK", 3) < -2) \
+			exit(1);  /* if our grantparent died, we better do too */ \
+	} \
+	close(fds[0]); \
+	close(fds[1]); \
+	fds[0] = fds[1] = -1; \
+	startup_success = 1;
 
 	if (pidfile_handle) {
 		fprintf(pidfile_handle, "%d\n", getpid());
@@ -711,8 +728,7 @@ main(int argc, char * const argv[])
 					queuesize, batchsize, maxstalls,
 					iotimeout, sockbufsize)) == NULL)
 	{
-		logerr("failed to create router configuration\n");
-		return 1;
+		exit_err("failed to create router configuration\n");
 	}
 	router_set_collectorvals(rtr, collector_interval, NULL, smode);
 
@@ -720,8 +736,7 @@ main(int argc, char * const argv[])
 					queuesize, batchsize, maxstalls,
 					iotimeout, sockbufsize)) == NULL)
 	{
-		logerr("failed to read configuration '%s'\n", config);
-		return 1;
+		exit_err("failed to read configuration '%s'\n", config);
 	}
 	router_optimise(rtr, optimiserthreshold);
 
@@ -761,51 +776,42 @@ main(int argc, char * const argv[])
 	}
 
 	if (signal(SIGINT, sig_handler) == SIG_ERR) {
-		logerr("failed to create SIGINT handler: %s\n", strerror(errno));
-		return 1;
+		exit_err("failed to create SIGINT handler: %s\n", strerror(errno));
 	}
 	if (signal(SIGTERM, sig_handler) == SIG_ERR) {
-		logerr("failed to create SIGTERM handler: %s\n", strerror(errno));
-		return 1;
+		exit_err("failed to create SIGTERM handler: %s\n", strerror(errno));
 	}
 	if (signal(SIGQUIT, sig_handler) == SIG_ERR) {
-		logerr("failed to create SIGQUIT handler: %s\n", strerror(errno));
-		return 1;
+		exit_err("failed to create SIGQUIT handler: %s\n", strerror(errno));
 	}
 	if (signal(SIGHUP, sig_handler) == SIG_ERR) {
-		logerr("failed to create SIGHUP handler: %s\n", strerror(errno));
-		return 1;
+		exit_err("failed to create SIGHUP handler: %s\n", strerror(errno));
 	}
 	if (signal(SIGPIPE, SIG_IGN) == SIG_ERR) {
-		logerr("failed to ignore SIGPIPE: %s\n", strerror(errno));
-		return 1;
+		exit_err("failed to ignore SIGPIPE: %s\n", strerror(errno));
 	}
 
 	workers = malloc(sizeof(dispatcher *) * (1 + workercnt + 1));
 	if (workers == NULL) {
-		logerr("failed to allocate memory for workers\n");
-		return 1;
+		exit_err("failed to allocate memory for workers\n");
 	}
 
 	if (bindlisten(stream_sock, &stream_socklen,
 				dgram_sock, &dgram_socklen,
 				listeninterface, listenport, listenbacklog) < 0) {
-		logerr("failed to bind on port %s:%d: %s\n",
+		exit_err("failed to bind on port %s:%d: %s\n",
 				listeninterface == NULL ? "" : listeninterface,
 				listenport, strerror(errno));
-		return 1;
 	}
 	dispatch_set_bufsize(sockbufsize);
 	for (ch = 0; ch < stream_socklen; ch++) {
 		if (dispatch_addlistener(stream_sock[ch]) != 0) {
-			logerr("failed to add listener\n");
-			return 1;
+			exit_err("failed to add listener\n");
 		}
 	}
 	for (ch = 0; ch < dgram_socklen; ch++) {
 		if (dispatch_addlistener_udp(dgram_sock[ch]) != 0) {
-			logerr("failed to listen to datagram socket\n");
-			return 1;
+			exit_err("failed to listen to datagram socket\n");
 		}
 	}
 	if ((workers[0] = dispatch_new_listener()) == NULL)
@@ -861,8 +867,10 @@ main(int argc, char * const argv[])
 		keep_running = 0;
 	}
 
-	if (keep_running == 0)
+	if (keep_running != 0) {
 		logout("startup sequence complete\n");
+		exit_ok;
+	}
 
 	/* workers do the work, just wait */
 	while (keep_running) {
@@ -914,5 +922,12 @@ main(int argc, char * const argv[])
 
 	logout("stopped carbon-c-relay v%s (%s)\n", VERSION, GIT_VERSION);
 
+	/* if we never called exit_ok before, it means we shut down due to
+	 * errors, so exit with an error */
+	if (startup_success == 0) {
+		/* this message will never reach the log/screen when not
+		 * daemonised, because the logger already shut down */
+		exit_err("startup failed, review the logs for details\n");
+	}
 	return 0;
 }
