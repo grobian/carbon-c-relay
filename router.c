@@ -2325,7 +2325,7 @@ router_route_intern(
 								retsize,
 								srcaddr,
 								metric + strlen(w->pattern),
-								firstspace + strlen(w->pattern),
+								firstspace,
 								w->dests->cl->members.routes);
 					}	break;
 					case VALIDATION: {
