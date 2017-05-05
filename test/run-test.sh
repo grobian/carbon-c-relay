@@ -32,7 +32,7 @@ run_test() {
 	[[ -e ${conf} ]] || conf="../issues/${conf}"
 	echo -n "${test}: "
 	tdiff=$(cat ${2} \
-		| ( ${EXEC} ${eflags} -f "${conf}" ) 2>&1 \
+		| ( ${EXEC} ${eflags} -f "${conf}" ; trigger_bash_segv_print=$?) 2>&1 \
 		| "${CNFCLN[@]}" \
 		| ${DIFF} "${test}.out" - --label "${test}.out" --label "${test}.out" \
 		| ${POST} \
