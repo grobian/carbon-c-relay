@@ -4,6 +4,8 @@
 
 * [Issue #265](https://github.com/grobian/carbon-c-relay/issues/265)
   exit code is sucess on error when daemonised
+* [Issue #266](https://github.com/grobian/carbon-c-relay/issues/266)
+  incorrect hash when using aggregate function
 * [Issue #267](https://github.com/grobian/carbon-c-relay/issues/267)
   segmentation fault when trying to use a file cluster
 

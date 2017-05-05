@@ -2436,7 +2436,7 @@ router_test_intern(char *metric, char *firstspace, route *routes)
 				case STATSTUB: {
 					gotmatch |= router_test_intern(
 							metric + strlen(w->pattern),
-							firstspace + strlen(w->pattern),
+							firstspace,
 							w->dests->cl->members.routes);
 					return gotmatch;
 				}	break;
