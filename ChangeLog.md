@@ -4,6 +4,8 @@
 
 * [Issue #265](https://github.com/grobian/carbon-c-relay/issues/265)
   exit code is sucess on error when daemonised
+* [Issue #267](https://github.com/grobian/carbon-c-relay/issues/267)
+  segmentation fault when trying to use a file cluster
 
 
 # 3.1 (29-04-2017)

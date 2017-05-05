@@ -538,7 +538,7 @@ router_add_server(
 
 		newserver = NULL;
 		for (s = ret->srvrs; s != NULL; s = s->next) {
-			if (server_cmp(s->server, walk) == 0) {
+			if (server_cmp(s->server, walk, ip) == 0) {
 				newserver = s->server;
 				s->refcnt++;
 				break;

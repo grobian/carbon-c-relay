@@ -603,12 +603,17 @@ server_new(
 /**
  * Compare server s against the address info in saddr.  A server is
  * considered to be equal is it is of the same socket family, type and
- * protocol, and if the target address and port are the same.
+ * protocol, and if the target address and port are the same.  When
+ * saddr is NULL, a match against the given ip is attempted, e.g. for
+ * file destinations.
  */
 char
-server_cmp(server *s, struct addrinfo *saddr)
+server_cmp(server *s, struct addrinfo *saddr, const char *ip)
 {
-	if (
+	if ((saddr == NULL || s->saddr == NULL)) {
+		if (strcmp(s->ip, ip) == 0)
+			return 0;
+	} else if (
 			s->saddr->ai_family == saddr->ai_family &&
 			s->saddr->ai_socktype == saddr->ai_socktype &&
 			s->saddr->ai_protocol == saddr->ai_protocol
