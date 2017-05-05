@@ -329,6 +329,7 @@ do_usage(char *name, int exitcode)
 	printf("  -L  server max stalls, defaults to %d\n", maxstalls);
 	printf("  -S  statistics sending interval in seconds, defaults to 60\n");
 	printf("  -B  connection listen backlog, defaults to 32\n");
+	printf("  -U  socket receive buffer size, max/min/default values depend on OS\n");
 	printf("  -T  IO timeout in milliseconds for server connections, defaults to %d\n", iotimeout);
 	printf("  -m  send statistics like carbon-cache.py, e.g. not cumulative\n");
 	printf("  -c  characters to allow next to [A-Za-z0-9], defaults to -_:#\n");
