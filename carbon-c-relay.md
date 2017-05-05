@@ -72,7 +72,10 @@ These options control the behaviour of **carbon-c-relay**.
     configuration.  This mode is very useful for testing relay routes for
     regular expression syntax etc.  It also allows to give insight on how
     routing is applied in complex configurations, for it shows rewrites and
-    aggregates taking place as well.
+    aggregates taking place as well.  When `-t` is repeated, the relay
+    will only test the configuration for validity and exit immediately
+    afterwards.  Any standard output is suppressed in this mode, making
+    it ideal for start-scripts to test a (new) configuration.
 
   * `-D`:
     Deamonise into the background after startup.  This option requires

@@ -30,6 +30,7 @@
 #define MODE_TEST       (1 << 2)
 #define MODE_DAEMON     (1 << 3)
 #define MODE_TRACE      (1 << 4)
+#define MODE_CONFIGTEST (1 << 5)
 extern unsigned char mode;
 
 #ifdef ENABLE_TRACE

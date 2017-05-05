@@ -1,5 +1,12 @@
 # 3.2 (unreleased master branch)
 
+### New Features
+
+* **relay** the flag `-tt` can now be used to test the configuration and
+  exit immediately.  In this mode, any standard output is suppressed as
+  well.
+  [Issue #247](https://github.com/grobian/carbon-c-relay/issues/247)
+
 ### Bugfixes
 
 * [Issue #265](https://github.com/grobian/carbon-c-relay/issues/265)

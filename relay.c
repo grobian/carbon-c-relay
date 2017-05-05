@@ -98,7 +98,9 @@ relaylog(enum logdst dest, const char *fmt, ...)
 				console = 1;
 			break;
 	}
-	assert(dst != NULL);
+	/* NULL == /dev/null */
+	if (dst == NULL)
+		return 0;
 
 	time(&now);
 	localtime_r(&now, &tm_now);
@@ -394,7 +396,12 @@ main(int argc, char * const argv[])
 				mode |= MODE_SUBMISSION;
 				break;
 			case 't':
-				mode |= MODE_TEST;
+				/* -t: test interactively, -tt: test config and exit */
+				if (mode & MODE_TEST) {
+					mode |= MODE_CONFIGTEST;
+				} else {
+					mode |= MODE_TEST;
+				}
 				break;
 			case 'f':
 				config = optarg;
@@ -511,7 +518,7 @@ main(int argc, char * const argv[])
 					exit(1);
 				}
 				if (sockbufsize != (unsigned int)val)
-					fprintf(stdout, "warning: OS rejected socket bufsize\n");
+					fprintf(stderr, "warning: OS rejected socket bufsize\n");
 				if (sock != -1)
 					close(sock);
 			}	break;
@@ -564,6 +571,10 @@ main(int argc, char * const argv[])
 		}
 		relay_stdout = f;
 		relay_stderr = f;
+	} else if (mode & MODE_CONFIGTEST) {
+		/* suppress stdout, just show errors */
+		relay_stdout = NULL;
+		relay_stderr = stderr;
 	} else {
 		relay_stdout = stdout;
 		relay_stderr = stderr;
@@ -694,35 +705,37 @@ main(int argc, char * const argv[])
 
 	logout("starting carbon-c-relay v%s (%s), pid=%d\n",
 			VERSION, GIT_VERSION, getpid());
-	fprintf(relay_stdout, "configuration:\n");
-	fprintf(relay_stdout, "    relay hostname = %s\n", relay_hostname);
-	fprintf(relay_stdout, "    listen port = %u\n", listenport);
-	if (listeninterface != NULL)
-		fprintf(relay_stdout, "    listen interface = %s\n", listeninterface);
-	fprintf(relay_stdout, "    workers = %d\n", workercnt);
-	fprintf(relay_stdout, "    send batch size = %d\n", batchsize);
-	fprintf(relay_stdout, "    server queue size = %d\n", queuesize);
-	fprintf(relay_stdout, "    server max stalls = %d\n", maxstalls);
-	fprintf(relay_stdout, "    listen backlog = %u\n", listenbacklog);
-	if (sockbufsize > 0)
-		fprintf(relay_stdout, "    socket bufsize = %u\n", sockbufsize);
-	fprintf(relay_stdout, "    server connection IO timeout = %dms\n",
-			iotimeout);
-	if (allowed_chars != NULL)
-		fprintf(relay_stdout, "    extra allowed characters = %s\n",
-				allowed_chars);
-	if (mode & MODE_DEBUG)
-		fprintf(relay_stdout, "    debug = true\n");
+	if (relay_stdout != NULL) {
+		fprintf(relay_stdout, "configuration:\n");
+		fprintf(relay_stdout, "    relay hostname = %s\n", relay_hostname);
+		fprintf(relay_stdout, "    listen port = %u\n", listenport);
+		if (listeninterface != NULL)
+			fprintf(relay_stdout, "    listen interface = %s\n", listeninterface);
+		fprintf(relay_stdout, "    workers = %d\n", workercnt);
+		fprintf(relay_stdout, "    send batch size = %d\n", batchsize);
+		fprintf(relay_stdout, "    server queue size = %d\n", queuesize);
+		fprintf(relay_stdout, "    server max stalls = %d\n", maxstalls);
+		fprintf(relay_stdout, "    listen backlog = %u\n", listenbacklog);
+		if (sockbufsize > 0)
+			fprintf(relay_stdout, "    socket bufsize = %u\n", sockbufsize);
+		fprintf(relay_stdout, "    server connection IO timeout = %dms\n",
+				iotimeout);
+		if (allowed_chars != NULL)
+			fprintf(relay_stdout, "    extra allowed characters = %s\n",
+					allowed_chars);
+		if (mode & MODE_DEBUG)
+			fprintf(relay_stdout, "    debug = true\n");
 #ifdef ENABLE_TRACE
-	if (mode & MODE_TRACE)
-		fprintf(relay_stdout, "    trace = true\n");
+		if (mode & MODE_TRACE)
+			fprintf(relay_stdout, "    trace = true\n");
 #endif
-	else if (mode & MODE_SUBMISSION)
-		fprintf(relay_stdout, "    submission = true\n");
-	else if (mode & MODE_DAEMON)
-		fprintf(relay_stdout, "    daemon = true\n");
-	fprintf(relay_stdout, "    configuration = %s\n", config);
-	fprintf(relay_stdout, "\n");
+		else if (mode & MODE_SUBMISSION)
+			fprintf(relay_stdout, "    submission = true\n");
+		else if (mode & MODE_DAEMON)
+			fprintf(relay_stdout, "    daemon = true\n");
+		fprintf(relay_stdout, "    configuration = %s\n", config);
+		fprintf(relay_stdout, "\n");
+	}
 
 	/* hack to set defaults from command line flags */
 	if ((rtr = router_readconfig(NULL, "/dev/null",
@@ -740,6 +753,10 @@ main(int argc, char * const argv[])
 		exit_err("failed to read configuration '%s'\n", config);
 	}
 	router_optimise(rtr, optimiserthreshold);
+
+	/* we're done if all we wanted was to test the config */
+	if (mode & MODE_CONFIGTEST)
+		exit(0);
 
 	aggrs = router_getaggregators(rtr);
 	numaggregators = aggregator_numaggregators(aggrs);
