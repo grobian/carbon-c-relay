@@ -159,16 +159,7 @@ do_reload(void)
 	}
 
 	logout("reloading config from '%s'\n", config);
-	/* hack to set defaults from command line flags */
-	if ((newrtr = router_readconfig(NULL, "/dev/null",
-					queuesize, batchsize, maxstalls,
-					iotimeout, sockbufsize)) == NULL)
-	{
-		logerr("failed to create router configuration\n");
-		return;
-	}
-	router_set_collectorvals(newrtr, collector_interval, NULL, smode);
-	if ((newrtr = router_readconfig(newrtr, config,
+	if ((newrtr = router_readconfig(NULL, config,
 					queuesize, batchsize, maxstalls,
 					iotimeout, sockbufsize)) == NULL)
 	{
@@ -371,7 +362,7 @@ main(int argc, char * const argv[])
 	if (gethostname(relay_hostname, sizeof(relay_hostname)) < 0)
 		snprintf(relay_hostname, sizeof(relay_hostname), "127.0.0.1");
 
-	while ((ch = getopt(argc, argv, ":hvdmstf:i:l:p:w:b:q:L:S:T:c:H:B:U:DP:O:")) != -1) {
+	while ((ch = getopt(argc, argv, ":hvdstf:i:l:p:w:b:q:L:T:c:H:B:U:DP:O:")) != -1) {
 		switch (ch) {
 			case 'v':
 				do_version();
@@ -385,12 +376,6 @@ main(int argc, char * const argv[])
 				} else {
 					mode |= MODE_DEBUG;
 				}
-				break;
-			case 'm':
-				smode = SUB;
-				fprintf(stderr, "warning: -m flag will be removed in a "
-						"future version, set the summary mode from the "
-						"config instead\n");
 				break;
 			case 's':
 				mode |= MODE_SUBMISSION;
@@ -447,17 +432,6 @@ main(int argc, char * const argv[])
 							"between 0 and %d\n", (1 << SERVER_STALL_BITS) - 1);
 					do_usage(argv[0], 1);
 				}
-				break;
-			case 'S':
-				collector_interval = atoi(optarg);
-				if (collector_interval <= 0) {
-					fprintf(stderr, "error: sending interval needs to be "
-							"a number >0\n");
-					do_usage(argv[0], 1);
-				}
-				fprintf(stderr, "warning: -S flag will be removed in a "
-						"future version, set the interval from the "
-						"config instead\n");
 				break;
 			case 'T': {
 				int val = atoi(optarg);
@@ -737,16 +711,7 @@ main(int argc, char * const argv[])
 		fprintf(relay_stdout, "\n");
 	}
 
-	/* hack to set defaults from command line flags */
-	if ((rtr = router_readconfig(NULL, "/dev/null",
-					queuesize, batchsize, maxstalls,
-					iotimeout, sockbufsize)) == NULL)
-	{
-		exit_err("failed to create router configuration\n");
-	}
-	router_set_collectorvals(rtr, collector_interval, NULL, smode);
-
-	if ((rtr = router_readconfig(rtr, config,
+	if ((rtr = router_readconfig(NULL, config,
 					queuesize, batchsize, maxstalls,
 					iotimeout, sockbufsize)) == NULL)
 	{

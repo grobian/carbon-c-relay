@@ -51,12 +51,6 @@ These options control the behaviour of **carbon-c-relay**.
     (test mode) this also prints stub routes and consistent-hash ring
     contents.
 
-  * `-m`: (deprecated)
-    Change statistics submission to be like carbon-cache.py, e.g. not
-    cumulative.  After each submission, all counters are reset to `0`.
-    You should set this mode via the configuration file instead using
-    `statistics reset counters after interval`.
-
   * `-s`:
     Enable submission mode.  In this mode, internal statistics are not
     generated.  Instead, queue pressure and metrics drops are reported on
@@ -140,12 +134,6 @@ These options control the behaviour of **carbon-c-relay**.
     on the client.  The default value is set to *4*, which is aimed at the
     occasional disruption scenario and max effort to not loose metrics
     with moderate slowing down of clients.
-
-  * `-S` *interval*: (deprecated)
-    Set the interval in which statistics are being generated and sent by
-    the relay to *interval* seconds.  The default is *60*.  You should
-    set this value through the config file instead using `statistics
-    submit every <interval> seconds`.
 
   * `-B` *backlog*:
     Sets TCP connection listen backlog to *backlog* connections.  The
