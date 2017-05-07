@@ -1,5 +1,10 @@
 # 3.2 (unreleased master branch)
 
+### Notes
+
+* The deprecated `-S` and `-m` options were removed.  Use the
+  `statistics` configuration file construct instead.
+
 ### New Features
 
 * **relay** the flag `-tt` can now be used to test the configuration and

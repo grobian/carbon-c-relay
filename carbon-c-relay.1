@@ -1,7 +1,7 @@
 .\" generated with Ronn/v0.7.3
 .\" http://github.com/rtomayko/ronn/tree/0.7.3
 .
-.TH "CARBON\-C\-RELAY" "1" "February 2017" "Graphite" "Graphite data collection and visualisation"
+.TH "CARBON\-C\-RELAY" "1" "May 2017" "Graphite" "Graphite data collection and visualisation"
 .
 .SH "NAME"
 \fBcarbon\-c\-relay\fR \- graphite relay, aggregator and rewriter
@@ -35,73 +35,85 @@ irregular char replacement with underscores (_), currently irregular is defined 
 .SH "OPTIONS"
 These options control the behaviour of \fBcarbon\-c\-relay\fR\.
 .
-.IP "\(bu" 4
-\fB\-v\fR: Print version string and exit\.
+.TP
+\fB\-v\fR
+Print version string and exit\.
 .
-.IP "\(bu" 4
-\fB\-d\fR: Enable debug mode, this prints statistics to stdout and prints extra messages about some situations encountered by the relay that normally would be too verbose to be enabled\. When combined with \fB\-t\fR (test mode) this also prints stub routes and consistent\-hash ring contents\.
+.TP
+\fB\-d\fR
+Enable debug mode, this prints statistics to stdout and prints extra messages about some situations encountered by the relay that normally would be too verbose to be enabled\. When combined with \fB\-t\fR (test mode) this also prints stub routes and consistent\-hash ring contents\.
 .
-.IP "\(bu" 4
-\fB\-m\fR: (deprecated) Change statistics submission to be like carbon\-cache\.py, e\.g\. not cumulative\. After each submission, all counters are reset to \fB0\fR\. You should set this mode via the configuration file instead using \fBstatistics reset counters after interval\fR\.
+.TP
+\fB\-s\fR
+Enable submission mode\. In this mode, internal statistics are not generated\. Instead, queue pressure and metrics drops are reported on stdout\. This mode is useful when used as submission relay which\' job is just to forward to (a set of) main relays\. Statistics about the submission relays in this case are not needed, and could easily cause a non\-desired flood of metrics e\.g\. when used on each and every host locally\.
 .
-.IP "\(bu" 4
-\fB\-s\fR: Enable submission mode\. In this mode, internal statistics are not generated\. Instead, queue pressure and metrics drops are reported on stdout\. This mode is useful when used as submission relay which\' job is just to forward to (a set of) main relays\. Statistics about the submission relays in this case are not needed, and could easily cause a non\-desired flood of metrics e\.g\. when used on each and every host locally\.
+.TP
+\fB\-t\fR
+Test mode\. This mode doesn\'t do any routing at all, but instead reads input from stdin and prints what actions would be taken given the loaded configuration\. This mode is very useful for testing relay routes for regular expression syntax etc\. It also allows to give insight on how routing is applied in complex configurations, for it shows rewrites and aggregates taking place as well\. When \fB\-t\fR is repeated, the relay will only test the configuration for validity and exit immediately afterwards\. Any standard output is suppressed in this mode, making it ideal for start\-scripts to test a (new) configuration\.
 .
-.IP "\(bu" 4
-\fB\-t\fR: Test mode\. This mode doesn\'t do any routing at all, but instead reads input from stdin and prints what actions would be taken given the loaded configuration\. This mode is very useful for testing relay routes for regular expression syntax etc\. It also allows to give insight on how routing is applied in complex configurations, for it shows rewrites and aggregates taking place as well\.
+.TP
+\fB\-D\fR
+Deamonise into the background after startup\. This option requires \fB\-l\fR and \fB\-P\fR flags to be set as well\.
 .
-.IP "\(bu" 4
-\fB\-D\fR: Deamonise into the background after startup\. This option requires \fB\-l\fR and \fB\-P\fR flags to be set as well\.
+.TP
+\fB\-f\fR \fIconfig\-file\fR
+Read configuration from \fIconfig\-file\fR\. A configuration consists of clusters and routes\. See \fICONFIGURATION SYNTAX\fR for more information on the options and syntax of this file\.
 .
-.IP "\(bu" 4
-\fB\-f\fR \fIconfig\-file\fR: Read configuration from \fIconfig\-file\fR\. A configuration consists of clusters and routes\. See \fICONFIGURATION SYNTAX\fR for more information on the options and syntax of this file\.
+.TP
+\fB\-i\fR \fIiface\fR
+Open up connections on interface \fIiface\fR\. Currently only one interface can be specified, and it is specified by its IP address, not the interface name\. By default, the relay opens listeners on all available interfaces (a\.k\.a\. \fB0\.0\.0\.0\fR)\.
 .
-.IP "\(bu" 4
-\fB\-i\fR \fIiface\fR: Open up connections on interface \fIiface\fR\. Currently only one interface can be specified, and it is specified by its IP address, not the interface name\. By default, the relay opens listeners on all available interfaces (a\.k\.a\. \fB0\.0\.0\.0\fR)\.
+.TP
+\fB\-l\fR \fIlog\-file\fR
+Use \fIlog\-file\fR for writing messages\. Without this option, the relay writes both to \fIstdout\fR and \fIstderr\fR\. When logging to file, all messages are prefixed with \fBMSG\fR when they were sent to \fIstdout\fR, and \fBERR\fR when they were sent to \fIstderr\fR\.
 .
-.IP "\(bu" 4
-\fB\-l\fR \fIlog\-file\fR: Use \fIlog\-file\fR for writing messages\. Without this option, the relay writes both to \fIstdout\fR and \fIstderr\fR\. When logging to file, all messages are prefixed with \fBMSG\fR when they were sent to \fIstdout\fR, and \fBERR\fR when they were sent to \fIstderr\fR\.
+.TP
+\fB\-p\fR \fIport\fR
+Listen for connections on port \fIport\fR\. The port number is used for both \fBTCP\fR, \fBUDP\fR and \fBUNIX sockets\fR\. In the latter case, the socket file contains the port number\. The port defaults to \fI2003\fR, which is also used by the original \fBcarbon\-cache\.py\fR\.
 .
-.IP "\(bu" 4
-\fB\-p\fR \fIport\fR: Listen for connections on port \fIport\fR\. The port number is used for both \fBTCP\fR, \fBUDP\fR and \fBUNIX sockets\fR\. In the latter case, the socket file contains the port number\. The port defaults to \fI2003\fR, which is also used by the original \fBcarbon\-cache\.py\fR\.
+.TP
+\fB\-w\fR \fIworkers\fR
+Use \fIworkers\fR number of threads\. The default number of workers is equal to the amount of detected CPU cores\. It makes sense to reduce this number on many\-core machines, or when the traffic is low\.
 .
-.IP "\(bu" 4
-\fB\-w\fR \fIworkers\fR: Use \fIworkers\fR number of threads\. The default number of workers is equal to the amount of detected CPU cores\. It makes sense to reduce this number on many\-core machines, or when the traffic is low\.
+.TP
+\fB\-b\fR \fIbatchsize\fR
+Set the amount of metrics that sent to remote servers at once to \fIbatchsize\fR\. When the relay sends metrics to servers, it will retrieve \fBbatchsize\fR metrics from the pending queue of metrics waiting for that server and send those one by one\. The size of the batch will have minimal impact on sending performance, but it controls the amount of lock\-contention on the queue\. The default is \fI2500\fR\.
 .
-.IP "\(bu" 4
-\fB\-b\fR \fIbatchsize\fR: Set the amount of metrics that sent to remote servers at once to \fIbatchsize\fR\. When the relay sends metrics to servers, it will retrieve \fBbatchsize\fR metrics from the pending queue of metrics waiting for that server and send those one by one\. The size of the batch will have minimal impact on sending performance, but it controls the amount of lock\-contention on the queue\. The default is \fI2500\fR\.
+.TP
+\fB\-q\fR \fIqueuesize\fR
+Each server from the configuration where the relay will send metrics to, has a queue associated with it\. This queue allows for disruptions and bursts to be handled\. The size of this queue will be set to \fIqueuesize\fR which allows for that amount of metrics to be stored in the queue before it overflows, and the relay starts dropping metrics\. The larger the queue, more metrics can be absorbed, but also more memory will be used by the relay\. The default queue size is \fI25000\fR\.
 .
-.IP "\(bu" 4
-\fB\-q\fR \fIqueuesize\fR: Each server from the configuration where the relay will send metrics to, has a queue associated with it\. This queue allows for disruptions and bursts to be handled\. The size of this queue will be set to \fIqueuesize\fR which allows for that amount of metrics to be stored in the queue before it overflows, and the relay starts dropping metrics\. The larger the queue, more metrics can be absorbed, but also more memory will be used by the relay\. The default queue size is \fI25000\fR\.
+.TP
+\fB\-L\fR \fIstalls\fR
+Sets the max mount of stalls to \fIstalls\fR before the relay starts dropping metrics for a server\. When a queue fills up, the relay uses a mechanism called stalling to signal the client (writing to the relay) of this event\. In particular when the client sends a large amount of metrics in very short time (burst), stalling can help to avoid dropping metrics, since the client just needs to slow down for a bit, which in many cases is possible (e\.g\. when catting a file with \fBnc\fR(1))\. However, this behaviour can also obstruct, artificially stalling writers which cannot stop that easily\. For this the stalls can be set from \fI0\fR to \fI15\fR, where each stall can take around 1 second on the client\. The default value is set to \fI4\fR, which is aimed at the occasional disruption scenario and max effort to not loose metrics with moderate slowing down of clients\.
 .
-.IP "\(bu" 4
-\fB\-L\fR \fIstalls\fR: Sets the max mount of stalls to \fIstalls\fR before the relay starts dropping metrics for a server\. When a queue fills up, the relay uses a mechanism called stalling to signal the client (writing to the relay) of this event\. In particular when the client sends a large amount of metrics in very short time (burst), stalling can help to avoid dropping metrics, since the client just needs to slow down for a bit, which in many cases is possible (e\.g\. when catting a file with \fBnc\fR(1))\. However, this behaviour can also obstruct, artificially stalling writers which cannot stop that easily\. For this the stalls can be set from \fI0\fR to \fI15\fR, where each stall can take around 1 second on the client\. The default value is set to \fI4\fR, which is aimed at the occasional disruption scenario and max effort to not loose metrics with moderate slowing down of clients\.
+.TP
+\fB\-B\fR \fIbacklog\fR
+Sets TCP connection listen backlog to \fIbacklog\fR connections\. The default value is \fI3\fR but on servers which receive many concurrent connections, this setting likely needs to be increased to avoid connection refused errors on the clients\.
 .
-.IP "\(bu" 4
-\fB\-S\fR \fIinterval\fR: (deprecated) Set the interval in which statistics are being generated and sent by the relay to \fIinterval\fR seconds\. The default is \fI60\fR\. You should set this value through the config file instead using \fBstatistics submit every <interval> seconds\fR\.
+.TP
+\fB\-U\fR \fIbufsize\fR
+Sets the socket send/receive buffer sizes in bytes\. When unset, the OS default is used\. The maximum is also determined by the OS\. The sizes are set using setsockopt with the flags SO_RCVBUF and SO_SNDBUF\. Setting this size may be necessary for large volume scenarios, for which also \fB\-B\fR might apply\.
 .
-.IP "\(bu" 4
-\fB\-B\fR \fIbacklog\fR: Sets TCP connection listen backlog to \fIbacklog\fR connections\. The default value is \fI3\fR but on servers which receive many concurrent connections, this setting likely needs to be increased to avoid connection refused errors on the clients\.
+.TP
+\fB\-T\fR \fItimeout\fR
+Specifies the IO timeout in milliseconds used for server connections\. The default is \fI600\fR milliseconds, but may need increasing when WAN links are used for target servers\. A relatively low value for connection timeout allows the relay to quickly establish a server is unreachable, and as such failover strategies to kick in before the queue runs high\.
 .
-.IP "\(bu" 4
-\fB\-U\fR \fIbufsize\fR: Sets the socket send/receive buffer sizes in bytes\. When unset, the OS default is used\. The maximum is also determined by the OS\. The sizes are set using setsockopt with the flags SO_RCVBUF and SO_SNDBUF\. Setting this size may be necessary for large volume scenarios, for which also \fB\-B\fR might apply\.
+.TP
+\fB\-c\fR \fIchars\fR
+Defines the characters that are next to \fB[A\-Za\-z0\-9]\fR allowed in metrics to \fIchars\fR\. Any character not in this list, is replaced by the relay with \fB_\fR (underscore)\. The default list of allowed characters is \fI\-_:#\fR\.
 .
-.IP "\(bu" 4
-\fB\-T\fR \fItimeout\fR: Specifies the IO timeout in milliseconds used for server connections\. The default is \fI600\fR milliseconds, but may need increasing when WAN links are used for target servers\. A relatively low value for connection timeout allows the relay to quickly establish a server is unreachable, and as such failover strategies to kick in before the queue runs high\.
+.TP
+\fB\-H\fR \fIhostname\fR
+Override hostname determined by a call to \fBgethostname\fR(3) with \fIhostname\fR\. The hostname is used mainly in the statistics metrics \fBcarbon\.relays\.<hostname>\.<\.\.\.>\fR sent by the relay\.
 .
-.IP "\(bu" 4
-\fB\-c\fR \fIchars\fR: Defines the characters that are next to \fB[A\-Za\-z0\-9]\fR allowed in metrics to \fIchars\fR\. Any character not in this list, is replaced by the relay with \fB_\fR (underscore)\. The default list of allowed characters is \fI\-_:#\fR\.
+.TP
+\fB\-P\fR \fIpidfile\fR
+Write the pid of the relay process to a file called \fIpidfile\fR\. This is in particular useful when daemonised in combination with init managers\.
 .
-.IP "\(bu" 4
-\fB\-H\fR \fIhostname\fR: Override hostname determined by a call to \fBgethostname\fR(3) with \fIhostname\fR\. The hostname is used mainly in the statistics metrics \fBcarbon\.relays\.<hostname>\.<\.\.\.>\fR sent by the relay\.
-.
-.IP "\(bu" 4
-\fB\-P\fR \fIpidfile\fR: Write the pid of the relay process to a file called \fIpidfile\fR\. This is in particular useful when daemonised in combination with init managers\.
-.
-.IP "\(bu" 4
-\fB\-O\fR \fIthreshold\fR: The minimum number of rules to find before trying to optimise the ruleset\. The default is \fB50\fR, to disable the optimiser, use \fB\-1\fR, to always run the optimiser use \fB0\fR\. The optimiser tries to group rules to avoid spending excessive time on matching expressions\.
-.
-.IP "" 0
+.TP
+\fB\-O\fR \fIthreshold\fR
+The minimum number of rules to find before trying to optimise the ruleset\. The default is \fB50\fR, to disable the optimiser, use \fB\-1\fR, to always run the optimiser use \fB0\fR\. The optimiser tries to group rules to avoid spending excessive time on matching expressions\.
 .
 .SH "CONFIGURATION SYNTAX"
 The config file supports the following syntax, where comments start with a \fB#\fR character and can appear at any position on a line and suppress input until the end of that line:
@@ -173,7 +185,7 @@ The \fBforward\fR and \fBfile\fR clusters simply send everything they receive to
 DNS hostnames are resolved to a single address, according to the preference rules in RFC 3484 \fIhttps://www\.ietf\.org/rfc/rfc3484\.txt\fR\. The \fBany_of\fR, \fBfailover\fR and \fBforward\fR clusters have an explicit \fBuseall\fR flag that enables expansion for hostnames resolving to multiple addresses\. Each address returned becomes a cluster destination\.
 .
 .P
-Match rules are the way to direct incoming metrics to one or more clusters\. Match rules are processed top to bottom as they are defined in the file\. It is possible to define multiple matches in the same rule\. Each match rule can send data to one or more clusters\. Since match rules "fall through" unless the \fBstop\fR keyword is added, carefully crafted match expression can be used to target multiple clusters or aggregations\. This ability allows to replicate metrics, as well as send certain metrics to alternative clusters with careful ordering and usage of the \fBstop\fR keyword\. The special cluster \fBblackhole\fR discards any metrics sent to it\. This can be useful for weeding out unwanted metrics in certain cases\. Because throwing metrics away is pointless if other matches would accept the same data, a match with as destination the blackhole cluster, has an implicit \fBstop\fR\. The \fBvalidation\fR clause adds a check to the data (what comes after the metric) in the form of a regular expression\. When this expression matches, the match rule will execute as if no validation clause was present\. However, if it fails, the match rule is aborted, and no metrics will be sent to destinations, this is the \fBdrop\fR behaviour\. When \fBlog\fR is used, the metric is logged to stderr\. Care should be taken with the latter to avoid log flooding\. When a validate clause is present, destinations need not to be present, this allows for applying a global validation rule\. Note that the cleansing rules are applied before validation is done, thus the data will not have duplicate spaces\.
+Match rules are the way to direct incoming metrics to one or more clusters\. Match rules are processed top to bottom as they are defined in the file\. It is possible to define multiple matches in the same rule\. Each match rule can send data to one or more clusters\. Since match rules "fall through" unless the \fBstop\fR keyword is added, carefully crafted match expression can be used to target multiple clusters or aggregations\. This ability allows to replicate metrics, as well as send certain metrics to alternative clusters with careful ordering and usage of the \fBstop\fR keyword\. The special cluster \fBblackhole\fR discards any metrics sent to it\. This can be useful for weeding out unwanted metrics in certain cases\. Because throwing metrics away is pointless if other matches would accept the same data, a match with as destination the blackhole cluster, has an implicit \fBstop\fR\. The \fBvalidation\fR clause adds a check to the data (what comes after the metric) in the form of a regular expression\. When this expression matches, the match rule will execute as if no validation clause was present\. However, if it fails, the match rule is aborted, and no metrics will be sent to destinations, this is the \fBdrop\fR behaviour\. When \fBlog\fR is used, the metric is logged to stderr\. Care should be taken with the latter to avoid log flooding\. When a validate clause is present, destinations need not to be present, this allows for applying a global validation rule\. Note that the cleansing rules are applied before validation is done, thus the data will not have duplicate spaces\. The \fBroute using\fR clause is used to perform a temporary modification to the key used for input to the consistent hashing routines\. The primary purpose is to route traffic so that appropriate data is sent to the needed aggregation instances\.
 .
 .P
 Rewrite rules take a regular expression as input to match incoming metrics, and transform them into the desired new metric name\. In the replacement, backreferences are allowed to match capture groups defined in the input regular expression\. A match of \fBserver\e\.(x|y|z)\e\.\fR allows to use e\.g\. \fBrole\.\e1\.\fR in the substitution\. A few caveats apply to the current implementation of rewrite rules\. First, their location in the config file determines when the rewrite is performed\. The rewrite is done in\-place, as such a match rule before the rewrite would match the original name, a match rule after the rewrite no longer matches the original name\. Care should be taken with the ordering, as multiple rewrite rules in succession can take place, e\.g\. \fBa\fR gets replaced by \fBb\fR and \fBb\fR gets replaced by \fBc\fR in a succeeding rewrite rule\. The second caveat with the current implementation, is that the rewritten metric names are not cleansed, like newly incoming metrics are\. Thus, double dots and potential dangerous characters can appear if the replacement string is crafted to produce them\. It is the responsibility of the writer to make sure the metrics are clean\. If this is an issue for routing, one can consider to have a rewrite\-only instance that forwards all metrics to another instance that will do the routing\. Obviously the second instance will cleanse the metrics as they come in\. The backreference notation allows to lowercase and uppercase the replacement string with the use of the underscore (\fB_\fR) and carret (\fB^\fR) symbols following directly after the backslash\. For example, \fBrole\.\e_1\.\fR as substitution will lowercase the contents of \fB\e1\fR\. The dot (\fB\.\fR) can be used in a similar fashion, or followed after the underscore or caret to replace dots with underscores in the substitution\. This can be handy for some situations where metrics are sent to graphite\.
