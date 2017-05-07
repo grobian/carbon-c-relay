@@ -3,6 +3,8 @@
 #include "conffile.h"
 #include "conffile.tab.h"
 #include "aggregator.h"
+#include "receptor.h"
+#include "config.h"
 
 int router_yylex(ROUTER_YYSTYPE *, ROUTER_YYLTYPE *, void *, router *, allocator *, allocator *);
 %}
@@ -30,6 +32,18 @@ struct _agcomp {
 	unsigned char pctl;
 	char *metric;
 	struct _agcomp *next;
+};
+struct _lsnr {
+	rcptr_lsnrtype type;
+	rcptr_transport transport;
+	struct _rcptr *rcptr;
+};
+struct _rcptr {
+	serv_ctype ctype;
+	char *ip;
+	int port;
+	void *saddr;
+	struct _rcptr *next;
 };
 }
 
@@ -83,6 +97,13 @@ struct _agcomp {
 %type <col_mode> statistics_opt_counters
 %type <char *> statistics_opt_prefix
 
+%token crLISTEN
+%token crLINEMODE crGZIP crBZIP2 crLZMA crSSL crUNIX
+%type <serv_ctype> rcptr_proto
+%type <struct _rcptr *> receptor opt_receptor receptors
+%type <rcptr_transport> transport_mode
+%type <struct _lsnr *> listener
+
 %token crINCLUDE
 
 %token <char *> crCOMMENT crSTRING
@@ -106,6 +127,7 @@ command: cluster
 	   | aggregate
 	   | send
 	   | statistics
+	   | listen
 	   | include
 	   ;
 
@@ -736,6 +758,150 @@ statistics_opt_prefix:                                  { $$ = NULL; }
 					 | crPREFIX crWITH crSTRING[prefix] { $$ = $prefix; }
 					 ;
 /*** }}} END statistics ***/
+
+/*** {{{ BEGIN listen ***/
+listen: crLISTEN listener[lsnr]
+	  {
+	  	struct _rcptr *walk;
+
+		for (walk = $lsnr->rcptr; walk != NULL; walk = walk->next)
+			router_add_listener(rtr, $lsnr->type, $lsnr->transport,
+				walk->ctype, walk->ip, walk->port, walk->saddr);
+	  }
+	  ;
+
+listener: crLINEMODE transport_mode[mode] receptors[ifaces]
+		{
+			if (($$ = ra_malloc(palloc, sizeof(struct _lsnr))) == NULL) {
+				logerr("malloc failed\n");
+				YYABORT;
+			}
+			$$->type = LSNR_LINE;
+			$$->transport = $mode;
+			$$->rcptr = $ifaces;
+			if ($mode != W_PLAIN) {
+				struct _rcptr *walk;
+
+				for (walk = $ifaces; walk != NULL; walk = walk->next) {
+					if (walk->ctype == CON_UDP) {
+						router_yyerror(&yylloc, yyscanner, rtr, ralloc, palloc,
+							"cannot use UDP transport for "
+							"compressed/encrypted stream");
+						YYERROR;
+					}
+				}
+			}
+		}
+		;
+
+transport_mode:         { $$ = W_PLAIN; }
+			  | crGZIP  {
+#ifdef HAVE_GZIP
+							$$ = W_GZIP;
+#else
+							router_yyerror(&yylloc, yyscanner, rtr,
+								ralloc, palloc,
+								"feature gzip not compiled in");
+							YYERROR;
+#endif
+						}
+			  | crBZIP2 {
+#ifdef HAVE_BZIP2
+							$$ = W_BZIP2;
+#else
+							router_yyerror(&yylloc, yyscanner, rtr,
+								ralloc, palloc,
+								"feature bzip2 not compiled in");
+							YYERROR;
+#endif
+						}
+			  | crLZMA  {
+#ifdef HAVE_LZMA
+							$$ = W_LZMA;
+#else
+							router_yyerror(&yylloc, yyscanner, rtr,
+								ralloc, palloc,
+								"feature lzma not compiled in");
+							YYERROR;
+#endif
+						}
+			  | crSSL   {
+#ifdef HAVE_SSL
+							$$ = W_SSL;
+#else
+							router_yyerror(&yylloc, yyscanner, rtr,
+								ralloc, palloc,
+								"feature ssl not compiled in");
+							YYERROR;
+#endif
+						}
+			  ;
+
+receptors: receptor[l] opt_receptor[r] { $l->next = $r; $$ = $l; }
+		 ;
+
+opt_receptor:           { $$ = NULL; }
+			| receptors { $$ = $1;   }
+			;
+
+receptor: crSTRING[ip] crPROTO rcptr_proto[prot]
+		{
+			char *err;
+			void *hint = NULL;
+			char *w;
+			char bcip[24];
+
+			if (($$ = ra_malloc(palloc, sizeof(struct _rcptr))) == NULL) {
+				logerr("malloc failed\n");
+				YYABORT;
+			}
+			$$->ctype = $prot;
+
+			/* find out if this is just a port */
+			for (w = $ip; *w != '\0'; w++)
+				if (*w < '0' || *w > '9')
+					break;
+			if (*w == '\0') {
+				snprintf(bcip, sizeof(bcip), ":%s", $ip);
+				$ip = bcip;
+			}
+
+			err = router_validate_address(
+					rtr,
+					&($$->ip), &($$->port), &($$->saddr), &hint,
+					$ip, $prot);
+			if (err != NULL) {
+				router_yyerror(&yylloc, yyscanner, rtr,
+						ralloc, palloc, err);
+				YYERROR;
+			}
+			$$->next = NULL;
+		}
+		| crSTRING[path] crPROTO crUNIX
+		{
+			char *err;
+
+			if (($$ = ra_malloc(palloc, sizeof(struct _rcptr))) == NULL) {
+				logerr("malloc failed\n");
+				YYABORT;
+			}
+			$$->ctype = CON_UNIX;
+			$$->ip = $path;
+			$$->port = 0;
+			err = router_validate_path(rtr, $path);
+			if (err != NULL) {
+				router_yyerror(&yylloc, yyscanner, rtr,
+						ralloc, palloc, err);
+				YYERROR;
+			}
+			$$->next = NULL;
+		}
+		;
+
+rcptr_proto: crTCP { $$ = CON_TCP; }
+		   | crUDP { $$ = CON_UDP; }
+		   ;
+/*** }}} END listen ***/
 
 /*** {{{ BEGIN include ***/
 include: crINCLUDE crSTRING[path]

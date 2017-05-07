@@ -621,6 +621,10 @@ ac_includes_default="\
 ac_subst_vars='am__EXEEXT_FALSE
 am__EXEEXT_TRUE
 LTLIBOBJS
+LIBSSL
+LIBLZMA
+LIBBZIP2
+LIBGZIP
 LIBOBJS
 EGREP
 GREP
@@ -712,6 +716,10 @@ ac_user_opts='
 enable_option_checking
 enable_silent_rules
 enable_dependency_tracking
+with_gzip
+with_bzip2
+with_lzma
+with_ssl
 '
       ac_precious_vars='build_alias
 host_alias
@@ -1342,6 +1350,14 @@ Optional Features:
                           do not reject slow dependency extractors
   --disable-dependency-tracking
                           speeds up one-time build
+
+Optional Packages:
+  --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
+  --without-PACKAGE       do not use PACKAGE (same as --with-PACKAGE=no)
+support gzip compression for sending/receiving
+support bzip2 compression for sending/receiving
+support lzma compression for sending/receiving
+support ssl encryption for sending/receiving
 
 Some influential environment variables:
   CC          C compiler command
@@ -4957,6 +4973,270 @@ else
 fi
 done
 
+
+
+# Check whether --with-gzip was given.
+if test "${with_gzip+set}" = set; then :
+  withval=$with_gzip;
+else
+  with_gzip=check
+fi
+
+LIBGZIP=
+if test "x$with_gzip" != xno; then :
+  { $as_echo "$as_me:${as_lineno-$LINENO}: checking for gzopen in -lz" >&5
+$as_echo_n "checking for gzopen in -lz... " >&6; }
+if ${ac_cv_lib_z_gzopen+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lz  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char gzopen ();
+int
+main ()
+{
+return gzopen ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_lib_z_gzopen=yes
+else
+  ac_cv_lib_z_gzopen=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_z_gzopen" >&5
+$as_echo "$ac_cv_lib_z_gzopen" >&6; }
+if test "x$ac_cv_lib_z_gzopen" = xyes; then :
+  LIBGZIP=-lz
+
+
+$as_echo "#define HAVE_GZIP 1" >>confdefs.h
+
+
+else
+  if test "x$with_gzip" != xcheck; then
+					 { { $as_echo "$as_me:${as_lineno-$LINENO}: error: in \`$ac_pwd':" >&5
+$as_echo "$as_me: error: in \`$ac_pwd':" >&2;}
+as_fn_error $? "--with-gzip was given, but test for gzip failed
+See \`config.log' for more details" "$LINENO" 5; }
+					 fi
+
+
+fi
+
+fi
+
+
+# Check whether --with-bzip2 was given.
+if test "${with_bzip2+set}" = set; then :
+  withval=$with_bzip2;
+else
+  with_bzip2=check
+fi
+
+LIBBZIP2=
+if test "x$with_bzip2" != xno; then :
+  { $as_echo "$as_me:${as_lineno-$LINENO}: checking for BZ2_bzopen in -lbz2" >&5
+$as_echo_n "checking for BZ2_bzopen in -lbz2... " >&6; }
+if ${ac_cv_lib_bz2_BZ2_bzopen+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lbz2  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char BZ2_bzopen ();
+int
+main ()
+{
+return BZ2_bzopen ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_lib_bz2_BZ2_bzopen=yes
+else
+  ac_cv_lib_bz2_BZ2_bzopen=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_bz2_BZ2_bzopen" >&5
+$as_echo "$ac_cv_lib_bz2_BZ2_bzopen" >&6; }
+if test "x$ac_cv_lib_bz2_BZ2_bzopen" = xyes; then :
+  LIBBZIP2=-lbz2
+
+
+$as_echo "#define HAVE_BZIP2 1" >>confdefs.h
+
+
+else
+  if test "x$with_bzip2" != xcheck; then
+					 { { $as_echo "$as_me:${as_lineno-$LINENO}: error: in \`$ac_pwd':" >&5
+$as_echo "$as_me: error: in \`$ac_pwd':" >&2;}
+as_fn_error $? "--with-bzip2 was given, but test for bzip2 failed
+See \`config.log' for more details" "$LINENO" 5; }
+					 fi
+
+
+fi
+
+fi
+
+
+# Check whether --with-lzma was given.
+if test "${with_lzma+set}" = set; then :
+  withval=$with_lzma;
+else
+  with_lzma=check
+fi
+
+LIBLZMA=
+if test "x$with_lzma" != xno; then :
+  { $as_echo "$as_me:${as_lineno-$LINENO}: checking for lzma_stream_decoder in -llzma" >&5
+$as_echo_n "checking for lzma_stream_decoder in -llzma... " >&6; }
+if ${ac_cv_lib_lzma_lzma_stream_decoder+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-llzma  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char lzma_stream_decoder ();
+int
+main ()
+{
+return lzma_stream_decoder ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_lib_lzma_lzma_stream_decoder=yes
+else
+  ac_cv_lib_lzma_lzma_stream_decoder=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_lzma_lzma_stream_decoder" >&5
+$as_echo "$ac_cv_lib_lzma_lzma_stream_decoder" >&6; }
+if test "x$ac_cv_lib_lzma_lzma_stream_decoder" = xyes; then :
+  LIBLZMA=-llzma
+
+
+$as_echo "#define HAVE_LZMA 1" >>confdefs.h
+
+
+else
+  if test "x$with_lzma" != xcheck; then
+					 { { $as_echo "$as_me:${as_lineno-$LINENO}: error: in \`$ac_pwd':" >&5
+$as_echo "$as_me: error: in \`$ac_pwd':" >&2;}
+as_fn_error $? "--with-lzma was given, but test for lzma failed
+See \`config.log' for more details" "$LINENO" 5; }
+					 fi
+
+
+fi
+
+fi
+
+
+# Check whether --with-ssl was given.
+if test "${with_ssl+set}" = set; then :
+  withval=$with_ssl;
+else
+  with_ssl=check
+fi
+
+LIBSSL=
+if test "x$with_ssl" != xno; then :
+  { $as_echo "$as_me:${as_lineno-$LINENO}: checking for SSL_connect in -lssl" >&5
+$as_echo_n "checking for SSL_connect in -lssl... " >&6; }
+if ${ac_cv_lib_ssl_SSL_connect+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lssl  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char SSL_connect ();
+int
+main ()
+{
+return SSL_connect ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_lib_ssl_SSL_connect=yes
+else
+  ac_cv_lib_ssl_SSL_connect=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_ssl_SSL_connect" >&5
+$as_echo "$ac_cv_lib_ssl_SSL_connect" >&6; }
+if test "x$ac_cv_lib_ssl_SSL_connect" = xyes; then :
+  LIBSSL=-lssl
+
+
+$as_echo "#define HAVE_SSL 1" >>confdefs.h
+
+
+else
+  if test "x$with_ssl" != xcheck; then
+					 { { $as_echo "$as_me:${as_lineno-$LINENO}: error: in \`$ac_pwd':" >&5
+$as_echo "$as_me: error: in \`$ac_pwd':" >&2;}
+as_fn_error $? "--with-ss was given, but test for ssl failed
+See \`config.log' for more details" "$LINENO" 5; }
+					 fi
+
+
+fi
+
+fi
 
 ac_config_files="$ac_config_files Makefile"
 

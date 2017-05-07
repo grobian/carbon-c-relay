@@ -26,7 +26,7 @@
 
 typedef struct _server server;
 
-typedef enum { CON_TCP, CON_UDP, CON_PIPE, CON_FILE } serv_ctype;
+typedef enum { CON_TCP, CON_UDP, CON_PIPE, CON_FILE, CON_UNIX } serv_ctype;
 
 server *server_new(
 		const char *ip,

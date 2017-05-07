@@ -52,6 +52,15 @@ struct _router {
 		char *prefix;
 		col_mode mode;
 	} collector;
+	struct _router_listener {
+		rcptr_lsnrtype lsnrtype;
+		rcptr_transport transport;
+		serv_ctype ctype;
+		char *ip;
+		int port;
+		struct addrinfo *saddrs;
+		struct _router_listener *next;
+	} *listeners;
 	struct _router_parser_err {
 		const char *msg;
 		size_t line;
@@ -359,6 +368,8 @@ router_validate_address(
 			return(ra_strdup(rtr->a, "expected ']'"));
 		}
 	}
+	if (lastcolon == ip)
+		ip = NULL;  /* only resolve port, e.g. any interface */
 
 	memset(&hint, 0, sizeof(hint));
 	saddr = NULL;
@@ -379,7 +390,8 @@ router_validate_address(
 		if ((err = getaddrinfo(ip, sport, &hint, &saddr)) != 0) {
 			char errmsg[512];
 			snprintf(errmsg, sizeof(errmsg), "failed to resolve %s, port %s, "
-					"proto %s: %s", ip, sport, proto == CON_UDP ? "udp" : "tcp",
+					"proto %s: %s", ip == NULL ? "<any>" : ip, sport,
+					proto == CON_UDP ? "udp" : "tcp",
 					gai_strerror(err));
 			return(ra_strdup(rtr->a, errmsg));
 		}
@@ -895,6 +907,40 @@ router_add_stubroute(
 	return NULL;
 }
 
+char *
+router_add_listener(
+		router *rtr,
+		rcptr_lsnrtype ltype,
+		rcptr_transport trnsp,
+		serv_ctype ctype,
+		char *ip,
+		int port,
+		struct addrinfo *saddrs)
+{
+	struct _router_listener *lwalk;
+
+	if (rtr->listeners == NULL) {
+		lwalk = rtr->listeners =
+			ra_malloc(rtr->a, sizeof(struct _router_listener));
+	} else {
+		for (lwalk = rtr->listeners; lwalk->next != NULL; lwalk = lwalk->next)
+			;
+		lwalk = lwalk->next =
+			ra_malloc(rtr->a, sizeof(struct _router_listener));
+	}
+	if (lwalk == NULL)
+		return ra_strdup(rtr->a, "malloc failed for listener struct");
+
+	lwalk->lsnrtype = ltype;
+	lwalk->transport = trnsp;
+	lwalk->ctype = ctype;
+	lwalk->ip = ip == NULL ? ip : ra_strdup(rtr->a, ip);
+	lwalk->port = port;
+	lwalk->saddrs = saddrs;
+
+	return NULL;
+}
+
 inline char *
 router_set_statistics(router *rtr, destinations *dsts)
 {
@@ -1009,6 +1055,8 @@ router_readconfig(router *orig,
 			return NULL;
 		}
 		ret->collector.stub = NULL;
+
+		ret->listeners = NULL;
 
 		ret->conf.queuesize = queuesize;
 		ret->conf.batchsize = batchsize;
@@ -1542,6 +1590,36 @@ router_printconfig(router *rtr, FILE *f, char pmode)
 
 #define PPROTO \
 	server_ctype(s->server) == CON_UDP ? " proto udp" : ""
+
+	if (rtr->listeners != NULL) {
+		struct _router_listener *walk;
+		fprintf(f, "listen\n");
+		for (walk = rtr->listeners; walk != NULL; walk = walk->next) {
+			if (walk->lsnrtype == LSNR_LINE) {
+				fprintf(f, "    linemode%s\n",
+						walk->transport == W_PLAIN ? "" :
+						walk->transport == W_GZIP  ? " gzip" :
+						walk->transport == W_BZIP2 ? " bzip2" :
+						walk->transport == W_LZMA  ? " lzma" :
+						walk->transport == W_SSL   ? " ssl" : " unknown");
+				do {
+					if (walk->ctype == CON_UNIX) {
+						fprintf(f, "        %s proto unix\n", walk->ip);
+					} else {
+						fprintf(f, "        %s%s%u proto %s\n",
+								walk->ip == NULL ? "" : walk->ip,
+								walk->ip == NULL ? "" : ":",
+								walk->port,
+								walk->ctype == CON_UDP ? "udp" : "tcp");
+					}
+				} while (walk->next != NULL
+						&& walk->lsnrtype == walk->next->lsnrtype
+						&& walk->transport == walk->next->transport
+						&& (walk = walk->next) != NULL);
+			}
+		}
+		fprintf(f, "    ;\n\n");
+	}
 
 	for (c = rtr->clusters; c != NULL; c = c->next) {
 		if (c->type == BLACKHOLE || c->type == REWRITE ||

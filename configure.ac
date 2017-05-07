@@ -62,5 +62,65 @@ AC_CHECK_FUNCS([gethostname \
 				[],
 				[AC_MSG_ERROR([required function missing])])
 
+AC_ARG_WITH([gzip], [support gzip compression for sending/receiving],
+			[], [with_gzip=check])
+LIBGZIP=
+AS_IF([test "x$with_gzip" != xno],
+	  [AC_CHECK_LIB([z], [gzopen],
+					[AC_SUBST([LIBGZIP], [-lz])
+					AC_DEFINE([HAVE_GZIP], [1], [Define if you have gzip])
+					],
+					[if test "x$with_gzip" != xcheck; then
+					 AC_MSG_FAILURE(
+					   [--with-gzip was given, but test for gzip failed])
+					 fi
+					]
+	)])
+
+AC_ARG_WITH([bzip2], [support bzip2 compression for sending/receiving],
+			[], [with_bzip2=check])
+LIBBZIP2=
+AS_IF([test "x$with_bzip2" != xno],
+	  [AC_CHECK_LIB([bz2], [BZ2_bzopen],
+					[AC_SUBST([LIBBZIP2], [-lbz2])
+					AC_DEFINE([HAVE_BZIP2], [1], [Define if you have bzip2])
+					],
+					[if test "x$with_bzip2" != xcheck; then
+					 AC_MSG_FAILURE(
+					   [--with-bzip2 was given, but test for bzip2 failed])
+					 fi
+					]
+	)])
+
+AC_ARG_WITH([lzma], [support lzma compression for sending/receiving],
+			[], [with_lzma=check])
+LIBLZMA=
+AS_IF([test "x$with_lzma" != xno],
+	  [AC_CHECK_LIB([lzma], [lzma_stream_decoder],
+					[AC_SUBST([LIBLZMA], [-llzma])
+					AC_DEFINE([HAVE_LZMA], [1], [Define if you have lzma])
+					],
+					[if test "x$with_lzma" != xcheck; then
+					 AC_MSG_FAILURE(
+					   [--with-lzma was given, but test for lzma failed])
+					 fi
+					]
+	)])
+
+AC_ARG_WITH([ssl], [support ssl encryption for sending/receiving],
+			[], [with_ssl=check])
+LIBSSL=
+AS_IF([test "x$with_ssl" != xno],
+	  [AC_CHECK_LIB([ssl], [SSL_connect],
+					[AC_SUBST([LIBSSL], [-lssl])
+					AC_DEFINE([HAVE_SSL], [1], [Define if you have ssl])
+					],
+					[if test "x$with_ssl" != xcheck; then
+					 AC_MSG_FAILURE(
+					   [--with-ss was given, but test for ssl failed])
+					 fi
+					]
+	)])
+
 AC_CONFIG_FILES([Makefile])
 AC_OUTPUT

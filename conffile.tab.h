@@ -48,7 +48,7 @@
 extern int router_yydebug;
 #endif
 /* "%code requires" blocks.  */
-#line 9 "conffile.y" /* yacc.c:1909  */
+#line 11 "conffile.y" /* yacc.c:1909  */
 
 struct _clust {
 	enum clusttype t;
@@ -74,8 +74,20 @@ struct _agcomp {
 	char *metric;
 	struct _agcomp *next;
 };
+struct _lsnr {
+	rcptr_lsnrtype type;
+	rcptr_transport transport;
+	struct _rcptr *rcptr;
+};
+struct _rcptr {
+	serv_ctype ctype;
+	char *ip;
+	int port;
+	void *saddr;
+	struct _rcptr *next;
+};
 
-#line 79 "conffile.tab.h" /* yacc.c:1909  */
+#line 91 "conffile.tab.h" /* yacc.c:1909  */
 
 /* Token type.  */
 #ifndef ROUTER_YYTOKENTYPE
@@ -139,10 +151,17 @@ struct _agcomp {
     crINTERVAL = 312,
     crPREFIX = 313,
     crWITH = 314,
-    crINCLUDE = 315,
-    crCOMMENT = 316,
-    crSTRING = 317,
-    crINTVAL = 318
+    crLISTEN = 315,
+    crLINEMODE = 316,
+    crGZIP = 317,
+    crBZIP2 = 318,
+    crLZMA = 319,
+    crSSL = 320,
+    crUNIX = 321,
+    crINCLUDE = 322,
+    crCOMMENT = 323,
+    crSTRING = 324,
+    crINTVAL = 325
   };
 #endif
 
@@ -202,8 +221,12 @@ union ROUTER_YYSTYPE
   int match_opt_stop;
   /* statistics_opt_interval  */
   int statistics_opt_interval;
+  /* transport_mode  */
+  rcptr_transport transport_mode;
   /* cluster_opt_proto  */
   serv_ctype cluster_opt_proto;
+  /* rcptr_proto  */
+  serv_ctype rcptr_proto;
   /* aggregate_comp_type  */
   struct _agcomp aggregate_comp_type;
   /* aggregate_computes  */
@@ -228,6 +251,8 @@ union ROUTER_YYSTYPE
   struct _clust cluster_type;
   /* cluster_file  */
   struct _clust cluster_file;
+  /* listener  */
+  struct _lsnr * listener;
   /* match_exprs  */
   struct _maexpr * match_exprs;
   /* match_exprs2  */
@@ -238,7 +263,13 @@ union ROUTER_YYSTYPE
   struct _maexpr * match_expr;
   /* match_opt_validate  */
   struct _maexpr * match_opt_validate;
-#line 242 "conffile.tab.h" /* yacc.c:1909  */
+  /* receptors  */
+  struct _rcptr * receptors;
+  /* opt_receptor  */
+  struct _rcptr * opt_receptor;
+  /* receptor  */
+  struct _rcptr * receptor;
+#line 273 "conffile.tab.h" /* yacc.c:1909  */
 };
 
 typedef union ROUTER_YYSTYPE ROUTER_YYSTYPE;

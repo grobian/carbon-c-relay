@@ -23,8 +23,8 @@ int identstate = 0;
 %option noinput
 %option nounput
 
-%x cl ma re ag se st qu
-%x idcl idma idag idin
+%x cl ma re ag se st li qu
+%x idcl idma idag idin idli
 
 IDCHR	[a-zA-Z0-9[\](){}|\\^?*$&%<>:/,._+-]
 
@@ -210,6 +210,36 @@ statistics			{
 						return crSEND;
 					}
 
+listen				{
+						BEGIN(li);
+						return crLISTEN;
+					}
+<li>linemode		{
+						identstate = li;
+						BEGIN(idli);
+						return crLINEMODE;
+					}
+<idli>gzip				return crGZIP;
+<idli>bzip2				return crBZIP2;
+<idli>lzma				return crLZMA;
+<idli>ssl				return crSSL;
+<li>proto				return crPROTO;
+<li>udp				{
+						identstate = li;
+						BEGIN(idli);
+						return crUDP;
+					}
+<li>tcp				{
+						identstate = li;
+						BEGIN(idli);
+						return crTCP;
+					}
+<li>unix			{
+						identstate = li;
+						BEGIN(idli);
+						return crUNIX;
+					}
+
 include				{
 						identstate = INITIAL;
 						BEGIN(idin);
@@ -217,7 +247,7 @@ include				{
 					}
 
 	/* handle quoted strings */
-<idcl,idma,idag,idin>\"		{
+<idcl,idma,idag,idin,idli>\"	{
 						strbuf = string_buf;
 						BEGIN(qu);
 					}
@@ -279,7 +309,7 @@ include				{
 						yylval_param->crINTVAL = atoi(yytext);
 						return crINTVAL;
 					}
-<idcl,idma,idag,idin>{IDCHR}+(\\[ ]{IDCHR}+)*	{
+<idcl,idma,idag,idin,idli>{IDCHR}+(\\[ ]{IDCHR}+)*	{
 						yylval_param->crSTRING = ra_strdup(palloc, yytext);
 						BEGIN(identstate);
 						return crSTRING;
