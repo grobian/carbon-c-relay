@@ -406,12 +406,22 @@ router_validate_path(router *rtr, char *path)
 	struct stat st;
 	char fileexists = 1;
 	FILE *probe;
+	char *fmode = NULL;
 
 	/* if the file doesn't exist, remove it after trying to create it */
 	if (stat(path, &st) == -1)
 		fileexists = 0;
 
-	if ((probe = fopen(path, "a")) == NULL) {
+	/* Create files if they don't exist, else append to the end only.
+	 * Since we use this on special character devices too (/dev/stdout)
+	 * we need some special precaution, since e.g. Solaris doesn't like
+	 * seeks on those */
+	if (!fileexists || st.st_mode == S_IFCHR) {
+		fmode = "w";
+	} else {
+		fmode = "a+";
+	}
+	if ((probe = fopen(path, fmode)) == NULL) {
 		char errbuf[512];
 		snprintf(errbuf, sizeof(errbuf),
 				"failed to open file '%s' for writing: %s",
