@@ -18,6 +18,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <fcntl.h>
 #include <string.h>
 #include <ctype.h>
 #include <glob.h>
@@ -405,30 +406,23 @@ router_validate_path(router *rtr, char *path)
 {
 	struct stat st;
 	char fileexists = 1;
-	FILE *probe;
-	char *fmode = NULL;
+	int probefd;
 
 	/* if the file doesn't exist, remove it after trying to create it */
 	if (stat(path, &st) == -1)
 		fileexists = 0;
 
-	/* Create files if they don't exist, else append to the end only.
-	 * Since we use this on special character devices too (/dev/stdout)
-	 * we need some special precaution, since e.g. Solaris doesn't like
-	 * seeks on those */
-	if (!fileexists || st.st_mode == S_IFCHR) {
-		fmode = "w";
-	} else {
-		fmode = "a+";
-	}
-	if ((probe = fopen(path, fmode)) == NULL) {
+	if ((probefd = open(path,
+					O_WRONLY | O_APPEND | O_CREAT,
+					S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)) < 0)
+	{
 		char errbuf[512];
 		snprintf(errbuf, sizeof(errbuf),
 				"failed to open file '%s' for writing: %s",
 				path, strerror(errno));
 		return ra_strdup(rtr->a, errbuf);
 	}
-	fclose(probe);
+	close(probefd);
 
 	if (!fileexists)
 		unlink(path);
