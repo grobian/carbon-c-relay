@@ -528,17 +528,9 @@ router_add_server(
 		if (useall) {
 			/* serialise the IP address, to make the targets explicit
 			 * (since we're expanding all A/AAAA records) */
-			if (walk->ai_family == AF_INET) {
-				if (inet_ntop(walk->ai_family,
-							&((struct sockaddr_in *)walk->ai_addr)->sin_addr,
-							hnbuf, sizeof(hnbuf)) != NULL)
-					ip = hnbuf;
-			} else if (walk->ai_family == AF_INET6) {
-				if (inet_ntop(walk->ai_family,
-							&((struct sockaddr_in6 *)walk->ai_addr)->sin6_addr,
-							hnbuf, sizeof(hnbuf)) != NULL)
-					ip = hnbuf;
-			}
+			saddr_ntop(walk, hnbuf);
+			if (hnbuf[0] != '\0')
+				ip = hnbuf;
 			/* now we've expanded, don't trigger re-resolving */
 			if (hint)
 				free(hint);

@@ -102,19 +102,9 @@ bindlisten(
 				(void) setsockopt(sock, IPPROTO_IPV6, IPV6_V6ONLY, &optval, sizeof(optval));
 			}
 
-			snprintf(saddr, sizeof(saddr), "(unknown)");
-			switch (resw->ai_family) {
-				case PF_INET:
-					inet_ntop(resw->ai_family,
-							&((struct sockaddr_in *)resw->ai_addr)->sin_addr,
-							saddr, sizeof(saddr));
-					break;
-				case PF_INET6:
-					inet_ntop(resw->ai_family,
-							&((struct sockaddr_in6 *)resw->ai_addr)->sin6_addr,
-							saddr, sizeof(saddr));
-					break;
-			}
+			saddr_ntop(resw, saddr);
+			if (saddr[0] == '\0')
+				snprintf(saddr, sizeof(saddr), "(unknown)");
 
 			if (bind(sock, resw->ai_addr, resw->ai_addrlen) < 0) {
 				logerr("failed to bind on %s%d %s port %s\n",
