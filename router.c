@@ -515,7 +515,7 @@ router_add_server(
 {
 	struct addrinfo *walk;
 	struct addrinfo *lwalk;
-	char hnbuf[256];
+	char hnbuf[INET6_ADDRSTRLEN];
 	char errbuf[512];
 	server *newserver;
 	servers *w = NULL;
@@ -918,14 +918,57 @@ router_add_listener(
 		struct addrinfo *saddrs)
 {
 	struct _router_listener *lwalk;
+	struct _router_listener *prevl;
+	struct addrinfo *swalk;
+	struct addrinfo *lswalk;
 
 	if (rtr->listeners == NULL) {
 		lwalk = rtr->listeners =
 			ra_malloc(rtr->a, sizeof(struct _router_listener));
 	} else {
-		for (lwalk = rtr->listeners; lwalk->next != NULL; lwalk = lwalk->next)
-			;
-		lwalk = lwalk->next =
+		char hnbufl[INET6_ADDRSTRLEN];
+		char hnbufr[INET6_ADDRSTRLEN];
+		prevl = NULL;
+		for (lwalk = rtr->listeners; lwalk != NULL; lwalk = lwalk->next) {
+			for (swalk = saddrs; swalk != NULL; swalk = swalk->ai_next) {
+				saddr_ntop(swalk, hnbufl);
+				if (lwalk->ctype == ctype && lwalk->port == port) {
+					for (lswalk = lwalk->saddrs; lswalk != NULL;
+							lswalk = lswalk->ai_next)
+					{
+						saddr_ntop(lswalk, hnbufr);
+						/* ip is equal if:
+						 * - the address family is the same (ipv4/ipv6)
+						 * - at least one of the sides is 0.0.0.0 (ipv4 any)
+						 * - at least one of the sides is :: (ipv6 any)
+						 * - both sides are equal */
+						fprintf(stdout, "%s -- %s\n", hnbufl, hnbufr);
+						if (swalk->ai_family == lswalk->ai_family && (
+								strcmp(hnbufl, "0.0.0.0") == 0 ||
+								strcmp(hnbufr, "0.0.0.0") == 0 ||
+								strcmp(hnbufl, "::") == 0 ||
+								strcmp(hnbufr, "::") == 0 ||
+								strcmp(hnbufl, hnbufr) == 0))
+						{
+							char msg[256];
+							snprintf(msg, sizeof(msg),
+									"duplicate listener %s with %s for port %d",
+									hnbufl, hnbufr, port);
+							return ra_strdup(rtr->a, msg);
+						}
+					}
+				}
+			}
+			if (saddrs == NULL) {  /* UNIX */
+				if (lwalk->ctype == ctype && strcmp(lwalk->ip, ip) == 0) {
+					char msg[256];
+					snprintf(msg, sizeof(msg), "duplicate listener %s", ip);
+					return ra_strdup(rtr->a, msg);
+				}
+			}
+			prevl = lwalk;
+		}
+		lwalk = prevl->next =
 			ra_malloc(rtr->a, sizeof(struct _router_listener));
 	}
 	if (lwalk == NULL)
@@ -937,6 +980,7 @@ router_add_listener(
 	lwalk->ip = ip == NULL ? ip : ra_strdup(rtr->a, ip);
 	lwalk->port = port;
 	lwalk->saddrs = saddrs;
+	lwalk->next = NULL;
 
 	return NULL;
 }

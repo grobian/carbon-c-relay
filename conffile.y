@@ -763,10 +763,17 @@ statistics_opt_prefix:                                  { $$ = NULL; }
 listen: crLISTEN listener[lsnr]
 	  {
 	  	struct _rcptr *walk;
+		char *err;
 
-		for (walk = $lsnr->rcptr; walk != NULL; walk = walk->next)
-			router_add_listener(rtr, $lsnr->type, $lsnr->transport,
+		for (walk = $lsnr->rcptr; walk != NULL; walk = walk->next) {
+			err = router_add_listener(rtr, $lsnr->type, $lsnr->transport,
 				walk->ctype, walk->ip, walk->port, walk->saddr);
+			if (err != NULL) {
+				router_yyerror(&yylloc, yyscanner, rtr,
+						ralloc, palloc, err);
+				YYERROR;
+			}
+		}
 	  }
 	  ;
 
