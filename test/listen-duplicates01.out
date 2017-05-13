@@ -1,0 +1,4 @@
+listen-duplicates01.conf:6:1: duplicate listener 127.0.0.1 with 127.0.0.1 for port 2013
+	;
+	^
+failed to read configuration 'listen-duplicates01.conf'

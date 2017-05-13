@@ -1,0 +1,4 @@
+listen-duplicates02.conf:8:1: duplicate listener ::1 with :: for port 2013
+	;
+	^
+failed to read configuration 'listen-duplicates02.conf'
