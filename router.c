@@ -1960,6 +1960,95 @@ router_transplant_queues(router *new, router *old)
 }
 
 /**
+ * Returns the listeners that are in l, but not in r.  Any listeners
+ * present in r, but not in l are ignored.  The returned list is taken
+ * from l, that is, the returned listeners are removed from l.
+ */
+static struct _router_listener *
+router_left_outer_listeners(router *l, router *r)
+{
+	struct _router_listener *lwalk, *lprev, *rwalk;
+	struct _router_listener *ret, *retwalk;
+	char hnbufl[INET6_ADDRSTRLEN];
+	char hnbufr[INET6_ADDRSTRLEN];
+	char match;
+
+	/* stupid nested loop search */
+	ret = retwalk = NULL;
+	lprev = NULL;
+	for (lwalk = l->listeners; lwalk != NULL; lwalk = lwalk->next) {
+		match = 0;
+		if (lwalk->saddrs)
+			saddr_ntop(lwalk->saddrs, hnbufl);
+		for (rwalk = r->listeners; rwalk != NULL; rwalk = rwalk->next) {
+			if (rwalk->saddrs)
+				saddr_ntop(rwalk->saddrs, hnbufr);
+			if (lwalk->transport == rwalk->transport
+					&& lwalk->ctype == rwalk->ctype)
+			{
+				if (lwalk->ctype == CON_UNIX) {
+					if (strcmp(lwalk->ip, rwalk->ip) == 0) {
+						match = 1;
+						break;
+					}
+				} else {
+					char *p;
+					char *l, *r;
+
+					/* compare against user input, but try to
+					 * cannonicalise IP addresses in order to get
+					 * correct matches */
+					for (p = lwalk->ip; strchr("0123456789.:", *p) != 0; p++)
+						;
+					if (*p != '\0') {
+						l = lwalk->ip;
+						r = rwalk->ip;
+					} else {
+						l = hnbufl;
+						r = hnbufr;
+					}
+					if (lwalk->port == rwalk->port && strcmp(l, r) == 0) {
+						match = 1;
+						break;
+					}
+				}
+			}
+		}
+
+		if (match == 0) {
+			/* add this to the return set */
+			if (ret == NULL) {
+				ret = retwalk = lwalk;
+			} else {
+				retwalk = retwalk->next = lwalk;
+			}
+			if (lprev == NULL) {
+				l->listeners = l->listeners->next;
+			} else {
+				lprev->next = lwalk->next;
+				lwalk = lprev;
+			}
+		} else {
+			lprev = lwalk;
+		}
+	}
+
+	return ret;
+}
+
+void
+router_close_outer_listeners(router *old, router *new)
+{
+	struct _router_listener *clslsnr;
+
+	clslsnr = router_left_outer_listeners(old, new);
+
+	for (; clslsnr != NULL; clslsnr = clslsnr->next) {
+		//listener_close();
+	}
+}
+
+/**
  * Starts all resources (servers) associated to this router.
  */
 char

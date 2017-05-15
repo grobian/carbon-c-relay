@@ -178,6 +178,9 @@ do_reload(void)
 		return;
 	}
 
+	/* close connections that are not in the new config first */
+	router_close_outer_listeners(newrtr, rtr);
+
 	logout("reloading collector\n");
 	collector_schedulereload(newrtr);
 	while (!collector_reloadcomplete())
