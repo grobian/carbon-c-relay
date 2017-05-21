@@ -28,6 +28,7 @@
 #include <errno.h>
 
 #include "relay.h"
+#include "router.h"
 
 #ifndef TMPDIR
 # define TMPDIR "/tmp"
@@ -36,162 +37,178 @@
 #define SOCKFILE ".s.carbon-c-relay"
 
 
-/**
- * Opens up listener sockets.  Returns the socket fds in ret, and
- * updates retlen.  If opening sockets failed, -1 is returned.  The
- * caller should ensure retlen is at least 1, and ret should be an array
- * large enough to hold it.
- */
-int
-bindlisten(
-		int ret_stream[], int *retlen_stream,
-		int ret_dgram[], int *retlen_dgram,
-		const char *interface, unsigned short port, unsigned int backlog)
+static char
+bindlistenip(listener *lsnr, unsigned int backlog)
 {
 	int sock;
 	int optval;
 	struct timeval tv;
-	struct addrinfo hint;
-	struct addrinfo *res, *resw;
+	struct addrinfo *resw;
 	char buf[128];
 	char saddr[INET6_ADDRSTRLEN];
 	int err;
 	int binderr = 0;
 	int curlen_stream = 0;
 	int curlen_dgram = 0;
-	int socktypes[] = {SOCK_STREAM, SOCK_DGRAM, 0};
-	int *socktype = socktypes;
+	int sockcur = 0;
 
 	tv.tv_sec = 0;
 	tv.tv_usec = 500 * 1000;
 
-	for (; *socktype != 0 && binderr == 0; socktype++) {
-		memset(&hint, 0, sizeof(hint));
-		hint.ai_family = PF_UNSPEC;
-		hint.ai_socktype = *socktype;
-		hint.ai_protocol = 0;
-		hint.ai_flags = AI_ADDRCONFIG | AI_NUMERICSERV | AI_PASSIVE;
-		snprintf(buf, sizeof(buf), "%u", port);
+	for (resw = lsnr->saddrs; resw != NULL; resw = resw->ai_next) {
+		if (resw->ai_family != PF_INET && resw->ai_family != PF_INET6)
+			continue;
+		if (resw->ai_protocol != IPPROTO_TCP &&
+				resw->ai_protocol != IPPROTO_UDP)
+			continue;
 
-		if ((err = getaddrinfo(interface, buf, &hint, &res)) != 0) {
-			logerr("getaddrinfo(%s, %s, ...) failed: %s\n",
-					interface == NULL ? "NULL" : interface,
-					buf, gai_strerror(err));
-			return -1;
+		saddr_ntop(resw, saddr);
+		if (saddr[0] == '\0')
+			snprintf(saddr, sizeof(saddr), "(unknown)");
+
+		if ((sock = socket(resw->ai_family, resw->ai_socktype,
+						resw->ai_protocol)) < 0)
+		{
+			logerr("failed to create socket for %s: %s\n",
+					saddr, strerror(errno));
+			binderr = 1;
+			break;
+		}
+		lsnr->socks[sockcur++] = sock;
+
+		(void) setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+		optval = 1;  /* allow takeover */
+		(void) setsockopt(sock, SOL_SOCKET, SO_REUSEADDR,
+				&optval, sizeof(optval));
+		if (resw->ai_family == PF_INET6) {
+			optval = 1;
+			(void) setsockopt(sock, IPPROTO_IPV6, IPV6_V6ONLY,
+					&optval, sizeof(optval));
 		}
 
-		for (resw = res; resw != NULL; resw = resw->ai_next) {
-			if (resw->ai_family != PF_INET && resw->ai_family != PF_INET6)
-				continue;
-			if (resw->ai_protocol != IPPROTO_TCP && resw->ai_protocol != IPPROTO_UDP)
-				continue;
-			if ((sock = socket(resw->ai_family, resw->ai_socktype, resw->ai_protocol)) < 0) {
-				while (curlen_dgram > 0)
-					close(ret_dgram[--curlen_dgram]);
-				while (curlen_stream > 0)
-					close(ret_stream[--curlen_stream]);
+		if (bind(sock, resw->ai_addr, resw->ai_addrlen) < 0) {
+			logerr("failed to bind on %s%d %s port %s: %s\n",
+					resw->ai_protocol == IPPROTO_TCP ? "tcp" : "udp",
+					resw->ai_family == PF_INET6 ? 6 : 4,
+					saddr, buf, strerror(errno));
+			binderr = 1;
+			break;
+		}
+
+		if (resw->ai_protocol == IPPROTO_TCP) {
+			if (listen(sock, backlog) < 0) {
+				logerr("failed to listen on tcp%d %s port %s: %s\n",
+						resw->ai_family == PF_INET6 ? 6 : 4,
+						saddr, buf, strerror(errno));
 				binderr = 1;
 				break;
 			}
-
-			(void) setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
-			optval = 1;  /* allow takeover */
-			(void) setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval));
-			if (resw->ai_family == PF_INET6) {
-				optval = 1;
-				(void) setsockopt(sock, IPPROTO_IPV6, IPV6_V6ONLY, &optval, sizeof(optval));
-			}
-
-			saddr_ntop(resw, saddr);
-			if (saddr[0] == '\0')
-				snprintf(saddr, sizeof(saddr), "(unknown)");
-
-			if (bind(sock, resw->ai_addr, resw->ai_addrlen) < 0) {
-				logerr("failed to bind on %s%d %s port %s\n",
-						resw->ai_protocol == IPPROTO_TCP ? "tcp" : "udp",
-						resw->ai_family == PF_INET6 ? 6 : 4, saddr, buf);
-				close(sock);
-				while (curlen_dgram > 0)
-					close(ret_dgram[--curlen_dgram]);
-				while (curlen_stream > 0)
-					close(ret_stream[--curlen_stream]);
-				binderr = 1;
-				break;
-			}
-
-			if (resw->ai_protocol == IPPROTO_TCP) {
-				if (listen(sock, backlog) < 0) {
-					close(sock);
-					while (curlen_dgram > 0)
-						close(ret_dgram[--curlen_dgram]);
-					while (curlen_stream > 0)
-						close(ret_stream[--curlen_stream]);
-					binderr = 1;
-					break;
-				}
-				if (curlen_stream < *retlen_stream) {
-					logout("listening on tcp%d %s port %s\n",
-							resw->ai_family == PF_INET6 ? 6 : 4, saddr, buf);
-					ret_stream[curlen_stream++] = sock;
-				}
-			} else {
-				if (curlen_dgram < *retlen_dgram) {
-					logout("listening on udp%d %s port %s\n",
-							resw->ai_family == PF_INET6 ? 6 : 4, saddr, buf);
-					ret_dgram[curlen_dgram++] = sock;
-				}
-			}
+			logout("listening on tcp%d %s port %s\n",
+					resw->ai_family == PF_INET6 ? 6 : 4, saddr, buf);
+		} else {
+			logout("listening on udp%d %s port %s\n",
+					resw->ai_family == PF_INET6 ? 6 : 4, saddr, buf);
 		}
-		freeaddrinfo(res);
+	}
+	if (binderr != 0) {
+		/* close all opened sockets */
+		for (--sockcur; sockcur >= 0; sockcur--)
+			close(lsnr->socks[sockcur]);
+		return 1;
 	}
 
-	if (curlen_stream + curlen_dgram == 0)
-		return -1;
+	return 0;
+}
 
-	/* fake loop to simplify breakout below */
-	while (curlen_stream < *retlen_stream) {
-		struct sockaddr_un server;
+static char
+bindlistenunix(listener *lsnr, unsigned int backlog)
+{
+	struct sockaddr_un server;
+	int sock;
 
 #ifndef PF_LOCAL
 # define PF_LOCAL PF_UNIX
 #endif
-		if ((sock = socket(PF_LOCAL, SOCK_STREAM, 0)) < 0)
-			break;
+	if ((sock = socket(PF_LOCAL, SOCK_STREAM, 0)) < 0) {
+		logerr("failed to create socket for %s: %s\n",
+				lsnr->ip, strerror(errno));
+		return 1;
+	}
+	lsnr->socks[0] = sock;
 
-		snprintf(buf, sizeof(buf), "%s/%s.%u", TMPDIR, SOCKFILE, port);
-		memset(&server, 0, sizeof(struct sockaddr_un));
-		server.sun_family = PF_LOCAL;
-		strncpy(server.sun_path, buf, sizeof(server.sun_path) - 1);
+	memset(&server, 0, sizeof(struct sockaddr_un));
+	server.sun_family = PF_LOCAL;
+	strncpy(server.sun_path, lsnr->ip, sizeof(server.sun_path) - 1);
 
-		unlink(buf);  /* avoid address already in use */
-		if (bind(sock, (struct sockaddr *)&server, sizeof(struct sockaddr_un)) < 0) {
-			logerr("failed to bind for %s: %s\n",
-					buf, strerror(errno));
-			close(sock);
-			break;
-		}
-
-		if (listen(sock, backlog) < 0) {
-			close(sock);
-			break;
-		}
-
-		logout("listening on UNIX socket %s\n", buf);
-
-		ret_stream[curlen_stream++] = sock;
-		break;
+	unlink(lsnr->ip);  /* avoid address already in use */
+	if (bind(sock, (struct sockaddr *)&server,
+				sizeof(struct sockaddr_un)) < 0)
+	{
+		logerr("failed to bind for %s: %s\n", lsnr->ip, strerror(errno));
+		close(sock);
+		return 1;
 	}
 
-	*retlen_stream = curlen_stream;
-	*retlen_dgram = curlen_dgram;
+	if (listen(sock, backlog) < 0) {
+		logerr("failed to listen on %s: %s\n", lsnr->ip, strerror(errno));
+		close(sock);
+		return 1;
+	}
+
+	logout("listening on UNIX socket %s\n", lsnr->ip);
+
 	return 0;
 }
 
-void
-destroy_usock(unsigned short port)
+/**
+ * Open up sockets associated with listener.  Returns 0 when opening up
+ * the listener succeeded, 1 otherwise.
+ */
+char
+bindlisten(listener *lsnr, unsigned int backlog)
 {
-	char buf[512];
+	switch (lsnr->ctype) {
+		case CON_TCP:
+		case CON_UDP:
+			return bindlistenip(lsnr, backlog);
+		case CON_UNIX:
+			return bindlistenunix(lsnr, backlog);
+		default:
+			logerr("unsupported listener type");
+			return 1;
+	}
+}
 
-	snprintf(buf, sizeof(buf), "%s/%s.%u", TMPDIR, SOCKFILE, port);
-	unlink(buf);
+static void
+close_socks(listener *lsnr)
+{
+	int i;
+	for (i = 0; lsnr->socks[i] != -1; i++)
+		close(lsnr->socks[i]);
+	logout("closed listener for %s:%u\n", lsnr->ip, lsnr->port);
+}
+
+static void
+destroy_usock(listener *lsnr)
+{
+	close(lsnr->socks[0]);
+	unlink(lsnr->ip);
+	logout("closed listener for %s\n", lsnr->ip);
+}
+
+void
+shutdownclose(listener *lsnr)
+{
+	switch (lsnr->ctype) {
+		case CON_TCP:
+		case CON_UDP:
+			close_socks(lsnr);
+			break;
+		case CON_UNIX:
+			destroy_usock(lsnr);
+			break;
+		default:
+			logerr("unsupported listener type");
+			break;
+	}
 }

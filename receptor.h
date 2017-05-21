@@ -18,11 +18,9 @@
 #ifndef RECEPTOR_H
 #define RECEPTOR_H 1
 
-typedef enum { LSNR_LINE } rcptr_lsnrtype;
-typedef enum { W_PLAIN, W_GZIP, W_BZIP2, W_LZMA, W_SSL } rcptr_transport;
+#include "router.h"
 
-int bindlisten(int ret_stream[], int *retlen_stream, int ret_dgram[], int *retlen_dgram, const char *interface, unsigned short port, unsigned int backlog);
-
-void destroy_usock(unsigned short port);
+int bindlisten(listener *lsnr, unsigned int backlog);
+void shutdownclose(listener *lsnr);
 
 #endif

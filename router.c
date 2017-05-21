@@ -52,15 +52,7 @@ struct _router {
 		char *prefix;
 		col_mode mode;
 	} collector;
-	struct _router_listener {
-		rcptr_lsnrtype lsnrtype;
-		rcptr_transport transport;
-		serv_ctype ctype;
-		char *ip;
-		int port;
-		struct addrinfo *saddrs;
-		struct _router_listener *next;
-	} *listeners;
+	listener *listeners;
 	struct _router_parser_err {
 		const char *msg;
 		size_t line;
@@ -909,20 +901,24 @@ router_add_listener(
 		int port,
 		struct addrinfo *saddrs)
 {
-	struct _router_listener *lwalk;
-	struct _router_listener *prevl;
+	listener *lwalk;
+	listener *prevl;
 	struct addrinfo *swalk;
 	struct addrinfo *lswalk;
 
 	if (rtr->listeners == NULL) {
 		lwalk = rtr->listeners =
-			ra_malloc(rtr->a, sizeof(struct _router_listener));
+			ra_malloc(rtr->a, sizeof(listener));
 	} else {
 		char hnbufl[INET6_ADDRSTRLEN];
 		char hnbufr[INET6_ADDRSTRLEN];
+		int addrcnt;
+
 		prevl = NULL;
 		for (lwalk = rtr->listeners; lwalk != NULL; lwalk = lwalk->next) {
+			addrcnt = 0;
 			for (swalk = saddrs; swalk != NULL; swalk = swalk->ai_next) {
+				addrcnt++;
 				saddr_ntop(swalk, hnbufl);
 				if (lwalk->ctype == ctype && lwalk->port == port) {
 					for (lswalk = lwalk->saddrs; lswalk != NULL;
@@ -951,7 +947,16 @@ router_add_listener(
 					}
 				}
 			}
-			if (saddrs == NULL) {  /* UNIX */
+			if (saddrs != NULL) {
+				lwalk->socks = ra_malloc(rtr->a, sizeof(int) * (addrcnt + 1));
+				if (lwalk->socks == NULL)
+					return ra_strdup(rtr->a, "malloc failed for sockets");
+				memset(lwalk->socks, -1, addrcnt + 1);
+			} else { /* UNIX */
+				lwalk->socks = ra_malloc(rtr->a, sizeof(int));
+				if (lwalk->socks == NULL)
+					return ra_strdup(rtr->a, "malloc failed for sockets");
+				lwalk->socks[0] = -1;
 				if (lwalk->ctype == ctype && strcmp(lwalk->ip, ip) == 0) {
 					char msg[256];
 					snprintf(msg, sizeof(msg), "duplicate listener %s", ip);
@@ -961,7 +966,7 @@ router_add_listener(
 			prevl = lwalk;
 		}
 		lwalk = prevl->next =
-			ra_malloc(rtr->a, sizeof(struct _router_listener));
+			ra_malloc(rtr->a, sizeof(listener));
 	}
 	if (lwalk == NULL)
 		return ra_strdup(rtr->a, "malloc failed for listener struct");
@@ -971,6 +976,7 @@ router_add_listener(
 	lwalk->ctype = ctype;
 	lwalk->ip = ip == NULL ? ip : ra_strdup(rtr->a, ip);
 	lwalk->port = port;
+	lwalk->socks = NULL;
 	lwalk->saddrs = saddrs;
 	lwalk->next = NULL;
 
@@ -1628,7 +1634,7 @@ router_printconfig(router *rtr, FILE *f, char pmode)
 	server_ctype(s->server) == CON_UDP ? " proto udp" : ""
 
 	if (rtr->listeners != NULL) {
-		struct _router_listener *walk;
+		listener *walk;
 		fprintf(f, "listen\n");
 		for (walk = rtr->listeners; walk != NULL; walk = walk->next) {
 			if (walk->lsnrtype == LSNR_LINE) {
@@ -1959,16 +1965,22 @@ router_transplant_queues(router *new, router *old)
 	}
 }
 
+inline listener *
+router_get_listeners(router *rtr)
+{
+	return rtr->listeners;
+}
+
 /**
  * Returns the listeners that are in l, but not in r.  Any listeners
  * present in r, but not in l are ignored.  The returned list is taken
  * from l, that is, the returned listeners are removed from l.
  */
-static struct _router_listener *
+static listener *
 router_left_outer_listeners(router *l, router *r)
 {
-	struct _router_listener *lwalk, *lprev, *rwalk;
-	struct _router_listener *ret, *retwalk;
+	listener *lwalk, *lprev, *rwalk;
+	listener *ret, *retwalk;
 	char hnbufl[INET6_ADDRSTRLEN];
 	char hnbufr[INET6_ADDRSTRLEN];
 	char match;
@@ -2037,9 +2049,9 @@ router_left_outer_listeners(router *l, router *r)
 }
 
 void
-router_close_outer_listeners(router *old, router *new)
+router_close_outer_listeners(router *new, router *old)
 {
-	struct _router_listener *clslsnr;
+	listener *clslsnr;
 
 	clslsnr = router_left_outer_listeners(old, new);
 

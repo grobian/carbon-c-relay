@@ -361,6 +361,7 @@ main(int argc, char * const argv[])
 	aggregator *aggrs = NULL;
 	int fds[2];
 	unsigned char startup_success = 0;
+	listener *lsnrs;
 
 	if (gethostname(relay_hostname, sizeof(relay_hostname)) < 0)
 		snprintf(relay_hostname, sizeof(relay_hostname), "127.0.0.1");
@@ -782,26 +783,25 @@ main(int argc, char * const argv[])
 		exit_err("failed to allocate memory for workers\n");
 	}
 
-	if (bindlisten(stream_sock, &stream_socklen,
-				dgram_sock, &dgram_socklen,
-				listeninterface, listenport, listenbacklog) < 0) {
-		exit_err("failed to bind on port %s:%d: %s\n",
-				listeninterface == NULL ? "" : listeninterface,
-				listenport, strerror(errno));
-	}
 	dispatch_set_bufsize(sockbufsize);
-	for (ch = 0; ch < stream_socklen; ch++) {
-		if (dispatch_addlistener(stream_sock[ch]) != 0) {
-			exit_err("failed to add listener\n");
+
+	lsnrs = router_get_listeners(rtr);
+	for ( ; lsnrs != NULL; lsnrs = lsnrs->next) {
+		if (bindlisten(lsnrs, listenbacklog) != 0) {
+			exit_err("failed to setup listener\n");
 		}
-	}
-	for (ch = 0; ch < dgram_socklen; ch++) {
-		if (dispatch_addlistener_udp(dgram_sock[ch]) != 0) {
-			exit_err("failed to listen to datagram socket\n");
+		if (lsnrs->ctype == CON_UDP) {
+			if (dispatch_addlistener_udp(dgram_sock[ch]) != 0) {
+				exit_err("failed to listen to datagram socket\n");
+			}
+		} else {
+			if (dispatch_addlistener(stream_sock[ch]) != 0) {
+				exit_err("failed to add listener\n");
+			}
 		}
 	}
 	if ((workers[0] = dispatch_new_listener()) == NULL)
-		logerr("failed to add listener\n");
+		logerr("failed to add listener dispatcher\n");
 
 	if (allowed_chars == NULL)
 		allowed_chars = "-_:#";
@@ -869,10 +869,8 @@ main(int argc, char * const argv[])
 
 	logout("shutting down...\n");
 	/* make sure we don't accept anything new anymore */
-	for (ch = 0; ch < stream_socklen; ch++)
-		dispatch_removelistener(stream_sock[ch]);
-	destroy_usock(listenport);
-	logout("closed listeners for port %u\n", listenport);
+	lsnrs = router_get_listeners(rtr);
+	shutdownclose(lsnrs);
 	/* since workers will be freed, stop querying the structures */
 	collector_stop();
 	server_shutdown(internal_submission);
