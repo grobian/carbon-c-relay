@@ -59,7 +59,7 @@ typedef enum { SUB, CUM } col_mode;
 router *router_readconfig(router *orig, const char *path, size_t queuesize, size_t batchsize, int maxstalls, unsigned short iotimeout, unsigned int sockbufsize);
 void router_optimise(router *r, int threshold);
 char router_printdiffs(router *old, router *new, FILE *out);
-void router_close_outer_listeners(router *new, router *old);
+char router_contains_listener(router *rtr, listener *lsnr);
 void router_transplant_queues(router *new, router *old);
 char router_start(router *r);
 size_t router_rewrite_metric(char (*newmetric)[METRIC_BUFSIZ], char **newfirstspace, const char *metric, const char *firstspace, const char *replacement, const size_t nmatch, const regmatch_t *pmatch);

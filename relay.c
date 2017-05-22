@@ -138,6 +138,7 @@ do_reload(void)
 	int id;
 	FILE *newfd;
 	size_t numaggregators;
+	listener *lsnrs;
 
 	if (relay_stderr != stderr) {
 		/* try to re-open the file first, so we can still try and say
@@ -179,7 +180,16 @@ do_reload(void)
 	}
 
 	/* close connections that are not in the new config first */
-	router_close_outer_listeners(newrtr, rtr);
+	lsnrs = router_get_listeners(rtr);
+	for ( ; lsnrs != NULL; lsnrs = lsnrs->next) {
+		if (!router_contains_listener(newrtr, lsnrs)) {
+			int *socks;
+			for (socks = lsnrs->socks; *socks != -1; socks++) {
+				dispatch_removelistener(*socks);
+			}
+			shutdownclose(lsnrs);
+		}
+	}
 
 	logout("reloading collector\n");
 	collector_schedulereload(newrtr);
@@ -242,6 +252,34 @@ do_reload(void)
 	for (id = 1; id < 1 + workercnt; id++) {
 		while (!dispatch_reloadcomplete(workers[id + 0]))
 			usleep((100 + (rand() % 200)) * 1000);  /* 100ms - 300ms */
+	}
+
+	/* open connections that are in the new config */
+	lsnrs = router_get_listeners(newrtr);
+	for ( ; lsnrs != NULL; lsnrs = lsnrs->next) {
+		if (!router_contains_listener(rtr, lsnrs)) {
+			int *socks;
+			if (bindlisten(lsnrs, 32 /* FIXME */) != 0) {
+				logerr("failed to setup listener, "
+						"this will impact the behaviour of the relay\n");
+				continue;
+			}
+			if (lsnrs->ctype == CON_UDP) {
+				for (socks = lsnrs->socks; *socks != -1; socks++) {
+					if (dispatch_addlistener_udp(*socks) != 0) {
+						logerr("failed to listen to datagram socket, the "
+								"listener will not be effective\n");
+					}
+				}
+			} else {
+				for (socks = lsnrs->socks; *socks != -1; socks++) {
+					if (dispatch_addlistener(*socks) != 0) {
+						logerr("failed to listen to socket, the "
+								"listener will not be effective\n");
+					}
+				}
+			}
+		}
 	}
 
 	router_free(rtr);

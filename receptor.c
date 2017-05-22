@@ -45,10 +45,7 @@ bindlistenip(listener *lsnr, unsigned int backlog)
 	struct timeval tv;
 	struct addrinfo *resw;
 	char saddr[INET6_ADDRSTRLEN];
-	int err;
 	int binderr = 0;
-	int curlen_stream = 0;
-	int curlen_dgram = 0;
 	int sockcur = 0;
 
 	tv.tv_sec = 0;

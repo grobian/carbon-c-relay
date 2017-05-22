@@ -1968,92 +1968,70 @@ router_get_listeners(router *rtr)
 }
 
 /**
- * Returns the listeners that are in l, but not in r.  Any listeners
- * present in r, but not in l are ignored.  The returned list is taken
- * from l, that is, the returned listeners are removed from l.
+ * Returns whether a comparible listener to lsnr exists in router rtr.
+ * Comparible means they are the same hostname, or have canonical ip
+ * representation that matches.
  */
-static listener *
-router_left_outer_listeners(router *l, router *r)
+char
+router_contains_listener(router *rtr, listener *lsnr)
 {
-	listener *lwalk, *lprev, *rwalk;
-	listener *ret, *retwalk;
+	listener *rwalk;
 	char hnbufl[INET6_ADDRSTRLEN];
 	char hnbufr[INET6_ADDRSTRLEN];
 	char match;
 
-	/* stupid nested loop search */
-	ret = retwalk = NULL;
-	lprev = NULL;
-	for (lwalk = l->listeners; lwalk != NULL; lwalk = lwalk->next) {
-		match = 0;
-		if (lwalk->saddrs)
-			saddr_ntop(lwalk->saddrs, hnbufl);
-		for (rwalk = r->listeners; rwalk != NULL; rwalk = rwalk->next) {
-			if (rwalk->saddrs)
-				saddr_ntop(rwalk->saddrs, hnbufr);
-			if (lwalk->transport == rwalk->transport
-					&& lwalk->ctype == rwalk->ctype)
-			{
-				if (lwalk->ctype == CON_UNIX) {
-					if (strcmp(lwalk->ip, rwalk->ip) == 0) {
-						match = 1;
-						break;
-					}
-				} else {
-					char *p;
-					char *l, *r;
+	match = 0;
 
-					/* compare against user input, but try to
-					 * cannonicalise IP addresses in order to get
-					 * correct matches */
-					for (p = lwalk->ip; strchr("0123456789.:", *p) != 0; p++)
+	if (lsnr->saddrs)
+		saddr_ntop(lsnr->saddrs, hnbufl);
+	for (rwalk = rtr->listeners; rwalk != NULL; rwalk = rwalk->next) {
+		if (rwalk->saddrs)
+			saddr_ntop(rwalk->saddrs, hnbufr);
+		if (lsnr->transport == rwalk->transport && lsnr->ctype == rwalk->ctype)
+		{
+			if (lsnr->ctype == CON_UNIX) {
+				if (strcmp(lsnr->ip, rwalk->ip) == 0) {
+					match = 1;
+					break;
+				}
+			} else {
+				char *p;
+				char *l, *r;
+
+				/* compare against user input, but try to cannonicalise
+				 * IP addresses in order to get correct matches */
+				if (lsnr->ip != NULL) {
+					for (p = lsnr->ip ; strchr("0123456789.:", *p) != 0; p++)
 						;
 					if (*p != '\0') {
-						l = lwalk->ip;
-						r = rwalk->ip;
+						l = lsnr->ip;
 					} else {
 						l = hnbufl;
+					}
+				} else {
+					l = hnbufl;
+				}
+				if (rwalk->ip != NULL) {
+					for (p = rwalk->ip ; strchr("0123456789.:", *p) != 0; p++)
+						;
+					if (*p != '\0') {
+						r = rwalk->ip;
+					} else {
 						r = hnbufr;
 					}
-					if (lwalk->port == rwalk->port && strcmp(l, r) == 0) {
-						match = 1;
-						break;
-					}
+				} else {
+					r = hnbufr;
+				}
+
+				if (lsnr->port == rwalk->port && strcmp(l, r) == 0) {
+					match = 1;
+					break;
 				}
 			}
 		}
-
-		if (match == 0) {
-			/* add this to the return set */
-			if (ret == NULL) {
-				ret = retwalk = lwalk;
-			} else {
-				retwalk = retwalk->next = lwalk;
-			}
-			if (lprev == NULL) {
-				l->listeners = l->listeners->next;
-			} else {
-				lprev->next = lwalk->next;
-				lwalk = lprev;
-			}
-		} else {
-			lprev = lwalk;
-		}
 	}
 
-	return ret;
-}
-
-void
-router_close_outer_listeners(router *new, router *old)
-{
-	listener *clslsnr;
-
-	clslsnr = router_left_outer_listeners(old, new);
-
-	for (; clslsnr != NULL; clslsnr = clslsnr->next) {
-		//listener_close();
-	}
+	return match;
 }
 
 /**

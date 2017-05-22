@@ -168,6 +168,7 @@ cluster: crCLUSTER crSTRING[name] cluster_type[type] cluster_hosts[servers]
 					$$->type == CARBON_CH ? CARBON :
 					$$->type == FNV1A_CH ? FNV1a :
 					JUMP_FNV1a, srvcnt);
+				$$->members.ch->servers = NULL;
 				$type.ival = 0;  /* hack, avoid triggering use_all */
 				break;
 			case FORWARD:
