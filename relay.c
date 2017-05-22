@@ -345,10 +345,6 @@ do_usage(char *name, int exitcode)
 int
 main(int argc, char * const argv[])
 {
-	int stream_sock[] = {0, 0, 0};  /* tcp4, tcp6, UNIX */
-	int stream_socklen = sizeof(stream_sock) / sizeof(stream_sock[0]);
-	int dgram_sock[] = {0, 0};  /* udp4, udp6 */
-	int dgram_socklen = sizeof(dgram_sock) / sizeof(dgram_sock[0]);
 	char id;
 	unsigned short listenport = 2003;
 	unsigned int listenbacklog = 32;
@@ -787,16 +783,21 @@ main(int argc, char * const argv[])
 
 	lsnrs = router_get_listeners(rtr);
 	for ( ; lsnrs != NULL; lsnrs = lsnrs->next) {
+		int *socks;
 		if (bindlisten(lsnrs, listenbacklog) != 0) {
 			exit_err("failed to setup listener\n");
 		}
 		if (lsnrs->ctype == CON_UDP) {
-			if (dispatch_addlistener_udp(dgram_sock[ch]) != 0) {
-				exit_err("failed to listen to datagram socket\n");
+			for (socks = lsnrs->socks; *socks != -1; socks++) {
+				if (dispatch_addlistener_udp(*socks) != 0) {
+					exit_err("failed to listen to datagram socket\n");
+				}
 			}
 		} else {
-			if (dispatch_addlistener(stream_sock[ch]) != 0) {
-				exit_err("failed to add listener\n");
+			for (socks = lsnrs->socks; *socks != -1; socks++) {
+				if (dispatch_addlistener(*socks) != 0) {
+					exit_err("failed to add listener\n");
+				}
 			}
 		}
 	}
@@ -870,7 +871,9 @@ main(int argc, char * const argv[])
 	logout("shutting down...\n");
 	/* make sure we don't accept anything new anymore */
 	lsnrs = router_get_listeners(rtr);
-	shutdownclose(lsnrs);
+	for ( ; lsnrs != NULL; lsnrs = lsnrs->next) {
+		shutdownclose(lsnrs);
+	}
 	/* since workers will be freed, stop querying the structures */
 	collector_stop();
 	server_shutdown(internal_submission);

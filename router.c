@@ -371,7 +371,7 @@ router_validate_address(
 	hint.ai_family = PF_UNSPEC;
 	hint.ai_socktype = proto == CON_UDP ? SOCK_DGRAM : SOCK_STREAM;
 	hint.ai_protocol = proto == CON_UDP ? IPPROTO_UDP : IPPROTO_TCP;
-	hint.ai_flags = AI_NUMERICHOST | AI_NUMERICSERV;
+	hint.ai_flags = AI_NUMERICHOST | AI_NUMERICSERV | AI_PASSIVE;
 	snprintf(sport, sizeof(sport), "%u", port);
 
 	*rethint = NULL;
@@ -905,6 +905,7 @@ router_add_listener(
 	listener *prevl;
 	struct addrinfo *swalk;
 	struct addrinfo *lswalk;
+	int addrcnt;
 
 	if (rtr->listeners == NULL) {
 		lwalk = rtr->listeners =
@@ -912,13 +913,10 @@ router_add_listener(
 	} else {
 		char hnbufl[INET6_ADDRSTRLEN];
 		char hnbufr[INET6_ADDRSTRLEN];
-		int addrcnt;
 
 		prevl = NULL;
 		for (lwalk = rtr->listeners; lwalk != NULL; lwalk = lwalk->next) {
-			addrcnt = 0;
 			for (swalk = saddrs; swalk != NULL; swalk = swalk->ai_next) {
-				addrcnt++;
 				saddr_ntop(swalk, hnbufl);
 				if (lwalk->ctype == ctype && lwalk->port == port) {
 					for (lswalk = lwalk->saddrs; lswalk != NULL;
@@ -930,7 +928,6 @@ router_add_listener(
 						 * - at least one of the sides is 0.0.0.0 (ipv4 any)
 						 * - at least one of the sides is :: (ipv6 any)
 						 * - both sides are equal */
-						fprintf(stdout, "%s -- %s\n", hnbufl, hnbufr);
 						if (swalk->ai_family == lswalk->ai_family && (
 								strcmp(hnbufl, "0.0.0.0") == 0 ||
 								strcmp(hnbufr, "0.0.0.0") == 0 ||
@@ -947,16 +944,7 @@ router_add_listener(
 					}
 				}
 			}
-			if (saddrs != NULL) {
-				lwalk->socks = ra_malloc(rtr->a, sizeof(int) * (addrcnt + 1));
-				if (lwalk->socks == NULL)
-					return ra_strdup(rtr->a, "malloc failed for sockets");
-				memset(lwalk->socks, -1, addrcnt + 1);
-			} else { /* UNIX */
-				lwalk->socks = ra_malloc(rtr->a, sizeof(int));
-				if (lwalk->socks == NULL)
-					return ra_strdup(rtr->a, "malloc failed for sockets");
-				lwalk->socks[0] = -1;
+			if (saddrs == NULL) { /* UNIX */
 				if (lwalk->ctype == ctype && strcmp(lwalk->ip, ip) == 0) {
 					char msg[256];
 					snprintf(msg, sizeof(msg), "duplicate listener %s", ip);
@@ -979,6 +967,14 @@ router_add_listener(
 	lwalk->socks = NULL;
 	lwalk->saddrs = saddrs;
 	lwalk->next = NULL;
+
+	addrcnt = saddrs == NULL ? 1 : 0;
+	for (swalk = saddrs; swalk != NULL; swalk = swalk->ai_next)
+		addrcnt++;
+	lwalk->socks = ra_malloc(rtr->a, sizeof(int) * (addrcnt + 1));
+	if (lwalk->socks == NULL)
+		return ra_strdup(rtr->a, "malloc failed for sockets");
+	lwalk->socks[0] = -1;
 
 	return NULL;
 }

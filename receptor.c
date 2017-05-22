@@ -44,7 +44,6 @@ bindlistenip(listener *lsnr, unsigned int backlog)
 	int optval;
 	struct timeval tv;
 	struct addrinfo *resw;
-	char buf[128];
 	char saddr[INET6_ADDRSTRLEN];
 	int err;
 	int binderr = 0;
@@ -87,27 +86,27 @@ bindlistenip(listener *lsnr, unsigned int backlog)
 		}
 
 		if (bind(sock, resw->ai_addr, resw->ai_addrlen) < 0) {
-			logerr("failed to bind on %s%d %s port %s: %s\n",
+			logerr("failed to bind on %s%d %s port %u: %s\n",
 					resw->ai_protocol == IPPROTO_TCP ? "tcp" : "udp",
 					resw->ai_family == PF_INET6 ? 6 : 4,
-					saddr, buf, strerror(errno));
+					saddr, lsnr->port, strerror(errno));
 			binderr = 1;
 			break;
 		}
 
 		if (resw->ai_protocol == IPPROTO_TCP) {
 			if (listen(sock, backlog) < 0) {
-				logerr("failed to listen on tcp%d %s port %s: %s\n",
+				logerr("failed to listen on tcp%d %s port %u: %s\n",
 						resw->ai_family == PF_INET6 ? 6 : 4,
-						saddr, buf, strerror(errno));
+						saddr, lsnr->port, strerror(errno));
 				binderr = 1;
 				break;
 			}
-			logout("listening on tcp%d %s port %s\n",
-					resw->ai_family == PF_INET6 ? 6 : 4, saddr, buf);
+			logout("listening on tcp%d %s port %u\n",
+					resw->ai_family == PF_INET6 ? 6 : 4, saddr, lsnr->port);
 		} else {
-			logout("listening on udp%d %s port %s\n",
-					resw->ai_family == PF_INET6 ? 6 : 4, saddr, buf);
+			logout("listening on udp%d %s port %u\n",
+					resw->ai_family == PF_INET6 ? 6 : 4, saddr, lsnr->port);
 		}
 	}
 	if (binderr != 0) {
@@ -116,6 +115,7 @@ bindlistenip(listener *lsnr, unsigned int backlog)
 			close(lsnr->socks[sockcur]);
 		return 1;
 	}
+	lsnr->socks[sockcur] = -1;
 
 	return 0;
 }
@@ -135,6 +135,7 @@ bindlistenunix(listener *lsnr, unsigned int backlog)
 		return 1;
 	}
 	lsnr->socks[0] = sock;
+	lsnr->socks[1] = -1;
 
 	memset(&server, 0, sizeof(struct sockaddr_un));
 	server.sun_family = PF_LOCAL;
@@ -185,7 +186,9 @@ close_socks(listener *lsnr)
 	int i;
 	for (i = 0; lsnr->socks[i] != -1; i++)
 		close(lsnr->socks[i]);
-	logout("closed listener for %s:%u\n", lsnr->ip, lsnr->port);
+	logout("closed listener for %s %s:%u\n",
+			lsnr->ctype == CON_UDP ? "udp" : "tcp",
+			lsnr->ip == NULL ? "" : lsnr->ip, lsnr->port);
 }
 
 static void
