@@ -142,11 +142,13 @@ These options control the behaviour of **carbon-c-relay**.
     connection refused errors on the clients.
 
   * `-U` *bufsize*:
-    Sets the socket send/receive buffer sizes in bytes.  When unset, the
-    OS default is used.  The maximum is also determined by the OS.  The
-    sizes are set using setsockopt with the flags SO_RCVBUF and
-    SO_SNDBUF.  Setting this size may be necessary for large volume
-    scenarios, for which also `-B` might apply.
+    Sets the socket send/receive buffer sizes in bytes, for both TCP and UDP
+    scenarios.  When unset, the OS default is used.  The maximum is also
+    determined by the OS.  The sizes are set using setsockopt with the flags
+    SO_RCVBUF and SO_SNDBUF.  Setting this size may be necessary for large
+    volume scenarios, for which also `-B` might apply.  Checking the *Recv-Q*
+    and the *receive errors* values from *netstat* gives a good hint
+    about buffer usage.
 
   * `-T` *timeout*:
     Specifies the IO timeout in milliseconds used for server connections.
@@ -781,7 +783,7 @@ The following metrics are produced under the `carbon.relays.<hostname>`
 namespace:
 
 * metricsReceived
-  
+
   The number of metrics that were received by the relay.  Received here
   means that they were seen and processed by any of the dispatchers.
 

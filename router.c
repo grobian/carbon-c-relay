@@ -18,6 +18,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <fcntl.h>
 #include <string.h>
 #include <ctype.h>
 #include <glob.h>
@@ -409,20 +410,23 @@ router_validate_path(router *rtr, char *path)
 {
 	struct stat st;
 	char fileexists = 1;
-	FILE *probe;
+	int probefd;
 
 	/* if the file doesn't exist, remove it after trying to create it */
 	if (stat(path, &st) == -1)
 		fileexists = 0;
 
-	if ((probe = fopen(path, "a")) == NULL) {
+	if ((probefd = open(path,
+					O_WRONLY | O_APPEND | O_CREAT,
+					S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)) < 0)
+	{
 		char errbuf[512];
 		snprintf(errbuf, sizeof(errbuf),
 				"failed to open file '%s' for writing: %s",
 				path, strerror(errno));
 		return ra_strdup(rtr->a, errbuf);
 	}
-	fclose(probe);
+	close(probefd);
 
 	if (!fileexists)
 		unlink(path);
