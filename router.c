@@ -31,6 +31,11 @@
 #include <errno.h>
 #include <assert.h>
 
+#ifndef _WIN32
+#  include <netinet/in.h>
+#  include <sys/socket.h>
+#endif
+
 #include "fnv1a.h"
 #include "consistent-hash.h"
 #include "server.h"

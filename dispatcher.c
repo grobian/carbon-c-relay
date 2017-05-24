@@ -30,6 +30,11 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
+#ifndef _WIN32
+#  include <netinet/in.h>
+#  include <sys/socket.h>
+#endif
+
 #include "relay.h"
 #include "router.h"
 #include "server.h"
