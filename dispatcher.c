@@ -665,6 +665,8 @@ dispatch_new(char id, enum conntype type, router *r, char *allowed_chars)
 
 	if (ret == NULL)
 		return NULL;
+	if (type == CONNECTION && r == NULL)
+		return NULL;
 
 	ret->id = id;
 	ret->type = type;
