@@ -229,12 +229,13 @@ ch_addnode(ch_ring *ring, server *s)
 {
 	int i;
 	char buf[256];
-	ch_ring_entry *entries = &ring->entrylist[ring->entrycnt];
+	ch_ring_entry *entries;
 	char *instance = server_instance(s);
 	int (*cmp)(const void *, const void *) = NULL;
 
 	if (ring == NULL)
 		return NULL;
+	entries = &ring->entrylist[ring->entrycnt];
 
 	switch (ring->type) {
 		case CARBON:
