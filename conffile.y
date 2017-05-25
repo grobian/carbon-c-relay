@@ -896,6 +896,7 @@ receptor: crSTRING[ip] crPROTO rcptr_proto[prot]
 			$$->ctype = CON_UNIX;
 			$$->ip = $path;
 			$$->port = 0;
+			$$->saddr = NULL;
 			err = router_validate_path(rtr, $path);
 			if (err != NULL) {
 				router_yyerror(&yylloc, yyscanner, rtr,

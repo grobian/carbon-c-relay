@@ -421,6 +421,14 @@ router_validate_path(router *rtr, char *path)
 					S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)) < 0)
 	{
 		char errbuf[512];
+		if (errno == EOPNOTSUPP && st.st_mode & S_IFSOCK) {
+			/* This is pretty lame, but I don't know a better way: we
+			 * can't open sockets in use, and as it stands we can't
+			 * check it is *us* who have the socket in use.  So, we
+			 * assume we do, and ignore this silently.  In the worst
+			 * case this yields an error when it opens up for real. */
+			return NULL;
+		}
 		snprintf(errbuf, sizeof(errbuf),
 				"failed to open file '%s' for writing: %s",
 				path, strerror(errno));

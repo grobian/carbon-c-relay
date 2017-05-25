@@ -687,7 +687,7 @@ static const yytype_uint16 yyrline[] =
      677,   678,   679,   680,   681,   682,   692,   693,   696,   697,
      702,   717,   742,   743,   754,   755,   758,   759,   764,   781,
      805,   806,   816,   826,   836,   848,   851,   852,   855,   888,
-     909,   910,   915
+     910,   911,   916
 };
 #endif
 
@@ -2794,6 +2794,7 @@ yyreduce:
 			(*(struct _rcptr **)(&yyval))->ctype = CON_UNIX;
 			(*(struct _rcptr **)(&yyval))->ip = (*(char **)(&yyvsp[-2]));
 			(*(struct _rcptr **)(&yyval))->port = 0;
+			(*(struct _rcptr **)(&yyval))->saddr = NULL;
 			err = router_validate_path(rtr, (*(char **)(&yyvsp[-2])));
 			if (err != NULL) {
 				router_yyerror(&yylloc, yyscanner, rtr,
@@ -2802,32 +2803,32 @@ yyreduce:
 			}
 			(*(struct _rcptr **)(&yyval))->next = NULL;
 		}
-#line 2806 "conffile.tab.c" /* yacc.c:1646  */
+#line 2807 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 110:
-#line 909 "conffile.y" /* yacc.c:1646  */
+#line 910 "conffile.y" /* yacc.c:1646  */
     { (*(serv_ctype*)(&yyval)) = CON_TCP; }
-#line 2812 "conffile.tab.c" /* yacc.c:1646  */
+#line 2813 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 111:
-#line 910 "conffile.y" /* yacc.c:1646  */
+#line 911 "conffile.y" /* yacc.c:1646  */
     { (*(serv_ctype*)(&yyval)) = CON_UDP; }
-#line 2818 "conffile.tab.c" /* yacc.c:1646  */
+#line 2819 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 112:
-#line 916 "conffile.y" /* yacc.c:1646  */
+#line 917 "conffile.y" /* yacc.c:1646  */
     {
 	   	if (router_readconfig(rtr, (*(char **)(&yyvsp[0])), 0, 0, 0, 0, 0) == NULL)
 			YYERROR;
 	   }
-#line 2827 "conffile.tab.c" /* yacc.c:1646  */
+#line 2828 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
 
-#line 2831 "conffile.tab.c" /* yacc.c:1646  */
+#line 2832 "conffile.tab.c" /* yacc.c:1646  */
       default: break;
     }
   /* User semantic actions sometimes alter yychar, and that requires
