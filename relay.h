@@ -47,7 +47,7 @@ int relaylog(enum logdst dest, const char *fmt, ...);
 #define logout(args...) relaylog(LOGOUT, args)
 #define logerr(args...) relaylog(LOGERR, args)
 
-#define saddr_ntop(SADDR, BUF) \
+#define saddr_ntop(SADDR, BUF) { \
 	BUF[0] = '\0'; \
 	if ((SADDR)->ai_family == PF_INET) { \
 		inet_ntop((SADDR)->ai_family, \
@@ -57,6 +57,7 @@ int relaylog(enum logdst dest, const char *fmt, ...);
 		inet_ntop((SADDR)->ai_family, \
 					&((struct sockaddr_in6 *)(SADDR)->ai_addr)->sin6_addr, \
 					BUF, sizeof(BUF)); \
-	}
+	} \
+}
 
 #endif
