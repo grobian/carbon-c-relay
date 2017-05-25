@@ -43,7 +43,7 @@ ra_free(allocator *ra)
 	}
 }
 
-#define ra_alloc(RA, SZ) \
+#define ra_alloc(RA, SZ) { \
 	assert(SZ >= 0); \
 	nsz = 256 * 1024; \
 	if (SZ > nsz) \
@@ -60,6 +60,7 @@ ra_free(allocator *ra)
 	RA->nextp = RA->memory_region; \
 	RA->sz = nsz; \
 	RA->next = NULL; \
+}
 
 /**
  * Allocate a new allocator.
