@@ -1046,12 +1046,14 @@ router_readconfig(router *orig,
 
 	if ((buf = ra_malloc(palloc, st.st_size + 1)) == NULL) {
 		logerr("malloc failed for config file buffer\n");
+		ra_free(palloc);
 		router_free(ret);
 		return NULL;
 	}
 
 	if ((cnf = fopen(path, "r")) == NULL) {
 		logerr("failed to open config file '%s': %s\n", path, strerror(errno));
+		ra_free(palloc);
 		router_free(ret);
 		return NULL;
 	}
@@ -1063,6 +1065,7 @@ router_readconfig(router *orig,
 
 	if (router_yylex_init(&lptr) != 0) {
 		logerr("lex init failed\n");
+		ra_free(palloc);
 		router_free(ret);
 		return NULL;
 	}
@@ -1108,8 +1111,8 @@ router_readconfig(router *orig,
 		 * included config */
 		ret->parser_err.msg = NULL;
 		router_yylex_destroy(lptr);
-		router_free(ret);
 		ra_free(palloc);
+		router_free(ret);
 		return NULL;
 	}
 	router_yylex_destroy(lptr);
