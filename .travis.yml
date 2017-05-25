@@ -10,7 +10,6 @@ matrix:
     - compiler: coverity
       os: linux
       env:
-        - CC=gcc
         - COVERITY_SCAN_PROJECT_NAME="$TRAVIS_REPO_SLUG"
         - COVERITY_SCAN_BRANCH_PATTERN="master"
         - COVERITY_SCAN_NOTIFICATION_EMAIL="grobian@gentoo.org"
@@ -23,12 +22,14 @@ script:
   # workaround git not retaining mtimes and bison/flex not being uptodate
   - touch conffile.yy.c conffile.tab.c conffile.tab.h
   - touch configure.ac Makefile.am aclocal.m4 configure Makefile.in config.h.in
+  # ensure we end up with an existing compiler
+  - [[ ${CC} == coverity ]] && export CC=gcc
   - ./configure || cat config.log
   - |
     if [[ -z ${COVERITY_SCAN_PROJECT_NAME} ]] ; then
       make CFLAGS="-O3 -Wall -Werror -Wshadow -pipe" check
     else
-      curl -s 'https://scan.coverity.com/scripts/travisci_build_coverity_scan.sh' | bash || true
+      curl -s 'https://scan.coverity.com/scripts/travisci_build_coverity_scan.sh' | bash
     fi
 
 env:
