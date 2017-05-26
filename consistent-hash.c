@@ -88,6 +88,7 @@ jump_bucketpos(unsigned long long int key, int bckcnt)
 {
 	long long int b = -1, j = 0;
 
+	assert(bckcnt > 0);  /* help static code analysis */
 	while (j < bckcnt) {
 		b = j;
 		key = key * 2862933555777941757ULL + 1;
