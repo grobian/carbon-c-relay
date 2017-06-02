@@ -1012,7 +1012,8 @@ router_readconfig(router *orig,
 		size_t batchsize,
 		int maxstalls,
 		unsigned short iotimeout,
-		unsigned int sockbufsize)
+		unsigned int sockbufsize,
+		unsigned short listenport)
 {
 	FILE *cnf;
 	char *buf;
@@ -1058,7 +1059,7 @@ router_readconfig(router *orig,
 		for (i = 0; i < globbuf.gl_pathc; i++) {
 			globpath = globbuf.gl_pathv[i];
 			ret = router_readconfig(ret, globpath, queuesize,
-					batchsize, maxstalls, iotimeout, sockbufsize);
+					batchsize, maxstalls, iotimeout, sockbufsize, listenport);
 			if (ret == NULL) {
 				/* readconfig will have freed when it found the error */
 				break;
@@ -1221,20 +1222,20 @@ router_readconfig(router *orig,
 			void *saddrs;
 			void *hint;
 
-			snprintf(buf, sizeof(buf), ":%u", GRAPHITE_PORT);
+			snprintf(buf, sizeof(buf), ":%u", listenport);
 			router_validate_address(ret, &ip, &port, &saddrs, &hint,
 					buf, CON_TCP);
 			router_add_listener(ret, LSNR_LINE, W_PLAIN, CON_TCP,
 					ip, port, saddrs);
 
-			snprintf(buf, sizeof(buf), ":%u", GRAPHITE_PORT);
+			snprintf(buf, sizeof(buf), ":%u", listenport);
 			router_validate_address(ret, &ip, &port, &saddrs, &hint,
 					buf, CON_UDP);
 			router_add_listener(ret, LSNR_LINE, W_PLAIN, CON_UDP,
 					ip, port, saddrs);
 
 			snprintf(buf, sizeof(buf), "%s/%s.%u",
-					TMPDIR, SOCKFILE, GRAPHITE_PORT);
+					TMPDIR, SOCKFILE, listenport);
 			router_add_listener(ret, LSNR_LINE, W_PLAIN, CON_UNIX,
 					buf, 0, NULL);
 		}

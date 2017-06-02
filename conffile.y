@@ -915,7 +915,7 @@ rcptr_proto: crTCP { $$ = CON_TCP; }
 /*** {{{ BEGIN include ***/
 include: crINCLUDE crSTRING[path]
 	   {
-	   	if (router_readconfig(rtr, $path, 0, 0, 0, 0, 0) == NULL)
+	   	if (router_readconfig(rtr, $path, 0, 0, 0, 0, 0, 0) == NULL)
 			YYERROR;
 	   }
 	   ;

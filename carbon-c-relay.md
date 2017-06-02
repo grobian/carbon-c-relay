@@ -90,7 +90,9 @@ These options control the behaviour of **carbon-c-relay**.
     Listen for connections on port *port*.  The port number is used for
     both `TCP`, `UDP` and `UNIX sockets`.  In the latter case, the socket
     file contains the port number.  The port defaults to *2003*, which is
-    also used by the original `carbon-cache.py`.
+    also used by the original `carbon-cache.py`.  Note that this only
+    applies to the defaults, when `listen` directives are in the config,
+    this setting is ignored.
 
   * `-w` *workers*:
     Use *workers* number of threads.  The default number of workers is

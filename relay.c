@@ -51,6 +51,7 @@ static int batchsize = 2500;
 static int queuesize = 25000;
 static int maxstalls = 4;
 static unsigned short iotimeout = 600;
+static unsigned short listenport = GRAPHITE_PORT;
 static int optimiserthreshold = 50;
 static int sockbufsize = 0;
 static int collector_interval = 60;
@@ -162,7 +163,7 @@ do_reload(void)
 	logout("reloading config from '%s'\n", config);
 	if ((newrtr = router_readconfig(NULL, config,
 					queuesize, batchsize, maxstalls,
-					iotimeout, sockbufsize)) == NULL)
+					iotimeout, sockbufsize, listenport)) == NULL)
 	{
 		logerr("failed to read configuration '%s', aborting reload\n", config);
 		return;
@@ -369,7 +370,6 @@ int
 main(int argc, char * const argv[])
 {
 	char id;
-	unsigned short listenport = GRAPHITE_PORT;
 	unsigned int listenbacklog = 32;
 	int ch;
 	size_t numaggregators;
@@ -701,7 +701,6 @@ main(int argc, char * const argv[])
 	if (relay_stdout != NULL) {
 		fprintf(relay_stdout, "configuration:\n");
 		fprintf(relay_stdout, "    relay hostname = %s\n", relay_hostname);
-		fprintf(relay_stdout, "    listen port = %u\n", listenport);
 		fprintf(relay_stdout, "    workers = %d\n", workercnt);
 		fprintf(relay_stdout, "    send batch size = %d\n", batchsize);
 		fprintf(relay_stdout, "    server queue size = %d\n", queuesize);
@@ -730,7 +729,7 @@ main(int argc, char * const argv[])
 
 	if ((rtr = router_readconfig(NULL, config,
 					queuesize, batchsize, maxstalls,
-					iotimeout, sockbufsize)) == NULL)
+					iotimeout, sockbufsize, listenport)) == NULL)
 	{
 		exit_err("failed to read configuration '%s'\n", config);
 	}
