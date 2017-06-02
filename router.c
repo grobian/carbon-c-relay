@@ -1216,30 +1216,30 @@ router_readconfig(router *orig,
 	if (orig == NULL) {
 		/* set defaults if absent */
 		if (ret->listeners == NULL) {
-			char buf[128];
+			char sockbuf[128];
 			char *ip;
 			int port;
 			void *saddrs;
 			void *hint;
 
-			snprintf(buf, sizeof(buf), ":%u", listenport);
+			snprintf(sockbuf, sizeof(sockbuf), ":%u", listenport);
 			router_validate_address(ret, &ip, &port, &saddrs, &hint,
-					buf, CON_TCP);
+					sockbuf, CON_TCP);
 			free(hint);
 			router_add_listener(ret, LSNR_LINE, W_PLAIN, CON_TCP,
 					ip, port, saddrs);
 
-			snprintf(buf, sizeof(buf), ":%u", listenport);
+			snprintf(sockbuf, sizeof(sockbuf), ":%u", listenport);
 			router_validate_address(ret, &ip, &port, &saddrs, &hint,
-					buf, CON_UDP);
+					sockbuf, CON_UDP);
 			free(hint);
 			router_add_listener(ret, LSNR_LINE, W_PLAIN, CON_UDP,
 					ip, port, saddrs);
 
-			snprintf(buf, sizeof(buf), "%s/%s.%u",
+			snprintf(sockbuf, sizeof(sockbuf), "%s/%s.%u",
 					TMPDIR, SOCKFILE, listenport);
 			router_add_listener(ret, LSNR_LINE, W_PLAIN, CON_UNIX,
-					buf, 0, NULL);
+					sockbuf, 0, NULL);
 		}
 	}
 
