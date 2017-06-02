@@ -331,7 +331,7 @@ router_validate_address(
 		char **retip, int *retport, void **retsaddr, void **rethint,
 		char *ip, serv_ctype proto)
 {
-	int port = 2003;
+	int port = GRAPHITE_PORT;
 	struct addrinfo *saddr = NULL;
 	struct addrinfo hint;
 	char sport[8];
@@ -1212,6 +1212,34 @@ router_readconfig(router *orig,
 	router_yylex_destroy(lptr);
 	ra_free(palloc);
 
+	if (orig == NULL) {
+		/* set defaults if absent */
+		if (ret->listeners == NULL) {
+			char buf[128];
+			char *ip;
+			int port;
+			void *saddrs;
+			void *hint;
+
+			snprintf(buf, sizeof(buf), ":%u", GRAPHITE_PORT);
+			router_validate_address(ret, &ip, &port, &saddrs, &hint,
+					buf, CON_TCP);
+			router_add_listener(ret, LSNR_LINE, W_PLAIN, CON_TCP,
+					ip, port, saddrs);
+
+			snprintf(buf, sizeof(buf), ":%u", GRAPHITE_PORT);
+			router_validate_address(ret, &ip, &port, &saddrs, &hint,
+					buf, CON_UDP);
+			router_add_listener(ret, LSNR_LINE, W_PLAIN, CON_UDP,
+					ip, port, saddrs);
+
+			snprintf(buf, sizeof(buf), "%s/%s.%u",
+					TMPDIR, SOCKFILE, GRAPHITE_PORT);
+			router_add_listener(ret, LSNR_LINE, W_PLAIN, CON_UNIX,
+					buf, 0, NULL);
+		}
+	}
+
 	return ret;
 }
 
@@ -1614,33 +1642,6 @@ router_printconfig(router *rtr, FILE *f, char pmode)
 	servers *s;
 
 	/* start with configuration wise standard components */
-	if (rtr->collector.interval > 0) {
-		fprintf(f, "statistics\n    submit every %d seconds\n",
-				rtr->collector.interval);
-		if (rtr->collector.mode == SUB)
-			fprintf(f, "    reset counters after interval\n");
-		fprintf(f, "    prefix with %s\n", rtr->collector.prefix);
-		if (rtr->collector.stub != NULL) {
-			fprintf(f, "    send to");
-			for (r = rtr->routes; r != NULL; r = r->next) {
-				if (r->dests->cl->type == STATSTUB) {
-					destinations *d = r->dests->cl->members.routes->dests;
-					if (d->next == NULL) {
-						fprintf(f, " %s", d->cl->name);
-					} else {
-						for ( ; d != NULL; d = d->next)
-							fprintf(f, "\n        %s", d->cl->name);
-					}
-					fprintf(f, "\n    stop\n");
-					break;
-				}
-			}
-		}
-		fprintf(f, "    ;\n");
-
-		fprintf(f, "\n");
-	}
-
 #define PPROTO \
 	server_ctype(s->server) == CON_UDP ? " proto udp" : ""
 
@@ -1672,6 +1673,32 @@ router_printconfig(router *rtr, FILE *f, char pmode)
 			}
 		}
 		fprintf(f, "    ;\n\n");
+	}
+	if (rtr->collector.interval > 0) {
+		fprintf(f, "statistics\n    submit every %d seconds\n",
+				rtr->collector.interval);
+		if (rtr->collector.mode == SUB)
+			fprintf(f, "    reset counters after interval\n");
+		fprintf(f, "    prefix with %s\n", rtr->collector.prefix);
+		if (rtr->collector.stub != NULL) {
+			fprintf(f, "    send to");
+			for (r = rtr->routes; r != NULL; r = r->next) {
+				if (r->dests->cl->type == STATSTUB) {
+					destinations *d = r->dests->cl->members.routes->dests;
+					if (d->next == NULL) {
+						fprintf(f, " %s", d->cl->name);
+					} else {
+						for ( ; d != NULL; d = d->next)
+							fprintf(f, "\n        %s", d->cl->name);
+					}
+					fprintf(f, "\n    stop\n");
+					break;
+				}
+			}
+		}
+		fprintf(f, "    ;\n");
+
+		fprintf(f, "\n");
 	}
 
 	for (c = rtr->clusters; c != NULL; c = c->next) {

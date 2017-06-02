@@ -183,10 +183,7 @@ do_reload(void)
 	lsnrs = router_get_listeners(rtr);
 	for ( ; lsnrs != NULL; lsnrs = lsnrs->next) {
 		if (!router_contains_listener(newrtr, lsnrs)) {
-			int *socks;
-			for (socks = lsnrs->socks; *socks != -1; socks++) {
-				dispatch_removelistener(*socks);
-			}
+			dispatch_removelistener(lsnrs);
 			shutdownclose(lsnrs);
 		}
 	}
@@ -258,26 +255,14 @@ do_reload(void)
 	lsnrs = router_get_listeners(newrtr);
 	for ( ; lsnrs != NULL; lsnrs = lsnrs->next) {
 		if (!router_contains_listener(rtr, lsnrs)) {
-			int *socks;
 			if (bindlisten(lsnrs, 32 /* FIXME */) != 0) {
 				logerr("failed to setup listener, "
 						"this will impact the behaviour of the relay\n");
 				continue;
 			}
-			if (lsnrs->ctype == CON_UDP) {
-				for (socks = lsnrs->socks; *socks != -1; socks++) {
-					if (dispatch_addlistener_udp(*socks) != 0) {
-						logerr("failed to listen to datagram socket, the "
-								"listener will not be effective\n");
-					}
-				}
-			} else {
-				for (socks = lsnrs->socks; *socks != -1; socks++) {
-					if (dispatch_addlistener(*socks) != 0) {
-						logerr("failed to listen to socket, the "
-								"listener will not be effective\n");
-					}
-				}
+			if (dispatch_addlistener(lsnrs) != 0) {
+				logerr("failed to listen to socket, the "
+						"listener will not be effective\n");
 			}
 		}
 	}
@@ -354,7 +339,8 @@ do_usage(char *name, int exitcode)
 	printf("Options:\n");
 	printf("  -v  print version and exit\n");
 	printf("  -f  read <config> for clusters and routes\n");
-	printf("  -p  listen on <port> for connections, defaults to 2003\n");
+	printf("  -p  listen on <port> for connections, defaults to %u\n",
+			GRAPHITE_PORT);
 	printf("  -i  listen on <interface> for connections, defaults to all\n");
 	printf("  -l  write output to <file>, defaults to stdout/stderr\n");
 	printf("  -w  use <workers> worker threads, defaults to %d\n", get_cores());
@@ -384,7 +370,7 @@ int
 main(int argc, char * const argv[])
 {
 	char id;
-	unsigned short listenport = 2003;
+	unsigned short listenport = GRAPHITE_PORT;
 	unsigned int listenbacklog = 32;
 	int ch;
 	size_t numaggregators;
@@ -821,22 +807,11 @@ main(int argc, char * const argv[])
 
 	lsnrs = router_get_listeners(rtr);
 	for ( ; lsnrs != NULL; lsnrs = lsnrs->next) {
-		int *socks;
 		if (bindlisten(lsnrs, listenbacklog) != 0) {
 			exit_err("failed to setup listener\n");
 		}
-		if (lsnrs->ctype == CON_UDP) {
-			for (socks = lsnrs->socks; *socks != -1; socks++) {
-				if (dispatch_addlistener_udp(*socks) != 0) {
-					exit_err("failed to listen to datagram socket\n");
-				}
-			}
-		} else {
-			for (socks = lsnrs->socks; *socks != -1; socks++) {
-				if (dispatch_addlistener(*socks) != 0) {
-					exit_err("failed to add listener\n");
-				}
-			}
+		if (dispatch_addlistener(lsnrs) != 0) {
+			exit_err("failed to add listener\n");
 		}
 	}
 	if ((workers[0] = dispatch_new_listener()) == NULL)

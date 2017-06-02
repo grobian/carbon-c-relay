@@ -30,12 +30,6 @@
 #include "relay.h"
 #include "router.h"
 
-#ifndef TMPDIR
-# define TMPDIR "/tmp"
-#endif
-
-#define SOCKFILE ".s.carbon-c-relay"
-
 
 static char
 bindlistenip(listener *lsnr, unsigned int backlog)
@@ -193,7 +187,7 @@ destroy_usock(listener *lsnr)
 {
 	close(lsnr->socks[0]);
 	unlink(lsnr->ip);
-	logout("closed listener for %s\n", lsnr->ip);
+	logout("removed listener for %s\n", lsnr->ip);
 }
 
 void

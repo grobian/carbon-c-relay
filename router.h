@@ -32,6 +32,12 @@
 
 #define CONN_DESTS_SIZE    64
 
+#ifndef TMPDIR
+# define TMPDIR "/tmp"
+#endif
+
+#define SOCKFILE ".s.carbon-c-relay"
+
 typedef enum { LSNR_LINE } rcptr_lsnrtype;
 typedef enum { W_PLAIN, W_GZIP, W_BZIP2, W_LZMA, W_SSL } rcptr_transport;
 

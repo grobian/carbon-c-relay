@@ -1918,7 +1918,7 @@ yyreduce:
 					YYERROR;
 				}
 				ret->ip = (*(char **)(&yyvsp[0]));
-				ret->port = 2003;
+				ret->port = GRAPHITE_PORT;
 				ret->saddr = NULL;
 				ret->hint = NULL;
 				ret->inst = NULL;

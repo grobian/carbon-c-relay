@@ -79,7 +79,7 @@ struct _dispatcher {
 	char *allowed_chars;
 };
 
-static connection **listeners = NULL;
+static listener **listeners = NULL;
 static connection *connections = NULL;
 static size_t connectionslen = 0;
 pthread_rwlock_t listenerslock = PTHREAD_RWLOCK_INITIALIZER;
@@ -119,14 +119,34 @@ dispatch_check_rlimit_and_warn(void)
  * Listener sockets are those which need to be accept()-ed on.
  */
 int
-dispatch_addlistener(int sock)
+dispatch_addlistener(listener *lsnr)
 {
-	connection *newconn;
 	int c;
+	int *socks;
+
+	if (lsnr->ctype == CON_UDP) {
+		/* Adds a pseudo-listener for datagram (UDP) sockets, which is
+		 * pseudo, for in fact it adds a new connection, but makes sure
+		 * that connection won't be closed after being idle, and won't
+		 * count that connection as an incoming connection either. */
+		for (socks = lsnr->socks; *socks != -1; socks++) {
+			c = dispatch_addconnection(*socks);
+
+			if (c == -1)
+				return 1;
+
+			connections[c].noexpire = 1;
+			connections[c].isudp = 1;
+			acceptedconnections--;
+		}
+
+		return 0;
+	}
 
 	pthread_rwlock_wrlock(&listenerslock);
 	if (listeners == NULL) {
-		if ((listeners = malloc(sizeof(connection *) * MAX_LISTENERS)) == NULL)
+		/* once all-or-nothing allocation */
+		if ((listeners = malloc(sizeof(listener *) * MAX_LISTENERS)) == NULL)
 		{
 			pthread_rwlock_unlock(&listenerslock);
 			return 1;
@@ -136,17 +156,9 @@ dispatch_addlistener(int sock)
 	}
 	for (c = 0; c < MAX_LISTENERS; c++) {
 		if (listeners[c] == NULL) {
-			newconn = malloc(sizeof(connection));
-			if (newconn == NULL) {
-				pthread_rwlock_unlock(&listenerslock);
-				return 1;
-			}
-			(void) fcntl(sock, F_SETFL, O_NONBLOCK);
-			newconn->sock = sock;
-			newconn->takenby = 0;
-			newconn->buflen = 0;
-
-			listeners[c] = newconn;
+			listeners[c] = lsnr;
+			for (socks = lsnr->socks; *socks != -1; socks++)
+				(void) fcntl(*socks, F_SETFL, O_NONBLOCK);
 			break;
 		}
 	}
@@ -167,15 +179,15 @@ dispatch_addlistener(int sock)
  * global lock.  Frequent usage of this function is not anticipated.
  */
 void
-dispatch_removelistener(int sock)
+dispatch_removelistener(listener *lsnr)
 {
 	int c;
-	connection *conn;
+	int *socks;
 
 	pthread_rwlock_wrlock(&listenerslock);
 	/* find connection */
 	for (c = 0; c < MAX_LISTENERS; c++)
-		if (listeners[c] != NULL && listeners[c]->sock == sock)
+		if (listeners[c] != NULL && listeners[c] == lsnr)
 			break;
 	if (c == MAX_LISTENERS) {
 		/* not found?!? */
@@ -184,9 +196,8 @@ dispatch_removelistener(int sock)
 		return;
 	}
 	/* cleanup */
-	conn = listeners[c];
-	close(conn->sock);
-	free(conn);
+	for (socks = lsnr->socks; *socks != -1; socks++)
+		close(*socks);
 	listeners[c] = NULL;
 	pthread_rwlock_unlock(&listenerslock);
 }
@@ -302,28 +313,6 @@ dispatch_addconnection_aggr(int sock)
 
 	return 0;
 }
-
-/**
- * Adds a pseudo-listener for datagram (UDP) sockets, which is pseudo,
- * for in fact it adds a new connection, but makes sure that connection
- * won't be closed after being idle, and won't count that connection as
- * an incoming connection either.
- */
-int
-dispatch_addlistener_udp(int sock)
-{
-	int conn = dispatch_addconnection(sock);
-
-	if (conn == -1)
-		return 1;
-
-	connections[conn].noexpire = 1;
-	connections[conn].isudp = 1;
-	acceptedconnections--;
-
-	return 0;
-}
-
 
 inline static char
 dispatch_process_dests(connection *conn, dispatcher *self, struct timeval now)
@@ -570,15 +559,18 @@ dispatch_runner(void *arg)
 	if (self->type == LISTENER) {
 		struct pollfd ufds[MAX_LISTENERS];
 		int fds;
+		int *sock;
 		while (__sync_bool_compare_and_swap(&(self->keep_running), 1, 1)) {
 			pthread_rwlock_rdlock(&listenerslock);
 			fds = 0;
 			for (c = 0; c < MAX_LISTENERS; c++) {
 				if (listeners[c] == NULL)
 					continue;
-				ufds[fds].fd = listeners[c]->sock;
-				ufds[fds].events = POLLIN;
-				fds++;
+				for (sock = listeners[c]->socks; *sock != -1; sock++) {
+					ufds[fds].fd = *sock;
+					ufds[fds].events = POLLIN;
+					fds++;
+				}
 			}
 			pthread_rwlock_unlock(&listenerslock);
 			if (poll(ufds, fds, 1000) > 0) {

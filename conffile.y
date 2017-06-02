@@ -281,7 +281,7 @@ cluster_path: crSTRING[path]
 					YYERROR;
 				}
 				ret->ip = $path;
-				ret->port = 2003;
+				ret->port = GRAPHITE_PORT;
 				ret->saddr = NULL;
 				ret->hint = NULL;
 				ret->inst = NULL;

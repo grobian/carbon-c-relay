@@ -23,6 +23,8 @@
 #include "allocator.h"
 #include "receptor.h"
 
+#define GRAPHITE_PORT 2003
+
 enum clusttype {
 	BLACKHOLE,  /* /dev/null-like destination */
 	GROUP,      /* pseudo type to create a matching tree */
