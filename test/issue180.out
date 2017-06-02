@@ -1,3 +1,10 @@
+listen
+    linemode
+        2003 proto tcp
+        2003 proto udp
+        /tmp/.s.carbon-c-relay.2003 proto unix
+    ;
+
 statistics
     submit every 60 seconds
     prefix with carbon.relays.test_hostname
