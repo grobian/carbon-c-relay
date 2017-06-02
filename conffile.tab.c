@@ -686,8 +686,8 @@ static const yytype_uint16 yyrline[] =
      643,   644,   649,   650,   651,   654,   658,   659,   661,   676,
      677,   678,   679,   680,   681,   682,   692,   693,   696,   697,
      702,   717,   742,   743,   754,   755,   758,   759,   764,   781,
-     805,   806,   816,   826,   836,   848,   851,   852,   855,   888,
-     910,   911,   916
+     805,   806,   816,   826,   836,   848,   851,   852,   855,   889,
+     911,   912,   917
 };
 #endif
 
@@ -2777,13 +2777,14 @@ yyreduce:
 						ralloc, palloc, err);
 				YYERROR;
 			}
+			free(hint);
 			(*(struct _rcptr **)(&yyval))->next = NULL;
 		}
-#line 2783 "conffile.tab.c" /* yacc.c:1646  */
+#line 2784 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 109:
-#line 889 "conffile.y" /* yacc.c:1646  */
+#line 890 "conffile.y" /* yacc.c:1646  */
     {
 			char *err;
 
@@ -2803,32 +2804,32 @@ yyreduce:
 			}
 			(*(struct _rcptr **)(&yyval))->next = NULL;
 		}
-#line 2807 "conffile.tab.c" /* yacc.c:1646  */
+#line 2808 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 110:
-#line 910 "conffile.y" /* yacc.c:1646  */
+#line 911 "conffile.y" /* yacc.c:1646  */
     { (*(serv_ctype*)(&yyval)) = CON_TCP; }
-#line 2813 "conffile.tab.c" /* yacc.c:1646  */
+#line 2814 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 111:
-#line 911 "conffile.y" /* yacc.c:1646  */
+#line 912 "conffile.y" /* yacc.c:1646  */
     { (*(serv_ctype*)(&yyval)) = CON_UDP; }
-#line 2819 "conffile.tab.c" /* yacc.c:1646  */
+#line 2820 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 112:
-#line 917 "conffile.y" /* yacc.c:1646  */
+#line 918 "conffile.y" /* yacc.c:1646  */
     {
 	   	if (router_readconfig(rtr, (*(char **)(&yyvsp[0])), 0, 0, 0, 0, 0, 0) == NULL)
 			YYERROR;
 	   }
-#line 2828 "conffile.tab.c" /* yacc.c:1646  */
+#line 2829 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
 
-#line 2832 "conffile.tab.c" /* yacc.c:1646  */
+#line 2833 "conffile.tab.c" /* yacc.c:1646  */
       default: break;
     }
   /* User semantic actions sometimes alter yychar, and that requires

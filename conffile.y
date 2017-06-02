@@ -883,6 +883,7 @@ receptor: crSTRING[ip] crPROTO rcptr_proto[prot]
 						ralloc, palloc, err);
 				YYERROR;
 			}
+			free(hint);
 			$$->next = NULL;
 		}
 		| crSTRING[path] crPROTO crUNIX

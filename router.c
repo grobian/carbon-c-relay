@@ -1225,12 +1225,14 @@ router_readconfig(router *orig,
 			snprintf(buf, sizeof(buf), ":%u", listenport);
 			router_validate_address(ret, &ip, &port, &saddrs, &hint,
 					buf, CON_TCP);
+			free(hint);
 			router_add_listener(ret, LSNR_LINE, W_PLAIN, CON_TCP,
 					ip, port, saddrs);
 
 			snprintf(buf, sizeof(buf), ":%u", listenport);
 			router_validate_address(ret, &ip, &port, &saddrs, &hint,
 					buf, CON_UDP);
+			free(hint);
 			router_add_listener(ret, LSNR_LINE, W_PLAIN, CON_UDP,
 					ip, port, saddrs);
 
