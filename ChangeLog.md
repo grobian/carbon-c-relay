@@ -4,6 +4,8 @@
 
 * The deprecated `-S` and `-m` options were removed.  Use the
   `statistics` configuration file construct instead.
+* The `-i` option was removed.  Use tue `listen` configuration file
+  construct instead.
 
 ### New Features
 
@@ -11,6 +13,8 @@
   exit immediately.  In this mode, any standard output is suppressed as
   well.
   [Issue #247](https://github.com/grobian/carbon-c-relay/issues/247)
+* **relay** the `listen` construct was added to precisely control listen
+  ports and protocols.
 
 ### Bugfixes
 
