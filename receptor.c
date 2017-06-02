@@ -114,7 +114,7 @@ bindlistenip(listener *lsnr, unsigned int backlog)
 static char
 bindlistenunix(listener *lsnr, unsigned int backlog)
 {
-	struct sockaddr_un server;
+	struct sockaddr_un srvr;
 	int sock;
 
 #ifndef PF_LOCAL
@@ -128,12 +128,12 @@ bindlistenunix(listener *lsnr, unsigned int backlog)
 	lsnr->socks[0] = sock;
 	lsnr->socks[1] = -1;
 
-	memset(&server, 0, sizeof(struct sockaddr_un));
-	server.sun_family = PF_LOCAL;
-	strncpy(server.sun_path, lsnr->ip, sizeof(server.sun_path) - 1);
+	memset(&srvr, 0, sizeof(struct sockaddr_un));
+	srvr.sun_family = PF_LOCAL;
+	strncpy(srvr.sun_path, lsnr->ip, sizeof(srvr.sun_path) - 1);
 
 	unlink(lsnr->ip);  /* avoid address already in use */
-	if (bind(sock, (struct sockaddr *)&server,
+	if (bind(sock, (struct sockaddr *)&srvr,
 				sizeof(struct sockaddr_un)) < 0)
 	{
 		logerr("failed to bind for %s: %s\n", lsnr->ip, strerror(errno));
