@@ -80,12 +80,6 @@ These options control the behaviour of **carbon-c-relay**.
     clusters and routes.  See [CONFIGURATION SYNTAX](#configuration-syntax)
     for more information on the options and syntax of this file.
 
-  * `-i` *iface*:
-    Open up connections on interface *iface*.  Currently only one
-    interface can be specified, and it is specified by its IP address, not
-    the interface name.  By default, the relay opens listeners on all
-    available interfaces (a.k.a. `0.0.0.0`).
-
   * `-l` *log-file*:
     Use *log-file* for writing messages.  Without this option, the relay
     writes both to *stdout* and *stderr*.  When logging to file, all

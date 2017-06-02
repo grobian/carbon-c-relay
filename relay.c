@@ -341,7 +341,6 @@ do_usage(char *name, int exitcode)
 	printf("  -f  read <config> for clusters and routes\n");
 	printf("  -p  listen on <port> for connections, defaults to %u\n",
 			GRAPHITE_PORT);
-	printf("  -i  listen on <interface> for connections, defaults to all\n");
 	printf("  -l  write output to <file>, defaults to stdout/stderr\n");
 	printf("  -w  use <workers> worker threads, defaults to %d\n", get_cores());
 	printf("  -b  server send batch size, defaults to %d\n", batchsize);
@@ -374,7 +373,6 @@ main(int argc, char * const argv[])
 	unsigned int listenbacklog = 32;
 	int ch;
 	size_t numaggregators;
-	char *listeninterface = NULL;
 	char *allowed_chars = NULL;
 	char *pidfile = NULL;
 	FILE *pidfile_handle = NULL;
@@ -386,7 +384,7 @@ main(int argc, char * const argv[])
 	if (gethostname(relay_hostname, sizeof(relay_hostname)) < 0)
 		snprintf(relay_hostname, sizeof(relay_hostname), "127.0.0.1");
 
-	while ((ch = getopt(argc, argv, ":hvdstf:i:l:p:w:b:q:L:T:c:H:B:U:DP:O:")) != -1) {
+	while ((ch = getopt(argc, argv, ":hvdstf:l:p:w:b:q:L:T:c:H:B:U:DP:O:")) != -1) {
 		switch (ch) {
 			case 'v':
 				do_version();
@@ -414,9 +412,6 @@ main(int argc, char * const argv[])
 				break;
 			case 'f':
 				config = optarg;
-				break;
-			case 'i':
-				listeninterface = optarg;
 				break;
 			case 'l':
 				relay_logfile = optarg;
@@ -707,8 +702,6 @@ main(int argc, char * const argv[])
 		fprintf(relay_stdout, "configuration:\n");
 		fprintf(relay_stdout, "    relay hostname = %s\n", relay_hostname);
 		fprintf(relay_stdout, "    listen port = %u\n", listenport);
-		if (listeninterface != NULL)
-			fprintf(relay_stdout, "    listen interface = %s\n", listeninterface);
 		fprintf(relay_stdout, "    workers = %d\n", workercnt);
 		fprintf(relay_stdout, "    send batch size = %d\n", batchsize);
 		fprintf(relay_stdout, "    server queue size = %d\n", queuesize);
