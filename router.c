@@ -1222,6 +1222,7 @@ router_readconfig(router *orig,
 			void *saddrs;
 			void *hint;
 
+			hint = NULL;
 			snprintf(sockbuf, sizeof(sockbuf), ":%u", listenport);
 			router_validate_address(ret, &ip, &port, &saddrs, &hint,
 					sockbuf, CON_TCP);
@@ -1229,6 +1230,7 @@ router_readconfig(router *orig,
 			router_add_listener(ret, LSNR_LINE, W_PLAIN, CON_TCP,
 					ip, port, saddrs);
 
+			hint = NULL;
 			snprintf(sockbuf, sizeof(sockbuf), ":%u", listenport);
 			router_validate_address(ret, &ip, &port, &saddrs, &hint,
 					sockbuf, CON_UDP);
