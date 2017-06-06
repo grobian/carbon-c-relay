@@ -436,9 +436,9 @@ dispatch_connection(connection *conn, dispatcher *self, struct timeval start)
 						self->id, conn->sock, conn->metric);
 				__sync_add_and_fetch(&(self->blackholes),
 						router_route(self->rtr,
-						conn->dests, &conn->destlen, CONN_DESTS_SIZE,
-						conn->srcaddr,
-						conn->metric, firstspace, self->id));
+							conn->dests, &conn->destlen, CONN_DESTS_SIZE,
+							conn->srcaddr,
+							conn->metric, firstspace, self->id));
 				tracef("dispatcher %d, connfd %d, destinations %zd\n",
 						self->id, conn->sock, conn->destlen);
 
@@ -715,6 +715,12 @@ dispatch_new_connection(router *r, char *allowed_chars)
 {
 	char id = globalid++;
 	return dispatch_new(id, CONNECTION, r, allowed_chars);
+}
+
+inline char
+dispatch_last_id(void)
+{
+	return globalid;
 }
 
 /**

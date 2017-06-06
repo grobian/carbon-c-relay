@@ -32,6 +32,7 @@ int dispatch_addconnection_aggr(int sock);
 void dispatch_set_bufsize(unsigned int sockbufsize);
 dispatcher *dispatch_new_listener(void);
 dispatcher *dispatch_new_connection(router *r, char *allowed_chars);
+char dispatch_last_id(void);
 void dispatch_stop(dispatcher *d);
 void dispatch_shutdown(dispatcher *d);
 void dispatch_free(dispatcher *d);

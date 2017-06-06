@@ -39,6 +39,7 @@
 #include "allocator.h"
 #include "relay.h"
 #include "router.h"
+#include "dispatcher.h"
 #include "conffile.h"
 #include "conffile.tab.h"
 
@@ -88,13 +89,12 @@ router_free_intern(route *routes)
 {
 	/* the only thing that isn't allocated using the allocators are the
 	 * regexes */
-	int i;
 	while (routes != NULL) {
 		if (routes->matchtype == REGEX) {
-			int regex_count = workercnt + 1;
-			for(i = 0; i < regex_count; ++i)
+			int i;
+			char cnt = dispatch_last_id();
+			for(i = 0; i < cnt; i++)
 				regfree(&routes->rule[i]);
-			free(routes->rule);
 		}
 
 		if (routes->next == NULL || routes->next->dests != routes->dests) {
@@ -191,19 +191,18 @@ determine_if_regex(allocator *a, route *r, char *pat)
 		r->pattern = ra_strdup(a, pat);
 	} else {
 		int i;
-		int regex_count = workercnt + 1;
-		r->rule = malloc(sizeof(*r->rule) * regex_count);
+		char wcnt = dispatch_last_id();
+		int ret;
+
+		r->rule = ra_malloc(a, sizeof(*r->rule) * wcnt);
 		if (r->rule == NULL) {
-			logerr("determine_if_regex: malloc failed for regular expressions\n");
-			return 0;
+			logerr("determine_if_regex: malloc failed for "
+					"regular expressions\n");
+			return REG_ESPACE;  /* lie closest to the truth */
 		}
-		for(i = 0; i < regex_count; ++i) {
-			int ret = regcomp(&r->rule[i], pat, REG_EXTENDED);
-			if (ret != 0)
-				return ret;  /* allow use of regerror */
-		}
-		r->strmatch = NULL;
-		r->pattern = ra_strdup(a, pat);
+		ret = regcomp(&r->rule[0], pat, REG_EXTENDED);
+		if (ret != 0)
+			return ret;  /* allow use of regerror */
 		if (r->rule[0].re_nsub > 0) {
 			/* we need +1 because position 0 contains the entire
 			 * expression */
@@ -211,9 +210,21 @@ determine_if_regex(allocator *a, route *r, char *pat)
 			if (r->nmatch > RE_MAX_MATCHES) {
 				logerr("determine_if_regex: too many match groups, "
 						"please increase RE_MAX_MATCHES in router.h\n");
+				regfree(&r->rule[0]);
 				return REG_ESPACE;  /* lie closest to the truth */
 			}
 		}
+		for (i = 1; i < wcnt; i++) {
+			if (regcomp(&r->rule[i], pat, REG_EXTENDED) != 0) {
+				while (--i >= 0)
+					regfree(&r->rule[i]);
+				logerr("determine_if_regex: out of memory allocating "
+						"regexes\n");
+				return REG_ESPACE;  /* lie closest to the truth */
+			}
+		}
+		r->strmatch = NULL;
+		r->pattern = ra_strdup(a, pat);
 	}
 
 	return 0;
@@ -478,9 +489,6 @@ router_validate_expression(router *rtr, route **retr, char *pat)
 		r->matchtype = MATCHALL;
 	} else {
 		int err = determine_if_regex(rtr->a, r, pat);
-		if (err == 0 && r->matchtype == REGEX && r->rule == NULL) {
-			return ra_strdup(rtr->a, "Unable to allocate space for compiled regular expressions");
-		}
 		if (err != 0) {
 			char ebuf[512];
 			size_t s = snprintf(ebuf, sizeof(ebuf),
@@ -2661,7 +2669,7 @@ router_route(
  * triggered.  Useful for testing regular expressions.
  */
 static char
-router_test_intern(char *metric, char *firstspace, route *routes, int dispatcher_id)
+router_test_intern(char *metric, char *firstspace, route *routes)
 {
 	route *w;
 	destinations *d;
@@ -2679,11 +2687,10 @@ router_test_intern(char *metric, char *firstspace, route *routes, int dispatcher
 			gotmatch |= router_test_intern(
 					metric,
 					firstspace,
-					w->dests->cl->members.routes,
-					dispatcher_id);
+					w->dests->cl->members.routes);
 			if (gotmatch & 2)
 				break;
-		} else if (router_metric_matches(w, metric, firstspace, pmatch, dispatcher_id)) {
+		} else if (router_metric_matches(w, metric, firstspace, pmatch, 0)) {
 			gotmatch = 1;
 			switch (w->dests->cl->type) {
 				case AGGREGATION:
@@ -2697,8 +2704,7 @@ router_test_intern(char *metric, char *firstspace, route *routes, int dispatcher
 					gotmatch |= router_test_intern(
 							metric + strlen(w->pattern),
 							firstspace,
-							w->dests->cl->members.routes,
-							dispatcher_id);
+							w->dests->cl->members.routes);
 					return gotmatch;
 				}	break;
 				default:
@@ -2797,8 +2803,7 @@ router_test_intern(char *metric, char *firstspace, route *routes, int dispatcher
 								gotmatch |= router_test_intern(
 										newmetric,
 										newfirstspace,
-										routes,
-										dispatcher_id);
+										routes);
 							}
 						}
 						if (mode & MODE_DEBUG) {
@@ -2930,7 +2935,7 @@ router_test_intern(char *metric, char *firstspace, route *routes, int dispatcher
 									firstspace + 1,
 									lastspc,
 									pmatch,
-									dispatcher_id))
+									0))
 						{
 							fprintf(stdout, "        match\n");
 						} else {
@@ -2965,7 +2970,7 @@ router_test(router *rtr, char *metric)
 	for (firstspace = metric; *firstspace != '\0'; firstspace++)
 		if (*firstspace == ' ')
 			break;
-	if (!router_test_intern(metric, firstspace, rtr->routes, 0)) {
+	if (!router_test_intern(metric, firstspace, rtr->routes)) {
 		*firstspace = '\0';
 		fprintf(stdout, "nothing matched %s\n", metric);
 	}
