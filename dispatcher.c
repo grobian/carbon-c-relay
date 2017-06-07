@@ -693,16 +693,13 @@ dispatch_set_bufsize(unsigned int nsockbufsize)
 	sockbufsize = nsockbufsize;
 }
 
-static char globalid = 0;
-
 /**
  * Starts a new dispatcher specialised in handling incoming connections
  * (and putting them on the queue for handling the connections).
  */
 dispatcher *
-dispatch_new_listener(void)
+dispatch_new_listener(char id)
 {
-	char id = globalid++;
 	return dispatch_new(id, LISTENER, NULL, NULL);
 }
 
@@ -711,16 +708,9 @@ dispatch_new_listener(void)
  * existing connections.
  */
 dispatcher *
-dispatch_new_connection(router *r, char *allowed_chars)
+dispatch_new_connection(char id, router *r, char *allowed_chars)
 {
-	char id = globalid++;
 	return dispatch_new(id, CONNECTION, r, allowed_chars);
-}
-
-inline char
-dispatch_last_id(void)
-{
-	return globalid;
 }
 
 /**

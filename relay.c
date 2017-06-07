@@ -790,7 +790,8 @@ main(int argc, char * const argv[])
 		exit_err("failed to ignore SIGPIPE: %s\n", strerror(errno));
 	}
 
-	workers = malloc(sizeof(dispatcher *) * (1 + workercnt + 1));
+	workers = malloc(sizeof(dispatcher *) *
+			(1/*lsnr*/ + workercnt + 1/*sentinel*/));
 	if (workers == NULL) {
 		exit_err("failed to allocate memory for workers\n");
 	}
@@ -806,20 +807,21 @@ main(int argc, char * const argv[])
 			exit_err("failed to add listener\n");
 		}
 	}
-	if ((workers[0] = dispatch_new_listener()) == NULL)
+	/* ensure the listener id is at the end for regex_t array hack */
+	if ((workers[0] = dispatch_new_listener(workercnt)) == NULL)
 		logerr("failed to add listener dispatcher\n");
 
 	if (allowed_chars == NULL)
 		allowed_chars = "-_:#";
 	logout("starting %d workers\n", workercnt);
-	for (id = 1; id < 1 + workercnt; id++) {
-		workers[id + 0] = dispatch_new_connection(rtr, allowed_chars);
-		if (workers[id + 0] == NULL) {
+	for (id = 0; id < workercnt; id++) {
+		workers[id + 1] = dispatch_new_connection(id, rtr, allowed_chars);
+		if (workers[id + 1] == NULL) {
 			logerr("failed to add worker %d\n", id);
 			break;
 		}
 	}
-	workers[id + 0] = NULL;
+	workers[id + 0] = NULL;  /* sentinel */
 	if (id < 1 + workercnt) {
 		logerr("shutting down due to errors\n");
 		keep_running = 0;
