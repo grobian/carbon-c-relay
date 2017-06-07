@@ -2822,7 +2822,7 @@ yyreduce:
   case 112:
 #line 918 "conffile.y" /* yacc.c:1646  */
     {
-	   	if (router_readconfig(rtr, (*(char **)(&yyvsp[0])), 0, 0, 0, 0, 0, 0) == NULL)
+	   	if (router_readconfig(rtr, (*(char **)(&yyvsp[0])), 0, 0, 0, 0, 0, 0, 0) == NULL)
 			YYERROR;
 	   }
 #line 2829 "conffile.tab.c" /* yacc.c:1646  */

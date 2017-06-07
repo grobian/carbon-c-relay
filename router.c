@@ -39,7 +39,6 @@
 #include "allocator.h"
 #include "relay.h"
 #include "router.h"
-#include "dispatcher.h"
 #include "conffile.h"
 #include "conffile.tab.h"
 
@@ -62,6 +61,7 @@ struct _router {
 		size_t stop;
 	} parser_err;
 	struct _router_conf {
+		char workercnt;
 		size_t queuesize;
 		size_t batchsize;
 		int maxstalls;
@@ -85,15 +85,14 @@ int router_yylex_destroy(void *);
  * Frees regexes from routes.
  */
 static void
-router_free_intern(route *routes)
+router_free_intern(route *routes, char workercnt)
 {
 	/* the only thing that isn't allocated using the allocators are the
 	 * regexes */
 	while (routes != NULL) {
 		if (routes->matchtype == REGEX) {
 			int i;
-			char cnt = dispatch_last_id();
-			for(i = 0; i < cnt; i++)
+			for(i = 0; i < workercnt; i++)
 				regfree(&routes->rule[i]);
 		}
 
@@ -102,10 +101,12 @@ router_free_intern(route *routes)
 				if (routes->dests->cl->type == GROUP ||
 						routes->dests->cl->type == AGGRSTUB ||
 						routes->dests->cl->type == STATSTUB)
-					router_free_intern(routes->dests->cl->members.routes);
+					router_free_intern(routes->dests->cl->members.routes,
+							workercnt);
 				if (routes->dests->cl->type == VALIDATION)
 					router_free_intern(
-							routes->dests->cl->members.validation->rule);
+							routes->dests->cl->members.validation->rule,
+							workercnt);
 
 				routes->dests = routes->dests->next;
 			}
@@ -119,7 +120,7 @@ router_free_intern(route *routes)
  * Examines pattern and sets matchtype and rule or strmatch in route.
  */
 static inline int
-determine_if_regex(allocator *a, route *r, char *pat)
+determine_if_regex(allocator *a, char workercnt, route *r, char *pat)
 {
 	/* try and see if we can avoid using a regex match, for
 	 * it is simply very slow/expensive to do so: most of
@@ -191,10 +192,9 @@ determine_if_regex(allocator *a, route *r, char *pat)
 		r->pattern = ra_strdup(a, pat);
 	} else {
 		int i;
-		char wcnt = dispatch_last_id();
 		int ret;
 
-		r->rule = ra_malloc(a, sizeof(*r->rule) * wcnt);
+		r->rule = ra_malloc(a, sizeof(*r->rule) * workercnt);
 		if (r->rule == NULL) {
 			logerr("determine_if_regex: malloc failed for "
 					"regular expressions\n");
@@ -214,7 +214,7 @@ determine_if_regex(allocator *a, route *r, char *pat)
 				return REG_ESPACE;  /* lie closest to the truth */
 			}
 		}
-		for (i = 1; i < wcnt; i++) {
+		for (i = 1; i < workercnt; i++) {
 			if (regcomp(&r->rule[i], pat, REG_EXTENDED) != 0) {
 				while (--i >= 0)
 					regfree(&r->rule[i]);
@@ -488,7 +488,7 @@ router_validate_expression(router *rtr, route **retr, char *pat)
 		r->strmatch = NULL;
 		r->matchtype = MATCHALL;
 	} else {
-		int err = determine_if_regex(rtr->a, r, pat);
+		int err = determine_if_regex(rtr->a, rtr->conf.workercnt, r, pat);
 		if (err != 0) {
 			char ebuf[512];
 			size_t s = snprintf(ebuf, sizeof(ebuf),
@@ -1033,6 +1033,7 @@ router_set_statistics(router *rtr, destinations *dsts)
 router *
 router_readconfig(router *orig,
 		const char *path,
+		char workercnt,
 		size_t queuesize,
 		size_t batchsize,
 		int maxstalls,
@@ -1083,7 +1084,7 @@ router_readconfig(router *orig,
 		ret = orig;
 		for (i = 0; i < globbuf.gl_pathc; i++) {
 			globpath = globbuf.gl_pathv[i];
-			ret = router_readconfig(ret, globpath, queuesize,
+			ret = router_readconfig(ret, globpath, workercnt, queuesize,
 					batchsize, maxstalls, iotimeout, sockbufsize, listenport);
 			if (ret == NULL) {
 				/* readconfig will have freed when it found the error */
@@ -1134,6 +1135,7 @@ router_readconfig(router *orig,
 
 		ret->listeners = NULL;
 
+		ret->conf.workercnt = workercnt;
 		ret->conf.queuesize = queuesize;
 		ret->conf.batchsize = batchsize;
 		ret->conf.maxstalls = maxstalls;
@@ -2149,7 +2151,7 @@ router_free(router *rtr)
 {
 	servers *s;
 
-	router_free_intern(rtr->routes);
+	router_free_intern(rtr->routes, rtr->conf.workercnt);
 
 	/* free all servers from the pool, in case of secondaries, the
 	 * previous call to router_shutdown made sure nothing references the

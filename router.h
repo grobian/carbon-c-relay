@@ -62,7 +62,7 @@ typedef enum { SUB, CUM } col_mode;
 
 #define RE_MAX_MATCHES     64
 
-router *router_readconfig(router *orig, const char *path, size_t queuesize, size_t batchsize, int maxstalls, unsigned short iotimeout, unsigned int sockbufsize, unsigned short port);
+router *router_readconfig(router *orig, const char *path, char workercnt, size_t queuesize, size_t batchsize, int maxstalls, unsigned short iotimeout, unsigned int sockbufsize, unsigned short port);
 void router_optimise(router *r, int threshold);
 char router_printdiffs(router *old, router *new, FILE *out);
 char router_contains_listener(router *rtr, listener *lsnr);

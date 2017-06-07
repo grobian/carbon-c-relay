@@ -161,7 +161,7 @@ do_reload(void)
 	}
 
 	logout("reloading config from '%s'\n", config);
-	if ((newrtr = router_readconfig(NULL, config,
+	if ((newrtr = router_readconfig(NULL, config, workercnt,
 					queuesize, batchsize, maxstalls,
 					iotimeout, sockbufsize, listenport)) == NULL)
 	{
@@ -727,7 +727,7 @@ main(int argc, char * const argv[])
 		fprintf(relay_stdout, "\n");
 	}
 
-	if ((rtr = router_readconfig(NULL, config,
+	if ((rtr = router_readconfig(NULL, config, workercnt,
 					queuesize, batchsize, maxstalls,
 					iotimeout, sockbufsize, listenport)) == NULL)
 	{
