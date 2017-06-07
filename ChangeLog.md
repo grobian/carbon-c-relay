@@ -24,6 +24,8 @@
   incorrect hash when using aggregate function
 * [Issue #267](https://github.com/grobian/carbon-c-relay/issues/267)
   segmentation fault when trying to use a file cluster
+* [PR #273](https://github.com/grobian/carbon-c-relay/pull/273)
+  regex matching slow on glibc due to lock contention
 
 
 # 3.1 (29-04-2017)
