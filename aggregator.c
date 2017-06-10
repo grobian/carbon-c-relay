@@ -339,6 +339,82 @@ cmp_entry(const void *l, const void *r)
 	return *(const double *)l - *(const double *)r;
 }
 
+static inline void
+write_metric(
+		aggregator *s,
+		struct _aggr_bucket *b,
+		struct _aggr_computes *c,
+		struct _aggr_invocations *inv,
+		long long int ts)
+{
+	char metric[METRIC_BUFSIZ];
+	double *values;
+	size_t len = 0;
+	int k;
+
+	switch (c->type) {
+		case SUM:
+			len = snprintf(metric, sizeof(metric),
+					"%s %f %lld\n", inv->metric, b->sum, ts);
+			break;
+		case CNT:
+			len = snprintf(metric, sizeof(metric),
+					"%s %zu %lld\n", inv->metric, b->cnt, ts);
+			break;
+		case MAX:
+			len = snprintf(metric, sizeof(metric),
+					"%s %f %lld\n", inv->metric, b->max, ts);
+			break;
+		case MIN:
+			len = snprintf(metric, sizeof(metric),
+					"%s %f %lld\n", inv->metric, b->min, ts);
+			break;
+		case AVG:
+			len = snprintf(metric, sizeof(metric),
+					"%s %f %lld\n", inv->metric, b->sum / (double)b->cnt, ts);
+			break;
+		case MEDN:
+			/* median == 50th percentile */
+		case PCTL:
+			/* nearest rank method */
+			k = (int)(((double)c->percentile/100.0 * (double)b->cnt) + 0.9);
+			values = b->entries.values;
+			/* TODO: lazy approach, in case of 1 (first/last) or 2
+			 * buckets distance we could do a forward run picking the
+			 * max entries and returning that iso sorting the full array */
+			qsort(values, b->cnt, sizeof(double), cmp_entry);
+			len = snprintf(metric, sizeof(metric),
+					"%s %f %lld\n", inv->metric, values[k - 1], ts);
+			break;
+		case VAR:
+		case SDEV: {
+			double avg = b->sum / (double)b->cnt;
+			double ksum = 0;
+			values = b->entries.values;
+			for (k = 0; k < b->cnt; k++)
+			   ksum += pow(values[k] - avg, 2);
+			ksum /= (double)b->cnt;
+			len = snprintf(metric, sizeof(metric), "%s %f %lld\n",
+				   inv->metric, c->type == VAR ? ksum : sqrt(ksum), ts);
+		}	break;
+		default:
+			assert(0);  /* for compiler (len) */
+	}
+	ts = write(s->fd, metric, len);
+	if (ts < 0) {
+		logerr("aggregator: failed to write to "
+				"pipe (fd=%d): %s\n",
+				s->fd, strerror(errno));
+		__sync_add_and_fetch(&s->dropped, 1);
+	} else if (ts < len) {
+		logerr("aggregator: uncomplete write on "
+				"pipe (fd=%d)\n", s->fd);
+		__sync_add_and_fetch(&s->dropped, 1);
+	} else {
+		__sync_add_and_fetch(&s->sent, 1);
+	}
+}
+
 /**
  * Checks if the oldest bucket should be expired, if so, sends out
  * computed aggregate metrics and moves the bucket to the end of the
@@ -358,10 +434,8 @@ aggregator_expire(void *sub)
 	double *values;
 	size_t len = 0;
 	int i;
-	size_t k;
 	unsigned char j;
 	int work;
-	char metric[METRIC_BUFSIZ];
 	char isempty;
 	long long int ts = 0;
 
@@ -372,7 +446,8 @@ aggregator_expire(void *sub)
 			/* send metrics for buckets that are completely past the
 			 * expiry time, unless we are shutting down, then send
 			 * metrics for all buckets that have completed */
-			now = time(NULL) + (__sync_bool_compare_and_swap(&keep_running, 1, 1) ? 0 : s->expire - s->interval);
+			now = time(NULL) + (__sync_bool_compare_and_swap(
+						&keep_running, 1, 1) ? 0 : s->expire - s->interval);
 			for (c = s->computes; c != NULL; c = c->next) {
 				pthread_rwlock_wrlock(&c->invlock);
 				for (i = 0; i < (1 << AGGR_HT_POW_SIZE); i++) {
@@ -380,7 +455,9 @@ aggregator_expire(void *sub)
 					isempty = 0;
 					for (inv = c->invocations_ht[i]; inv != NULL; ) {
 						while (inv->buckets[0].start +
-								(__sync_bool_compare_and_swap(&keep_running, 1, 1) ? inv->expire : s->expire) < now)
+								(__sync_bool_compare_and_swap(
+										&keep_running, 1, 1) ?
+								 		inv->expire : s->expire) < now)
 						{
 							/* yay, let's produce something cool */
 							b = &inv->buckets[0];
@@ -400,85 +477,7 @@ aggregator_expire(void *sub)
 									default:
 										assert(0);
 								}
-								switch (c->type) {
-									case SUM:
-										len = snprintf(metric, sizeof(metric),
-												"%s %f %lld\n",
-												inv->metric, b->sum, ts);
-										break;
-									case CNT:
-										len = snprintf(metric, sizeof(metric),
-												"%s %zu %lld\n",
-												inv->metric, b->cnt, ts);
-										break;
-									case MAX:
-										len = snprintf(metric, sizeof(metric),
-												"%s %f %lld\n",
-												inv->metric, b->max, ts);
-										break;
-									case MIN:
-										len = snprintf(metric, sizeof(metric),
-												"%s %f %lld\n",
-												inv->metric, b->min, ts);
-										break;
-									case AVG:
-										len = snprintf(metric, sizeof(metric),
-												"%s %f %lld\n",
-												inv->metric,
-												b->sum / (double)b->cnt, ts);
-										break;
-									case MEDN:
-										/* median == 50th percentile */
-									case PCTL:
-										/* nearest rank method */
-										k = (int)(((double)c->percentile/100.0 *
-														(double)b->cnt) + 0.9);
-										values = b->entries.values;
-										/* TODO: lazy approach, in case
-										 * of 1 (first/last) or 2 buckets
-										 * distance we could do a
-										 * forward run picking the max
-										 * entries and returning that
-										 * iso sorting the full array */
-										qsort(values, b->cnt,
-												sizeof(double), cmp_entry);
-										len = snprintf(metric, sizeof(metric),
-												"%s %f %lld\n",
-												inv->metric,
-												values[k - 1],
-												ts);
-										break;
-									case VAR:
-									case SDEV: {
-										double avg = b->sum / (double)b->cnt;
-										double ksum = 0;
-										values = b->entries.values;
-										for (k = 0; k < b->cnt; k++)
-											ksum += pow(values[k] - avg, 2);
-										ksum /= (double)b->cnt;
-										len = snprintf(metric, sizeof(metric),
-												"%s %f %lld\n",
-												inv->metric,
-												c->type == VAR ? ksum :
-													sqrt(ksum),
-												ts);
-									}	break;
-									default:
-									   assert(0);  /* for compiler (len) */
-								}
-								ts = write(s->fd, metric, len);
-								if (ts < 0) {
-									logerr("aggregator: failed to write to "
-											"pipe (fd=%d): %s\n",
-											s->fd, strerror(errno));
-									__sync_add_and_fetch(&s->dropped, 1);
-								} else if (ts < len) {
-									logerr("aggregator: uncomplete write on "
-											"pipe (fd=%d)\n", s->fd);
-									__sync_add_and_fetch(&s->dropped, 1);
-								} else {
-									__sync_add_and_fetch(&s->sent, 1);
-								}
+								write_metric(s, b, c, inv, ts);
 							}
 
 							/* move the bucket to the end, to make room for
