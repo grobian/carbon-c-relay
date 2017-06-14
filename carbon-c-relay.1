@@ -1,7 +1,7 @@
 .\" generated with Ronn/v0.7.3
 .\" http://github.com/rtomayko/ronn/tree/0.7.3
 .
-.TH "CARBON\-C\-RELAY" "1" "May 2017" "Graphite" "Graphite data collection and visualisation"
+.TH "CARBON\-C\-RELAY" "1" "June 2017" "Graphite" "Graphite data collection and visualisation"
 .
 .SH "NAME"
 \fBcarbon\-c\-relay\fR \- graphite relay, aggregator and rewriter
@@ -60,16 +60,12 @@ Deamonise into the background after startup\. This option requires \fB\-l\fR and
 Read configuration from \fIconfig\-file\fR\. A configuration consists of clusters and routes\. See \fICONFIGURATION SYNTAX\fR for more information on the options and syntax of this file\.
 .
 .TP
-\fB\-i\fR \fIiface\fR
-Open up connections on interface \fIiface\fR\. Currently only one interface can be specified, and it is specified by its IP address, not the interface name\. By default, the relay opens listeners on all available interfaces (a\.k\.a\. \fB0\.0\.0\.0\fR)\.
-.
-.TP
 \fB\-l\fR \fIlog\-file\fR
 Use \fIlog\-file\fR for writing messages\. Without this option, the relay writes both to \fIstdout\fR and \fIstderr\fR\. When logging to file, all messages are prefixed with \fBMSG\fR when they were sent to \fIstdout\fR, and \fBERR\fR when they were sent to \fIstderr\fR\.
 .
 .TP
 \fB\-p\fR \fIport\fR
-Listen for connections on port \fIport\fR\. The port number is used for both \fBTCP\fR, \fBUDP\fR and \fBUNIX sockets\fR\. In the latter case, the socket file contains the port number\. The port defaults to \fI2003\fR, which is also used by the original \fBcarbon\-cache\.py\fR\.
+Listen for connections on port \fIport\fR\. The port number is used for both \fBTCP\fR, \fBUDP\fR and \fBUNIX sockets\fR\. In the latter case, the socket file contains the port number\. The port defaults to \fI2003\fR, which is also used by the original \fBcarbon\-cache\.py\fR\. Note that this only applies to the defaults, when \fBlisten\fR directives are in the config, this setting is ignored\.
 .
 .TP
 \fB\-w\fR \fIworkers\fR
@@ -89,11 +85,11 @@ Sets the max mount of stalls to \fIstalls\fR before the relay starts dropping me
 .
 .TP
 \fB\-B\fR \fIbacklog\fR
-Sets TCP connection listen backlog to \fIbacklog\fR connections\. The default value is \fI3\fR but on servers which receive many concurrent connections, this setting likely needs to be increased to avoid connection refused errors on the clients\.
+Sets TCP connection listen backlog to \fIbacklog\fR connections\. The default value is \fI32\fR but on servers which receive many concurrent connections, this setting likely needs to be increased to avoid connection refused errors on the clients\.
 .
 .TP
 \fB\-U\fR \fIbufsize\fR
-Sets the socket send/receive buffer sizes in bytes\. When unset, the OS default is used\. The maximum is also determined by the OS\. The sizes are set using setsockopt with the flags SO_RCVBUF and SO_SNDBUF\. Setting this size may be necessary for large volume scenarios, for which also \fB\-B\fR might apply\.
+Sets the socket send/receive buffer sizes in bytes, for both TCP and UDP scenarios\. When unset, the OS default is used\. The maximum is also determined by the OS\. The sizes are set using setsockopt with the flags SO_RCVBUF and SO_SNDBUF\. Setting this size may be necessary for large volume scenarios, for which also \fB\-B\fR might apply\. Checking the \fIRecv\-Q\fR and the \fIreceive errors\fR values from \fInetstat\fR gives a good hint about buffer usage\.
 .
 .TP
 \fB\-T\fR \fItimeout\fR

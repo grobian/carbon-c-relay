@@ -133,7 +133,7 @@ These options control the behaviour of **carbon-c-relay**.
 
   * `-B` *backlog*:
     Sets TCP connection listen backlog to *backlog* connections.  The
-    default value is *3* but on servers which receive many concurrent
+    default value is *32* but on servers which receive many concurrent
     connections, this setting likely needs to be increased to avoid
     connection refused errors on the clients.
 
