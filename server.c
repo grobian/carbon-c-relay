@@ -399,6 +399,16 @@ server_queuereader(void *d)
 								&args, sizeof(args)) != 0)
 						; /* ignore */
 
+#ifdef TCP_USER_TIMEOUT
+					/* break out of connections when no ACK is being received for
+					 * +- 10 seconds instead of retransmitting for +- 15 minutes
+					 * available on linux >= 2.6.37 */
+					args = 10000 + (rand() % 300);
+					if (setsockopt(self->fd, IPPROTO_TCP, TCP_USER_TIMEOUT,
+								&args, sizeof(args)) != 0)
+						; /* ignore */
+#endif
+
 					/* if we reached up here, we're good to go, so don't
 					 * continue with the other addrinfos */
 					break;
