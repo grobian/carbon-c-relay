@@ -242,10 +242,10 @@ dispatch_addconnection(int sock)
 			return -1;
 		}
 
-		memset(&newlst[connectionslen], '\0',
-				sizeof(connection) * CONNGROWSZ);
-		for (c = connectionslen; c < connectionslen + CONNGROWSZ; c++)
+		for (c = connectionslen; c < connectionslen + CONNGROWSZ; c++) {
+			memset(&newlst[c], '\0', sizeof(connection));
 			newlst[c].takenby = -1;  /* free */
+		}
 		connections = newlst;
 		c = connectionslen;  /* for the setup code below */
 		newlst[c].takenby = -2;
