@@ -31,7 +31,7 @@ script:
   - |
     if [[ -z ${COVERITY_SCAN_PROJECT_NAME} ]] ; then
       make CFLAGS="-O3 -Wall -Werror -Wshadow -pipe" check
-    else
+    elif [[ -n ${COVERITY_SCAN_TOKEN} ]] ; then
       curl -s 'https://scan.coverity.com/scripts/travisci_build_coverity_scan.sh' | bash
     fi
 
