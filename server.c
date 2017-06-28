@@ -400,9 +400,12 @@ server_queuereader(void *d)
 						; /* ignore */
 
 #ifdef TCP_USER_TIMEOUT
-					/* break out of connections when no ACK is being received for
-					 * +- 10 seconds instead of retransmitting for +- 15 minutes
-					 * available on linux >= 2.6.37 */
+					/* break out of connections when no ACK is being
+					 * received for +- 10 seconds instead of
+					 * retransmitting for +- 15 minutes available on
+					 * linux >= 2.6.37
+					 * the 10 seconds is in line with the SO_SNDTIMEO
+					 * set on the socket below */
 					args = 10000 + (rand() % 300);
 					if (setsockopt(self->fd, IPPROTO_TCP, TCP_USER_TIMEOUT,
 								&args, sizeof(args)) != 0)
