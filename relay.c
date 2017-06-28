@@ -510,7 +510,7 @@ main(int argc, char * const argv[])
 							"expected %lu\n", len, sizeof(sockbufsize));
 					exit(1);
 				}
-				if (sockbufsize != (unsigned int)val)
+				if (sockbufsize > (unsigned int)val)
 					fprintf(stderr, "warning: OS rejected socket bufsize\n");
 				if (sock != -1)
 					close(sock);

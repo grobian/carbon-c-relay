@@ -26,6 +26,8 @@
   segmentation fault when trying to use a file cluster
 * [PR #273](https://github.com/grobian/carbon-c-relay/pull/273)
   regex matching slow on glibc due to lock contention
+* [Issue #287](https://github.com/grobian/carbon-c-relay/issues/287)
+  unexpected warning about rejected socket bufsize
 
 
 # 3.1 (29-04-2017)
