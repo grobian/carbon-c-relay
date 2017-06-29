@@ -392,6 +392,7 @@ CRTESTS = \
 	issue253 \
 	issue263 \
 	issue267 \
+	issue288 \
 	$(NULL)
 
 all: config.h
