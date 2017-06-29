@@ -821,8 +821,8 @@ main(int argc, char * const argv[])
 			break;
 		}
 	}
-	workers[id + 0] = NULL;  /* sentinel */
-	if (id < 1 + workercnt) {
+	workers[id + 1] = NULL;  /* sentinel */
+	if (id < workercnt) {
 		logerr("shutting down due to errors\n");
 		keep_running = 0;
 	}
