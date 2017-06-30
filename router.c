@@ -2543,7 +2543,8 @@ router_route_intern(
 								d->cl->members.ch->ring,
 								d->cl->members.ch->repl_factor,
 								w->masq ? newmetric : metric,
-								w->masq ? newfirstspace : firstspace);
+								w->masq ? newfirstspace : firstspace,
+								metric);
 						*curlen += d->cl->members.ch->repl_factor;
 						wassent = 1;
 					}	break;
@@ -2898,7 +2899,8 @@ router_test_intern(char *metric, char *firstspace, route *routes)
 								d->cl->members.ch->ring,
 								d->cl->members.ch->repl_factor,
 								w->masq ? newmetric : metric,
-								w->masq ? newfirstspace : firstspace);
+								w->masq ? newfirstspace : firstspace,
+								metric);
 						for (i = 0; i < d->cl->members.ch->repl_factor; i++) {
 							fprintf(stdout, "        %s:%d\n",
 									serverip(dst[i].dest),

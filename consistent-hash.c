@@ -303,7 +303,8 @@ ch_get_nodes(
 		ch_ring *ring,
 		const char replcnt,
 		const char *metric,
-		const char *firstspace)
+		const char *firstspace,
+                const char *realmetric)
 {
 	unsigned short pos = 0;
 	int i, j, t;
@@ -403,7 +404,7 @@ ch_get_nodes(
 			continue;
 		}
 		ret[i].dest = ring->entrylist[t].server;
-		ret[i].metric = strdup(metric);
+		ret[i].metric = strdup(realmetric);
 	}
 }
 
