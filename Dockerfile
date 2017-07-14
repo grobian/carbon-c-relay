@@ -1,6 +1,6 @@
 FROM alpine:3.6
 
-MAINTAINER Tim Ehlers <ehlerst@gmail.com>
+MAINTAINER Fabian Groffen
 
 RUN mkdir -p /opt/carbon-c-relay-build
 
