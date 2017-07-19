@@ -333,7 +333,6 @@ ch_get_nodes(
 				j = jump_bucketpos(hash, i);
 
 				(*ret).dest = bcklst[j];
-				(*ret).metric = strdup(metric);
 				ret++;
 
 				if (--pos == 0)
@@ -403,7 +402,6 @@ ch_get_nodes(
 			continue;
 		}
 		ret[i].dest = ring->entrylist[t].server;
-		ret[i].metric = strdup(metric);
 	}
 }
 

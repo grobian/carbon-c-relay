@@ -2521,6 +2521,7 @@ router_route_intern(
 					case CARBON_CH:
 					case FNV1A_CH:
 					case JUMP_CH: {
+						size_t i;
 						/* let the ring(bearer) decide */
 						failif(retsize,
 								*curlen + d->cl->members.ch->repl_factor);
@@ -2544,7 +2545,8 @@ router_route_intern(
 								d->cl->members.ch->repl_factor,
 								w->masq ? newmetric : metric,
 								w->masq ? newfirstspace : firstspace);
-						*curlen += d->cl->members.ch->repl_factor;
+						for (i = 0; i < d->cl->members.ch->repl_factor; i++)
+							ret[(*curlen)++].metric = strdup(metric);
 						wassent = 1;
 					}	break;
 					case AGGREGATION: {
@@ -2903,7 +2905,6 @@ router_test_intern(char *metric, char *firstspace, route *routes)
 							fprintf(stdout, "        %s:%d\n",
 									serverip(dst[i].dest),
 									server_port(dst[i].dest));
-							free((char *)dst[i].metric);
 						}
 					}	break;
 					case FAILOVER:
