@@ -212,7 +212,8 @@ aggregator_putmetric(
 			((omhash >> AGGR_HT_POW_SIZE) ^ omhash) &
 			(((unsigned int)1 << AGGR_HT_POW_SIZE) - 1);
 
-		pthread_rwlock_wrlock(&compute->invlock);
+		/* first "cheap" search for an invocation, using a read-lock */
+		pthread_rwlock_rdlock(&compute->invlock);
 		invocation = compute->invocations_ht[omhtbucket];
 		for (; invocation != NULL; invocation = invocation->next)
 			if (invocation->hash == omhash &&
@@ -223,60 +224,75 @@ aggregator_putmetric(
 			long long int i;
 			time_t now;
 
-			if ((invocation = malloc(sizeof(*invocation))) == NULL) {
-				logerr("aggregator: out of memory creating %s from %s",
-						ometric, metric);
-				pthread_rwlock_unlock(&compute->invlock);
-				continue;
-			}
-			if ((invocation->metric = strdup(ometric)) == NULL) {
-				logerr("aggregator: out of memory creating %s from %s",
-						ometric, metric);
-				free(invocation);
-				pthread_rwlock_unlock(&compute->invlock);
-				continue;
-			}
-			invocation->hash = omhash;
+			/* swap the lock for an expensive exclusive lock to
+			 * add/update the invocation */
+			pthread_rwlock_unlock(&compute->invlock);
+			pthread_rwlock_wrlock(&compute->invlock);
 
-			/* Start buckets in the past such that expiry time
-			 * conditions are met.  Add a splay to the expiry time to
-			 * avoid a thundering herd of expirations when the
-			 * aggregator is spammed with metrics, e.g. right after
-			 * startup when other relays flush their queues.  This
-			 * approach shouldn't affect the timing of the buckets as
-			 * requested in issue #72.
-			 * For consistency with other tools/old carbon-aggregator
-			 * align the buckets to interval boundaries such that it is
-			 * predictable what intervals will be taken, issue #104. */
-			time(&now);
-			now = ((now - s->expire) / s->interval) * s->interval;
-			invocation->expire = s->expire + (rand() % s->interval);
+			/* recheck if invocation is still NULL */
+			invocation = compute->invocations_ht[omhtbucket];
+			for (; invocation != NULL; invocation = invocation->next)
+				if (invocation->hash == omhash &&
+						strcmp(ometric, invocation->metric) == 0)  /* match */
+					break;
 
-			/* allocate enough buckets to hold the past + future */
-			invocation->buckets =
-				malloc(sizeof(struct _aggr_bucket) * s->bucketcnt);
-			if (invocation->buckets == NULL) {
-				logerr("aggregator: out of memory creating %s from %s",
-						ometric, metric);
-				free(invocation->metric);
-				free(invocation);
-				pthread_rwlock_unlock(&compute->invlock);
-				continue;
-			}
-			for (i = 0; i < s->bucketcnt; i++) {
-				invocation->buckets[i].start =
-					now + (i * (long long int)s->interval);
-				invocation->buckets[i].cnt = 0;
-				invocation->buckets[i].entries.size = 0;
-				invocation->buckets[i].entries.values = NULL;
-			}
+			if (invocation == NULL) {
+				if ((invocation = malloc(sizeof(*invocation))) == NULL) {
+					logerr("aggregator: out of memory creating %s from %s",
+							ometric, metric);
+					pthread_rwlock_unlock(&compute->invlock);
+					continue;
+				}
+				if ((invocation->metric = strdup(ometric)) == NULL) {
+					logerr("aggregator: out of memory creating %s from %s",
+							ometric, metric);
+					free(invocation);
+					pthread_rwlock_unlock(&compute->invlock);
+					continue;
+				}
+				invocation->hash = omhash;
 
-			invocation->next = compute->invocations_ht[omhtbucket];
-			compute->invocations_ht[omhtbucket] = invocation;
+				/* Start buckets in the past such that expiry time
+				 * conditions are met.  Add a splay to the expiry time to
+				 * avoid a thundering herd of expirations when the
+				 * aggregator is spammed with metrics, e.g. right after
+				 * startup when other relays flush their queues.  This
+				 * approach shouldn't affect the timing of the buckets as
+				 * requested in issue #72.
+				 * For consistency with other tools/old carbon-aggregator
+				 * align the buckets to interval boundaries such that it is
+				 * predictable what intervals will be taken, issue #104. */
+				time(&now);
+				now = ((now - s->expire) / s->interval) * s->interval;
+				invocation->expire = s->expire + (rand() % s->interval);
+
+				/* allocate enough buckets to hold the past + future */
+				invocation->buckets =
+					malloc(sizeof(struct _aggr_bucket) * s->bucketcnt);
+				if (invocation->buckets == NULL) {
+					logerr("aggregator: out of memory creating %s from %s",
+							ometric, metric);
+					free(invocation->metric);
+					free(invocation);
+					pthread_rwlock_unlock(&compute->invlock);
+					continue;
+				}
+				for (i = 0; i < s->bucketcnt; i++) {
+					bucket = &invocation->buckets[i];
+					pthread_mutex_init(&bucket->bcklock, NULL);
+					bucket->state = A_OPEN;
+					bucket->start = now + (i * (long long int)s->interval);
+					bucket->cnt = 0;
+					bucket->entries.size = 0;
+					bucket->entries.values = NULL;
+				}
+
+				invocation->next = compute->invocations_ht[omhtbucket];
+				compute->invocations_ht[omhtbucket] = invocation;
+			}
 		}
 
 		/* finally, try to do the maths */
-
 		itime = epoch - invocation->buckets[0].start;
 		if (itime < 0) {
 			/* drop too old metric */
@@ -297,6 +313,17 @@ aggregator_putmetric(
 		}
 
 		bucket = &invocation->buckets[itime / s->interval];
+		if (__sync_bool_compare_and_swap(&bucket->state, A_EXPIRE, A_EXPIRE)) {
+			/* drop too old metric */
+			__sync_add_and_fetch(&s->dropped, 1);
+			pthread_rwlock_unlock(&compute->invlock);
+			continue;
+		}
+
+		/* Since we have for most cases just a read-lock on invocation
+		 * here, run the bucket modification in a critical section of
+		 * its own. */
+		pthread_mutex_lock(&bucket->bcklock);
 		if (bucket->cnt == 0) {
 			bucket->sum = val;
 			bucket->max = val;
@@ -326,7 +353,7 @@ aggregator_putmetric(
 				entries->values[bucket->cnt] = val;
 		}
 		bucket->cnt++;
-
+		pthread_mutex_unlock(&bucket->bcklock);
 		pthread_rwlock_unlock(&compute->invlock);
 	}
 
@@ -344,14 +371,29 @@ write_metric(
 		aggregator *s,
 		struct _aggr_bucket *b,
 		struct _aggr_computes *c,
-		struct _aggr_invocations *inv,
-		long long int ts)
+		struct _aggr_invocations *inv)
 {
 	char metric[METRIC_BUFSIZ];
 	double *values;
 	size_t len = 0;
+	long long int ts;
 	int k;
 
+	switch (s->tswhen) {
+		case TS_START:
+			ts = b->start;
+			break;
+		case TS_MIDDLE:
+			ts = b->start + (s->interval / 2);
+			break;
+		case TS_END:
+			ts = b->start + s->interval;
+			break;
+		default:
+			assert(0);
+	}
+
+	pthread_mutex_lock(&b->bcklock);
 	switch (c->type) {
 		case SUM:
 			len = snprintf(metric, sizeof(metric),
@@ -400,6 +442,11 @@ write_metric(
 		default:
 			assert(0);  /* for compiler (len) */
 	}
+	pthread_mutex_unlock(&b->bcklock);
+
+	/* perform the write outside of any lock */
+	pthread_rwlock_unlock(&c->invlock);
+
 	ts = write(s->fd, metric, len);
 	if (ts < 0) {
 		logerr("aggregator: failed to write to "
@@ -437,7 +484,6 @@ aggregator_expire(void *sub)
 	unsigned char j;
 	int work;
 	char isempty;
-	long long int ts = 0;
 
 	while (1) {
 		work = 0;
@@ -449,40 +495,48 @@ aggregator_expire(void *sub)
 			now = time(NULL) + (__sync_bool_compare_and_swap(
 						&keep_running, 1, 1) ? 0 : s->expire - s->interval);
 			for (c = s->computes; c != NULL; c = c->next) {
+				pthread_rwlock_rdlock(&c->invlock);
+				for (i = 0; i < (1 << AGGR_HT_POW_SIZE); i++) {
+					isempty = 0;
+					for (inv = c->invocations_ht[i];
+							inv != NULL;
+							inv = inv->next)
+					{
+						for (b = &inv->buckets[0];
+							b->start + (__sync_bool_compare_and_swap(
+										&keep_running, 1, 1) ?
+								 		inv->expire : s->expire) < now; b++)
+						{
+							if (!__sync_bool_compare_and_swap(
+										&b->state, A_OPEN, A_EXPIRE))
+								continue;
+
+							/* avoid emitting empty/unitialised data */
+							if (b->cnt > 0) {
+								/* write_metric unlocks before doing the
+								 * write to avoid any blocks */
+								write_metric(s, b, c, inv);
+								pthread_rwlock_rdlock(&c->invlock);
+							}
+
+							work++;
+						}
+					}
+				}
+				pthread_rwlock_unlock(&c->invlock);
+			}
+
+			/* now do some cleanup for A_EXPIREd buckets in an exclusive
+			 * lock */
+			for (c = s->computes; c != NULL; c = c->next) {
 				pthread_rwlock_wrlock(&c->invlock);
 				for (i = 0; i < (1 << AGGR_HT_POW_SIZE); i++) {
 					lastinv = NULL;
 					isempty = 0;
 					for (inv = c->invocations_ht[i]; inv != NULL; ) {
-						while (inv->buckets[0].start +
-								(__sync_bool_compare_and_swap(
-										&keep_running, 1, 1) ?
-								 		inv->expire : s->expire) < now)
-						{
-							/* yay, let's produce something cool */
-							b = &inv->buckets[0];
-							/* avoid emitting empty/unitialised data */
-							isempty = b->cnt == 0;
-							if (!isempty) {
-								switch (s->tswhen) {
-									case TS_START:
-										ts = b->start;
-										break;
-									case TS_MIDDLE:
-										ts = b->start + (s->interval / 2);
-										break;
-									case TS_END:
-										ts = b->start + s->interval;
-										break;
-									default:
-										assert(0);
-								}
-								write_metric(s, b, c, inv, ts);
-							}
-
-							/* move the bucket to the end, to make room for
-							 * new ones */
-							b = &inv->buckets[0];
+						/* move expired buckets to the end */
+						b = &inv->buckets[0];
+						while (b->state == A_EXPIRE) {
 							len = b->entries.size;
 							values = b->entries.values;
 							memmove(b, &inv->buckets[1],
@@ -494,17 +548,16 @@ aggregator_expire(void *sub)
 								s->interval;
 							b->entries.size = len;
 							b->entries.values = values;
+							b->state = A_OPEN;
 
-							work++;
+							b = &inv->buckets[0];
 						}
-
-						if (isempty) {
-							/* see if the remaining buckets are empty too */
-							for (j = 0; j < s->bucketcnt; j++) {
-								if (inv->buckets[j].cnt != 0) {
-									isempty = 0;
-									break;
-								}
+						/* see if the entire invocation is empty */
+						isempty = 1;
+						for (j = 0; j < s->bucketcnt; j++) {
+							if (inv->buckets[j].cnt != 0) {
+								isempty = 0;
+								break;
 							}
 						}
 						if (isempty) {
@@ -514,6 +567,8 @@ aggregator_expire(void *sub)
 									if (inv->buckets[j].entries.values)
 										free(inv->buckets[j].entries.values);
 							free(inv->metric);
+							for (j = 0; j < s->bucketcnt; j++)
+								pthread_mutex_destroy(&inv->buckets[j].bcklock);
 							free(inv->buckets);
 							if (lastinv != NULL) {
 								lastinv->next = inv->next;
@@ -559,6 +614,8 @@ aggregator_expire(void *sub)
 						for (j = 0; j < s->bucketcnt; j++)
 							if (inv->buckets[j].entries.values)
 								free(inv->buckets[j].entries.values);
+					for (j = 0; j < s->bucketcnt; j++)
+						pthread_mutex_destroy(&inv->buckets[j].bcklock);
 					free(inv->buckets);
 
 					inv = invocation->next;

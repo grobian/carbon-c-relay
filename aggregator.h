@@ -43,6 +43,8 @@ typedef struct _aggregator {
 			unsigned int hash;  /* to speed up matching */
 			unsigned short expire;  /* expire + splay */
 			struct _aggr_bucket {
+				pthread_mutex_t bcklock;
+				enum { A_OPEN, A_EXPIRE } state;
 				long long int start;
 				size_t cnt;
 				double sum;

@@ -30,6 +30,8 @@
   unexpected warning about rejected socket bufsize
 * [PR #282](https://github.com/grobian/carbon-c-relay/pull/282)
   route using should not change the metric key sent
+* [PR #274](https://github.com/grobian/carbon-c-relay/pull/274)
+  aggregator expiry deadlocks under pressure
 
 
 # 3.1 (29-04-2017)
