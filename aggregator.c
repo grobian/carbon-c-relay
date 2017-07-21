@@ -371,7 +371,7 @@ write_metric(
 		aggregator *s,
 		struct _aggr_bucket *b,
 		struct _aggr_computes *c,
-		struct _aggr_invocations *inv)
+		char *invmetric)
 {
 	char metric[METRIC_BUFSIZ];
 	double *values;
@@ -397,23 +397,23 @@ write_metric(
 	switch (c->type) {
 		case SUM:
 			len = snprintf(metric, sizeof(metric),
-					"%s %f %lld\n", inv->metric, b->sum, ts);
+					"%s %f %lld\n", invmetric, b->sum, ts);
 			break;
 		case CNT:
 			len = snprintf(metric, sizeof(metric),
-					"%s %zu %lld\n", inv->metric, b->cnt, ts);
+					"%s %zu %lld\n", invmetric, b->cnt, ts);
 			break;
 		case MAX:
 			len = snprintf(metric, sizeof(metric),
-					"%s %f %lld\n", inv->metric, b->max, ts);
+					"%s %f %lld\n", invmetric, b->max, ts);
 			break;
 		case MIN:
 			len = snprintf(metric, sizeof(metric),
-					"%s %f %lld\n", inv->metric, b->min, ts);
+					"%s %f %lld\n", invmetric, b->min, ts);
 			break;
 		case AVG:
 			len = snprintf(metric, sizeof(metric),
-					"%s %f %lld\n", inv->metric, b->sum / (double)b->cnt, ts);
+					"%s %f %lld\n", invmetric, b->sum / (double)b->cnt, ts);
 			break;
 		case MEDN:
 			/* median == 50th percentile */
@@ -426,7 +426,7 @@ write_metric(
 			 * max entries and returning that iso sorting the full array */
 			qsort(values, b->cnt, sizeof(double), cmp_entry);
 			len = snprintf(metric, sizeof(metric),
-					"%s %f %lld\n", inv->metric, values[k - 1], ts);
+					"%s %f %lld\n", invmetric, values[k - 1], ts);
 			break;
 		case VAR:
 		case SDEV: {
@@ -437,7 +437,7 @@ write_metric(
 			   ksum += pow(values[k] - avg, 2);
 			ksum /= (double)b->cnt;
 			len = snprintf(metric, sizeof(metric), "%s %f %lld\n",
-				   inv->metric, c->type == VAR ? ksum : sqrt(ksum), ts);
+				   invmetric, c->type == VAR ? ksum : sqrt(ksum), ts);
 		}	break;
 		default:
 			assert(0);  /* for compiler (len) */
@@ -515,7 +515,7 @@ aggregator_expire(void *sub)
 							if (b->cnt > 0) {
 								/* write_metric unlocks before doing the
 								 * write to avoid any blocks */
-								write_metric(s, b, c, inv);
+								write_metric(s, b, c, inv->metric);
 								pthread_rwlock_rdlock(&c->invlock);
 							}
 
