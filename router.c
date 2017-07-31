@@ -407,17 +407,20 @@ router_validate_address(
 		hint.ai_flags = AI_NUMERICSERV;
 		if ((err = getaddrinfo(ip, sport, &hint, &saddr)) != 0) {
 			char errmsg[512];
-			snprintf(errmsg, sizeof(errmsg), "failed to resolve %s, port %s, "
-					"proto %s: %s", ip == NULL ? "<any>" : ip, sport,
+			snprintf(errmsg, sizeof(errmsg), "warning: failed to resolve "
+					"%s, port %s, proto %s: %s",
+					ip == NULL ? "<any>" : ip, sport,
 					proto == CON_UDP ? "udp" : "tcp",
 					gai_strerror(err));
-			return(ra_strdup(rtr->a, errmsg));
+			saddr = NULL;
 		}
 
 		/* no ra_malloc, it gets owned by server */
 		*rethint = malloc(sizeof(hint));
-		if (*rethint == NULL)
+		if (*rethint == NULL) {
+			freeaddrinfo(saddr);
 			return(ra_strdup(rtr->a, "out of memory copying hint structure"));
+		}
 		memcpy(*rethint, &hint, sizeof(hint));
 	}
 

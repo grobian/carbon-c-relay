@@ -15,6 +15,11 @@
   [Issue #247](https://github.com/grobian/carbon-c-relay/issues/247)
 * **relay** the `listen` construct was added to precisely control listen
   ports and protocols.
+* **server** unresolvable hosts are now treated as failed servers, this
+  means the relay will only warn about unresolvable hosts, but not error
+  out.  If a host becomes unresolvable this server is transitioned to
+  failed state until it is resolvable again.
+  [Issue #293](https://github.com/grobian/carbon-c-relay/issues/293)
 
 ### Bugfixes
 

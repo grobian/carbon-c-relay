@@ -244,13 +244,16 @@ server_queuereader(void *d)
 				/* re-lookup the address info, if it fails, stay with
 				 * whatever we have such that resolution errors incurred
 				 * after starting the relay won't make it fail */
+				freeaddrinfo(self->saddr);
 				snprintf(sport, sizeof(sport), "%u", self->port);
 				if (getaddrinfo(self->ip, sport, self->hint, &saddr) == 0) {
-					freeaddrinfo(self->saddr);
 					self->saddr = saddr;
 				} else {
-					logerr("warning: failed to resolve %s:%u, keeping old "
-							"address for server", self->ip, self->port);
+					if (__sync_fetch_and_add(&(self->failure), 1) == 0)
+						logerr("failed to resolve %s:%u, server unavailable",
+								self->ip, self->port);
+					self->saddr = NULL;
+					/* this will break out below */
 				}
 			}
 
@@ -301,6 +304,9 @@ server_queuereader(void *d)
 					/* we made it up here, so this connection is usable */
 					break;
 				}
+				/* if this didn't resolve to anything, treat as failure */
+				if (self->saddr == NULL)
+					__sync_fetch_and_add(&(self->failure), 1);
 				/* if all addrinfos failed, try again later */
 				if (self->fd < 0)
 					continue;
@@ -419,6 +425,9 @@ server_queuereader(void *d)
 					 * continue with the other addrinfos */
 					break;
 				}
+				/* if this didn't resolve to anything, treat as failure */
+				if (self->saddr == NULL)
+					__sync_fetch_and_add(&(self->failure), 1);
 				/* all available addrinfos failed on us */
 				if (self->fd < 0)
 					continue;
