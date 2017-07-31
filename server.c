@@ -250,7 +250,7 @@ server_queuereader(void *d)
 					self->saddr = saddr;
 				} else {
 					if (__sync_fetch_and_add(&(self->failure), 1) == 0)
-						logerr("failed to resolve %s:%u, server unavailable",
+						logerr("failed to resolve %s:%u, server unavailable\n",
 								self->ip, self->port);
 					self->saddr = NULL;
 					/* this will break out below */
