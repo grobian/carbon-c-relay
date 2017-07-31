@@ -248,6 +248,9 @@ server_queuereader(void *d)
 				if (getaddrinfo(self->ip, sport, self->hint, &saddr) == 0) {
 					freeaddrinfo(self->saddr);
 					self->saddr = saddr;
+				} else {
+					logerr("warning: failed to resolve %s:%u, keeping old "
+							"address for server", self->ip, self->port);
 				}
 			}
 
