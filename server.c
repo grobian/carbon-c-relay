@@ -306,7 +306,7 @@ server_queuereader(void *d)
 				}
 				/* if this didn't resolve to anything, treat as failure */
 				if (self->saddr == NULL)
-					__sync_fetch_and_add(&(self->failure), 1);
+					__sync_add_and_fetch(&(self->failure), 1);
 				/* if all addrinfos failed, try again later */
 				if (self->fd < 0)
 					continue;
@@ -427,7 +427,7 @@ server_queuereader(void *d)
 				}
 				/* if this didn't resolve to anything, treat as failure */
 				if (self->saddr == NULL)
-					__sync_fetch_and_add(&(self->failure), 1);
+					__sync_add_and_fetch(&(self->failure), 1);
 				/* all available addrinfos failed on us */
 				if (self->fd < 0)
 					continue;
