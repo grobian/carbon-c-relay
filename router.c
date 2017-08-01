@@ -1336,6 +1336,10 @@ router_optimise(router *r, int threshold)
 	 * expression we have defined. */
 	seq = 0;
 	blast = bstart = blocks = ra_malloc(r->a, sizeof(block));
+	if (blocks == NULL) {
+		logerr("out of memory allocating blocks, skipping optimisation\n");
+		return;
+	}
 	blocks->refcnt = 0;
 	blocks->pattern = NULL;
 	blocks->hash = 0;
@@ -1348,6 +1352,11 @@ router_optimise(router *r, int threshold)
 		if (rwalk->matchtype == MATCHALL || rwalk->dests->cl->type == REWRITE) {
 			tracef("skipping %s\n", rwalk->pattern ? rwalk->pattern : "*");
 			blast->next = ra_malloc(r->a, sizeof(block));
+			if (blast->next == NULL) {
+				logerr("out of memory allocating new block, "
+						"skipping optimisation\n");
+				return;
+			}
 			blast->next->prev = blast;
 			blast = blast->next;
 			blast->pattern = NULL;
@@ -1394,6 +1403,11 @@ router_optimise(router *r, int threshold)
 			/* nothing we can do with a pattern like this */
 			tracef("skipping unusable %s\n", p);
 			blast->next = ra_malloc(r->a, sizeof(block));
+			if (blast->next == NULL) {
+				logerr("out of memory allocating new block, "
+						"skipping optimisation\n");
+				return;
+			}
 			blast->next->prev = blast;
 			blast = blast->next;
 			blast->pattern = NULL;
@@ -1431,6 +1445,11 @@ router_optimise(router *r, int threshold)
 			tracef("skipping too small pattern %s from %s\n",
 					b, rwalk->pattern);
 			blast->next = ra_malloc(r->a, sizeof(block));
+			if (blast->next == NULL) {
+				logerr("out of memory allocating new block, "
+						"skipping optimisation\n");
+				return;
+			}
 			blast->next->prev = blast;
 			blast = blast->next;
 			blast->pattern = NULL;
@@ -1458,6 +1477,11 @@ router_optimise(router *r, int threshold)
 		if (bwalk == NULL) {
 			tracef("creating new group %s for %s\n", b, rwalk->pattern);
 			blast->next = ra_malloc(r->a, sizeof(block));
+			if (blast->next == NULL) {
+				logerr("out of memory allocating new block, "
+						"skipping optimisation\n");
+				return;
+			}
 			blast->next->prev = blast;
 			blast = blast->next;
 			blast->pattern = ra_strdup(r->a, b);
