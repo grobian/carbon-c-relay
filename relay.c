@@ -684,9 +684,9 @@ main(int argc, char * const argv[])
 		 * process being called) it can terminate */ \
 		if (write(fds[1], "OK", 3) < -2) \
 			exit(1);  /* if our grantparent died, we better do too */ \
+		close(fds[0]); \
+		close(fds[1]); \
 	} \
-	close(fds[0]); \
-	close(fds[1]); \
 	fds[0] = fds[1] = -1; \
 	startup_success = 1;
 
