@@ -879,6 +879,7 @@ main(int argc, char * const argv[])
 	/* make sure we don't accept anything new anymore */
 	lsnrs = router_get_listeners(rtr);
 	for ( ; lsnrs != NULL; lsnrs = lsnrs->next) {
+		dispatch_removelistener(lsnrs);
 		shutdownclose(lsnrs);
 	}
 	/* since workers will be freed, stop querying the structures */

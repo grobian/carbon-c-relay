@@ -184,22 +184,26 @@ dispatch_removelistener(listener *lsnr)
 	int c;
 	int *socks;
 
-	pthread_rwlock_wrlock(&listenerslock);
-	/* find connection */
-	for (c = 0; c < MAX_LISTENERS; c++)
-		if (listeners[c] != NULL && listeners[c] == lsnr)
-			break;
-	if (c == MAX_LISTENERS) {
-		/* not found?!? */
-		logerr("dispatch: cannot find listener!\n");
+	if (lsnr->ctype != CON_UDP) {
+		pthread_rwlock_wrlock(&listenerslock);
+		/* find connection */
+		for (c = 0; c < MAX_LISTENERS; c++)
+			if (listeners[c] != NULL && listeners[c] == lsnr)
+				break;
+		if (c == MAX_LISTENERS) {
+			/* not found?!? */
+			logerr("dispatch: cannot find listener!\n");
+			pthread_rwlock_unlock(&listenerslock);
+			return;
+		}
+		listeners[c] = NULL;
 		pthread_rwlock_unlock(&listenerslock);
-		return;
 	}
 	/* cleanup */
 	for (socks = lsnr->socks; *socks != -1; socks++)
 		close(*socks);
-	listeners[c] = NULL;
-	pthread_rwlock_unlock(&listenerslock);
+	if (lsnr->saddrs)
+		freeaddrinfo(lsnr->saddrs);
 }
 
 #define CONNGROWSZ  1024
