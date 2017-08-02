@@ -1,0 +1,20 @@
+listen
+    linemode
+        2003 proto tcp
+        2003 proto udp
+        /tmp/.s.carbon-c-relay.2003 proto unix
+    ;
+
+statistics
+    submit every 60 seconds
+    prefix with carbon.relays.test_hostname
+    ;
+
+cluster ignore_nonexistent
+    any_of
+        127.0.0.1:2003
+        127.0.0.2:2003
+        nonexistent.example.com:2003
+    ;
+
+
