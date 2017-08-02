@@ -947,7 +947,7 @@ router_add_listener(
 	struct addrinfo *lswalk;
 	int addrcnt;
 
-	if (saddrs == NULL) {
+	if (saddrs == NULL && (ctype == CON_UDP || ctype == CON_TCP)) {
 		char msg[256];
 		snprintf(msg, sizeof(msg), "invalid listener %s for port %d", ip, port);
 		return ra_strdup(rtr->a, msg);
