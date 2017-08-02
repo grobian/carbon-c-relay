@@ -34,7 +34,7 @@
 extern unsigned char mode;
 
 #ifdef ENABLE_TRACE
-#define tracef(...) if (mode & MODE_TRACE) fprintf(stdout, __VA_ARGS__)
+#define tracef(...) if (mode & MODE_TRACE) { fprintf(stdout, __VA_ARGS__); fflush(stdout); }
 #else
 #define tracef(...) /* noop */
 #endif
