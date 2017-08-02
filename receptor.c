@@ -59,6 +59,13 @@ bindlistenip(listener *lsnr, unsigned int backlog)
 		if ((sock = socket(resw->ai_family, resw->ai_socktype,
 						resw->ai_protocol)) < 0)
 		{
+			if (errno == EAFNOSUPPORT &&
+					(sockcur > 0 || resw->ai_next != NULL))
+			{
+				/* ignore "address family not supported by protocol" for
+				 * systems with ipv6 disabled, issue #296 */
+				continue;
+			}
 			logerr("failed to create socket for %s%s%s: %s\n",
 					resw->ai_family == PF_INET ? "[" : "",
 					saddr,
