@@ -338,7 +338,7 @@ dispatch_process_dests(connection *conn, dispatcher *self, struct timeval now)
 			if (server_send(conn->dests[i].dest, conn->dests[i].metric, force) == 0)
 				break;
 		}
-		if (i != conn->destlen) {
+		if (i < conn->destlen) {
 			conn->destlen -= i;
 			memmove(&conn->dests[0], &conn->dests[i],
 					(sizeof(destination) * conn->destlen));
