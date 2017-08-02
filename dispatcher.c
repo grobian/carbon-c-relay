@@ -432,8 +432,12 @@ dispatch_connection(connection *conn, dispatcher *self, struct timeval start)
 				}
 
 				__sync_add_and_fetch(&(self->metrics), 1);
+				/* add newline and terminate the string, we can do this
+				 * because we substract one from buf and we always store
+				 * a full metric in buf before we copy it to metric
+				 * (which is of the same size) */
 				*q++ = '\n';
-				*q = '\0';  /* can do this because we substract one from buf */
+				*q = '\0';
 
 				/* perform routing of this metric */
 				tracef("dispatcher %d, connfd %d, metric %s",
