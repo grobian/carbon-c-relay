@@ -536,11 +536,12 @@ dispatch_connection(connection *conn, dispatcher *self, struct timeval start)
 			__sync_bool_compare_and_swap(&(conn->takenby), self->id, 0);
 
 			return len > 0;
-		} else {
+		} else if (conn->destlen == 0) {
 			__sync_add_and_fetch(&closedconnections, 1);
 			close(conn->sock);
 
-			/* flag this connection as no longer in use */
+			/* flag this connection as no longer in use, unless there is
+			 * pending metrics to send */
 			__sync_bool_compare_and_swap(&(conn->takenby), self->id, -1);
 
 			return 0;
