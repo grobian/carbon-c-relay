@@ -409,6 +409,9 @@ dispatch_connection(connection *conn, dispatcher *self, struct timeval start)
 			conn->buflen += len;
 			tracef("dispatcher %d, connfd %d, read %d bytes from socket\n",
 					self->id, conn->sock, len);
+#ifdef ENABLE_TRACE
+			conn->buf[conn->buflen] = '\0';
+#endif
 		}
 
 		/* metrics look like this: metric_path value timestamp\n
@@ -503,7 +506,18 @@ dispatch_connection(connection *conn, dispatcher *self, struct timeval start)
 		if (lastnl != NULL) {
 			/* move remaining stuff to the front */
 			conn->buflen -= lastnl + 1 - conn->buf;
-			memmove(conn->buf, lastnl + 1, conn->buflen);
+			tracef("dispatcher %d, conn->buf: %p, lastnl: %p, diff: %zd, "
+					"conn->buflen: %d, sizeof(conn->buf): %lu, "
+					"memmove(%d, %lu, %d)\n",
+					self->id,
+					conn->buf, lastnl, lastnl - conn->buf,
+					conn->buflen, sizeof(conn->buf),
+					0, lastnl + 1 - conn->buf, conn->buflen + 1);
+			tracef("dispatcher %d, pre conn->buf: %s\n", self->id, conn->buf);
+			/* copy last NULL-byte for debug tracing */
+			memmove(conn->buf, lastnl + 1, conn->buflen + 1);
+			tracef("dispatcher %d, post conn->buf: %s\n", self->id, conn->buf);
+			lastnl = NULL;
 		}
 	}
 	if (len == -1 && (errno == EINTR ||
