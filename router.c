@@ -947,6 +947,12 @@ router_add_listener(
 	struct addrinfo *lswalk;
 	int addrcnt;
 
+	if (saddrs == NULL) {
+		char msg[256];
+		snprintf(msg, sizeof(msg), "invalid listener %s for port %d", ip, port);
+		return ra_strdup(rtr->a, msg);
+	}
+
 	if (rtr->listeners == NULL) {
 		lwalk = rtr->listeners =
 			ra_malloc(rtr->a, sizeof(listener));
