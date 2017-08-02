@@ -59,8 +59,11 @@ bindlistenip(listener *lsnr, unsigned int backlog)
 		if ((sock = socket(resw->ai_family, resw->ai_socktype,
 						resw->ai_protocol)) < 0)
 		{
-			logerr("failed to create socket for %s: %s\n",
-					saddr, strerror(errno));
+			logerr("failed to create socket for %s%s%s: %s\n",
+					resw->ai_family == PF_INET ? "[" : "",
+					saddr,
+					resw->ai_family == PF_INET ? "]" : "",
+					strerror(errno));
 			binderr = 1;
 			break;
 		}
