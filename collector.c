@@ -306,7 +306,7 @@ collector_writer(void *unused)
 	aggregator *aggrs = NULL;
 	int collector_interval = 60;
 
-	while (keep_running) {
+	while (__sync_bool_compare_and_swap(&keep_running, 1, 1)) {
 		if (cluster_refresh_pending) {
 			server **newservers = router_getservers(pending_router);
 			if (srvs != NULL)
@@ -413,6 +413,10 @@ collector_writer(void *unused)
 
 		i = 0;
 	}
+
+	if (srvs != NULL)
+		free(srvs);
+
 	return NULL;
 }
 
