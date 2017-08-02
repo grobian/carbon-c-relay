@@ -788,6 +788,12 @@ server_shutdown(server *s)
 		if (inqueue != 0)
 			for (i = 0; i < s->secondariescnt; i++)
 				__sync_add_and_fetch(&(s->secondaries[i]->failure), 1);
+		/* wait for the secondaries to be stopped so we surely don't get
+		 * invalid reads when server_free is called */
+		for (i = 0; i < s->secondariescnt; i++) {
+			while (s->secondaries[i]->running)
+				usleep((200 + (rand() % 100)) * 1000);
+		}
 	}
 
 	__sync_bool_compare_and_swap(&(s->keep_running), 1, 0);
