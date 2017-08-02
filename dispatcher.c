@@ -670,6 +670,10 @@ dispatch_new(char id, enum conntype type, router *r, char *allowed_chars)
 		free(ret);
 		return NULL;
 	}
+	if (id < 1) {
+		free(ret);
+		return NULL;
+	}
 
 	ret->id = id;
 	ret->type = type;

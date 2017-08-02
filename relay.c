@@ -808,14 +808,14 @@ main(int argc, char * const argv[])
 		}
 	}
 	/* ensure the listener id is at the end for regex_t array hack */
-	if ((workers[0] = dispatch_new_listener(workercnt)) == NULL)
+	if ((workers[0] = dispatch_new_listener(workercnt + 1)) == NULL)
 		logerr("failed to add listener dispatcher\n");
 
 	if (allowed_chars == NULL)
 		allowed_chars = "-_:#";
 	logout("starting %d workers\n", workercnt);
 	for (id = 0; id < workercnt; id++) {
-		workers[id + 1] = dispatch_new_connection(id, rtr, allowed_chars);
+		workers[id + 1] = dispatch_new_connection(id + 1, rtr, allowed_chars);
 		if (workers[id + 1] == NULL) {
 			logerr("failed to add worker %d\n", id);
 			break;
