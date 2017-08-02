@@ -449,7 +449,7 @@ dispatch_connection(connection *conn, dispatcher *self, struct timeval start)
 						router_route(self->rtr,
 							conn->dests, &conn->destlen, CONN_DESTS_SIZE,
 							conn->srcaddr,
-							conn->metric, firstspace, self->id));
+							conn->metric, firstspace, self->id - 1));
 				tracef("dispatcher %d, connfd %d, destinations %zd\n",
 						self->id, conn->sock, conn->destlen);
 
@@ -674,7 +674,12 @@ dispatch_runner(void *arg)
  * Returns its handle.
  */
 static dispatcher *
-dispatch_new(char id, enum conntype type, router *r, char *allowed_chars)
+dispatch_new(
+		unsigned char id,
+		enum conntype type,
+		router *r,
+		char *allowed_chars
+	)
 {
 	dispatcher *ret = malloc(sizeof(dispatcher));
 
@@ -684,12 +689,8 @@ dispatch_new(char id, enum conntype type, router *r, char *allowed_chars)
 		free(ret);
 		return NULL;
 	}
-	if (id < 1) {
-		free(ret);
-		return NULL;
-	}
 
-	ret->id = id;
+	ret->id = id + 1;  /* ensure > 0 */
 	ret->type = type;
 	ret->keep_running = 1;
 	ret->rtr = r;
@@ -725,7 +726,7 @@ dispatch_set_bufsize(unsigned int nsockbufsize)
  * (and putting them on the queue for handling the connections).
  */
 dispatcher *
-dispatch_new_listener(char id)
+dispatch_new_listener(unsigned char id)
 {
 	return dispatch_new(id, LISTENER, NULL, NULL);
 }
@@ -735,7 +736,7 @@ dispatch_new_listener(char id)
  * existing connections.
  */
 dispatcher *
-dispatch_new_connection(char id, router *r, char *allowed_chars)
+dispatch_new_connection(unsigned char id, router *r, char *allowed_chars)
 {
 	return dispatch_new(id, CONNECTION, r, allowed_chars);
 }
