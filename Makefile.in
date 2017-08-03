@@ -124,7 +124,9 @@ am_relay_OBJECTS = relay.$(OBJEXT) md5.$(OBJEXT) \
 	queue.$(OBJEXT) server.$(OBJEXT) collector.$(OBJEXT) \
 	aggregator.$(OBJEXT)
 relay_OBJECTS = $(am_relay_OBJECTS)
-relay_LDADD = $(LDADD)
+am__DEPENDENCIES_1 =
+relay_DEPENDENCIES = $(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
+	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
 AM_V_P = $(am__v_P_@AM_V@)
 am__v_P_ = $(am__v_P_@AM_DEFAULT_V@)
 am__v_P_0 = false
@@ -326,9 +328,8 @@ top_srcdir = @top_srcdir@
 AUTOMAKE_OPTIONS = foreign
 GIT_VERSION := $(shell git describe --abbrev=6 --dirty --always 2>/dev/null || date +%F)
 GVCFLAGS = -DGIT_VERSION=\"$(GIT_VERSION)\"
-relay_LINK = $(CCLD) $(AM_LDFLAGS) $(LDFLAGS) -o $@ \
-			 $(LIBGZIP) $(LIBBZIP2) $(LIBLZMA) $(LIBSSL)
-
+relay_LINK = $(CCLD) $(AM_LDFLAGS) $(LDFLAGS) -o $@
+relay_LDADD = $(LIBGZIP) $(LIBBZIP2) $(LIBLZMA) $(LIBSSL)
 relay_SOURCES = \
 	relay.c \
 	md5.c \
