@@ -221,7 +221,6 @@ listen				{
 					}
 <idli>gzip				return crGZIP;
 <idli>bzip2				return crBZIP2;
-<idli>lzma				return crLZMA;
 <idli>ssl				return crSSL;
 <li>proto				return crPROTO;
 <li>udp				{

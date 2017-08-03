@@ -126,7 +126,7 @@ am_relay_OBJECTS = relay.$(OBJEXT) md5.$(OBJEXT) \
 relay_OBJECTS = $(am_relay_OBJECTS)
 am__DEPENDENCIES_1 =
 relay_DEPENDENCIES = $(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
+	$(am__DEPENDENCIES_1)
 AM_V_P = $(am__v_P_@AM_V@)
 am__v_P_ = $(am__v_P_@AM_DEFAULT_V@)
 am__v_P_0 = false
@@ -263,7 +263,6 @@ INSTALL_STRIP_PROGRAM = @INSTALL_STRIP_PROGRAM@
 LDFLAGS = @LDFLAGS@
 LIBBZIP2 = @LIBBZIP2@
 LIBGZIP = @LIBGZIP@
-LIBLZMA = @LIBLZMA@
 LIBOBJS = @LIBOBJS@
 LIBS = @LIBS@
 LIBSSL = @LIBSSL@
@@ -329,7 +328,7 @@ AUTOMAKE_OPTIONS = foreign
 GIT_VERSION := $(shell git describe --abbrev=6 --dirty --always 2>/dev/null || date +%F)
 GVCFLAGS = -DGIT_VERSION=\"$(GIT_VERSION)\"
 relay_LINK = $(CCLD) $(AM_LDFLAGS) $(LDFLAGS) -o $@
-relay_LDADD = $(LIBGZIP) $(LIBBZIP2) $(LIBLZMA) $(LIBSSL)
+relay_LDADD = $(LIBGZIP) $(LIBBZIP2) $(LIBSSL)
 relay_SOURCES = \
 	relay.c \
 	md5.c \

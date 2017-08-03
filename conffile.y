@@ -98,7 +98,7 @@ struct _rcptr {
 %type <char *> statistics_opt_prefix
 
 %token crLISTEN
-%token crLINEMODE crGZIP crBZIP2 crLZMA crSSL crUNIX
+%token crLINEMODE crGZIP crBZIP2 crSSL crUNIX
 %type <serv_ctype> rcptr_proto
 %type <struct _rcptr *> receptor opt_receptor receptors
 %type <rcptr_transport> transport_mode
@@ -820,16 +820,6 @@ transport_mode:         { $$ = W_PLAIN; }
 							router_yyerror(&yylloc, yyscanner, rtr,
 								ralloc, palloc,
 								"feature bzip2 not compiled in");
-							YYERROR;
-#endif
-						}
-			  | crLZMA  {
-#ifdef HAVE_LZMA
-							$$ = W_LZMA;
-#else
-							router_yyerror(&yylloc, yyscanner, rtr,
-								ralloc, palloc,
-								"feature lzma not compiled in");
 							YYERROR;
 #endif
 						}

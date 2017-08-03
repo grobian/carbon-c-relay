@@ -92,21 +92,6 @@ AS_IF([test "x$with_bzip2" != xno],
 					]
 	)])
 
-AC_ARG_WITH([lzma], [support lzma compression for sending/receiving],
-			[], [with_lzma=check])
-LIBLZMA=
-AS_IF([test "x$with_lzma" != xno],
-	  [AC_CHECK_LIB([lzma], [lzma_stream_decoder],
-					[AC_SUBST([LIBLZMA], [-llzma])
-					AC_DEFINE([HAVE_LZMA], [1], [Define if you have lzma])
-					],
-					[if test "x$with_lzma" != xcheck; then
-					 AC_MSG_FAILURE(
-					   [--with-lzma was given, but test for lzma failed])
-					 fi
-					]
-	)])
-
 AC_ARG_WITH([ssl], [support ssl encryption for sending/receiving],
 			[], [with_ssl=check])
 LIBSSL=

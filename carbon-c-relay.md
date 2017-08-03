@@ -230,7 +230,7 @@ statistics
     ;
 
 listen
-    <linemode [gzip | bzip2 | lzma | ssl]>
+    <linemode [gzip | bzip2 | ssl]>
         <<interface[:port] | port> proto <udp | tcp>> ...
         </ptah/to/file proto unix> ...
     ;

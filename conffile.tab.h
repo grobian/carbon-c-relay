@@ -155,13 +155,12 @@ struct _rcptr {
     crLINEMODE = 316,
     crGZIP = 317,
     crBZIP2 = 318,
-    crLZMA = 319,
-    crSSL = 320,
-    crUNIX = 321,
-    crINCLUDE = 322,
-    crCOMMENT = 323,
-    crSTRING = 324,
-    crINTVAL = 325
+    crSSL = 319,
+    crUNIX = 320,
+    crINCLUDE = 321,
+    crCOMMENT = 322,
+    crSTRING = 323,
+    crINTVAL = 324
   };
 #endif
 
@@ -269,7 +268,7 @@ union ROUTER_YYSTYPE
   struct _rcptr * opt_receptor;
   /* receptor  */
   struct _rcptr * receptor;
-#line 273 "conffile.tab.h" /* yacc.c:1909  */
+#line 272 "conffile.tab.h" /* yacc.c:1909  */
 };
 
 typedef union ROUTER_YYSTYPE ROUTER_YYSTYPE;
