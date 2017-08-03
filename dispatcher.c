@@ -39,6 +39,9 @@
 #ifdef HAVE_GZIP
 #include <zlib.h>
 #endif
+#ifdef HAVE_BZIP2
+#include <bzlib.h>
+#endif
 
 enum conntype {
 	LISTENER,
@@ -111,7 +114,7 @@ sockclose(void *strm)
 }
 
 #ifdef HAVE_GZIP
-/* gzip swapped socket */
+/* gzip wrapped socket */
 static inline ssize_t
 gzipread(void *strm, void *buf, size_t sze)
 {
@@ -122,6 +125,22 @@ static inline int
 gzipclose(void *strm)
 {
 	return gzclose((gzFile)strm);
+}
+#endif
+
+#ifdef HAVE_BZIP2
+/* bzip2 wrapped socket */
+static inline ssize_t
+bzipread(void *strm, void *buf, size_t sze)
+{
+	return (ssize_t)BZ2_bzread((BZFILE *)strm, buf, (int)sze);
+}
+
+static inline int
+bzipclose(void *strm)
+{
+	BZ2_bzclose((BZFILE *)strm);
+	return 0;
 }
 #endif
 
@@ -328,6 +347,13 @@ dispatch_addconnection(int sock, listener *lsnr)
 		connections[c].strm = gzdopen(sock, "r");
 		connections[c].strmread = &gzipread;
 		connections[c].strmclose = &gzipclose;
+	}
+#endif
+#ifdef HAVE_BZIP2
+	else if (lsnr->transport == W_BZIP2) {
+		connections[c].strm = BZ2_bzdopen(sock, "r");
+		connections[c].strmread = &bzipread;
+		connections[c].strmclose = &bzipclose;
 	}
 #endif
 	connections[c].buflen = 0;
