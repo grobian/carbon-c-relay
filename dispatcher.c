@@ -36,6 +36,10 @@
 #include "collector.h"
 #include "dispatcher.h"
 
+#ifdef HAVE_GZIP
+#include <zlib.h>
+#endif
+
 enum conntype {
 	LISTENER,
 	CONNECTION
@@ -43,6 +47,9 @@ enum conntype {
 
 typedef struct _connection {
 	int sock;
+	void *strm;
+	ssize_t (*strmread)(void *, void *, size_t);  /* read func */
+	int (*strmclose)(void *);
 	char takenby;   /* -2: being setup, -1: free, 0: not taken, >0: tid */
 	char srcaddr[24];  /* string representation of source address */
 	char buf[METRIC_BUFSIZ];
@@ -88,6 +95,35 @@ static size_t acceptedconnections = 0;
 static size_t closedconnections = 0;
 static unsigned int sockbufsize = 0;
 
+/* connection specific readers and closers */
+
+/* ordinary socket */
+static inline ssize_t
+sockread(void *strm, void *buf, size_t sze)
+{
+	return read(*((int *)strm), buf, sze);
+}
+
+static inline int
+sockclose(void *strm)
+{
+	return close(*((int *)strm));
+}
+
+#ifdef HAVE_GZIP
+/* gzip swapped socket */
+static inline ssize_t
+gzipread(void *strm, void *buf, size_t sze)
+{
+	return (ssize_t)gzread((gzFile)strm, buf, (unsigned)sze);
+}
+
+static inline int
+gzipclose(void *strm)
+{
+	return gzclose((gzFile)strm);
+}
+#endif
 
 /**
  * Helper function to try and be helpful to the user.  If errno
@@ -130,7 +166,7 @@ dispatch_addlistener(listener *lsnr)
 		 * that connection won't be closed after being idle, and won't
 		 * count that connection as an incoming connection either. */
 		for (socks = lsnr->socks; *socks != -1; socks++) {
-			c = dispatch_addconnection(*socks);
+			c = dispatch_addconnection(*socks, lsnr);
 
 			if (c == -1)
 				return 1;
@@ -214,7 +250,7 @@ dispatch_removelistener(listener *lsnr)
  * Returns the connection id, or -1 if a failure occurred.
  */
 int
-dispatch_addconnection(int sock)
+dispatch_addconnection(int sock, listener *lsnr)
 {
 	size_t c;
 	struct sockaddr_in6 saddr;
@@ -233,7 +269,7 @@ dispatch_addconnection(int sock)
 		if (connectionslen > c) {
 			/* another dispatcher just extended the list */
 			pthread_rwlock_unlock(&connectionslock);
-			return dispatch_addconnection(sock);
+			return dispatch_addconnection(sock, lsnr);
 		}
 		newlst = realloc(connections,
 				sizeof(connection) * (connectionslen + CONNGROWSZ));
@@ -282,6 +318,18 @@ dispatch_addconnection(int sock)
 			;
 	}
 	connections[c].sock = sock;
+	if (lsnr == NULL || lsnr->transport == W_PLAIN) {
+		connections[c].strm = &connections[c].sock;
+		connections[c].strmread = &sockread;
+		connections[c].strmclose = &sockclose;
+	}
+#ifdef HAVE_GZIP
+	else if (lsnr->transport == W_GZIP) {
+		connections[c].strm = gzdopen(sock, "r");
+		connections[c].strmread = &gzipread;
+		connections[c].strmclose = &gzipclose;
+	}
+#endif
 	connections[c].buflen = 0;
 	connections[c].needmore = 0;
 	connections[c].noexpire = 0;
@@ -306,7 +354,7 @@ dispatch_addconnection(int sock)
 int
 dispatch_addconnection_aggr(int sock)
 {
-	int conn = dispatch_addconnection(sock);
+	int conn = dispatch_addconnection(sock, NULL);
 
 	if (conn == -1)
 		return 1;
@@ -400,7 +448,7 @@ dispatch_connection(connection *conn, dispatcher *self, struct timeval start)
 	 * left in the buffer, try to process the buffer */
 	if (
 			(!conn->needmore && conn->buflen > 0) ||
-			(len = read(conn->sock,
+			(len = conn->strmread(conn->strm,
 						conn->buf + conn->buflen,
 						(sizeof(conn->buf) - 1) - conn->buflen)) > 0
 	   )
@@ -552,7 +600,7 @@ dispatch_connection(connection *conn, dispatcher *self, struct timeval start)
 			return len > 0;
 		} else if (conn->destlen == 0) {
 			__sync_add_and_fetch(&closedconnections, 1);
-			close(conn->sock);
+			conn->strmclose(conn->strm);
 
 			/* flag this connection as no longer in use, unless there is
 			 * pending metrics to send */
@@ -597,13 +645,14 @@ dispatch_runner(void *arg)
 			}
 			pthread_rwlock_unlock(&listenerslock);
 			if (poll(ufds, fds, 1000) > 0) {
-				for (c = fds - 1; c >= 0; c--) {
-					if (ufds[c].revents & POLLIN) {
+				int f;
+				for (f = fds - 1; f >= 0; f--) {
+					if (ufds[f].revents & POLLIN) {
 						int client;
 						struct sockaddr addr;
 						socklen_t addrlen = sizeof(addr);
 
-						if ((client = accept(ufds[c].fd, &addr, &addrlen)) < 0)
+						if ((client = accept(ufds[f].fd, &addr, &addrlen)) < 0)
 						{
 							logerr("dispatch: failed to "
 									"accept() new connection: %s\n",
@@ -611,7 +660,23 @@ dispatch_runner(void *arg)
 							dispatch_check_rlimit_and_warn();
 							continue;
 						}
-						if (dispatch_addconnection(client) == -1) {
+						for (c = 0; c < MAX_LISTENERS; c++) {
+							if (listeners[c] == NULL)
+								continue;
+							for (sock = listeners[c]->socks; *sock != -1; sock++) {
+								if (ufds[f].fd == *sock)
+									break;
+							}
+							if (*sock != -1)
+								break;
+						}
+						if (c == MAX_LISTENERS) {
+							logerr("dispatch: could not find listener for "
+									"socket, this should never happen\n");
+							close(client);
+							continue;
+						}
+						if (dispatch_addconnection(client, listeners[c]) == -1) {
 							close(client);
 							continue;
 						}

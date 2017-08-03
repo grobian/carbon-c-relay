@@ -326,7 +326,9 @@ top_srcdir = @top_srcdir@
 AUTOMAKE_OPTIONS = foreign
 GIT_VERSION := $(shell git describe --abbrev=6 --dirty --always 2>/dev/null || date +%F)
 GVCFLAGS = -DGIT_VERSION=\"$(GIT_VERSION)\"
-relay_LINK = $(CCLD) $(AM_LDFLAGS) $(LDFLAGS) -o $@
+relay_LINK = $(CCLD) $(AM_LDFLAGS) $(LDFLAGS) -o $@ \
+			 $(LIBGZIP) $(LIBBZIP2) $(LIBLZMA) $(LIBSSL)
+
 relay_SOURCES = \
 	relay.c \
 	md5.c \

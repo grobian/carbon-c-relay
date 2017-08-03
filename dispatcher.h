@@ -27,7 +27,7 @@ typedef struct _dispatcher dispatcher;
 void dispatch_check_rlimit_and_warn(void);
 int dispatch_addlistener(listener *lsnr);
 void dispatch_removelistener(listener *lsnr);
-int dispatch_addconnection(int sock);
+int dispatch_addconnection(int sock, listener *lsnr);
 int dispatch_addconnection_aggr(int sock);
 void dispatch_set_bufsize(unsigned int sockbufsize);
 dispatcher *dispatch_new_listener(unsigned char id);
