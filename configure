@@ -4997,12 +4997,12 @@ fi
 
 LIBGZIP=
 if test "x$with_gzip" != xno; then :
-  for ac_header in zlib.h-no
+  for ac_header in zlib.h
 do :
-  ac_fn_c_check_header_mongrel "$LINENO" "zlib.h-no" "ac_cv_header_zlib_h_no" "$ac_includes_default"
-if test "x$ac_cv_header_zlib_h_no" = xyes; then :
+  ac_fn_c_check_header_mongrel "$LINENO" "zlib.h" "ac_cv_header_zlib_h" "$ac_includes_default"
+if test "x$ac_cv_header_zlib_h" = xyes; then :
   cat >>confdefs.h <<_ACEOF
-#define HAVE_ZLIB_H_NO 1
+#define HAVE_ZLIB_H 1
 _ACEOF
 
 else
