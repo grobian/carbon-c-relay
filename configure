@@ -4515,16 +4515,32 @@ done
 
 
 for ac_header in arpa/inet.h \
+				  assert.h \
+				  errno.h \
 				  fcntl.h \
-				  inttypes.h \
+				  glob.h \
+				  math.h \
 				  netdb.h \
 				  netinet/in.h \
-				  stddef.h \
+				  netinet/tcp.h \
+				  poll.h \
+				  pthread.h \
+				  regex.h \
+				  signal.h \
+				  stdarg.h \
+				  stdio.h \
 				  stdlib.h \
 				  string.h \
+				  sys/resource.h \
 				  sys/socket.h \
+				  sys/stat.h \
 				  sys/time.h \
-				  unistd.h
+				  sys/types.h \
+				  sys/uio.h \
+				  sys/un.h \
+				  time.h \
+				  unistd.h \
+
 do :
   as_ac_Header=`$as_echo "ac_cv_header_$ac_header" | $as_tr_sh`
 ac_fn_c_check_header_mongrel "$LINENO" "$ac_header" "$as_ac_Header" "$ac_includes_default"
@@ -4981,13 +4997,28 @@ fi
 
 LIBGZIP=
 if test "x$with_gzip" != xno; then :
-  { $as_echo "$as_me:${as_lineno-$LINENO}: checking for gzopen in -lz" >&5
-$as_echo_n "checking for gzopen in -lz... " >&6; }
-if ${ac_cv_lib_z_gzopen+:} false; then :
+  for ac_header in zlib.h-no
+do :
+  ac_fn_c_check_header_mongrel "$LINENO" "zlib.h-no" "ac_cv_header_zlib_h_no" "$ac_includes_default"
+if test "x$ac_cv_header_zlib_h_no" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_ZLIB_H_NO 1
+_ACEOF
+
+else
+  LIBGZIP=_missing_header
+fi
+
+done
+
+	   as_ac_Lib=`$as_echo "ac_cv_lib_z${LIBGZIP}''_gzopen" | $as_tr_sh`
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for gzopen in -lz${LIBGZIP}" >&5
+$as_echo_n "checking for gzopen in -lz${LIBGZIP}... " >&6; }
+if eval \${$as_ac_Lib+:} false; then :
   $as_echo_n "(cached) " >&6
 else
   ac_check_lib_save_LIBS=$LIBS
-LIBS="-lz  $LIBS"
+LIBS="-lz${LIBGZIP}  $LIBS"
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 
@@ -5007,17 +5038,18 @@ return gzopen ();
 }
 _ACEOF
 if ac_fn_c_try_link "$LINENO"; then :
-  ac_cv_lib_z_gzopen=yes
+  eval "$as_ac_Lib=yes"
 else
-  ac_cv_lib_z_gzopen=no
+  eval "$as_ac_Lib=no"
 fi
 rm -f core conftest.err conftest.$ac_objext \
     conftest$ac_exeext conftest.$ac_ext
 LIBS=$ac_check_lib_save_LIBS
 fi
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_z_gzopen" >&5
-$as_echo "$ac_cv_lib_z_gzopen" >&6; }
-if test "x$ac_cv_lib_z_gzopen" = xyes; then :
+eval ac_res=\$$as_ac_Lib
+	       { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_res" >&5
+$as_echo "$ac_res" >&6; }
+if eval test \"x\$"$as_ac_Lib"\" = x"yes"; then :
   LIBGZIP=-lz
 
 
@@ -5031,6 +5063,7 @@ $as_echo "$as_me: error: in \`$ac_pwd':" >&2;}
 as_fn_error $? "--with-gzip was given, but test for gzip failed
 See \`config.log' for more details" "$LINENO" 5; }
 					 fi
+					 LIBGZIP=
 
 
 fi
@@ -5047,13 +5080,28 @@ fi
 
 LIBBZIP2=
 if test "x$with_bzip2" != xno; then :
-  { $as_echo "$as_me:${as_lineno-$LINENO}: checking for BZ2_bzopen in -lbz2" >&5
-$as_echo_n "checking for BZ2_bzopen in -lbz2... " >&6; }
-if ${ac_cv_lib_bz2_BZ2_bzopen+:} false; then :
+  for ac_header in bzlib.h
+do :
+  ac_fn_c_check_header_mongrel "$LINENO" "bzlib.h" "ac_cv_header_bzlib_h" "$ac_includes_default"
+if test "x$ac_cv_header_bzlib_h" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_BZLIB_H 1
+_ACEOF
+
+else
+  LIBBZIP2=_missing_header
+fi
+
+done
+
+	   as_ac_Lib=`$as_echo "ac_cv_lib_bz2${LIBBZIP2}''_BZ2_bzopen" | $as_tr_sh`
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for BZ2_bzopen in -lbz2${LIBBZIP2}" >&5
+$as_echo_n "checking for BZ2_bzopen in -lbz2${LIBBZIP2}... " >&6; }
+if eval \${$as_ac_Lib+:} false; then :
   $as_echo_n "(cached) " >&6
 else
   ac_check_lib_save_LIBS=$LIBS
-LIBS="-lbz2  $LIBS"
+LIBS="-lbz2${LIBBZIP2}  $LIBS"
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 
@@ -5073,17 +5121,18 @@ return BZ2_bzopen ();
 }
 _ACEOF
 if ac_fn_c_try_link "$LINENO"; then :
-  ac_cv_lib_bz2_BZ2_bzopen=yes
+  eval "$as_ac_Lib=yes"
 else
-  ac_cv_lib_bz2_BZ2_bzopen=no
+  eval "$as_ac_Lib=no"
 fi
 rm -f core conftest.err conftest.$ac_objext \
     conftest$ac_exeext conftest.$ac_ext
 LIBS=$ac_check_lib_save_LIBS
 fi
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_bz2_BZ2_bzopen" >&5
-$as_echo "$ac_cv_lib_bz2_BZ2_bzopen" >&6; }
-if test "x$ac_cv_lib_bz2_BZ2_bzopen" = xyes; then :
+eval ac_res=\$$as_ac_Lib
+	       { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_res" >&5
+$as_echo "$ac_res" >&6; }
+if eval test \"x\$"$as_ac_Lib"\" = x"yes"; then :
   LIBBZIP2=-lbz2
 
 
@@ -5097,6 +5146,7 @@ $as_echo "$as_me: error: in \`$ac_pwd':" >&2;}
 as_fn_error $? "--with-bzip2 was given, but test for bzip2 failed
 See \`config.log' for more details" "$LINENO" 5; }
 					 fi
+					 LIBBZIP2=
 
 
 fi
@@ -5113,13 +5163,30 @@ fi
 
 LIBSSL=
 if test "x$with_ssl" != xno; then :
-  { $as_echo "$as_me:${as_lineno-$LINENO}: checking for SSL_connect in -lssl" >&5
-$as_echo_n "checking for SSL_connect in -lssl... " >&6; }
-if ${ac_cv_lib_ssl_SSL_connect+:} false; then :
+  for ac_header in openssl/err.h \
+	                     openssl/ssl.h
+do :
+  as_ac_Header=`$as_echo "ac_cv_header_$ac_header" | $as_tr_sh`
+ac_fn_c_check_header_mongrel "$LINENO" "$ac_header" "$as_ac_Header" "$ac_includes_default"
+if eval test \"x\$"$as_ac_Header"\" = x"yes"; then :
+  cat >>confdefs.h <<_ACEOF
+#define `$as_echo "HAVE_$ac_header" | $as_tr_cpp` 1
+_ACEOF
+
+else
+  LIBSSL=_missing_header
+fi
+
+done
+
+	   as_ac_Lib=`$as_echo "ac_cv_lib_ssl${LIBSSL}''_SSL_connect" | $as_tr_sh`
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for SSL_connect in -lssl${LIBSSL}" >&5
+$as_echo_n "checking for SSL_connect in -lssl${LIBSSL}... " >&6; }
+if eval \${$as_ac_Lib+:} false; then :
   $as_echo_n "(cached) " >&6
 else
   ac_check_lib_save_LIBS=$LIBS
-LIBS="-lssl  $LIBS"
+LIBS="-lssl${LIBSSL}  $LIBS"
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 
@@ -5139,17 +5206,18 @@ return SSL_connect ();
 }
 _ACEOF
 if ac_fn_c_try_link "$LINENO"; then :
-  ac_cv_lib_ssl_SSL_connect=yes
+  eval "$as_ac_Lib=yes"
 else
-  ac_cv_lib_ssl_SSL_connect=no
+  eval "$as_ac_Lib=no"
 fi
 rm -f core conftest.err conftest.$ac_objext \
     conftest$ac_exeext conftest.$ac_ext
 LIBS=$ac_check_lib_save_LIBS
 fi
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_ssl_SSL_connect" >&5
-$as_echo "$ac_cv_lib_ssl_SSL_connect" >&6; }
-if test "x$ac_cv_lib_ssl_SSL_connect" = xyes; then :
+eval ac_res=\$$as_ac_Lib
+	       { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_res" >&5
+$as_echo "$ac_res" >&6; }
+if eval test \"x\$"$as_ac_Lib"\" = x"yes"; then :
   LIBSSL="-lssl"
 
 $as_echo "#define HAVE_SSL 1" >>confdefs.h
@@ -5204,6 +5272,7 @@ $as_echo "$as_me: error: in \`$ac_pwd':" >&2;}
 as_fn_error $? "--with-ssl was given, but test for ssl failed
 See \`config.log' for more details" "$LINENO" 5; }
 					 fi
+					 LIBSSL=
 
 
 fi

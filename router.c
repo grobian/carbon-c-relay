@@ -1730,7 +1730,12 @@ router_printconfig(router *rtr, FILE *f, char pmode)
 						walk->transport == W_LZMA  ? " lzma" :
 						walk->transport == W_SSL   ? " ssl" : " unknown",
 						walk->transport == W_SSL ? " " : "",
-						walk->transport == W_SSL ? walk->pemcert : "");
+#ifdef HAVE_SSL
+						walk->transport == W_SSL ? walk->pemcert : ""
+#else
+						""
+#endif
+						);
 				do {
 					if (walk->ctype == CON_UNIX) {
 						fprintf(f, "        %s proto unix\n", walk->ip);

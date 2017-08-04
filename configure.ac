@@ -25,16 +25,32 @@ LIBS="$saveLIBS $LIBS"
 
 # Checks for header files.
 AC_CHECK_HEADERS([arpa/inet.h \
+				  assert.h \
+				  errno.h \
 				  fcntl.h \
-				  inttypes.h \
+				  glob.h \
+				  math.h \
 				  netdb.h \
 				  netinet/in.h \
-				  stddef.h \
+				  netinet/tcp.h \
+				  poll.h \
+				  pthread.h \
+				  regex.h \
+				  signal.h \
+				  stdarg.h \
+				  stdio.h \
 				  stdlib.h \
 				  string.h \
+				  sys/resource.h \
 				  sys/socket.h \
+				  sys/stat.h \
 				  sys/time.h \
-				  unistd.h],
+				  sys/types.h \
+				  sys/uio.h \
+				  sys/un.h \
+				  time.h \
+				  unistd.h \
+				  ],
 				  [],
 				  [AC_MSG_ERROR([required header missing])])
 
@@ -66,7 +82,8 @@ AC_ARG_WITH([gzip], [support gzip compression for sending/receiving],
 			[], [with_gzip=check])
 LIBGZIP=
 AS_IF([test "x$with_gzip" != xno],
-	  [AC_CHECK_LIB([z], [gzopen],
+	  [AC_CHECK_HEADERS([zlib.h], [], [LIBGZIP=_missing_header])
+	   AC_CHECK_LIB([z${LIBGZIP}], [gzopen],
 					[AC_SUBST([LIBGZIP], [-lz])
 					AC_DEFINE([HAVE_GZIP], [1], [Define if you have gzip])
 					],
@@ -74,6 +91,7 @@ AS_IF([test "x$with_gzip" != xno],
 					 AC_MSG_FAILURE(
 					   [--with-gzip was given, but test for gzip failed])
 					 fi
+					 LIBGZIP=
 					]
 	)])
 
@@ -81,7 +99,8 @@ AC_ARG_WITH([bzip2], [support bzip2 compression for sending/receiving],
 			[], [with_bzip2=check])
 LIBBZIP2=
 AS_IF([test "x$with_bzip2" != xno],
-	  [AC_CHECK_LIB([bz2], [BZ2_bzopen],
+	  [AC_CHECK_HEADERS([bzlib.h], [], [LIBBZIP2=_missing_header])
+	   AC_CHECK_LIB([bz2${LIBBZIP2}], [BZ2_bzopen],
 					[AC_SUBST([LIBBZIP2], [-lbz2])
 					AC_DEFINE([HAVE_BZIP2], [1], [Define if you have bzip2])
 					],
@@ -89,6 +108,7 @@ AS_IF([test "x$with_bzip2" != xno],
 					 AC_MSG_FAILURE(
 					   [--with-bzip2 was given, but test for bzip2 failed])
 					 fi
+					 LIBBZIP2=
 					]
 	)])
 
@@ -96,7 +116,9 @@ AC_ARG_WITH([ssl], [support ssl encryption for sending/receiving],
 			[], [with_ssl=check])
 LIBSSL=
 AS_IF([test "x$with_ssl" != xno],
-	  [AC_CHECK_LIB([ssl], [SSL_connect],
+	  [AC_CHECK_HEADERS([openssl/err.h \
+	                     openssl/ssl.h], [], [LIBSSL=_missing_header])
+	   AC_CHECK_LIB([ssl${LIBSSL}], [SSL_connect],
 					[LIBSSL="-lssl"
 					AC_DEFINE([HAVE_SSL], [1], [Define if you have ssl])
 					AC_CHECK_LIB([crypto],
@@ -109,6 +131,7 @@ AS_IF([test "x$with_ssl" != xno],
 					 AC_MSG_FAILURE(
 					   [--with-ssl was given, but test for ssl failed])
 					 fi
+					 LIBSSL=
 					]
 	)])
 
