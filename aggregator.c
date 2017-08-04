@@ -376,7 +376,7 @@ write_metric(
 	char metric[METRIC_BUFSIZ];
 	double *values;
 	size_t len = 0;
-	long long int ts;
+	long long int ts = 0;
 	int k;
 
 	switch (s->tswhen) {
