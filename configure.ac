@@ -97,12 +97,17 @@ AC_ARG_WITH([ssl], [support ssl encryption for sending/receiving],
 LIBSSL=
 AS_IF([test "x$with_ssl" != xno],
 	  [AC_CHECK_LIB([ssl], [SSL_connect],
-					[AC_SUBST([LIBSSL], [-lssl])
+					[LIBSSL="-lssl"
 					AC_DEFINE([HAVE_SSL], [1], [Define if you have ssl])
+					AC_CHECK_LIB([crypto],
+								 [OPENSSL_add_all_algorithms_noconf],
+								 [LIBSSL="${LIBSSL} -lcrypto"],
+								 [])
+					AC_SUBST([LIBSSL], ["${LIBSSL}"])
 					],
 					[if test "x$with_ssl" != xcheck; then
 					 AC_MSG_FAILURE(
-					   [--with-ss was given, but test for ssl failed])
+					   [--with-ssl was given, but test for ssl failed])
 					 fi
 					]
 	)])

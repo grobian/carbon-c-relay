@@ -936,6 +936,7 @@ router_add_listener(
 		router *rtr,
 		rcptr_lsnrtype ltype,
 		rcptr_transport trnsp,
+		char *pemcert,
 		serv_ctype ctype,
 		char *ip,
 		int port,
@@ -1012,6 +1013,13 @@ router_add_listener(
 	lwalk->port = port;
 	lwalk->socks = NULL;
 	lwalk->saddrs = saddrs;
+#ifdef HAVE_SSL
+	lwalk->ctx = NULL;
+	lwalk->sslstrms = NULL;
+	lwalk->pemcert = pemcert;
+#else
+	(void)pemcert;  /* not used */
+#endif
 	lwalk->next = NULL;
 
 	addrcnt = saddrs == NULL ? 1 : 0;
@@ -1263,7 +1271,7 @@ router_readconfig(router *orig,
 			router_validate_address(ret, &ip, &port, &saddrs, &hint,
 					sockbuf, CON_TCP);
 			free(hint);
-			router_add_listener(ret, LSNR_LINE, W_PLAIN, CON_TCP,
+			router_add_listener(ret, LSNR_LINE, W_PLAIN, NULL, CON_TCP,
 					ip, port, saddrs);
 
 			hint = NULL;
@@ -1271,12 +1279,12 @@ router_readconfig(router *orig,
 			router_validate_address(ret, &ip, &port, &saddrs, &hint,
 					sockbuf, CON_UDP);
 			free(hint);
-			router_add_listener(ret, LSNR_LINE, W_PLAIN, CON_UDP,
+			router_add_listener(ret, LSNR_LINE, W_PLAIN, NULL, CON_UDP,
 					ip, port, saddrs);
 
 			snprintf(sockbuf, sizeof(sockbuf), "%s/%s.%u",
 					TMPDIR, SOCKFILE, listenport);
-			router_add_listener(ret, LSNR_LINE, W_PLAIN, CON_UNIX,
+			router_add_listener(ret, LSNR_LINE, W_PLAIN, NULL, CON_UNIX,
 					sockbuf, 0, NULL);
 		}
 	}
@@ -1715,12 +1723,14 @@ router_printconfig(router *rtr, FILE *f, char pmode)
 		fprintf(f, "listen\n");
 		for (walk = rtr->listeners; walk != NULL; walk = walk->next) {
 			if (walk->lsnrtype == LSNR_LINE) {
-				fprintf(f, "    linemode%s\n",
+				fprintf(f, "    linemode%s%s%s\n",
 						walk->transport == W_PLAIN ? "" :
 						walk->transport == W_GZIP  ? " gzip" :
 						walk->transport == W_BZIP2 ? " bzip2" :
 						walk->transport == W_LZMA  ? " lzma" :
-						walk->transport == W_SSL   ? " ssl" : " unknown");
+						walk->transport == W_SSL   ? " ssl" : " unknown",
+						walk->transport == W_SSL ? " " : "",
+						walk->transport == W_SSL ? walk->pemcert : "");
 				do {
 					if (walk->ctype == CON_UNIX) {
 						fprintf(f, "        %s proto unix\n", walk->ip);

@@ -727,6 +727,13 @@ main(int argc, char * const argv[])
 		fprintf(relay_stdout, "\n");
 	}
 
+#ifdef HAVE_SSL
+	/* this needs to happen once, globally */
+	SSL_library_init();
+	SSL_load_error_strings();
+	OpenSSL_add_all_algorithms();
+#endif
+
 	if ((rtr = router_readconfig(NULL, config, workercnt,
 					queuesize, batchsize, maxstalls,
 					iotimeout, sockbufsize, listenport)) == NULL)

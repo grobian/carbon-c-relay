@@ -115,7 +115,7 @@ char *router_add_cluster(router *r, cluster *cl);
 char *router_add_route(router *r, route *rte);
 char *router_add_aggregator(router *rtr, aggregator *a);
 char *router_add_stubroute(router *rtr, enum clusttype type, cluster *w, destinations *dw);
-char *router_add_listener(router *rtr, rcptr_lsnrtype ltype, rcptr_transport trnsp, serv_ctype ctype, char *ip, int port, struct addrinfo *saddrs);
+char *router_add_listener(router *rtr, rcptr_lsnrtype ltype, rcptr_transport trnsp, char *pemcert, serv_ctype ctype, char *ip, int port, struct addrinfo *saddrs);
 char *router_set_statistics(router *rtr, destinations *dsts);
 char *router_set_collectorvals(router *rtr, int val, char *prefix, col_mode m);
 

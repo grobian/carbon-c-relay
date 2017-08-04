@@ -215,14 +215,17 @@ listen				{
 						return crLISTEN;
 					}
 <li>linemode		{
-						identstate = li;
+						identstate = idli;
 						BEGIN(idli);
 						return crLINEMODE;
 					}
 <idli>gzip				return crGZIP;
 <idli>bzip2				return crBZIP2;
 <idli>ssl				return crSSL;
-<li>proto				return crPROTO;
+<idli>proto			{
+						BEGIN(li);
+						return crPROTO;
+					}
 <li>udp				{
 						identstate = li;
 						BEGIN(idli);

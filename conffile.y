@@ -35,7 +35,7 @@ struct _agcomp {
 };
 struct _lsnr {
 	rcptr_lsnrtype type;
-	rcptr_transport transport;
+	struct _rcptr_trsp *transport;
 	struct _rcptr *rcptr;
 };
 struct _rcptr {
@@ -44,6 +44,10 @@ struct _rcptr {
 	int port;
 	void *saddr;
 	struct _rcptr *next;
+};
+struct _rcptr_trsp {
+	rcptr_transport mode;
+	char *pemcert;
 };
 }
 
@@ -101,7 +105,7 @@ struct _rcptr {
 %token crLINEMODE crGZIP crBZIP2 crSSL crUNIX
 %type <serv_ctype> rcptr_proto
 %type <struct _rcptr *> receptor opt_receptor receptors
-%type <rcptr_transport> transport_mode
+%type <struct _rcptr_trsp *> transport_mode
 %type <struct _lsnr *> listener
 
 %token crINCLUDE
@@ -767,7 +771,8 @@ listen: crLISTEN listener[lsnr]
 		char *err;
 
 		for (walk = $lsnr->rcptr; walk != NULL; walk = walk->next) {
-			err = router_add_listener(rtr, $lsnr->type, $lsnr->transport,
+			err = router_add_listener(rtr, $lsnr->type,
+				$lsnr->transport->mode, $lsnr->transport->pemcert,
 				walk->ctype, walk->ip, walk->port, walk->saddr);
 			if (err != NULL) {
 				router_yyerror(&yylloc, yyscanner, rtr,
@@ -802,10 +807,24 @@ listener: crLINEMODE transport_mode[mode] receptors[ifaces]
 		}
 		;
 
-transport_mode:         { $$ = W_PLAIN; }
+transport_mode:         {
+							if (($$ = ra_malloc(palloc,
+									sizeof(struct _rcptr_trsp))) == NULL)
+							{
+								logerr("malloc failed\n");
+								YYABORT;
+							}
+							$$->mode = W_PLAIN;
+						}
 			  | crGZIP  {
 #ifdef HAVE_GZIP
-							$$ = W_GZIP;
+							if (($$ = ra_malloc(palloc,
+									sizeof(struct _rcptr_trsp))) == NULL)
+							{
+								logerr("malloc failed\n");
+								YYABORT;
+							}
+							$$->mode = W_GZIP;
 #else
 							router_yyerror(&yylloc, yyscanner, rtr,
 								ralloc, palloc,
@@ -815,7 +834,13 @@ transport_mode:         { $$ = W_PLAIN; }
 						}
 			  | crBZIP2 {
 #ifdef HAVE_BZIP2
-							$$ = W_BZIP2;
+							if (($$ = ra_malloc(palloc,
+									sizeof(struct _rcptr_trsp))) == NULL)
+							{
+								logerr("malloc failed\n");
+								YYABORT;
+							}
+							$$->mode = W_BZIP2;
 #else
 							router_yyerror(&yylloc, yyscanner, rtr,
 								ralloc, palloc,
@@ -823,9 +848,16 @@ transport_mode:         { $$ = W_PLAIN; }
 							YYERROR;
 #endif
 						}
-			  | crSSL   {
+			  | crSSL crSTRING[pemcert]  {
 #ifdef HAVE_SSL
-							$$ = W_SSL;
+							if (($$ = ra_malloc(palloc,
+									sizeof(struct _rcptr_trsp))) == NULL)
+							{
+								logerr("malloc failed\n");
+								YYABORT;
+							}
+							$$->mode = W_SSL;
+							$$->pemcert = $pemcert;
 #else
 							router_yyerror(&yylloc, yyscanner, rtr,
 								ralloc, palloc,

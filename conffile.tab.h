@@ -76,7 +76,7 @@ struct _agcomp {
 };
 struct _lsnr {
 	rcptr_lsnrtype type;
-	rcptr_transport transport;
+	struct _rcptr_trsp *transport;
 	struct _rcptr *rcptr;
 };
 struct _rcptr {
@@ -86,8 +86,12 @@ struct _rcptr {
 	void *saddr;
 	struct _rcptr *next;
 };
+struct _rcptr_trsp {
+	rcptr_transport mode;
+	char *pemcert;
+};
 
-#line 91 "conffile.tab.h" /* yacc.c:1909  */
+#line 95 "conffile.tab.h" /* yacc.c:1909  */
 
 /* Token type.  */
 #ifndef ROUTER_YYTOKENTYPE
@@ -220,8 +224,6 @@ union ROUTER_YYSTYPE
   int match_opt_stop;
   /* statistics_opt_interval  */
   int statistics_opt_interval;
-  /* transport_mode  */
-  rcptr_transport transport_mode;
   /* cluster_opt_proto  */
   serv_ctype cluster_opt_proto;
   /* rcptr_proto  */
@@ -268,7 +270,9 @@ union ROUTER_YYSTYPE
   struct _rcptr * opt_receptor;
   /* receptor  */
   struct _rcptr * receptor;
-#line 272 "conffile.tab.h" /* yacc.c:1909  */
+  /* transport_mode  */
+  struct _rcptr_trsp * transport_mode;
+#line 276 "conffile.tab.h" /* yacc.c:1909  */
 };
 
 typedef union ROUTER_YYSTYPE ROUTER_YYSTYPE;

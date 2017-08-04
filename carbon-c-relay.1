@@ -1,7 +1,7 @@
 .\" generated with Ronn/v0.7.3
 .\" http://github.com/rtomayko/ronn/tree/0.7.3
 .
-.TH "CARBON\-C\-RELAY" "1" "June 2017" "Graphite" "Graphite data collection and visualisation"
+.TH "CARBON\-C\-RELAY" "1" "August 2017" "Graphite" "Graphite data collection and visualisation"
 .
 .SH "NAME"
 \fBcarbon\-c\-relay\fR \- graphite relay, aggregator and rewriter
@@ -165,7 +165,7 @@ statistics
     ;
 
 listen
-    <linemode [gzip | bzip2 | lzma | ssl]>
+    <linemode [gzip | bzip2 | ssl <pemcert>]>
         <<interface[:port] | port> proto <udp | tcp>> \.\.\.
         </ptah/to/file proto unix> \.\.\.
     ;

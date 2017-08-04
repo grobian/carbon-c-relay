@@ -42,6 +42,9 @@
 #ifdef HAVE_BZIP2
 #include <bzlib.h>
 #endif
+#ifdef HAVE_SSL
+#include <openssl/ssl.h>
+#endif
 
 enum conntype {
 	LISTENER,
@@ -141,6 +144,23 @@ bzipclose(void *strm)
 {
 	BZ2_bzclose((BZFILE *)strm);
 	return 0;
+}
+#endif
+
+#ifdef HAVE_SSL
+/* (Open|Libre)SSL wrapped socket */
+static inline ssize_t
+sslread(void *strm, void *buf, size_t sze)
+{
+	return (ssize_t)SSL_read((SSL *)strm, buf, (int)sze);
+}
+
+static inline int
+sslclose(void *strm)
+{
+	int sock = SSL_get_fd((SSL *)strm);
+	SSL_free((SSL *)strm);
+	return close(sock);
 }
 #endif
 
@@ -255,6 +275,10 @@ dispatch_removelistener(listener *lsnr)
 		pthread_rwlock_unlock(&listenerslock);
 	}
 	/* cleanup */
+#ifdef HAVE_SSL
+	if (lsnr->transport == W_SSL)
+		SSL_CTX_free(lsnr->ctx);
+#endif
 	for (socks = lsnr->socks; *socks != -1; socks++)
 		close(*socks);
 	if (lsnr->saddrs)
@@ -354,6 +378,16 @@ dispatch_addconnection(int sock, listener *lsnr)
 		connections[c].strm = BZ2_bzdopen(sock, "r");
 		connections[c].strmread = &bzipread;
 		connections[c].strmclose = &bzipclose;
+	}
+#endif
+#ifdef HAVE_SSL
+	else if (lsnr->transport == W_SSL) {
+		connections[c].strm = SSL_new(lsnr->ctx);
+		SSL_set_fd(connections[c].strm, sock);
+		SSL_set_accept_state(connections[c].strm);
+
+		connections[c].strmread = &sslread;
+		connections[c].strmclose = &sslclose;
 	}
 #endif
 	connections[c].buflen = 0;

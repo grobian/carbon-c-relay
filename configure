@@ -5150,17 +5150,58 @@ fi
 { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_ssl_SSL_connect" >&5
 $as_echo "$ac_cv_lib_ssl_SSL_connect" >&6; }
 if test "x$ac_cv_lib_ssl_SSL_connect" = xyes; then :
-  LIBSSL=-lssl
-
+  LIBSSL="-lssl"
 
 $as_echo "#define HAVE_SSL 1" >>confdefs.h
+
+					{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for OPENSSL_add_all_algorithms_noconf in -lcrypto" >&5
+$as_echo_n "checking for OPENSSL_add_all_algorithms_noconf in -lcrypto... " >&6; }
+if ${ac_cv_lib_crypto_OPENSSL_add_all_algorithms_noconf+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lcrypto  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char OPENSSL_add_all_algorithms_noconf ();
+int
+main ()
+{
+return OPENSSL_add_all_algorithms_noconf ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_lib_crypto_OPENSSL_add_all_algorithms_noconf=yes
+else
+  ac_cv_lib_crypto_OPENSSL_add_all_algorithms_noconf=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_crypto_OPENSSL_add_all_algorithms_noconf" >&5
+$as_echo "$ac_cv_lib_crypto_OPENSSL_add_all_algorithms_noconf" >&6; }
+if test "x$ac_cv_lib_crypto_OPENSSL_add_all_algorithms_noconf" = xyes; then :
+  LIBSSL="${LIBSSL} -lcrypto"
+fi
+
+					LIBSSL="${LIBSSL}"
 
 
 else
   if test "x$with_ssl" != xcheck; then
 					 { { $as_echo "$as_me:${as_lineno-$LINENO}: error: in \`$ac_pwd':" >&5
 $as_echo "$as_me: error: in \`$ac_pwd':" >&2;}
-as_fn_error $? "--with-ss was given, but test for ssl failed
+as_fn_error $? "--with-ssl was given, but test for ssl failed
 See \`config.log' for more details" "$LINENO" 5; }
 					 fi
 

@@ -21,8 +21,13 @@
 #include <stdio.h>
 #include <regex.h>
 
+#include "relay.h"
 #include "server.h"
 #include "aggregator.h"
+
+#ifdef HAVE_SSL
+#include <openssl/ssl.h>
+#endif
 
 #define PMODE_NORM    (1 << 0)
 #define PMODE_AGGR    (1 << 1)
@@ -53,6 +58,11 @@ typedef struct _router_listener {
 	char *ip;
 	int port;
 	int *socks;
+#ifdef HAVE_SSL
+	SSL_CTX *ctx;
+	SSL **sslstrms;
+	char *pemcert;
+#endif
 	struct addrinfo *saddrs;
 	struct _router_listener *next;
 } listener;
