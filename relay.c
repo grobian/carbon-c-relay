@@ -24,6 +24,7 @@
 #include <ctype.h>
 #include <signal.h>
 #include <time.h>
+#include <sys/socket.h>
 #include <errno.h>
 #include <assert.h>
 
