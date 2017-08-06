@@ -139,13 +139,6 @@ bindlistenip(listener *lsnr, unsigned int backlog)
 			break;
 		}
 
-#ifdef HAVE_SSL
-		if (lsnr->transport == W_SSL) {
-			// FIXME
-		}
-#endif
-
-
 		if (resw->ai_protocol == IPPROTO_TCP) {
 			if (listen(sock, backlog) < 0) {
 				logerr("failed to listen on tcp%d %s port %u: %s\n",
