@@ -720,6 +720,7 @@ dispatch_runner(void *arg)
 							dispatch_check_rlimit_and_warn();
 							continue;
 						}
+						pthread_rwlock_rdlock(&listenerslock);
 						for (c = 0; c < MAX_LISTENERS; c++) {
 							if (listeners[c] == NULL)
 								continue;
@@ -730,9 +731,10 @@ dispatch_runner(void *arg)
 							if (*sock != -1)
 								break;
 						}
+						pthread_rwlock_unlock(&listenerslock);
 						if (c == MAX_LISTENERS) {
 							logerr("dispatch: could not find listener for "
-									"socket, this should never happen\n");
+									"socket, rejecting connection\n");
 							close(client);
 							continue;
 						}
