@@ -88,7 +88,7 @@ struct _dispatcher {
 	router *rtr;
 	router *pending_rtr;
 	char route_refresh_pending;  /* full byte for atomic access */
-	char hold:1;
+	char hold;  /* full byte for atomic access */
 	char *allowed_chars;
 };
 
@@ -755,7 +755,7 @@ dispatch_runner(void *arg)
 				self->rtr = self->pending_rtr;
 				self->pending_rtr = NULL;
 				__sync_bool_compare_and_swap(&(self->route_refresh_pending), 1, 0);
-				self->hold = 0;
+				__sync_and_and_fetch(&(self->hold), 0);
 			}
 
 			gettimeofday(&start, NULL);
@@ -766,7 +766,9 @@ dispatch_runner(void *arg)
 				if (!__sync_bool_compare_and_swap(
 							&(conn->takenby), 0, self->id))
 					continue;
-				if (self->hold && !conn->isaggr) {
+				if (__sync_bool_compare_and_swap(
+							&(self->hold), 1, 1) && !conn->isaggr)
+				{
 					__sync_bool_compare_and_swap(
 							&(conn->takenby), self->id, 0);
 					continue;
@@ -905,7 +907,7 @@ dispatch_free(dispatcher *d)
 inline void
 dispatch_hold(dispatcher *d)
 {
-	d->hold = 1;
+	__sync_bool_compare_and_swap(&(d->hold), 0, 1);
 }
 
 /**
