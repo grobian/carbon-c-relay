@@ -56,6 +56,7 @@ static unsigned short listenport = GRAPHITE_PORT;
 static int optimiserthreshold = 50;
 static int sockbufsize = 0;
 static int collector_interval = 60;
+static unsigned int listenbacklog = 32;
 static col_mode smode = CUM;
 static dispatcher **workers = NULL;
 static char workercnt = 0;
@@ -257,7 +258,7 @@ do_reload(void)
 	lsnrs = router_get_listeners(newrtr);
 	for ( ; lsnrs != NULL; lsnrs = lsnrs->next) {
 		if (!router_contains_listener(rtr, lsnrs)) {
-			if (bindlisten(lsnrs, 32 /* FIXME */) != 0) {
+			if (bindlisten(lsnrs, listenbacklog) != 0) {
 				logerr("failed to setup listener, "
 						"this will impact the behaviour of the relay\n");
 				continue;
@@ -371,7 +372,6 @@ int
 main(int argc, char * const argv[])
 {
 	char id;
-	unsigned int listenbacklog = 32;
 	int ch;
 	size_t numaggregators;
 	char *allowed_chars = NULL;
