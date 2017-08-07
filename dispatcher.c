@@ -285,6 +285,32 @@ dispatch_removelistener(listener *lsnr)
 		freeaddrinfo(lsnr->saddrs);
 }
 
+/**
+ * Copy over all state related things from olsnr to nlsnr and ensure
+ * olsnr can be discarded (that is, thrown away without calling
+ * dispatch_removelistener).
+ */
+void
+dispatch_transplantlistener(listener *olsnr, listener *nlsnr, router *r)
+{
+	int c;
+
+	pthread_rwlock_wrlock(&listenerslock);
+	for (c = 0; c < MAX_LISTENERS; c++) {
+		if (listeners[c] == olsnr) {
+			router_transplant_listener_socks(r, olsnr, nlsnr);
+#ifdef HAVE_SSL
+			if (nlsnr->transport == W_SSL)
+				nlsnr->ctx = olsnr->ctx;
+#endif
+			if (olsnr->saddrs)
+				freeaddrinfo(olsnr->saddrs);
+			listeners[c] = nlsnr;
+			break;  /* found and done */
+		}
+	}
+}
+
 #define CONNGROWSZ  1024
 
 /**

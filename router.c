@@ -2094,7 +2094,7 @@ router_get_listeners(router *rtr)
  * Comparible means they are the same hostname, or have canonical ip
  * representation that matches.
  */
-char
+listener *
 router_contains_listener(router *rtr, listener *lsnr)
 {
 	listener *rwalk;
@@ -2153,7 +2153,18 @@ router_contains_listener(router *rtr, listener *lsnr)
 		}
 	}
 
-	return match;
+	return match ? rwalk : NULL;
+}
+
+void
+router_transplant_listener_socks(router *rtr, listener *olsnr, listener *nlsnr)
+{
+	int cnt;
+	for (cnt = 0; olsnr->socks[cnt] != -1; cnt++)
+		;
+	cnt++;
+	nlsnr->socks = ra_malloc(rtr->a, sizeof(int) * (cnt));
+	memmove(nlsnr->socks, olsnr->socks, sizeof(int) * (cnt));
 }
 
 /**

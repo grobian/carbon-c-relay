@@ -185,7 +185,7 @@ do_reload(void)
 	/* close connections that are not in the new config first */
 	lsnrs = router_get_listeners(rtr);
 	for ( ; lsnrs != NULL; lsnrs = lsnrs->next) {
-		if (!router_contains_listener(newrtr, lsnrs)) {
+		if (router_contains_listener(newrtr, lsnrs) == NULL) {
 			dispatch_removelistener(lsnrs);
 			shutdownclose(lsnrs);
 		}
@@ -226,6 +226,27 @@ do_reload(void)
 		}
 	}
 
+	/* Transplant listeners so their open state won't get lost.  Open up
+	 * connections for new listeners. */
+	lsnrs = router_get_listeners(newrtr);
+	for ( ; lsnrs != NULL; lsnrs = lsnrs->next) {
+		listener *olsnr;
+		if ((olsnr = router_contains_listener(rtr, lsnrs)) != NULL) {
+			/* ensure we copy over the opened sockets/state */
+			dispatch_transplantlistener(olsnr, lsnrs, newrtr);
+		} else {
+			if (bindlisten(lsnrs, listenbacklog) != 0) {
+				logerr("failed to setup listener, "
+						"this will impact the behaviour of the relay\n");
+				continue;
+			}
+			if (dispatch_addlistener(lsnrs) != 0) {
+				logerr("failed to listen to socket, the "
+						"listener will not be effective\n");
+			}
+		}
+	}
+
 	/* Transplant the queues for the same servers, so we keep their
 	 * queues (potentially with data) around.  To do so, we need to make
 	 * sure the servers aren't being operated on. */
@@ -252,22 +273,6 @@ do_reload(void)
 	for (id = 1; id < 1 + workercnt; id++) {
 		while (!dispatch_reloadcomplete(workers[id + 0]))
 			usleep((100 + (rand() % 200)) * 1000);  /* 100ms - 300ms */
-	}
-
-	/* open connections that are in the new config */
-	lsnrs = router_get_listeners(newrtr);
-	for ( ; lsnrs != NULL; lsnrs = lsnrs->next) {
-		if (!router_contains_listener(rtr, lsnrs)) {
-			if (bindlisten(lsnrs, listenbacklog) != 0) {
-				logerr("failed to setup listener, "
-						"this will impact the behaviour of the relay\n");
-				continue;
-			}
-			if (dispatch_addlistener(lsnrs) != 0) {
-				logerr("failed to listen to socket, the "
-						"listener will not be effective\n");
-			}
-		}
 	}
 
 	router_free(rtr);
