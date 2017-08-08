@@ -18,6 +18,7 @@ struct _clhost {
 	int port;
 	char *inst;
 	int proto;
+	rcptr_transport trnsp;
 	void *saddr;
 	void *hint;
 	struct _clhost *next;
@@ -69,6 +70,7 @@ struct _rcptr_trsp {
 %type <cluster *> cluster
 %type <struct _clhost *> cluster_host cluster_hosts cluster_opt_host
 	cluster_path cluster_paths cluster_opt_path
+%type <rcptr_transport> cluster_opt_transport
 
 %token crMATCH
 %token crVALIDATE crELSE crLOG crDROP crROUTE crUSING
@@ -102,7 +104,7 @@ struct _rcptr_trsp {
 %type <char *> statistics_opt_prefix
 
 %token crLISTEN
-%token crLINEMODE crGZIP crBZIP2 crSSL crUNIX
+%token crTYPE crLINEMODE crTRANSPORT crGZIP crBZIP2 crSSL crUNIX
 %type <serv_ctype> rcptr_proto
 %type <struct _rcptr *> receptor opt_receptor receptors
 %type <struct _rcptr_trsp *> transport_mode
@@ -300,8 +302,10 @@ cluster_hosts: cluster_host[l] cluster_opt_host[r] { $l->next = $r; $$ = $l; }
 cluster_opt_host:               { $$ = NULL; }
 				| cluster_hosts { $$ = $1; }
 				;
-cluster_host: crSTRING[ip] cluster_opt_instance[inst] cluster_opt_proto[prot]
-			  {
+cluster_host: crSTRING[ip] cluster_opt_instance[inst]
+			  cluster_opt_proto[prot] cluster_opt_type[type]
+			  cluster_opt_transport[trnsp]
+			{
 			  	struct _clhost *ret = ra_malloc(palloc, sizeof(struct _clhost));
 				char *err = router_validate_address(
 						rtr,
@@ -314,6 +318,7 @@ cluster_host: crSTRING[ip] cluster_opt_instance[inst] cluster_opt_proto[prot]
 				}
 				ret->inst = $inst;
 				ret->proto = $prot;
+				ret->trnsp = $trnsp;
 				ret->next = NULL;
 				$$ = ret;
 			  }
@@ -334,6 +339,16 @@ cluster_opt_proto:               { $$ = CON_TCP; }
 				 | crPROTO crUDP { $$ = CON_UDP; }
 				 | crPROTO crTCP { $$ = CON_TCP; }
 				 ;
+
+cluster_opt_type:
+				| crTYPE crLINEMODE
+				;
+
+cluster_opt_transport:                      { $$ = W_PLAIN; }
+					 | crTRANSPORT crGZIP   { $$ = W_GZIP;  }
+					 | crTRANSPORT crBZIP2  { $$ = W_BZIP2; }
+					 | crTRANSPORT crSSL    { $$ = W_SSL;   }
+					 ;
 /*** }}} END cluster ***/
 
 /*** {{{ BEGIN match ***/
@@ -783,7 +798,7 @@ listen: crLISTEN listener[lsnr]
 	  }
 	  ;
 
-listener: crLINEMODE transport_mode[mode] receptors[ifaces]
+listener: crTYPE crLINEMODE transport_mode[mode] receptors[ifaces]
 		{
 			if (($$ = ra_malloc(palloc, sizeof(struct _lsnr))) == NULL) {
 				logerr("malloc failed\n");
@@ -816,7 +831,7 @@ transport_mode:         {
 							}
 							$$->mode = W_PLAIN;
 						}
-			  | crGZIP  {
+			  | crTRANSPORT crGZIP  {
 #ifdef HAVE_GZIP
 							if (($$ = ra_malloc(palloc,
 									sizeof(struct _rcptr_trsp))) == NULL)
@@ -832,7 +847,7 @@ transport_mode:         {
 							YYERROR;
 #endif
 						}
-			  | crBZIP2 {
+			  | crTRANSPORT crBZIP2 {
 #ifdef HAVE_BZIP2
 							if (($$ = ra_malloc(palloc,
 									sizeof(struct _rcptr_trsp))) == NULL)
@@ -848,7 +863,7 @@ transport_mode:         {
 							YYERROR;
 #endif
 						}
-			  | crSSL crSTRING[pemcert]  {
+			  | crTRANSPORT crSSL crSTRING[pemcert]  {
 #ifdef HAVE_SSL
 							if (($$ = ra_malloc(palloc,
 									sizeof(struct _rcptr_trsp))) == NULL)

@@ -79,6 +79,12 @@ cluster				{
 <idcl>proto				return crPROTO;
 <idcl>udp				return crUDP;
 <idcl>tcp				return crTCP;
+<idcl>type				return crTYPE;
+<idcl>linemode			return crLINEMODE;
+<idcl>transport			return crTRANSPORT;
+<idcl>gzip				return crGZIP;
+<idcl>bzip2				return crBZIP2;
+<idcl>ssl				return crSSL;
 <idcl>=					return '=';
 
 match				{
@@ -214,11 +220,13 @@ listen				{
 						BEGIN(li);
 						return crLISTEN;
 					}
+<li>type				return crTYPE;
 <li>linemode		{
 						identstate = idli;
 						BEGIN(idli);
 						return crLINEMODE;
 					}
+<idli>transport			return crTRANSPORT;
 <idli>gzip				return crGZIP;
 <idli>bzip2				return crBZIP2;
 <idli>ssl				return crSSL;

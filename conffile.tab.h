@@ -59,6 +59,7 @@ struct _clhost {
 	int port;
 	char *inst;
 	int proto;
+	rcptr_transport trnsp;
 	void *saddr;
 	void *hint;
 	struct _clhost *next;
@@ -91,7 +92,7 @@ struct _rcptr_trsp {
 	char *pemcert;
 };
 
-#line 95 "conffile.tab.h" /* yacc.c:1909  */
+#line 96 "conffile.tab.h" /* yacc.c:1909  */
 
 /* Token type.  */
 #ifndef ROUTER_YYTOKENTYPE
@@ -156,15 +157,17 @@ struct _rcptr_trsp {
     crPREFIX = 313,
     crWITH = 314,
     crLISTEN = 315,
-    crLINEMODE = 316,
-    crGZIP = 317,
-    crBZIP2 = 318,
-    crSSL = 319,
-    crUNIX = 320,
-    crINCLUDE = 321,
-    crCOMMENT = 322,
-    crSTRING = 323,
-    crINTVAL = 324
+    crTYPE = 316,
+    crLINEMODE = 317,
+    crTRANSPORT = 318,
+    crGZIP = 319,
+    crBZIP2 = 320,
+    crSSL = 321,
+    crUNIX = 322,
+    crINCLUDE = 323,
+    crCOMMENT = 324,
+    crSTRING = 325,
+    crINTVAL = 326
   };
 #endif
 
@@ -224,6 +227,8 @@ union ROUTER_YYSTYPE
   int match_opt_stop;
   /* statistics_opt_interval  */
   int statistics_opt_interval;
+  /* cluster_opt_transport  */
+  rcptr_transport cluster_opt_transport;
   /* cluster_opt_proto  */
   serv_ctype cluster_opt_proto;
   /* rcptr_proto  */
@@ -272,7 +277,7 @@ union ROUTER_YYSTYPE
   struct _rcptr * receptor;
   /* transport_mode  */
   struct _rcptr_trsp * transport_mode;
-#line 276 "conffile.tab.h" /* yacc.c:1909  */
+#line 281 "conffile.tab.h" /* yacc.c:1909  */
 };
 
 typedef union ROUTER_YYSTYPE ROUTER_YYSTYPE;

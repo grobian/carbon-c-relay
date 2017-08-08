@@ -186,7 +186,9 @@ input until the end of that line:
 cluster <name>
     < <forward | any_of | failover> [useall] |
       <carbon_ch | fnv1a_ch | jump_fnv1a_ch> [replication <count>] >
-        <host[:port][=instance] [proto <udp | tcp>]> ...
+        <host[:port][=instance] [proto <udp | tcp>]
+                                [type linemode]
+                                [transport <gzip | bzip2 | ssl>]> ...
     ;
 
 cluster <name>
@@ -230,7 +232,7 @@ statistics
     ;
 
 listen
-    <linemode [gzip | bzip2 | ssl <pemcert>]>
+    type linemode [transport <gzip | bzip2 | ssl <pemcert>>]
         <<interface[:port] | port> proto <udp | tcp>> ...
         </ptah/to/file proto unix> ...
     ;
