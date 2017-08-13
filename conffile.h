@@ -106,16 +106,16 @@ typedef struct _route {
 } route;
 
 void router_yyerror(void *locp, void *, router *r, allocator *ra, allocator *pa, const char *msg);
-char *router_validate_address(router *rtr, char **retip, int *retport, void **retsaddr, void **rethint, char *ip, serv_ctype proto);
+char *router_validate_address(router *rtr, char **retip, int *retport, void **retsaddr, void **rethint, char *ip, con_proto proto);
 char *router_validate_path(router *rtr, char *path);
 char *router_validate_expression(router *rtr, route **retr, char *pat);
 char *router_validate_cluster(router *rtr, cluster **retcl, char *cluster);
-char *router_add_server(router *ret, char *ip, int port, char *inst, serv_ctype proto, struct addrinfo *saddrs, struct addrinfo *hint, char useall, cluster *cl);
+char *router_add_server(router *ret, char *ip, int port, char *inst, con_type type, con_trnsp transport, con_proto proto, struct addrinfo *saddrs, struct addrinfo *hint, char useall, cluster *cl);
 char *router_add_cluster(router *r, cluster *cl);
 char *router_add_route(router *r, route *rte);
 char *router_add_aggregator(router *rtr, aggregator *a);
 char *router_add_stubroute(router *rtr, enum clusttype type, cluster *w, destinations *dw);
-char *router_add_listener(router *rtr, rcptr_type ltype, rcptr_transport trnsp, char *pemcert, serv_ctype ctype, char *ip, int port, struct addrinfo *saddrs);
+char *router_add_listener(router *rtr, con_type ltype, con_trnsp trnsp, char *pemcert, con_proto ctype, char *ip, int port, struct addrinfo *saddrs);
 char *router_set_statistics(router *rtr, destinations *dsts);
 char *router_set_collectorvals(router *rtr, int val, char *prefix, col_mode m);
 

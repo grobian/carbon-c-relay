@@ -130,7 +130,7 @@ struct _clhost {
 	int port;
 	char *inst;
 	int proto;
-	rcptr_transport trnsp;
+	con_trnsp trnsp;
 	void *saddr;
 	void *hint;
 	struct _clhost *next;
@@ -147,19 +147,19 @@ struct _agcomp {
 	struct _agcomp *next;
 };
 struct _lsnr {
-	rcptr_type type;
+	con_type type;
 	struct _rcptr_trsp *transport;
 	struct _rcptr *rcptr;
 };
 struct _rcptr {
-	serv_ctype ctype;
+	con_proto ctype;
 	char *ip;
 	int port;
 	void *saddr;
 	struct _rcptr *next;
 };
 struct _rcptr_trsp {
-	rcptr_transport mode;
+	con_trnsp mode;
 	char *pemcert;
 };
 
@@ -262,6 +262,12 @@ union ROUTER_YYSTYPE
   cluster * cluster;
   /* statistics_opt_counters  */
   col_mode statistics_opt_counters;
+  /* cluster_opt_proto  */
+  con_proto cluster_opt_proto;
+  /* rcptr_proto  */
+  con_proto rcptr_proto;
+  /* cluster_opt_transport  */
+  con_trnsp cluster_opt_transport;
   /* match_opt_send_to  */
   destinations * match_opt_send_to;
   /* match_send_to  */
@@ -298,12 +304,6 @@ union ROUTER_YYSTYPE
   int match_opt_stop;
   /* statistics_opt_interval  */
   int statistics_opt_interval;
-  /* cluster_opt_transport  */
-  rcptr_transport cluster_opt_transport;
-  /* cluster_opt_proto  */
-  serv_ctype cluster_opt_proto;
-  /* rcptr_proto  */
-  serv_ctype rcptr_proto;
   /* aggregate_comp_type  */
   struct _agcomp aggregate_comp_type;
   /* aggregate_computes  */
@@ -685,17 +685,17 @@ static const yytype_uint8 yytranslate[] =
 static const yytype_uint16 yyrline[] =
 {
        0,   120,   120,   123,   124,   127,   130,   131,   132,   133,
-     134,   135,   136,   137,   141,   207,   247,   249,   253,   254,
-     255,   258,   259,   262,   263,   264,   267,   268,   271,   272,
-     275,   277,   278,   280,   300,   302,   303,   305,   326,   327,
-     328,   338,   339,   340,   343,   344,   347,   348,   349,   350,
-     355,   410,   422,   425,   427,   428,   431,   450,   451,   470,
-     471,   474,   475,   478,   479,   482,   485,   495,   498,   500,
-     501,   504,   520,   521,   526,   571,   662,   663,   668,   669,
-     670,   673,   677,   678,   680,   695,   696,   697,   698,   699,
-     700,   701,   711,   712,   715,   716,   721,   736,   761,   762,
-     773,   774,   777,   778,   783,   801,   825,   834,   850,   866,
-     885,   888,   889,   892,   926,   948,   949,   954
+     134,   135,   136,   137,   141,   208,   249,   251,   255,   256,
+     257,   260,   261,   264,   265,   266,   269,   270,   273,   274,
+     277,   279,   280,   282,   302,   304,   305,   307,   328,   329,
+     330,   340,   341,   342,   345,   346,   349,   350,   351,   352,
+     357,   412,   424,   427,   429,   430,   433,   452,   453,   472,
+     473,   476,   477,   480,   481,   484,   487,   497,   500,   502,
+     503,   506,   522,   523,   528,   573,   664,   665,   670,   671,
+     672,   675,   679,   680,   682,   697,   698,   699,   700,   701,
+     702,   703,   713,   714,   717,   718,   723,   738,   763,   764,
+     775,   776,   779,   780,   785,   803,   827,   836,   852,   868,
+     887,   890,   891,   894,   928,   950,   951,   956
 };
 #endif
 

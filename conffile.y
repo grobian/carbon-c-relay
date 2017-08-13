@@ -18,7 +18,7 @@ struct _clhost {
 	int port;
 	char *inst;
 	int proto;
-	rcptr_transport trnsp;
+	con_trnsp trnsp;
 	void *saddr;
 	void *hint;
 	struct _clhost *next;
@@ -35,19 +35,19 @@ struct _agcomp {
 	struct _agcomp *next;
 };
 struct _lsnr {
-	rcptr_type type;
+	con_type type;
 	struct _rcptr_trsp *transport;
 	struct _rcptr *rcptr;
 };
 struct _rcptr {
-	serv_ctype ctype;
+	con_proto ctype;
 	char *ip;
 	int port;
 	void *saddr;
 	struct _rcptr *next;
 };
 struct _rcptr_trsp {
-	rcptr_transport mode;
+	con_trnsp mode;
 	char *pemcert;
 };
 }
@@ -65,12 +65,12 @@ struct _rcptr_trsp {
 %type <enum clusttype> cluster_useall cluster_ch
 %type <struct _clust> cluster_type cluster_file
 %type <int> cluster_opt_repl cluster_opt_useall
-%type <serv_ctype> cluster_opt_proto
+%type <con_proto> cluster_opt_proto
 %type <char *> cluster_opt_instance
 %type <cluster *> cluster
 %type <struct _clhost *> cluster_host cluster_hosts cluster_opt_host
 	cluster_path cluster_paths cluster_opt_path
-%type <rcptr_transport> cluster_opt_transport
+%type <con_trnsp> cluster_opt_transport
 
 %token crMATCH
 %token crVALIDATE crELSE crLOG crDROP crROUTE crUSING
@@ -105,7 +105,7 @@ struct _rcptr_trsp {
 
 %token crLISTEN
 %token crTYPE crLINEMODE crTRANSPORT crGZIP crBZIP2 crSSL crUNIX
-%type <serv_ctype> rcptr_proto
+%type <con_proto> rcptr_proto
 %type <struct _rcptr *> receptor opt_receptor receptors
 %type <struct _rcptr_trsp *> transport_mode
 %type <struct _lsnr *> listener
@@ -804,7 +804,7 @@ listener: crTYPE crLINEMODE transport_mode[mode] receptors[ifaces]
 				logerr("malloc failed\n");
 				YYABORT;
 			}
-			$$->type = LSNR_LINE;
+			$$->type = T_LINEMODE;
 			$$->transport = $mode;
 			$$->rcptr = $ifaces;
 			if ($mode != W_PLAIN) {

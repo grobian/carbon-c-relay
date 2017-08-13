@@ -59,7 +59,7 @@ struct _clhost {
 	int port;
 	char *inst;
 	int proto;
-	rcptr_transport trnsp;
+	con_trnsp trnsp;
 	void *saddr;
 	void *hint;
 	struct _clhost *next;
@@ -76,19 +76,19 @@ struct _agcomp {
 	struct _agcomp *next;
 };
 struct _lsnr {
-	rcptr_type type;
+	con_type type;
 	struct _rcptr_trsp *transport;
 	struct _rcptr *rcptr;
 };
 struct _rcptr {
-	serv_ctype ctype;
+	con_proto ctype;
 	char *ip;
 	int port;
 	void *saddr;
 	struct _rcptr *next;
 };
 struct _rcptr_trsp {
-	rcptr_transport mode;
+	con_trnsp mode;
 	char *pemcert;
 };
 
@@ -191,6 +191,12 @@ union ROUTER_YYSTYPE
   cluster * cluster;
   /* statistics_opt_counters  */
   col_mode statistics_opt_counters;
+  /* cluster_opt_proto  */
+  con_proto cluster_opt_proto;
+  /* rcptr_proto  */
+  con_proto rcptr_proto;
+  /* cluster_opt_transport  */
+  con_trnsp cluster_opt_transport;
   /* match_opt_send_to  */
   destinations * match_opt_send_to;
   /* match_send_to  */
@@ -227,12 +233,6 @@ union ROUTER_YYSTYPE
   int match_opt_stop;
   /* statistics_opt_interval  */
   int statistics_opt_interval;
-  /* cluster_opt_transport  */
-  rcptr_transport cluster_opt_transport;
-  /* cluster_opt_proto  */
-  serv_ctype cluster_opt_proto;
-  /* rcptr_proto  */
-  serv_ctype rcptr_proto;
   /* aggregate_comp_type  */
   struct _agcomp aggregate_comp_type;
   /* aggregate_computes  */

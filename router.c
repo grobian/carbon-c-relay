@@ -354,7 +354,7 @@ char *
 router_validate_address(
 		router *rtr,
 		char **retip, int *retport, void **retsaddr, void **rethint,
-		char *ip, serv_ctype proto)
+		char *ip, con_proto proto)
 {
 	int port = GRAPHITE_PORT;
 	struct addrinfo *saddr = NULL;
@@ -539,7 +539,9 @@ router_add_server(
 		char *ip,
 		int port,
 		char *inst,
-		serv_ctype proto,
+		con_type type,
+		con_trnsp transport,
+		con_proto proto,
 		struct addrinfo *saddrs,
 		struct addrinfo *hint,
 		char useall,
@@ -934,10 +936,10 @@ router_add_stubroute(
 char *
 router_add_listener(
 		router *rtr,
-		rcptr_type ltype,
-		rcptr_transport trnsp,
+		con_type ltype,
+		con_trnsp trnsp,
 		char *pemcert,
-		serv_ctype ctype,
+		con_proto ctype,
 		char *ip,
 		int port,
 		struct addrinfo *saddrs)
@@ -1271,7 +1273,7 @@ router_readconfig(router *orig,
 			router_validate_address(ret, &ip, &port, &saddrs, &hint,
 					sockbuf, CON_TCP);
 			free(hint);
-			router_add_listener(ret, LSNR_LINE, W_PLAIN, NULL, CON_TCP,
+			router_add_listener(ret, T_LINEMODE, W_PLAIN, NULL, CON_TCP,
 					ip, port, saddrs);
 
 			hint = NULL;
@@ -1279,12 +1281,12 @@ router_readconfig(router *orig,
 			router_validate_address(ret, &ip, &port, &saddrs, &hint,
 					sockbuf, CON_UDP);
 			free(hint);
-			router_add_listener(ret, LSNR_LINE, W_PLAIN, NULL, CON_UDP,
+			router_add_listener(ret, T_LINEMODE, W_PLAIN, NULL, CON_UDP,
 					ip, port, saddrs);
 
 			snprintf(sockbuf, sizeof(sockbuf), "%s/%s.%u",
 					TMPDIR, SOCKFILE, listenport);
-			router_add_listener(ret, LSNR_LINE, W_PLAIN, NULL, CON_UNIX,
+			router_add_listener(ret, T_LINEMODE, W_PLAIN, NULL, CON_UNIX,
 					sockbuf, 0, NULL);
 		}
 	}

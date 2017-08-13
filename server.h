@@ -26,12 +26,12 @@
 
 typedef struct _server server;
 
-typedef enum { CON_TCP, CON_UDP, CON_PIPE, CON_FILE, CON_UNIX } serv_ctype;
-
 server *server_new(
 		const char *ip,
 		unsigned short port,
-		serv_ctype ctype,
+		con_type type,
+		con_trnsp transport,
+		con_proto ctype,
 		struct addrinfo *saddr,
 		struct addrinfo *hint,
 		size_t queuesize,
@@ -51,7 +51,7 @@ void server_swap_queue(server *l, server *r);
 const char *server_ip(server *s);
 unsigned short server_port(server *s);
 char *server_instance(server *s);
-serv_ctype server_ctype(server *s);
+con_proto server_ctype(server *s);
 char server_failed(server *s);
 size_t server_get_ticks(server *s);
 size_t server_get_metrics(server *s);

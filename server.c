@@ -556,7 +556,9 @@ server *
 server_new(
 		const char *ip,
 		unsigned short port,
-		serv_ctype ctype,
+		con_type type,
+		con_trnsp transport,
+		con_proto ctype,
 		struct addrinfo *saddr,
 		struct addrinfo *hint,
 		size_t qsize,
@@ -896,7 +898,7 @@ server_instance(server *s)
 /**
  * Returns the connection type of this server.
  */
-inline serv_ctype
+inline con_proto
 server_ctype(server *s)
 {
 	if (s == NULL)

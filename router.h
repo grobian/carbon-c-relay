@@ -43,18 +43,15 @@
 
 #define SOCKFILE ".s.carbon-c-relay"
 
-typedef enum { LSNR_LINE } rcptr_type;
-typedef enum { W_PLAIN, W_GZIP, W_BZIP2, W_LZMA, W_SSL } rcptr_transport;
-
 typedef struct {
 	const char *metric;
 	server *dest;
 } destination;
 
 typedef struct _router_listener {
-	rcptr_type lsnrtype;
-	rcptr_transport transport;
-	serv_ctype ctype;
+	con_type lsnrtype;
+	con_trnsp transport;
+	con_proto ctype;
 	char *ip;
 	int port;
 	int *socks;
