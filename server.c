@@ -966,7 +966,7 @@ server_instance(server *s)
 }
 
 /**
- * Returns the connection type of this server.
+ * Returns the connection protocol of this server.
  */
 inline con_proto
 server_ctype(server *s)
@@ -974,6 +974,28 @@ server_ctype(server *s)
 	if (s == NULL)
 		return CON_PIPE;
 	return s->ctype;
+}
+
+/**
+ * Returns the connection transport of this server.
+ */
+inline con_trnsp
+server_transport(server *s)
+{
+	if (s == NULL)
+		return W_PLAIN;
+	return s->transport;
+}
+
+/**
+ * Returns the connection type of this server.
+ */
+inline con_type
+server_type(server *s)
+{
+	if (s == NULL)
+		return T_LINEMODE;
+	return s->type;
 }
 
 /**

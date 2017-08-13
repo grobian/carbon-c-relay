@@ -52,6 +52,8 @@ const char *server_ip(server *s);
 unsigned short server_port(server *s);
 char *server_instance(server *s);
 con_proto server_ctype(server *s);
+con_type server_type(server *s);
+con_trnsp server_transport(server *s);
 char server_failed(server *s);
 size_t server_get_ticks(server *s);
 size_t server_get_metrics(server *s);

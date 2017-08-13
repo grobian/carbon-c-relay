@@ -1719,6 +1719,13 @@ router_printconfig(router *rtr, FILE *f, char pmode)
 	/* start with configuration wise standard components */
 #define PPROTO \
 	server_ctype(s->server) == CON_UDP ? " proto udp" : ""
+#define PTYPE \
+	server_type(s->server) == T_LINEMODE ? "" : " type ???"
+#define PTRNSP \
+	server_transport(s->server) == W_PLAIN ? "" : \
+	server_transport(s->server) == W_GZIP  ? " transport gzip" : \
+	server_transport(s->server) == W_BZIP2 ? " transport bzip2" : \
+	server_transport(s->server) == W_SSL   ? " transport ssl" : "unknown"
 
 	if (rtr->listeners != NULL) {
 		listener *walk;
@@ -1791,8 +1798,9 @@ router_printconfig(router *rtr, FILE *f, char pmode)
 		if (c->type == FORWARD) {
 			fprintf(f, "    forward\n");
 			for (s = c->members.forward; s != NULL; s = s->next)
-				fprintf(f, "        %s:%d%s\n",
-						serverip(s->server), server_port(s->server), PPROTO);
+				fprintf(f, "        %s:%d%s%s%s\n",
+						serverip(s->server), server_port(s->server),
+						PPROTO, PTYPE, PTRNSP);
 		} else if (c->type == FILELOG || c->type == FILELOGIP) {
 			fprintf(f, "    file%s\n", c->type == FILELOGIP ? " ip" : "");
 			for (s = c->members.forward; s != NULL; s = s->next)
@@ -1801,8 +1809,9 @@ router_printconfig(router *rtr, FILE *f, char pmode)
 		} else if (c->type == ANYOF || c->type == FAILOVER) {
 			fprintf(f, "    %s\n", c->type == ANYOF ? "any_of" : "failover");
 			for (s = c->members.anyof->list; s != NULL; s = s->next)
-				fprintf(f, "        %s:%d%s\n",
-						serverip(s->server), server_port(s->server), PPROTO);
+				fprintf(f, "        %s:%d%s%s%s\n",
+						serverip(s->server), server_port(s->server),
+						PPROTO, PTYPE, PTRNSP);
 		} else if (c->type == CARBON_CH ||
 				c->type == FNV1A_CH ||
 				c->type == JUMP_CH)
@@ -1812,11 +1821,11 @@ router_printconfig(router *rtr, FILE *f, char pmode)
 					c->type == FNV1A_CH ? "fnv1a" : "jump_fnv1a",
 					c->members.ch->repl_factor);
 			for (s = c->members.ch->servers; s != NULL; s = s->next)
-				fprintf(f, "        %s:%d%s%s%s\n",
+				fprintf(f, "        %s:%d%s%s%s%s%s\n",
 						serverip(s->server), server_port(s->server),
 						server_instance(s->server) ? "=" : "",
 						server_instance(s->server) ? server_instance(s->server) : "",
-						PPROTO);
+						PPROTO, PTYPE, PTRNSP);
 		}
 		fprintf(f, "    ;\n");
 		if (pmode & PMODE_HASH) {

@@ -84,7 +84,7 @@ int main(int argc, char *argv[]) {
 		s[i] = server_new(
 				ip,
 				2003,
-				W_LINEMODE,
+				T_LINEMODE,
 				W_PLAIN,
 				CON_TCP,
 				NULL,
