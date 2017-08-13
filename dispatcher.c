@@ -279,8 +279,16 @@ dispatch_removelistener(listener *lsnr)
 	if (lsnr->transport == W_SSL)
 		SSL_CTX_free(lsnr->ctx);
 #endif
-	for (socks = lsnr->socks; *socks != -1; socks++)
+	/* acquire a write lock on connections, which is a bit wrong, but it
+	 * ensures all dispatchers are stopped while we close the sockets,
+	 * which avoids a race on the reading thereof if this is a UDP
+	 * connection */
+	pthread_rwlock_wrlock(&connectionslock);
+	for (socks = lsnr->socks; *socks != -1; socks++) {
 		close(*socks);
+		*socks = -1;
+	}
+	pthread_rwlock_unlock(&connectionslock);
 	if (lsnr->saddrs)
 		freeaddrinfo(lsnr->saddrs);
 }
