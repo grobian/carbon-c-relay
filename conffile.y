@@ -874,7 +874,7 @@ transport_mode:         {
 								YYABORT;
 							}
 							$$->mode = W_SSL;
-							$$->pemcert = $pemcert;
+							$$->pemcert = ra_strdup(ralloc, $pemcert);
 #else
 							router_yyerror(&yylloc, yyscanner, rtr,
 								ralloc, palloc,

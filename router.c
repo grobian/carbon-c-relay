@@ -1725,7 +1725,7 @@ router_printconfig(router *rtr, FILE *f, char pmode)
 	server_transport(s->server) == W_PLAIN ? "" : \
 	server_transport(s->server) == W_GZIP  ? " transport gzip" : \
 	server_transport(s->server) == W_BZIP2 ? " transport bzip2" : \
-	server_transport(s->server) == W_SSL   ? " transport ssl" : "unknown"
+	server_transport(s->server) == W_SSL   ? " transport ssl" : " unknown"
 
 	if (rtr->listeners != NULL) {
 		listener *walk;
