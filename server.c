@@ -47,6 +47,7 @@
 #endif
 #ifdef HAVE_SSL
 #include <openssl/ssl.h>
+#include <openssl/err.h>
 #endif
 
 struct _server {
@@ -60,6 +61,9 @@ struct _server {
 	void *strm;
 	ssize_t (*strmwrite)(void *, const void *, size_t);  /* write func */
 	int (*strmclose)(void *);
+#ifdef HAVE_SSL
+	SSL_CTX *ctx;
+#endif
 	queue *queue;
 	size_t bsize;
 	short iotimeout;
@@ -131,6 +135,23 @@ bzipclose(void *strm)
 {
 	BZ2_bzclose((BZFILE *)strm);
 	return 0;
+}
+#endif
+
+#ifdef HAVE_SSL
+/* (Open|Libre)SSL wrapped socket */
+static inline ssize_t
+sslwrite(void *strm, const void *buf, size_t sze)
+{
+	return (ssize_t)SSL_write((SSL *)strm, buf, (int)sze);
+}
+
+static inline int
+sslclose(void *strm)
+{
+	int sock = SSL_get_fd((SSL *)strm);
+	SSL_free((SSL *)strm);
+	return close(sock);
 }
 #endif
 
@@ -539,6 +560,13 @@ server_queuereader(void *d)
 				}
 			}
 #endif
+#ifdef HAVE_SSL
+			if (self->transport == W_SSL) {
+				self->strm = SSL_new(self->ctx);
+				SSL_set_fd(self->strm, self->fd);
+				SSL_set_connect_state(self->strm);
+			}
+#endif
 		}
 
 		/* send up to batch size */
@@ -695,6 +723,24 @@ server_new(
 	else if (transport == W_BZIP2) {
 		ret->strmwrite = &bzipwrite;
 		ret->strmclose = &bzipclose;
+	}
+#endif
+#ifdef HAVE_SSL
+	else if (transport == W_SSL) {
+		/* create a auto-negotiate context */
+		const SSL_METHOD *m = SSLv23_server_method();
+		ret->ctx = SSL_CTX_new(m);
+		if (ret->ctx == NULL) {
+			char *err = ERR_error_string(ERR_get_error(), NULL);
+			logerr("failed to create SSL context for server "
+					"%s:%d: %s\n", ret->ip, ret->port, err);
+			free((char *)ret->ip);
+			free(ret);
+			return NULL;
+		}
+
+		ret->strmwrite = &sslwrite;
+		ret->strmclose = &sslclose;
 	}
 #endif
 	ret->saddr = saddr;

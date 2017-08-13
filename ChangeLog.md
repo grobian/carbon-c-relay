@@ -20,6 +20,10 @@
   out.  If a host becomes unresolvable this server is transitioned to
   failed state until it is resolvable again.
   [Issue #293](https://github.com/grobian/carbon-c-relay/issues/293)
+* **relay** compression and encryption support was added to listeners
+  and servers.
+  [Issue #212](https://github.com/grobian/carbon-c-relay/issues/212)
+  [Issue #75](https://github.com/grobian/carbon-c-relay/issues/75)
 
 ### Bugfixes
 
