@@ -311,8 +311,10 @@ dispatch_transplantlistener(listener *olsnr, listener *nlsnr, router *r)
 			if (nlsnr->transport == W_SSL)
 				nlsnr->ctx = olsnr->ctx;
 #endif
-			if (olsnr->saddrs)
+			if (olsnr->saddrs) {
 				freeaddrinfo(olsnr->saddrs);
+				olsnr->saddrs = NULL;
+			}
 			listeners[c] = nlsnr;
 			break;  /* found and done */
 		}

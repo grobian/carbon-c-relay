@@ -2104,11 +2104,17 @@ router_contains_listener(router *rtr, listener *lsnr)
 
 	match = 0;
 
-	if (lsnr->saddrs)
+	if (lsnr->saddrs) {
 		saddr_ntop(lsnr->saddrs, hnbufl);
+	} else {
+		snprintf(hnbufl, sizeof(hnbufl), "unknown left");
+	}
 	for (rwalk = rtr->listeners; rwalk != NULL; rwalk = rwalk->next) {
-		if (rwalk->saddrs)
+		if (rwalk->saddrs) {
 			saddr_ntop(rwalk->saddrs, hnbufr);
+		} else {
+			snprintf(hnbufr, sizeof(hnbufr), "unknown right");
+		}
 		if (lsnr->transport == rwalk->transport && lsnr->ctype == rwalk->ctype)
 		{
 			if (lsnr->ctype == CON_UNIX) {
