@@ -138,7 +138,7 @@ collector_runner(void *s)
 			*m = '\0';
 			sizem = sizeof(metric) - (m - metric);
 
-			__sync_and_and_fetch(&pending_router, NULL);
+			(void)__sync_and_and_fetch(&pending_router, NULL);
 		}
 		assert(srvs != NULL);
 		sleep(1);
@@ -319,7 +319,7 @@ collector_writer(void *unused)
 			aggrs = router_getaggregators(prtr);
 			numaggregators = aggregator_numaggregators(aggrs);
 			collector_interval = router_getcollectorinterval(prtr);
-			__sync_and_and_fetch(&pending_router, NULL);
+			(void)__sync_and_and_fetch(&pending_router, NULL);
 		}
 		assert(srvs != NULL);
 		sleep(1);
