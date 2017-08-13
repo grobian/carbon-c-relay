@@ -32,7 +32,6 @@ static dispatcher **dispatchers;
 static char debug = 0;
 static pthread_t collectorid;
 static char keep_running = 1;
-static char cluster_refresh_pending = 0;
 static router *pending_router = NULL;
 
 /**
@@ -61,6 +60,7 @@ collector_runner(void *s)
 	char destbuf[1024];  /* sort of POSIX_MAX_PATH */
 	char *p;
 	int collector_interval = 60;
+	router *prtr;
 	size_t numaggregators = 0;
 	aggregator *aggrs = NULL;
 	server *submission = (server *)s;
@@ -88,20 +88,23 @@ collector_runner(void *s)
 
 	nextcycle = time(NULL) + collector_interval;
 	while (__sync_bool_compare_and_swap(&keep_running, 1, 1)) {
-		if (__sync_bool_compare_and_swap(&cluster_refresh_pending, 1, 1)) {
-			char *stub = router_getcollectorstub(pending_router);
-			char *prefix = router_getcollectorprefix(pending_router);
-			server **newservers = router_getservers(pending_router);
+		if ((prtr = __sync_add_and_fetch(&pending_router, 0)) != NULL) {
+			char *stub;
+			char *prefix;
+			server **newservers;
+
 			if (srvs != NULL)
 				free(srvs);
-			srvs = newservers;
-			aggrs = router_getaggregators(pending_router);
+			stub = router_getcollectorstub(prtr);
+			prefix = router_getcollectorprefix(prtr);
+			srvs = newservers = router_getservers(prtr);
+			aggrs = router_getaggregators(prtr);
 			numaggregators = aggregator_numaggregators(aggrs);
-			collector_interval = router_getcollectorinterval(pending_router);
+			collector_interval = router_getcollectorinterval(prtr);
 			nextcycle = time(NULL) + collector_interval;
 
 			/* setup functions to target what the user wants */
-			if (router_getcollectormode(pending_router) == SUB) {
+			if (router_getcollectormode(prtr) == SUB) {
 				s_ticks = server_get_ticks_sub;
 				s_metrics = server_get_metrics_sub;
 				s_stalls = server_get_stalls_sub;
@@ -135,7 +138,7 @@ collector_runner(void *s)
 			*m = '\0';
 			sizem = sizeof(metric) - (m - metric);
 
-			__sync_and_and_fetch(&cluster_refresh_pending, 0);
+			__sync_and_and_fetch(&pending_router, NULL);
 		}
 		assert(srvs != NULL);
 		sleep(1);
@@ -302,20 +305,21 @@ collector_writer(void *unused)
 	size_t lastconn = 0;
 	size_t lastdisc = 0;
 	size_t numaggregators = 0;
+	router *prtr;
 	server **srvs = NULL;
 	aggregator *aggrs = NULL;
 	int collector_interval = 60;
 
 	while (__sync_bool_compare_and_swap(&keep_running, 1, 1)) {
-		if (__sync_bool_compare_and_swap(&cluster_refresh_pending, 1, 1)) {
-			server **newservers = router_getservers(pending_router);
+		if ((prtr = __sync_add_and_fetch(&pending_router, 0)) != NULL) {
+			server **newservers = router_getservers(prtr);
 			if (srvs != NULL)
 				free(srvs);
 			srvs = newservers;
-			aggrs = router_getaggregators(pending_router);
+			aggrs = router_getaggregators(prtr);
 			numaggregators = aggregator_numaggregators(aggrs);
-			collector_interval = router_getcollectorinterval(pending_router);
-			__sync_and_and_fetch(&cluster_refresh_pending, 0);
+			collector_interval = router_getcollectorinterval(prtr);
+			__sync_and_and_fetch(&pending_router, NULL);
 		}
 		assert(srvs != NULL);
 		sleep(1);
@@ -427,8 +431,7 @@ collector_writer(void *unused)
 inline void
 collector_schedulereload(router *rtr)
 {
-	pending_router = rtr;
-	__sync_bool_compare_and_swap(&cluster_refresh_pending, 0, 1);
+	__sync_bool_compare_and_swap(&pending_router, NULL, rtr);
 }
 
 /**
@@ -438,7 +441,7 @@ collector_schedulereload(router *rtr)
 inline char
 collector_reloadcomplete(void)
 {
-	return __sync_bool_compare_and_swap(&cluster_refresh_pending, 0, 0);
+	return __sync_bool_compare_and_swap(&pending_router, NULL, NULL);
 }
 
 /**
