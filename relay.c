@@ -844,7 +844,8 @@ main(int argc, char * const argv[])
 	/* server used for delivering metrics produced inside the relay,
 	 * that is, the collector (statistics) */
 	if ((internal_submission = server_new(
-					"internal", listenport, CON_PIPE, NULL, NULL, 3000,
+					"internal", listenport, T_LINEMODE, W_PLAIN, CON_PIPE,
+					NULL, NULL, 3000,
 					batchsize, maxstalls, iotimeout, sockbufsize)) == NULL)
 	{
 		logerr("failed to create internal submission queue, shutting down\n");

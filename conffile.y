@@ -191,7 +191,8 @@ cluster: crCLUSTER crSTRING[name] cluster_type[type] cluster_hosts[servers]
 		
 		for (w = $servers; w != NULL; w = w->next) {
 			err = router_add_server(rtr, w->ip, w->port, w->inst,
-					w->proto, w->saddr, w->hint, $type.ival, $$);
+					T_LINEMODE, w->trnsp, w->proto,
+					w->saddr, w->hint, $type.ival, $$);
 			if (err != NULL) {
 				router_yyerror(&yylloc, yyscanner, rtr, ralloc, palloc, err);
 				YYERROR;
@@ -228,7 +229,8 @@ cluster: crCLUSTER crSTRING[name] cluster_type[type] cluster_hosts[servers]
 		
 		for (w = $paths; w != NULL; w = w->next) {
 			err = router_add_server(rtr, w->ip, w->port, w->inst,
-					w->proto, w->saddr, w->hint, $type.ival, $$);
+					T_LINEMODE, W_PLAIN, w->proto,
+					w->saddr, w->hint, $type.ival, $$);
 			if (err != NULL) {
 				router_yyerror(&yylloc, yyscanner, rtr, ralloc, palloc, err);
 				YYERROR;

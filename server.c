@@ -39,6 +39,16 @@
 #include "collector.h"
 #include "server.h"
 
+#ifdef HAVE_GZIP
+#include <zlib.h>
+#endif
+#ifdef HAVE_BZIP2
+#include <bzlib.h>
+#endif
+#ifdef HAVE_SSL
+#include <openssl/ssl.h>
+#endif
+
 struct _server {
 	const char *ip;
 	unsigned short port;
@@ -47,13 +57,18 @@ struct _server {
 	struct addrinfo *hint;
 	char reresolve:1;
 	int fd;
+	void *strm;
+	ssize_t (*strmwrite)(void *, const void *, size_t);  /* write func */
+	int (*strmclose)(void *);
 	queue *queue;
 	size_t bsize;
 	short iotimeout;
 	unsigned int sockbufsize;
 	unsigned char maxstalls:SERVER_STALL_BITS;
 	const char **batch;
-	serv_ctype ctype;
+	con_type type;
+	con_trnsp transport;
+	con_proto ctype;
 	pthread_t tid;
 	struct _server **secondaries;
 	size_t secondariescnt;
@@ -72,6 +87,36 @@ struct _server {
 	size_t prevticks;
 };
 
+
+/* connection specific writers and closers */
+
+/* ordinary socket */
+static inline ssize_t
+sockwrite(void *strm, const void *buf, size_t sze)
+{
+	return write(*((int *)strm), buf, sze);
+}
+
+static inline int
+sockclose(void *strm)
+{
+	return close(*((int *)strm));
+}
+
+#ifdef HAVE_GZIP
+/* gzip wrapped socket */
+static inline ssize_t
+gzipwrite(void *strm, const void *buf, size_t sze)
+{
+	return (ssize_t)gzwrite((gzFile)strm, buf, (unsigned)sze);
+}
+
+static inline int
+gzipclose(void *strm)
+{
+	return gzclose((gzFile)strm);
+}
+#endif
 
 /**
  * Reads from the queue and sends items to the remote server.  This
@@ -111,7 +156,7 @@ server_queuereader(void *d)
 			if (self->ctype == CON_TCP && self->fd >= 0 &&
 					idle++ > DISCONNECT_WAIT_TIME)
 			{
-				close(self->fd);
+				self->strmclose(self->strm);
 				self->fd = -1;
 			}
 			gettimeofday(&stop, NULL);
@@ -454,6 +499,18 @@ server_queuereader(void *d)
 							strerror(errno));
 			}
 #endif
+
+#ifdef HAVE_GZIP
+			if (self->transport == W_GZIP) {
+				self->strm = gzdopen(self->fd, "w");
+				if (self->strm == Z_NULL) {
+					logerr("failed to open gzip stream: %s\n", strerror(errno));
+					close(self->fd);
+					self->fd = -1;
+					continue;
+				}
+			}
+#endif
 		}
 
 		/* send up to batch size */
@@ -489,7 +546,7 @@ server_queuereader(void *d)
 			 * getting endlessly stuck on this, only try a limited
 			 * number of times for a single metric. */
 			for (cnt = 0, p = *metric; cnt < 10; cnt++) {
-				if ((slen = write(self->fd, p, len)) != len) {
+				if ((slen = self->strmwrite(self->strm, p, len)) != len) {
 					if (slen >= 0) {
 						p += slen;
 						len -= slen;
@@ -511,7 +568,7 @@ server_queuereader(void *d)
 					logerr("failed to write() to %s:%u: %s\n",
 							self->ip, self->port,
 							(slen < 0 ? strerror(errno) : "incomplete write"));
-				close(self->fd);
+				self->strmclose(self->strm);
 				self->fd = -1;
 				/* put back stuff we couldn't process */
 				for (; *metric != NULL; metric++) {
@@ -541,7 +598,7 @@ server_queuereader(void *d)
 	__sync_and_and_fetch(&(self->running), 0);
 
 	if (self->fd >= 0)
-		close(self->fd);
+		self->strmclose(self->strm);
 	if (secpos != NULL)
 		free(secpos);
 	return NULL;
@@ -572,6 +629,8 @@ server_new(
 	if ((ret = malloc(sizeof(server))) == NULL)
 		return NULL;
 
+	ret->type = type;
+	ret->transport = transport;
 	ret->ctype = ctype;
 	ret->tid = 0;
 	ret->secondaries = NULL;
@@ -593,6 +652,17 @@ server_new(
 		return NULL;
 	}
 	ret->fd = -1;
+	if (transport == W_PLAIN) {
+		ret->strm = &(ret->fd);
+		ret->strmwrite = &sockwrite;
+		ret->strmclose = &sockclose;
+	}
+#ifdef HAVE_GZIP
+	else if (transport == W_GZIP) {
+		ret->strmwrite = &gzipwrite;
+		ret->strmclose = &gzipclose;
+	}
+#endif
 	ret->saddr = saddr;
 	ret->reresolve = 0;
 	ret->hint = NULL;

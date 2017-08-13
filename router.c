@@ -584,7 +584,7 @@ router_add_server(
 		}
 		if (newserver == NULL) {
 			newserver = server_new(ip, (unsigned short)port,
-					proto, walk, hint,
+					type, transport, proto, walk, hint,
 					ret->conf.queuesize, ret->conf.batchsize,
 					ret->conf.maxstalls, ret->conf.iotimeout,
 					ret->conf.sockbufsize);
@@ -1724,12 +1724,11 @@ router_printconfig(router *rtr, FILE *f, char pmode)
 		listener *walk;
 		fprintf(f, "listen\n");
 		for (walk = rtr->listeners; walk != NULL; walk = walk->next) {
-			if (walk->lsnrtype == LSNR_LINE) {
+			if (walk->lsnrtype == T_LINEMODE) {
 				fprintf(f, "    linemode%s%s%s\n",
 						walk->transport == W_PLAIN ? "" :
 						walk->transport == W_GZIP  ? " gzip" :
 						walk->transport == W_BZIP2 ? " bzip2" :
-						walk->transport == W_LZMA  ? " lzma" :
 						walk->transport == W_SSL   ? " ssl" : " unknown",
 						walk->transport == W_SSL ? " " : "",
 #ifdef HAVE_SSL
