@@ -61,7 +61,7 @@ struct _server {
 	char failure;       /* full byte for atomic access */
 	char running:1;
 	char keep_running;  /* full byte for atomic access */
-	unsigned char stallseq:SERVER_STALL_BITS;
+	unsigned char stallseq;  /* full byte for atomic access */
 	size_t metrics;
 	size_t dropped;
 	size_t stalls;
@@ -732,16 +732,18 @@ server_send(server *s, const char *d, char force)
 				}
 			}
 		}
-		if (failure || force || s->stallseq == s->maxstalls) {
+		if (failure || force ||
+				__sync_add_and_fetch(&(s->stallseq), 0) == s->maxstalls)
+		{
 			__sync_add_and_fetch(&(s->dropped), 1);
 			/* excess event will be dropped by the enqueue below */
 		} else {
-			s->stallseq++;
+			__sync_add_and_fetch(&(s->stallseq), 1);
 			__sync_add_and_fetch(&(s->stalls), 1);
 			return 0;
 		}
 	} else {
-		s->stallseq = 0;
+		__sync_and_and_fetch(&(s->stallseq), 0);
 	}
 	queue_enqueue(s->queue, d);
 
