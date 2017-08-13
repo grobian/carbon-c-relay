@@ -118,6 +118,22 @@ gzipclose(void *strm)
 }
 #endif
 
+#ifdef HAVE_BZIP2
+/* bzip2 wrapped socket */
+static inline ssize_t
+bzipwrite(void *strm, const void *buf, size_t sze)
+{
+	return (ssize_t)BZ2_bzwrite((BZFILE *)strm, (void *)buf, (int)sze);
+}
+
+static inline int
+bzipclose(void *strm)
+{
+	BZ2_bzclose((BZFILE *)strm);
+	return 0;
+}
+#endif
+
 /**
  * Reads from the queue and sends items to the remote server.  This
  * function is designed to be a thread.  Data sending is attempted to be
@@ -511,6 +527,18 @@ server_queuereader(void *d)
 				}
 			}
 #endif
+#ifdef HAVE_BZIP2
+			if (self->transport == W_BZIP2) {
+				self->strm = BZ2_bzdopen(self->fd, "w");
+				if (self->strm == NULL) {
+					logerr("failed to open bzip2 stream: %s\n",
+							strerror(errno));
+					close(self->fd);
+					self->fd = -1;
+					continue;
+				}
+			}
+#endif
 		}
 
 		/* send up to batch size */
@@ -661,6 +689,12 @@ server_new(
 	else if (transport == W_GZIP) {
 		ret->strmwrite = &gzipwrite;
 		ret->strmclose = &gzipclose;
+	}
+#endif
+#ifdef HAVE_BZIP2
+	else if (transport == W_BZIP2) {
+		ret->strmwrite = &bzipwrite;
+		ret->strmclose = &bzipclose;
 	}
 #endif
 	ret->saddr = saddr;
