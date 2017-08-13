@@ -59,7 +59,7 @@ struct _server {
 	size_t secondariescnt;
 	char failover:1;
 	char failure;       /* full byte for atomic access */
-	char running:1;
+	char running;       /* full byte for atomic access */
 	char keep_running;  /* full byte for atomic access */
 	unsigned char stallseq;  /* full byte for atomic access */
 	size_t metrics;
@@ -538,7 +538,7 @@ server_queuereader(void *d)
 
 		idle = 0;
 	}
-	self->running = 0;
+	__sync_and_and_fetch(&(self->running), 0);
 
 	if (self->fd >= 0)
 		close(self->fd);
@@ -774,7 +774,7 @@ server_shutdown(server *s)
 			for (i = 0; i < s->secondariescnt; i++) {
 				if (__sync_add_and_fetch(&(s->secondaries[i]->failure), 0))
 					failures++;
-				if (s->secondaries[i]->running)
+				if (__sync_add_and_fetch(&(s->secondaries[i]->running), 0))
 					inqueue += queue_len(s->secondaries[i]->queue);
 			}
 			/* loop until we all failed, or nothing is in the queues */
@@ -794,7 +794,7 @@ server_shutdown(server *s)
 		/* wait for the secondaries to be stopped so we surely don't get
 		 * invalid reads when server_free is called */
 		for (i = 0; i < s->secondariescnt; i++) {
-			while (s->secondaries[i]->running)
+			while (__sync_add_and_fetch(&(s->secondaries[i]->running), 0))
 				usleep((200 + (rand() % 100)) * 1000);
 		}
 	}
