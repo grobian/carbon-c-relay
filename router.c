@@ -934,7 +934,7 @@ router_add_stubroute(
 char *
 router_add_listener(
 		router *rtr,
-		rcptr_lsnrtype ltype,
+		rcptr_type ltype,
 		rcptr_transport trnsp,
 		char *pemcert,
 		serv_ctype ctype,

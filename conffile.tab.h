@@ -76,7 +76,7 @@ struct _agcomp {
 	struct _agcomp *next;
 };
 struct _lsnr {
-	rcptr_lsnrtype type;
+	rcptr_type type;
 	struct _rcptr_trsp *transport;
 	struct _rcptr *rcptr;
 };
