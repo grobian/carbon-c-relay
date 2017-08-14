@@ -362,6 +362,9 @@ do_usage(char *name, int exitcode)
 	printf("  -c  characters to allow next to [A-Za-z0-9], defaults to -_:#\n");
 	printf("  -d  debug mode: currently writes statistics to log, prints hash\n"
 	       "      ring contents and matching position in test mode (-t)\n");
+#ifdef ENABLE_TRACE
+	printf("      add another -d to enable (very noisy) trace mode\n");
+#endif
 	printf("  -s  submission mode: don't add any metrics to the stream like\n"
 	       "      statistics, report drop counts and queue pressure to log\n");
 	printf("  -t  config test mode: prints rule matches from input on stdin\n");
