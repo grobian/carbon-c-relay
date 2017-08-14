@@ -1732,11 +1732,12 @@ router_printconfig(router *rtr, FILE *f, char pmode)
 		fprintf(f, "listen\n");
 		for (walk = rtr->listeners; walk != NULL; walk = walk->next) {
 			if (walk->lsnrtype == T_LINEMODE) {
-				fprintf(f, "    linemode%s%s%s\n",
+				fprintf(f, "    type linemode%s%s%s\n",
 						walk->transport == W_PLAIN ? "" :
-						walk->transport == W_GZIP  ? " gzip" :
-						walk->transport == W_BZIP2 ? " bzip2" :
-						walk->transport == W_SSL   ? " ssl" : " unknown",
+						walk->transport == W_GZIP  ? " transport gzip" :
+						walk->transport == W_BZIP2 ? " transport bzip2" :
+						walk->transport == W_SSL   ? " transport ssl" :
+						                             " unknown",
 						walk->transport == W_SSL ? " " : "",
 #ifdef HAVE_SSL
 						walk->transport == W_SSL ? walk->pemcert : ""
