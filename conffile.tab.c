@@ -2772,7 +2772,7 @@ yyreduce:
 								YYABORT;
 							}
 							(*(struct _rcptr_trsp **)(&yyval))->mode = W_SSL;
-							(*(struct _rcptr_trsp **)(&yyval))->pemcert = (*(char **)(&yyvsp[0]));
+							(*(struct _rcptr_trsp **)(&yyval))->pemcert = ra_strdup(ralloc, (*(char **)(&yyvsp[0])));
 #else
 							router_yyerror(&yylloc, yyscanner, rtr,
 								ralloc, palloc,
