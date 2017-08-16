@@ -295,7 +295,7 @@ router_yyerror(
 	regfree(&re);
 
 	/* clean up the keywords */
-	if (regcomp(&re, "cr([A-Z]+)", REG_EXTENDED) != 0) {
+	if (regcomp(&re, "cr([A-Z][A-Z0-9]*)", REG_EXTENDED) != 0) {
 		r->parser_err.msg = ra_strdup(a, msg);
 		return;
 	}
