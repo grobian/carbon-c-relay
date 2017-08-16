@@ -60,6 +60,7 @@ struct _server {
 	int fd;
 	void *strm;
 	ssize_t (*strmwrite)(void *, const void *, size_t);  /* write func */
+	int (*strmflush)(void *);
 	int (*strmclose)(void *);
 #ifdef HAVE_SSL
 	SSL_CTX *ctx;
@@ -102,6 +103,13 @@ sockwrite(void *strm, const void *buf, size_t sze)
 }
 
 static inline int
+sockflush(void *strm)
+{
+	/* noop, we don't use a stream in the normal case */
+	return 0;
+}
+
+static inline int
 sockclose(void *strm)
 {
 	return close(*((int *)strm));
@@ -113,6 +121,12 @@ static inline ssize_t
 gzipwrite(void *strm, const void *buf, size_t sze)
 {
 	return (ssize_t)gzwrite((gzFile)strm, buf, (unsigned)sze);
+}
+
+static inline int
+gzipflush(void *strm)
+{
+	return gzflush((gzFile)strm, Z_SYNC_FLUSH);
 }
 
 static inline int
@@ -131,6 +145,12 @@ bzipwrite(void *strm, const void *buf, size_t sze)
 }
 
 static inline int
+bzipflush(void *strm)
+{
+	return BZ2_bzflush((BZFILE *)strm);
+}
+
+static inline int
 bzipclose(void *strm)
 {
 	BZ2_bzclose((BZFILE *)strm);
@@ -144,6 +164,13 @@ static inline ssize_t
 sslwrite(void *strm, const void *buf, size_t sze)
 {
 	return (ssize_t)SSL_write((SSL *)strm, buf, (int)sze);
+}
+
+static inline int
+sslflush(void *strm)
+{
+	/* noop */
+	return 0;
 }
 
 static inline int
@@ -615,6 +642,8 @@ server_queuereader(void *d)
 					break;
 				}
 			}
+			/* ensure blocks are pushed out */
+			self->strmflush(self->strm);
 			if (slen != len) {
 				/* not fully sent (after tries), or failure
 				 * close connection regardless so we don't get
@@ -711,17 +740,20 @@ server_new(
 	if (transport == W_PLAIN) {
 		ret->strm = &(ret->fd);
 		ret->strmwrite = &sockwrite;
+		ret->strmflush = &sockflush;
 		ret->strmclose = &sockclose;
 	}
 #ifdef HAVE_GZIP
 	else if (transport == W_GZIP) {
 		ret->strmwrite = &gzipwrite;
+		ret->strmflush = &gzipflush;
 		ret->strmclose = &gzipclose;
 	}
 #endif
 #ifdef HAVE_BZIP2
 	else if (transport == W_BZIP2) {
 		ret->strmwrite = &bzipwrite;
+		ret->strmflush = &bzipflush;
 		ret->strmclose = &bzipclose;
 	}
 #endif
@@ -740,6 +772,7 @@ server_new(
 		}
 
 		ret->strmwrite = &sslwrite;
+		ret->strmflush = &sslflush;
 		ret->strmclose = &sslclose;
 	}
 #endif
