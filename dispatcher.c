@@ -72,6 +72,13 @@ typedef struct _connection {
 	char isudp:1;
 } connection;
 
+typedef struct {
+	int sock;
+	z_stream zstrm;
+	char ibuf[METRIC_BUFSIZ];
+	unsigned short ipos;
+} gzstrm;
+
 struct _dispatcher {
 	pthread_t tid;
 	enum conntype type;
@@ -121,13 +128,82 @@ sockclose(void *strm)
 static inline ssize_t
 gzipread(void *strm, void *buf, size_t sze)
 {
-	return (ssize_t)gzread((gzFile)strm, buf, (unsigned)sze);
+	z_stream *zstrm = &(((gzstrm *)strm)->zstrm);
+	char *ibuf = ((gzstrm *)strm)->ibuf;
+	int ret;
+	int iret;
+	int err = 0;
+
+	/* read any available data, if it fits */
+	ret = read(((gzstrm *)strm)->sock,
+			ibuf + ((gzstrm *)strm)->ipos,
+			METRIC_BUFSIZ - ((gzstrm *)strm)->ipos);
+	if (ret > 0) {
+		((gzstrm *)strm)->ipos += ret;
+	} else if (ret < 0) {
+		err = errno;
+	}
+
+	zstrm->next_in = (Bytef *)ibuf;
+	zstrm->avail_in = (uInt)(((gzstrm *)strm)->ipos);
+	zstrm->next_out = (Bytef *)buf;
+	zstrm->avail_out = (uInt)sze;
+
+	iret = inflate(zstrm, Z_SYNC_FLUSH);
+
+	/* if deflate read something, update our ibuf */
+	if ((Bytef *)ibuf != zstrm->next_in) {
+		memmove(ibuf, zstrm->next_in, zstrm->avail_in);
+		((gzstrm *)strm)->ipos = zstrm->avail_in;
+	}
+
+	switch (iret) {
+		case Z_OK:  /* progress has been made */
+			/* calculate the "returned" bytes */
+			iret = sze - zstrm->avail_out;
+			if (iret == 0) {
+				/* something was done, so must have been reading input */
+				errno = EAGAIN;
+				return -1;
+			}
+			break;
+		case Z_STREAM_END:  /* everything uncompressed, nothing pending */
+			iret = 0;
+			break;
+		case Z_DATA_ERROR:  /* corrupt input */
+			inflateSync(zstrm);
+			/* return isn't much of interest, we will call inflate next
+			 * time and sync again if it still fails */
+			errno = err ? err : EAGAIN;
+			return -1;
+			break;
+		case Z_MEM_ERROR:  /* out of memory */
+			logerr("out of memory during read of gzip stream\n");
+			errno = ENOMEM;
+			return -1;
+		case Z_BUF_ERROR:  /* output buffer full or nothing to read */
+			/* if this happens, zlib still can't write even though last
+			 * call should have increased the buffer size by consuming
+			 * whatever was valid, so if we're stuck here, the situation
+			 * isn't going to improve, and we better bail out */
+			errno = err ? err : EMSGSIZE;
+			return -1;
+	}
+
+	if (iret == 0 && ret != 0) {
+		errno = EAGAIN;
+		iret = -1;
+	}
+
+	return (ssize_t)iret;
 }
 
 static inline int
 gzipclose(void *strm)
 {
-	return gzclose((gzFile)strm);
+	int ret = close(((gzstrm *)strm)->sock);
+	free(strm);
+	return ret;
 }
 #endif
 
@@ -404,7 +480,20 @@ dispatch_addconnection(int sock, listener *lsnr)
 	}
 #ifdef HAVE_GZIP
 	else if (lsnr->transport == W_GZIP) {
-		connections[c].strm = gzdopen(sock, "r");
+		gzstrm *zstrm = malloc(sizeof(gzstrm));
+		if (zstrm == NULL) {
+			logerr("cannot add new connection: "
+					"out of memory allocating gzip stream\n");
+			__sync_bool_compare_and_swap(&(connections[c].takenby), -2, -1);
+			return -1;
+		}
+		zstrm->zstrm.zalloc = Z_NULL;
+		zstrm->zstrm.zfree = Z_NULL;
+		zstrm->zstrm.opaque = Z_NULL;
+		zstrm->ipos = 0;
+		zstrm->sock = sock;
+		inflateInit2(&(zstrm->zstrm), 15 + 16);
+		connections[c].strm = zstrm;
 		connections[c].strmread = &gzipread;
 		connections[c].strmclose = &gzipclose;
 	}
@@ -695,6 +784,8 @@ dispatch_connection(connection *conn, dispatcher *self, struct timeval start)
 
 			return len > 0;
 		} else if (conn->destlen == 0) {
+			tracef("dispatcher: %d, connfd: %d, len: %d, disconnecting\n",
+					self->id, conn->sock, len);
 			__sync_add_and_fetch(&closedconnections, 1);
 			conn->strmclose(conn->strm);
 
