@@ -223,6 +223,11 @@ server_queuereader(void *d)
 				self->strmclose(self->strm);
 				self->fd = -1;
 			}
+			if (idle == 1)
+				/* ensure blocks are pushed out as soon as we're idling,
+				 * this allows compressors to benefit from a larger
+				 * stream of data to gain better compresion */
+				self->strmflush(self->strm);
 			gettimeofday(&stop, NULL);
 			__sync_add_and_fetch(&(self->ticks), timediff(start, stop));
 			if (__sync_bool_compare_and_swap(&(self->keep_running), 0, 0))
@@ -642,8 +647,6 @@ server_queuereader(void *d)
 					break;
 				}
 			}
-			/* ensure blocks are pushed out */
-			self->strmflush(self->strm);
 			if (slen != len) {
 				/* not fully sent (after tries), or failure
 				 * close connection regardless so we don't get
