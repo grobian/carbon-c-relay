@@ -222,15 +222,27 @@ listen				{
 					}
 <li>type				return crTYPE;
 <li>linemode		{
-						identstate = idli;
+						identstate = li;
 						BEGIN(idli);
 						return crLINEMODE;
 					}
 <idli>transport			return crTRANSPORT;
-<idli>gzip				return crGZIP;
-<idli>bzip2				return crBZIP2;
-<idli>ssl				return crSSL;
-<idli>proto			{
+<idli>gzip			{
+						identstate = li;
+						BEGIN(idli);
+						return crGZIP;
+					}
+<idli>bzip2			{
+						identstate = li;
+						BEGIN(idli);
+						return crBZIP2;
+					}
+<idli>ssl			{
+						identstate = idli;
+						BEGIN(idli);
+						return crSSL;
+					}
+<li,idli>proto		{
 						BEGIN(li);
 						return crPROTO;
 					}
@@ -329,7 +341,7 @@ include				{
 						/* feed this back to the parser, it will give a
 						 * nice error message */
 						yylval_param->crSTRING = ra_strdup(palloc, yytext);
-						return crSTRING;
+						return crUNEXPECTED;
 					}
 
 %%

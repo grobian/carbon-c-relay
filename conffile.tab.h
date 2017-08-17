@@ -167,7 +167,8 @@ struct _rcptr_trsp {
     crINCLUDE = 323,
     crCOMMENT = 324,
     crSTRING = 325,
-    crINTVAL = 326
+    crUNEXPECTED = 326,
+    crINTVAL = 327
   };
 #endif
 
@@ -181,6 +182,8 @@ union ROUTER_YYSTYPE
   char * crCOMMENT;
   /* crSTRING  */
   char * crSTRING;
+  /* crUNEXPECTED  */
+  char * crUNEXPECTED;
   /* cluster_opt_instance  */
   char * cluster_opt_instance;
   /* match_opt_route  */
@@ -277,7 +280,7 @@ union ROUTER_YYSTYPE
   struct _rcptr * receptor;
   /* transport_mode  */
   struct _rcptr_trsp * transport_mode;
-#line 281 "conffile.tab.h" /* yacc.c:1909  */
+#line 284 "conffile.tab.h" /* yacc.c:1909  */
 };
 
 typedef union ROUTER_YYSTYPE ROUTER_YYSTYPE;

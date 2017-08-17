@@ -1,6 +1,6 @@
 warning: 'send statistics to ...' is deprecated and will be removed in a future version, use 'statistics send to ...' instead
 listen
-    linemode
+    type linemode
         2003 proto tcp
         2003 proto udp
         /tmp/.s.carbon-c-relay.2003 proto unix

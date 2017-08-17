@@ -1,18 +1,18 @@
-statistics
-    submit every 60 seconds
-    prefix with carbon.relays.test_hostname
-    ;
-
 listen
-    linemode
+    type linemode
         2013 proto tcp
         0.0.0.0:2013 proto udp
         /var/tmp/tstlisten.sock proto unix
         0.0.0.0:2014 proto tcp
-    linemode lzma
+    type linemode transport gzip
         0.0.0.0:2015 proto tcp
-    linemode ssl
+    type linemode transport ssl mycert.pem
         127.0.0.1:2913 proto tcp
+    ;
+
+statistics
+    submit every 60 seconds
+    prefix with carbon.relays.test_hostname
     ;
 
 

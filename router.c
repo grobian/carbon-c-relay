@@ -313,6 +313,25 @@ router_yyerror(
 	}
 	regfree(&re);
 
+	/* remove an artificial phrase */
+	if (regcomp(&re, ", unexpected 'unexpected'", REG_EXTENDED) != 0) {
+		r->parser_err.msg = ra_strdup(a, msg);
+		return;
+	}
+	while (regexec(&re, *sa, nmatch, pmatch, 0) == 0) {
+		dummy = *sa + strlen(*sa);
+		if (router_rewrite_metric(sb, &dummy,
+					*sa, dummy, "", nmatch, pmatch) == 0)
+		{
+			r->parser_err.msg = ra_strdup(a, msg);
+			return;
+		}
+		st = sa;
+		sa = sb;
+		sb = st;
+	}
+	regfree(&re);
+
 	/* clean up bison speak */
 	if (regcomp(&re, "\\$end", REG_EXTENDED) != 0) {
 		r->parser_err.msg = ra_strdup(a, msg);

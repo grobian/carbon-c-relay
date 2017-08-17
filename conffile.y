@@ -112,7 +112,7 @@ struct _rcptr_trsp {
 
 %token crINCLUDE
 
-%token <char *> crCOMMENT crSTRING
+%token <char *> crCOMMENT crSTRING crUNEXPECTED
 %token <int> crINTVAL
 
 %%
@@ -809,7 +809,7 @@ listener: crTYPE crLINEMODE transport_mode[mode] receptors[ifaces]
 			$$->type = T_LINEMODE;
 			$$->transport = $mode;
 			$$->rcptr = $ifaces;
-			if ($mode != W_PLAIN) {
+			if ($mode->mode != W_PLAIN) {
 				struct _rcptr *walk;
 
 				for (walk = $ifaces; walk != NULL; walk = walk->next) {
