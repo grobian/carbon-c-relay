@@ -72,12 +72,15 @@ typedef struct _connection {
 	char isudp:1;
 } connection;
 
-typedef struct {
+typedef struct _z_strm {
 	int sock;
-	z_stream zstrm;
+	union {
+		z_stream z;
+		bz_stream bz;
+	} hdl;
 	char ibuf[METRIC_BUFSIZ];
 	unsigned short ipos;
-} gzstrm;
+} z_strm;
 
 struct _dispatcher {
 	pthread_t tid;
@@ -128,24 +131,24 @@ sockclose(void *strm)
 static inline ssize_t
 gzipread(void *strm, void *buf, size_t sze)
 {
-	z_stream *zstrm = &(((gzstrm *)strm)->zstrm);
-	char *ibuf = ((gzstrm *)strm)->ibuf;
+	z_stream *zstrm = &(((z_strm *)strm)->hdl.z);
+	char *ibuf = ((z_strm *)strm)->ibuf;
 	int ret;
 	int iret;
 	int err = 0;
 
 	/* read any available data, if it fits */
-	ret = read(((gzstrm *)strm)->sock,
-			ibuf + ((gzstrm *)strm)->ipos,
-			METRIC_BUFSIZ - ((gzstrm *)strm)->ipos);
+	ret = read(((z_strm *)strm)->sock,
+			ibuf + ((z_strm *)strm)->ipos,
+			METRIC_BUFSIZ - ((z_strm *)strm)->ipos);
 	if (ret > 0) {
-		((gzstrm *)strm)->ipos += ret;
+		((z_strm *)strm)->ipos += ret;
 	} else if (ret < 0) {
 		err = errno;
 	}
 
 	zstrm->next_in = (Bytef *)ibuf;
-	zstrm->avail_in = (uInt)(((gzstrm *)strm)->ipos);
+	zstrm->avail_in = (uInt)(((z_strm *)strm)->ipos);
 	zstrm->next_out = (Bytef *)buf;
 	zstrm->avail_out = (uInt)sze;
 
@@ -154,7 +157,7 @@ gzipread(void *strm, void *buf, size_t sze)
 	/* if deflate read something, update our ibuf */
 	if ((Bytef *)ibuf != zstrm->next_in) {
 		memmove(ibuf, zstrm->next_in, zstrm->avail_in);
-		((gzstrm *)strm)->ipos = zstrm->avail_in;
+		((z_strm *)strm)->ipos = zstrm->avail_in;
 	}
 
 	switch (iret) {
@@ -201,7 +204,7 @@ gzipread(void *strm, void *buf, size_t sze)
 static inline int
 gzipclose(void *strm)
 {
-	int ret = close(((gzstrm *)strm)->sock);
+	int ret = close(((z_strm *)strm)->sock);
 	free(strm);
 	return ret;
 }
@@ -480,19 +483,19 @@ dispatch_addconnection(int sock, listener *lsnr)
 	}
 #ifdef HAVE_GZIP
 	else if (lsnr->transport == W_GZIP) {
-		gzstrm *zstrm = malloc(sizeof(gzstrm));
+		z_strm *zstrm = malloc(sizeof(z_strm));
 		if (zstrm == NULL) {
 			logerr("cannot add new connection: "
 					"out of memory allocating gzip stream\n");
 			__sync_bool_compare_and_swap(&(connections[c].takenby), -2, -1);
 			return -1;
 		}
-		zstrm->zstrm.zalloc = Z_NULL;
-		zstrm->zstrm.zfree = Z_NULL;
-		zstrm->zstrm.opaque = Z_NULL;
+		zstrm->hdl.z.zalloc = Z_NULL;
+		zstrm->hdl.z.zfree = Z_NULL;
+		zstrm->hdl.z.opaque = Z_NULL;
 		zstrm->ipos = 0;
 		zstrm->sock = sock;
-		inflateInit2(&(zstrm->zstrm), 15 + 16);
+		inflateInit2(&(zstrm->hdl.z), 15 + 16);
 		connections[c].strm = zstrm;
 		connections[c].strmread = &gzipread;
 		connections[c].strmclose = &gzipclose;
