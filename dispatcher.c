@@ -171,7 +171,7 @@ gzipread(void *strm, void *buf, size_t sze)
 			}
 			break;
 		case Z_STREAM_END:  /* everything uncompressed, nothing pending */
-			iret = 0;
+			iret = sze - zstrm->avail_out;
 			break;
 		case Z_DATA_ERROR:  /* corrupt input */
 			inflateSync(zstrm);
