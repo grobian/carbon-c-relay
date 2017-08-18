@@ -205,6 +205,7 @@ static inline int
 gzipclose(void *strm)
 {
 	int ret = close(((z_strm *)strm)->sock);
+	inflateEnd(&(((z_strm *)strm)->hdl.z));
 	free(strm);
 	return ret;
 }
@@ -215,14 +216,70 @@ gzipclose(void *strm)
 static inline ssize_t
 bzipread(void *strm, void *buf, size_t sze)
 {
-	return (ssize_t)BZ2_bzread((BZFILE *)strm, buf, (int)sze);
+	bz_stream *bzstrm = &(((z_strm *)strm)->hdl.bz);
+	char *ibuf = ((z_strm *)strm)->ibuf;
+	int ret;
+	int iret;
+
+	/* BZ2_bzDecompress requires at lease one byte to write */
+	if (sze == 0) {
+		errno = EMSGSIZE;
+		return -1;
+	}
+
+	/* read any available data, if it fits */
+	ret = read(((z_strm *)strm)->sock,
+			ibuf + ((z_strm *)strm)->ipos,
+			METRIC_BUFSIZ - ((z_strm *)strm)->ipos);
+	if (ret > 0)
+		((z_strm *)strm)->ipos += ret;
+
+	bzstrm->next_in = ibuf;
+	bzstrm->avail_in = ((z_strm *)strm)->ipos;
+	bzstrm->next_out = buf;
+	bzstrm->avail_out = sze;
+
+	iret = BZ2_bzDecompress(bzstrm);
+
+	/* if decompress read something, update our ibuf */
+	if (ibuf != bzstrm->next_in) {
+		memmove(ibuf, bzstrm->next_in, bzstrm->avail_in);
+		((z_strm *)strm)->ipos = bzstrm->avail_in;
+	}
+
+	switch (iret) {
+		case BZ_OK:  /* progress has been made */
+			/* calculate the "returned" bytes */
+			iret = sze - bzstrm->avail_out;
+			if (iret == 0) {
+				/* something was done, so must have been reading input */
+				errno = EAGAIN;
+				return -1;
+			}
+			break;
+		case BZ_STREAM_END:  /* everything uncompressed, nothing pending */
+			iret = sze - bzstrm->avail_out;
+			break;
+		case BZ_DATA_ERROR:  /* corrupt input */
+			errno = EILSEQ;
+			return -1;
+			break;
+		case BZ_MEM_ERROR:  /* out of memory */
+			logerr("out of memory during read of bzip2 stream\n");
+			errno = ENOMEM;
+			return -1;
+	}
+
+	return (ssize_t)iret;
 }
 
 static inline int
 bzipclose(void *strm)
 {
-	BZ2_bzclose((BZFILE *)strm);
-	return 0;
+	int ret = close(((z_strm *)strm)->sock);
+	BZ2_bzDecompressEnd(&(((z_strm *)strm)->hdl.bz));
+	free(strm);
+	return ret;
 }
 #endif
 
@@ -503,7 +560,20 @@ dispatch_addconnection(int sock, listener *lsnr)
 #endif
 #ifdef HAVE_BZIP2
 	else if (lsnr->transport == W_BZIP2) {
-		connections[c].strm = BZ2_bzdopen(sock, "r");
+		z_strm *bzstrm = malloc(sizeof(z_strm));
+		if (bzstrm == NULL) {
+			logerr("cannot add new connection: "
+					"out of memory allocating bzip2 stream\n");
+			__sync_bool_compare_and_swap(&(connections[c].takenby), -2, -1);
+			return -1;
+		}
+		bzstrm->hdl.bz.bzalloc = NULL;
+		bzstrm->hdl.bz.bzfree = NULL;
+		bzstrm->hdl.bz.opaque = NULL;
+		bzstrm->ipos = 0;
+		bzstrm->sock = sock;
+		BZ2_bzDecompressInit(&(bzstrm->hdl.bz), 0, 0);
+		connections[c].strm = bzstrm;
 		connections[c].strmread = &bzipread;
 		connections[c].strmclose = &bzipclose;
 	}
@@ -787,8 +857,9 @@ dispatch_connection(connection *conn, dispatcher *self, struct timeval start)
 
 			return len > 0;
 		} else if (conn->destlen == 0) {
-			tracef("dispatcher: %d, connfd: %d, len: %d, disconnecting\n",
-					self->id, conn->sock, len);
+			tracef("dispatcher: %d, connfd: %d, len: %d [%s], disconnecting\n",
+					self->id, conn->sock, len,
+					len < 0 ? strerror(errno) : "");
 			__sync_add_and_fetch(&closedconnections, 1);
 			conn->strmclose(conn->strm);
 
