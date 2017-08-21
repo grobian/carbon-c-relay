@@ -22,17 +22,33 @@ script:
   # workaround git not retaining mtimes and bison/flex not being uptodate
   - touch conffile.yy.c conffile.tab.c conffile.tab.h
   - touch configure.ac Makefile.am aclocal.m4 configure Makefile.in config.h.in
-  # ensure we end up with an existing compiler
   - |
     if [[ ${CC} == coverity ]] ; then
+      # ensure we end up with an existing compiler
       export CC=gcc
-    fi
-  - ./configure || cat config.log
-  - |
-    if [[ -z ${COVERITY_SCAN_PROJECT_NAME} ]] ; then
-      make CFLAGS="-O3 -Wall -Werror -Wshadow -pipe" check
-    elif [[ -n ${COVERITY_SCAN_TOKEN} ]] ; then
+      ./configure || { cat config.log ; exit 1 ; }
       curl -s 'https://scan.coverity.com/scripts/travisci_build_coverity_scan.sh' | bash
+    else
+      # everything disabled, this MUST work
+      ./configure --without-gzip --without-bzip2 --without-ssl \
+        || { cat config.log ; exit 1 ; }
+      make CFLAGS="-O3 -Wall -Werror -Wshadow -pipe" clean check || exit 1
+      # compile some enabled/disabled variants compile only
+      if ./configure --with-gzip --without-bzip2 --without-ssl ; then
+        make CFLAGS="-O3 -Wall -Werror -Wshadow -pipe" clean relay || exit 1
+      fi
+      if ./configure --without-gzip --with-bzip2 --without-ssl ; then
+        make CFLAGS="-O3 -Wall -Werror -Wshadow -pipe" clean relay || exit 1
+      fi
+      if ./configure --with-gzip --with-bzip2 --without-ssl ; then
+        make CFLAGS="-O3 -Wall -Werror -Wshadow -pipe" clean relay || exit 1
+      fi
+      if ./configure --with-gzip --with-bzip2 --with-ssl ; then
+        make CFLAGS="-O3 -Wall -Werror -Wshadow -pipe" clean relay || exit 1
+      fi
+      # final test with everything enabled that is detected
+      ./configure || { cat config.log ; exit 1 ; }
+      make CFLAGS="-O3 -Wall -Werror -Wshadow -pipe" clean check || exit 1
     fi
 
 env:
