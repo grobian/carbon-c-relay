@@ -75,8 +75,13 @@ typedef struct _connection {
 typedef struct _z_strm {
 	int sock;
 	union {
+#ifdef HAVE_GZIP
 		z_stream z;
+#endif
+#ifdef HAVE_BZIP2
 		bz_stream bz;
+#endif
+		char dummy;
 	} hdl;
 	char ibuf[METRIC_BUFSIZ];
 	unsigned short ipos;
