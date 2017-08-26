@@ -77,20 +77,24 @@ ra_new(void)
 }
 
 /**
- * malloc() in one of the regions for this allocators.  If insufficient
+ * malloc() in one of the regions for this allocator.  If insufficient
  * memory is available in the region, a new one is allocated.  If
  * that fails, NULL is returned, else a pointer that can be written to
- * up to sz bytes.
+ * up to sz bytes.  The returned region is aligned.
  */
 void *
 ra_malloc(allocator *ra, size_t sz)
 {
 	void *retp = NULL;
-	size_t nsz;
+	size_t nsz;  /* for ra_alloc macro */
 
 	for (; ra != NULL; ra = ra->next) {
 		if (ra->sz - (ra->nextp - ra->memory_region) >= sz) {
 			retp = ra->nextp;
+			/* align to arch-width boundaries */
+			nsz = sz % sizeof(size_t);
+			if (nsz != 0)
+				sz += sizeof(size_t) - nsz;
 			ra->nextp += sz;
 			return retp;
 		}
