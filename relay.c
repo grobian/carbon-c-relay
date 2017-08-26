@@ -516,7 +516,7 @@ main(int argc, char * const argv[])
 				}
 				if (len != sizeof(sockbufsize)) {
 					fprintf(stderr, "getsockopt returned unexpected size: %u, "
-							"expected %lu\n", len, sizeof(sockbufsize));
+							"expected %zu\n", len, sizeof(sockbufsize));
 					exit(1);
 				}
 				if (sockbufsize > (unsigned int)val)
@@ -700,7 +700,7 @@ main(int argc, char * const argv[])
 	startup_success = 1;
 
 	if (pidfile_handle) {
-		fprintf(pidfile_handle, "%d\n", getpid());
+		fprintf(pidfile_handle, "%zu\n", (ssize_t)getpid());
 		fclose(pidfile_handle);
 	}
 
