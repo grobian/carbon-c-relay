@@ -1188,6 +1188,11 @@ router_readconfig(router *orig,
 			return NULL;
 		}
 		cl->name = ra_strdup(ret->a, "blackhole");
+		if (cl->name == NULL) {
+			logerr("malloc failed for blackhole cluster name\n");
+			router_free(ret);
+			return NULL;
+		}
 		cl->type = BLACKHOLE;
 		cl->members.forward = NULL;
 		cl->next = NULL;
