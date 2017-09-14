@@ -104,6 +104,7 @@ CRTESTS = \
 	issue267 \
 	issue288 \
 	issue293 \
+	issue310 \
 	$(NULL)
 
 test: check
