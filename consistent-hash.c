@@ -169,6 +169,9 @@ entrycmp_jump_fnv1a(const void *l, const void *r)
 
 	char *si_l = server_instance(ch_l->server);
 	char *si_r = server_instance(ch_r->server);
+	char *endp;
+	long val_l;
+	long val_r;
 
 	/* order such that servers with explicit instance come first
 	 * (sorted), all servers without instance follow in order of their
@@ -179,6 +182,16 @@ entrycmp_jump_fnv1a(const void *l, const void *r)
 		return 1;
 	if (si_r == NULL)
 		return -1;
+	
+	/* at this point we have two instances, try and see if both are
+	 * numbers, if so, compare as such, else fall back to string
+	 * comparison */
+	val_l = strtol(si_l, &endp, 10);
+	if (*endp == '\0') {
+		val_r = strtol(si_r, &endp, 10);
+		if (*endp == '\0')
+			return (int)(val_l - val_r);
+	}
 	return strcmp(si_l, si_r);
 }
 
