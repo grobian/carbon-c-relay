@@ -59,6 +59,7 @@ struct _server {
 	char reresolve:1;
 	int fd;
 	void *strm;
+	const char *(*strmerror)(void *, int); /* error func */
 	ssize_t (*strmwrite)(void *, const void *, size_t);  /* write func */
 	int (*strmflush)(void *);
 	int (*strmclose)(void *);
@@ -96,6 +97,12 @@ struct _server {
 /* connection specific writers and closers */
 
 /* ordinary socket */
+static inline const char *
+sockerror(void *strm, int rval) {
+	(void)strm;
+	(void)rval;
+	return strerror(errno);
+}
 static inline ssize_t
 sockwrite(void *strm, const void *buf, size_t sze)
 {
@@ -160,6 +167,12 @@ bzipclose(void *strm)
 
 #ifdef HAVE_SSL
 /* (Open|Libre)SSL wrapped socket */
+static inline const char *
+sslerror(void *strm, int rval)
+{
+	int err = SSL_get_error((SSL *)strm, rval);
+	return ERR_reason_error_string(err);
+}
 static inline ssize_t
 sslwrite(void *strm, const void *buf, size_t sze)
 {
@@ -594,9 +607,20 @@ server_queuereader(void *d)
 #endif
 #ifdef HAVE_SSL
 			if (self->transport == W_SSL) {
+				int rv;
 				self->strm = SSL_new(self->ctx);
-				SSL_set_fd(self->strm, self->fd);
-				SSL_set_connect_state(self->strm);
+				if(SSL_set_fd(self->strm, self->fd) == 0) {
+					logerr("SSL_set_fd: %s\n", ERR_reason_error_string(ERR_get_error()));
+					self->strmclose(self->strm);
+					self->fd = -1;
+					continue;
+				}
+				if((rv = SSL_connect(self->strm)) != 1) {
+					logerr("ssl connect[%d]: %s\n", rv, ERR_reason_error_string(SSL_get_error(self->strm, rv)));
+					self->strmclose(self->strm);
+					self->fd = -1;
+					continue;
+				}
 			}
 #endif
 		}
@@ -655,7 +679,7 @@ server_queuereader(void *d)
 						__sync_fetch_and_add(&(self->failure), 1) == 0)
 					logerr("failed to write() to %s:%u: %s\n",
 							self->ip, self->port,
-							(slen < 0 ? strerror(errno) : "incomplete write"));
+							(slen < 0 ? self->strmerror(self->strm, slen) : "incomplete write"));
 				self->strmclose(self->strm);
 				self->fd = -1;
 				/* put back stuff we couldn't process */
@@ -745,12 +769,14 @@ server_new(
 		ret->strmwrite = &sockwrite;
 		ret->strmflush = &sockflush;
 		ret->strmclose = &sockclose;
+		ret->strmerror = &sockerror;
 	}
 #ifdef HAVE_GZIP
 	else if (transport == W_GZIP) {
 		ret->strmwrite = &gzipwrite;
 		ret->strmflush = &gzipflush;
 		ret->strmclose = &gzipclose;
+		ret->strmerror = &sockerror;
 	}
 #endif
 #ifdef HAVE_BZIP2
@@ -758,13 +784,15 @@ server_new(
 		ret->strmwrite = &bzipwrite;
 		ret->strmflush = &bzipflush;
 		ret->strmclose = &bzipclose;
+		ret->strmerror = &sockerror;
 	}
 #endif
 #ifdef HAVE_SSL
 	else if (transport == W_SSL) {
 		/* create a auto-negotiate context */
-		const SSL_METHOD *m = SSLv23_server_method();
+		const SSL_METHOD *m = SSLv23_client_method();
 		ret->ctx = SSL_CTX_new(m);
+		
 		if (ret->ctx == NULL) {
 			char *err = ERR_error_string(ERR_get_error(), NULL);
 			logerr("failed to create SSL context for server "
@@ -777,6 +805,7 @@ server_new(
 		ret->strmwrite = &sslwrite;
 		ret->strmflush = &sslflush;
 		ret->strmclose = &sslclose;
+		ret->strmerror = &sslerror;
 	}
 #endif
 	ret->saddr = saddr;
