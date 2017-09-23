@@ -42,8 +42,8 @@
 #ifdef HAVE_GZIP
 #include <zlib.h>
 #endif
-#ifdef HAVE_BZIP2
-#include <bzlib.h>
+#ifdef HAVE_LZ4
+#include <lz4.h>
 #endif
 #ifdef HAVE_SSL
 #include <openssl/ssl.h>
@@ -96,6 +96,17 @@ struct _server {
 
 /* connection specific writers and closers */
 
+typedef struct _z_strm {
+	char obuf[METRIC_BUFSIZ];
+	int sock;
+	union {
+#ifdef HAVE_LZ4
+		LZ4_stream_t *lz;
+#endif
+		void *dummy;
+	} hdl;
+} z_strm;
+
 /* ordinary socket */
 static inline ssize_t
 sockwrite(void *strm, const void *buf, size_t sze)
@@ -145,25 +156,44 @@ gzipclose(void *strm)
 }
 #endif
 
-#ifdef HAVE_BZIP2
-/* bzip2 wrapped socket */
+#ifdef HAVE_LZ4
+/* lz4 wrapped socket */
 static inline ssize_t
-bzipwrite(void *strm, const void *buf, size_t sze)
+lzwrite(void *strm, const void *buf, size_t sze)
 {
-	return (ssize_t)BZ2_bzwrite((BZFILE *)strm, (void *)buf, (int)sze);
+	int oret;
+	char *obuf = ((z_strm *)strm)->obuf;
+	int cret;
+
+	cret = LZ4_compress_fast_continue(((z_strm *)strm)->hdl.lz,
+			buf, obuf, sze, METRIC_BUFSIZ, 0);
+	if (cret == 0)
+		return -1;  /* we must reset/free lz */
+	while (cret > 0) {
+		oret = write(((z_strm *)strm)->sock, obuf, cret);
+		if (oret < 0)
+			return -1;  /* failure is failure */
+		/* update counters to possibly retry the remaining bit */
+		obuf += oret;
+		cret -= oret;
+	}
+
+	return sze;
 }
 
 static inline int
-bzipflush(void *strm)
+lzflush(void *strm)
 {
-	return BZ2_bzflush((BZFILE *)strm);
-}
-
-static inline int
-bzipclose(void *strm)
-{
-	BZ2_bzclose((BZFILE *)strm);
 	return 0;
+}
+
+static inline int
+lzclose(void *strm)
+{
+	int ret = close(((z_strm *)strm)->sock);
+	LZ4_freeStream(((z_strm *)strm)->hdl.lz);
+	free(strm);
+	return ret;
 }
 #endif
 
@@ -596,16 +626,26 @@ server_queuereader(void *d)
 				}
 			}
 #endif
-#ifdef HAVE_BZIP2
-			if (self->transport == W_BZIP2) {
-				self->strm = BZ2_bzdopen(self->fd, "w");
-				if (self->strm == NULL) {
-					logerr("failed to open bzip2 stream: %s\n",
+#ifdef HAVE_LZ4
+			if (self->transport == W_LZ4) {
+				z_strm *s = (z_strm *)malloc(sizeof(z_strm));
+				if (s == NULL) {
+					logerr("failed to allocate lz4 stream: %s\n",
 							strerror(errno));
 					close(self->fd);
 					self->fd = -1;
 					continue;
 				}
+				s->sock = self->fd;
+				s->hdl.lz = LZ4_createStream();
+				if (s->hdl.lz == NULL) {
+					logerr("failed to create lz4 stream: out of memory\n");
+					free(s);
+					close(self->fd);
+					self->fd = -1;
+					continue;
+				}
+				self->strm = s;
 			}
 #endif
 #ifdef HAVE_SSL
@@ -786,11 +826,11 @@ server_new(
 		ret->strmerror = &sockerror;
 	}
 #endif
-#ifdef HAVE_BZIP2
-	else if (transport == W_BZIP2) {
-		ret->strmwrite = &bzipwrite;
-		ret->strmflush = &bzipflush;
-		ret->strmclose = &bzipclose;
+#ifdef HAVE_LZ4
+	else if (transport == W_LZ4) {
+		ret->strmwrite = &lzwrite;
+		ret->strmflush = &lzflush;
+		ret->strmclose = &lzclose;
 		ret->strmerror = &sockerror;
 	}
 #endif

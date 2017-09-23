@@ -1748,7 +1748,7 @@ router_printconfig(router *rtr, FILE *f, char pmode)
 #define PTRNSP \
 	server_transport(s->server) == W_PLAIN ? "" : \
 	server_transport(s->server) == W_GZIP  ? " transport gzip" : \
-	server_transport(s->server) == W_BZIP2 ? " transport bzip2" : \
+	server_transport(s->server) == W_LZ4   ? " transport lz4" : \
 	server_transport(s->server) == W_SSL   ? " transport ssl" : " unknown"
 
 	if (rtr->listeners != NULL) {
@@ -1759,7 +1759,7 @@ router_printconfig(router *rtr, FILE *f, char pmode)
 				fprintf(f, "    type linemode%s%s%s\n",
 						walk->transport == W_PLAIN ? "" :
 						walk->transport == W_GZIP  ? " transport gzip" :
-						walk->transport == W_BZIP2 ? " transport bzip2" :
+						walk->transport == W_LZ4   ? " transport lz4" :
 						walk->transport == W_SSL   ? " transport ssl" :
 						                             " unknown",
 						walk->transport == W_SSL ? " " : "",

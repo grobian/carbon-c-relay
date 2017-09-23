@@ -104,7 +104,7 @@ struct _rcptr_trsp {
 %type <char *> statistics_opt_prefix
 
 %token crLISTEN
-%token crTYPE crLINEMODE crTRANSPORT crGZIP crBZIP2 crSSL crUNIX
+%token crTYPE crLINEMODE crTRANSPORT crGZIP crLZ4 crSSL crUNIX
 %type <con_proto> rcptr_proto
 %type <struct _rcptr *> receptor opt_receptor receptors
 %type <struct _rcptr_trsp *> transport_mode
@@ -348,7 +348,7 @@ cluster_opt_type:
 
 cluster_opt_transport:                      { $$ = W_PLAIN; }
 					 | crTRANSPORT crGZIP   { $$ = W_GZIP;  }
-					 | crTRANSPORT crBZIP2  { $$ = W_BZIP2; }
+					 | crTRANSPORT crLZ4    { $$ = W_LZ4;   }
 					 | crTRANSPORT crSSL    { $$ = W_SSL;   }
 					 ;
 /*** }}} END cluster ***/
@@ -849,15 +849,15 @@ transport_mode:         {
 							YYERROR;
 #endif
 						}
-			  | crTRANSPORT crBZIP2 {
-#ifdef HAVE_BZIP2
+			  | crTRANSPORT crLZ4 {
+#ifdef HAVE_LZ4
 							if (($$ = ra_malloc(palloc,
 									sizeof(struct _rcptr_trsp))) == NULL)
 							{
 								logerr("malloc failed\n");
 								YYABORT;
 							}
-							$$->mode = W_BZIP2;
+							$$->mode = W_LZ4;
 #else
 							router_yyerror(&yylloc, yyscanner, rtr,
 								ralloc, palloc,

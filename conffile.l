@@ -83,7 +83,7 @@ cluster				{
 <idcl>linemode			return crLINEMODE;
 <idcl>transport			return crTRANSPORT;
 <idcl>gzip				return crGZIP;
-<idcl>bzip2				return crBZIP2;
+<idcl>lz4				return crLZ4;
 <idcl>ssl				return crSSL;
 <idcl>=					return '=';
 
@@ -232,10 +232,10 @@ listen				{
 						BEGIN(idli);
 						return crGZIP;
 					}
-<idli>bzip2			{
+<idli>lz4			{
 						identstate = li;
 						BEGIN(idli);
-						return crBZIP2;
+						return crLZ4;
 					}
 <idli>ssl			{
 						identstate = idli;

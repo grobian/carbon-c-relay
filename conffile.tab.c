@@ -232,7 +232,7 @@ struct _rcptr_trsp {
     crLINEMODE = 317,
     crTRANSPORT = 318,
     crGZIP = 319,
-    crBZIP2 = 320,
+    crLZ4 = 320,
     crSSL = 321,
     crUNIX = 322,
     crINCLUDE = 323,
@@ -718,7 +718,7 @@ static const char *const yytname[] =
   "crAVERAGE", "crMEDIAN", "crVARIANCE", "crSTDDEV", "crPERCENTILE",
   "crWRITE", "crSTATISTICS", "crSUBMIT", "crRESET", "crCOUNTERS",
   "crINTERVAL", "crPREFIX", "crWITH", "crLISTEN", "crTYPE", "crLINEMODE",
-  "crTRANSPORT", "crGZIP", "crBZIP2", "crSSL", "crUNIX", "crINCLUDE",
+  "crTRANSPORT", "crGZIP", "crLZ4", "crSSL", "crUNIX", "crINCLUDE",
   "crCOMMENT", "crSTRING", "crUNEXPECTED", "crINTVAL", "';'", "'='", "'*'",
   "$accept", "stmts", "opt_stmt", "stmt", "command", "cluster",
   "cluster_type", "cluster_useall", "cluster_opt_useall", "cluster_ch",
@@ -2045,7 +2045,7 @@ yyreduce:
 
   case 48:
 #line 351 "conffile.y" /* yacc.c:1646  */
-    { (*(con_trnsp*)(&yyval)) = W_BZIP2; }
+    { (*(con_trnsp*)(&yyval)) = W_LZ4;   }
 #line 2050 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
@@ -2744,14 +2744,14 @@ yyreduce:
   case 108:
 #line 852 "conffile.y" /* yacc.c:1646  */
     {
-#ifdef HAVE_BZIP2
+#ifdef HAVE_LZ4
 							if (((*(struct _rcptr_trsp **)(&yyval)) = ra_malloc(palloc,
 									sizeof(struct _rcptr_trsp))) == NULL)
 							{
 								logerr("malloc failed\n");
 								YYABORT;
 							}
-							(*(struct _rcptr_trsp **)(&yyval))->mode = W_BZIP2;
+							(*(struct _rcptr_trsp **)(&yyval))->mode = W_LZ4;
 #else
 							router_yyerror(&yylloc, yyscanner, rtr,
 								ralloc, palloc,

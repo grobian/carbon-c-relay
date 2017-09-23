@@ -45,7 +45,7 @@ enum logdst { LOGOUT, LOGERR };
 
 typedef enum { CON_TCP, CON_UDP, CON_PIPE, CON_FILE, CON_UNIX } con_proto;
 typedef enum { T_LINEMODE } con_type;
-typedef enum { W_PLAIN, W_GZIP, W_BZIP2, W_SSL } con_trnsp;
+typedef enum { W_PLAIN, W_GZIP, W_LZ4, W_SSL } con_trnsp;
 
 int relaylog(enum logdst dest, const char *fmt, ...);
 #define logout(args...) relaylog(LOGOUT, args)

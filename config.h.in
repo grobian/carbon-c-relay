@@ -6,12 +6,6 @@
 /* Define to 1 if you have the <assert.h> header file. */
 #undef HAVE_ASSERT_H
 
-/* Define if you have bzip2 */
-#undef HAVE_BZIP2
-
-/* Define to 1 if you have the <bzlib.h> header file. */
-#undef HAVE_BZLIB_H
-
 /* Define to 1 if you have the <errno.h> header file. */
 #undef HAVE_ERRNO_H
 
@@ -38,6 +32,12 @@
 
 /* Define to 1 if you have the `localtime_r' function. */
 #undef HAVE_LOCALTIME_R
+
+/* Define if you have lz4 */
+#undef HAVE_LZ4
+
+/* Define to 1 if you have the <lz4.h> header file. */
+#undef HAVE_LZ4_H
 
 /* Define to 1 if your system has a GNU libc compatible `malloc' function, and
    to 0 otherwise. */

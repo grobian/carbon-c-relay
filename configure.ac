@@ -95,20 +95,20 @@ AS_IF([test "x$with_gzip" != xno],
 					]
 	)])
 
-AC_ARG_WITH([bzip2], [support bzip2 compression for sending/receiving],
-			[], [with_bzip2=check])
-LIBBZIP2=
-AS_IF([test "x$with_bzip2" != xno],
-	  [AC_CHECK_HEADERS([bzlib.h], [], [LIBBZIP2=_missing_header])
-	   AC_CHECK_LIB([bz2${LIBBZIP2}], [BZ2_bzopen],
-					[AC_SUBST([LIBBZIP2], [-lbz2])
-					AC_DEFINE([HAVE_BZIP2], [1], [Define if you have bzip2])
+AC_ARG_WITH([lz4], [support lz4 compression for sending/receiving],
+			[], [with_lz4=check])
+LIBLZ4=
+AS_IF([test "x$with_lz4" != xno],
+	  [AC_CHECK_HEADERS([lz4.h], [], [LIBLZ4=_missing_header])
+	   AC_CHECK_LIB([lz4${LIBLZ4}], [LZ4_createStream],
+					[AC_SUBST([LIBLZ4], [-llz4])
+					AC_DEFINE([HAVE_LZ4], [1], [Define if you have lz4])
 					],
-					[if test "x$with_bzip2" != xcheck; then
+					[if test "x$with_lz4" != xcheck; then
 					 AC_MSG_FAILURE(
-					   [--with-bzip2 was given, but test for bzip2 failed])
+					   [--with-lz4 was given, but test for lz4 failed])
 					 fi
-					 LIBBZIP2=
+					 LIBLZ4=
 					]
 	)])
 

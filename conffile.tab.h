@@ -161,7 +161,7 @@ struct _rcptr_trsp {
     crLINEMODE = 317,
     crTRANSPORT = 318,
     crGZIP = 319,
-    crBZIP2 = 320,
+    crLZ4 = 320,
     crSSL = 321,
     crUNIX = 322,
     crINCLUDE = 323,

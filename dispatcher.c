@@ -39,8 +39,8 @@
 #ifdef HAVE_GZIP
 #include <zlib.h>
 #endif
-#ifdef HAVE_BZIP2
-#include <bzlib.h>
+#ifdef HAVE_LZ4
+#include <lz4.h>
 #endif
 #ifdef HAVE_SSL
 #include <openssl/ssl.h>
@@ -78,8 +78,8 @@ typedef struct _z_strm {
 #ifdef HAVE_GZIP
 		z_stream z;
 #endif
-#ifdef HAVE_BZIP2
-		bz_stream bz;
+#ifdef HAVE_LZ4
+		LZ4_streamDecode_t *lz;
 #endif
 		char dummy;
 	} hdl;
@@ -216,73 +216,40 @@ gzipclose(void *strm)
 }
 #endif
 
-#ifdef HAVE_BZIP2
-/* bzip2 wrapped socket */
+#ifdef HAVE_LZ4
+/* lz4 wrapped socket */
 static inline ssize_t
-bzipread(void *strm, void *buf, size_t sze)
+lzread(void *strm, void *buf, size_t sze)
 {
-	bz_stream *bzstrm = &(((z_strm *)strm)->hdl.bz);
 	char *ibuf = ((z_strm *)strm)->ibuf;
 	int ret;
-	int iret;
-
-	/* BZ2_bzDecompress requires at lease one byte to write */
-	if (sze == 0) {
-		errno = EMSGSIZE;
-		return -1;
-	}
 
 	/* read any available data, if it fits */
 	ret = read(((z_strm *)strm)->sock,
 			ibuf + ((z_strm *)strm)->ipos,
 			METRIC_BUFSIZ - ((z_strm *)strm)->ipos);
-	if (ret > 0)
+	if (ret > 0) {
 		((z_strm *)strm)->ipos += ret;
-
-	bzstrm->next_in = ibuf;
-	bzstrm->avail_in = ((z_strm *)strm)->ipos;
-	bzstrm->next_out = buf;
-	bzstrm->avail_out = sze;
-
-	iret = BZ2_bzDecompress(bzstrm);
-
-	/* if decompress read something, update our ibuf */
-	if (ibuf != bzstrm->next_in) {
-		memmove(ibuf, bzstrm->next_in, bzstrm->avail_in);
-		((z_strm *)strm)->ipos = bzstrm->avail_in;
+	} else if (ret < 0) {
+		return -1;
 	}
 
-	switch (iret) {
-		case BZ_OK:  /* progress has been made */
-			/* calculate the "returned" bytes */
-			iret = sze - bzstrm->avail_out;
-			if (iret == 0) {
-				/* something was done, so must have been reading input */
-				errno = EAGAIN;
-				return -1;
-			}
-			break;
-		case BZ_STREAM_END:  /* everything uncompressed, nothing pending */
-			iret = sze - bzstrm->avail_out;
-			break;
-		case BZ_DATA_ERROR:  /* corrupt input */
-			errno = EILSEQ;
-			return -1;
-			break;
-		case BZ_MEM_ERROR:  /* out of memory */
-			logerr("out of memory during read of bzip2 stream\n");
-			errno = ENOMEM;
-			return -1;
+	ret = LZ4_decompress_safe_continue(((z_strm *)strm)->hdl.lz,
+			ibuf, buf, ((z_strm *)strm)->ipos, sze);
+
+	/* if we decompressed something, update our ibuf */
+	if (ret > 0) {
+		((z_strm *)strm)->ipos = ((z_strm *)strm)->ipos - ret;
+		memmove(ibuf, ibuf + ret, ((z_strm *)strm)->ipos);
 	}
 
-	return (ssize_t)iret;
+	return (ssize_t)ret;
 }
 
 static inline int
-bzipclose(void *strm)
+lzclose(void *strm)
 {
-	int ret = close(((z_strm *)strm)->sock);
-	BZ2_bzDecompressEnd(&(((z_strm *)strm)->hdl.bz));
+	int ret = LZ4_freeStreamDecode(((z_strm *)strm)->hdl.lz);
 	free(strm);
 	return ret;
 }
@@ -563,24 +530,20 @@ dispatch_addconnection(int sock, listener *lsnr)
 		connections[c].strmclose = &gzipclose;
 	}
 #endif
-#ifdef HAVE_BZIP2
-	else if (lsnr->transport == W_BZIP2) {
-		z_strm *bzstrm = malloc(sizeof(z_strm));
-		if (bzstrm == NULL) {
+#ifdef HAVE_LZ4
+	else if (lsnr->transport == W_LZ4) {
+		z_strm *lzstrm = malloc(sizeof(z_strm));
+		if (lzstrm == NULL) {
 			logerr("cannot add new connection: "
-					"out of memory allocating bzip2 stream\n");
+					"out of memory allocating lz4 stream\n");
 			__sync_bool_compare_and_swap(&(connections[c].takenby), -2, -1);
 			return -1;
 		}
-		bzstrm->hdl.bz.bzalloc = NULL;
-		bzstrm->hdl.bz.bzfree = NULL;
-		bzstrm->hdl.bz.opaque = NULL;
-		bzstrm->ipos = 0;
-		bzstrm->sock = sock;
-		BZ2_bzDecompressInit(&(bzstrm->hdl.bz), 0, 0);
-		connections[c].strm = bzstrm;
-		connections[c].strmread = &bzipread;
-		connections[c].strmclose = &bzipclose;
+		lzstrm->sock = sock;
+		lzstrm->hdl.lz = LZ4_createStreamDecode();
+		connections[c].strm = lzstrm;
+		connections[c].strmread = &lzread;
+		connections[c].strmclose = &lzclose;
 	}
 #endif
 #ifdef HAVE_SSL

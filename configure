@@ -622,7 +622,7 @@ ac_subst_vars='am__EXEEXT_FALSE
 am__EXEEXT_TRUE
 LTLIBOBJS
 LIBSSL
-LIBBZIP2
+LIBLZ4
 LIBGZIP
 LIBOBJS
 EGREP
@@ -716,7 +716,7 @@ enable_option_checking
 enable_silent_rules
 enable_dependency_tracking
 with_gzip
-with_bzip2
+with_lz4
 with_ssl
 '
       ac_precious_vars='build_alias
@@ -1353,7 +1353,7 @@ Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
   --without-PACKAGE       do not use PACKAGE (same as --with-PACKAGE=no)
 support gzip compression for sending/receiving
-support bzip2 compression for sending/receiving
+support lz4 compression for sending/receiving
 support ssl encryption for sending/receiving
 
 Some influential environment variables:
@@ -5071,37 +5071,37 @@ fi
 fi
 
 
-# Check whether --with-bzip2 was given.
-if test "${with_bzip2+set}" = set; then :
-  withval=$with_bzip2;
+# Check whether --with-lz4 was given.
+if test "${with_lz4+set}" = set; then :
+  withval=$with_lz4;
 else
-  with_bzip2=check
+  with_lz4=check
 fi
 
-LIBBZIP2=
-if test "x$with_bzip2" != xno; then :
-  for ac_header in bzlib.h
+LIBLZ4=
+if test "x$with_lz4" != xno; then :
+  for ac_header in lz4.h
 do :
-  ac_fn_c_check_header_mongrel "$LINENO" "bzlib.h" "ac_cv_header_bzlib_h" "$ac_includes_default"
-if test "x$ac_cv_header_bzlib_h" = xyes; then :
+  ac_fn_c_check_header_mongrel "$LINENO" "lz4.h" "ac_cv_header_lz4_h" "$ac_includes_default"
+if test "x$ac_cv_header_lz4_h" = xyes; then :
   cat >>confdefs.h <<_ACEOF
-#define HAVE_BZLIB_H 1
+#define HAVE_LZ4_H 1
 _ACEOF
 
 else
-  LIBBZIP2=_missing_header
+  LIBLZ4=_missing_header
 fi
 
 done
 
-	   as_ac_Lib=`$as_echo "ac_cv_lib_bz2${LIBBZIP2}''_BZ2_bzopen" | $as_tr_sh`
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for BZ2_bzopen in -lbz2${LIBBZIP2}" >&5
-$as_echo_n "checking for BZ2_bzopen in -lbz2${LIBBZIP2}... " >&6; }
+	   as_ac_Lib=`$as_echo "ac_cv_lib_lz4${LIBLZ4}''_LZ4_createStream" | $as_tr_sh`
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for LZ4_createStream in -llz4${LIBLZ4}" >&5
+$as_echo_n "checking for LZ4_createStream in -llz4${LIBLZ4}... " >&6; }
 if eval \${$as_ac_Lib+:} false; then :
   $as_echo_n "(cached) " >&6
 else
   ac_check_lib_save_LIBS=$LIBS
-LIBS="-lbz2${LIBBZIP2}  $LIBS"
+LIBS="-llz4${LIBLZ4}  $LIBS"
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 
@@ -5111,11 +5111,11 @@ cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 #ifdef __cplusplus
 extern "C"
 #endif
-char BZ2_bzopen ();
+char LZ4_createStream ();
 int
 main ()
 {
-return BZ2_bzopen ();
+return LZ4_createStream ();
   ;
   return 0;
 }
@@ -5133,20 +5133,20 @@ eval ac_res=\$$as_ac_Lib
 	       { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_res" >&5
 $as_echo "$ac_res" >&6; }
 if eval test \"x\$"$as_ac_Lib"\" = x"yes"; then :
-  LIBBZIP2=-lbz2
+  LIBLZ4=-llz4
 
 
-$as_echo "#define HAVE_BZIP2 1" >>confdefs.h
+$as_echo "#define HAVE_LZ4 1" >>confdefs.h
 
 
 else
-  if test "x$with_bzip2" != xcheck; then
+  if test "x$with_lz4" != xcheck; then
 					 { { $as_echo "$as_me:${as_lineno-$LINENO}: error: in \`$ac_pwd':" >&5
 $as_echo "$as_me: error: in \`$ac_pwd':" >&2;}
-as_fn_error $? "--with-bzip2 was given, but test for bzip2 failed
+as_fn_error $? "--with-lz4 was given, but test for lz4 failed
 See \`config.log' for more details" "$LINENO" 5; }
 					 fi
-					 LIBBZIP2=
+					 LIBLZ4=
 
 
 fi
