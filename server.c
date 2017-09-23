@@ -59,10 +59,10 @@ struct _server {
 	char reresolve:1;
 	int fd;
 	void *strm;
-	const char *(*strmerror)(void *, int); /* error func */
-	ssize_t (*strmwrite)(void *, const void *, size_t);  /* write func */
-	int (*strmflush)(void *);
-	int (*strmclose)(void *);
+	ssize_t (*strmwrite)(void *, const void *, size_t);  /* write impl */
+	int (*strmflush)(void *);                            /* flush impl */
+	int (*strmclose)(void *);                            /* close impl */
+	const char *(*strmerror)(void *, int);               /* get last err str */
 #ifdef HAVE_SSL
 	SSL_CTX *ctx;
 #endif
@@ -97,12 +97,6 @@ struct _server {
 /* connection specific writers and closers */
 
 /* ordinary socket */
-static inline const char *
-sockerror(void *strm, int rval) {
-	(void)strm;
-	(void)rval;
-	return strerror(errno);
-}
 static inline ssize_t
 sockwrite(void *strm, const void *buf, size_t sze)
 {
@@ -120,6 +114,14 @@ static inline int
 sockclose(void *strm)
 {
 	return close(*((int *)strm));
+}
+
+static inline const char *
+sockerror(void *strm, int rval)
+{
+	(void)strm;
+	(void)rval;
+	return strerror(errno);
 }
 
 #ifdef HAVE_GZIP
@@ -167,12 +169,6 @@ bzipclose(void *strm)
 
 #ifdef HAVE_SSL
 /* (Open|Libre)SSL wrapped socket */
-static inline const char *
-sslerror(void *strm, int rval)
-{
-	int err = SSL_get_error((SSL *)strm, rval);
-	return ERR_reason_error_string(err);
-}
 static inline ssize_t
 sslwrite(void *strm, const void *buf, size_t sze)
 {
@@ -192,6 +188,13 @@ sslclose(void *strm)
 	int sock = SSL_get_fd((SSL *)strm);
 	SSL_free((SSL *)strm);
 	return close(sock);
+}
+
+static inline const char *
+sslerror(void *strm, int rval)
+{
+	int err = SSL_get_error((SSL *)strm, rval);
+	return ERR_reason_error_string(err);
 }
 #endif
 
@@ -609,14 +612,17 @@ server_queuereader(void *d)
 			if (self->transport == W_SSL) {
 				int rv;
 				self->strm = SSL_new(self->ctx);
-				if(SSL_set_fd(self->strm, self->fd) == 0) {
-					logerr("SSL_set_fd: %s\n", ERR_reason_error_string(ERR_get_error()));
+				if (SSL_set_fd(self->strm, self->fd) == 0) {
+					logerr("failed to SSL_set_fd: %s\n",
+							ERR_reason_error_string(ERR_get_error()));
 					self->strmclose(self->strm);
 					self->fd = -1;
 					continue;
 				}
-				if((rv = SSL_connect(self->strm)) != 1) {
-					logerr("ssl connect[%d]: %s\n", rv, ERR_reason_error_string(SSL_get_error(self->strm, rv)));
+				if ((rv = SSL_connect(self->strm)) != 1) {
+					logerr("failed to  connect ssl stream: %s\n",
+							ERR_reason_error_string(
+								SSL_get_error(self->strm, rv)));
 					self->strmclose(self->strm);
 					self->fd = -1;
 					continue;
@@ -679,7 +685,8 @@ server_queuereader(void *d)
 						__sync_fetch_and_add(&(self->failure), 1) == 0)
 					logerr("failed to write() to %s:%u: %s\n",
 							self->ip, self->port,
-							(slen < 0 ? self->strmerror(self->strm, slen) : "incomplete write"));
+							(slen < 0 ? self->strmerror(self->strm, slen) :
+							 "incomplete write"));
 				self->strmclose(self->strm);
 				self->fd = -1;
 				/* put back stuff we couldn't process */
