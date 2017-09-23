@@ -381,8 +381,6 @@ main(int argc, char * const argv[])
 {
 	char id;
 	int ch;
-	struct sigaction sigact;
-	sigset_t sigmask;
 	size_t numaggregators;
 	char *allowed_chars = NULL;
 	char *pidfile = NULL;
@@ -794,29 +792,21 @@ main(int argc, char * const argv[])
 		exit(0);
 	}
 
-	sigemptyset(&sigmask);
-	sigaddset(&sigmask, SIGINT);
-	sigaddset(&sigmask, SIGTERM);
-	sigaddset(&sigmask, SIGQUIT);
-	sigaddset(&sigmask, SIGHUP);
-	sigact.sa_handler = sig_handler;
-	sigact.sa_mask = sigmask;
-	sigact.sa_flags = SA_RESTART;
-	if (sigaction(SIGINT, &sigact, NULL) < 0)
+	if (signal(SIGINT, sig_handler) == SIG_ERR) {
 		exit_err("failed to create SIGINT handler: %s\n", strerror(errno));
-	if (sigaction(SIGTERM, &sigact, NULL) < 0)
+	}
+	if (signal(SIGTERM, sig_handler) == SIG_ERR) {
 		exit_err("failed to create SIGTERM handler: %s\n", strerror(errno));
-	if (sigaction(SIGQUIT, &sigact, NULL) < 0)
+	}
+	if (signal(SIGQUIT, sig_handler) == SIG_ERR) {
 		exit_err("failed to create SIGQUIT handler: %s\n", strerror(errno));
-	if (sigaction(SIGHUP, &sigact, NULL) < 0)
+	}
+	if (signal(SIGHUP, sig_handler) == SIG_ERR) {
 		exit_err("failed to create SIGHUP handler: %s\n", strerror(errno));
-	sigact.sa_handler = SIG_IGN;
-	if (sigaction(SIGPIPE, &sigact, NULL) < 0)
+	}
+	if (signal(SIGPIPE, SIG_IGN) == SIG_ERR) {
 		exit_err("failed to ignore SIGPIPE: %s\n", strerror(errno));
-	if (sigaction(SIGUSR1, &sigact, NULL) < 0)
-		exit_err("failed to ignore SIGUSR1: %s\n", strerror(errno));
-	if (sigaction(SIGUSR2, &sigact, NULL) < 0)
-		exit_err("failed to ignore SIGUSR2: %s\n", strerror(errno));
+	}
 
 	workers = malloc(sizeof(dispatcher *) *
 			(1/*lsnr*/ + workercnt + 1/*sentinel*/));
