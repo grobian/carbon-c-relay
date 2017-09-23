@@ -2755,7 +2755,7 @@ yyreduce:
 #else
 							router_yyerror(&yylloc, yyscanner, rtr,
 								ralloc, palloc,
-								"feature bzip2 not compiled in");
+								"feature lz4 not compiled in");
 							YYERROR;
 #endif
 						}

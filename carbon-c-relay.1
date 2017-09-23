@@ -1,7 +1,7 @@
 .\" generated with Ronn/v0.7.3
 .\" http://github.com/rtomayko/ronn/tree/0.7.3
 .
-.TH "CARBON\-C\-RELAY" "1" "August 2017" "Graphite" "Graphite data collection and visualisation"
+.TH "CARBON\-C\-RELAY" "1" "September 2017" "Graphite" "Graphite data collection and visualisation"
 .
 .SH "NAME"
 \fBcarbon\-c\-relay\fR \- graphite relay, aggregator and rewriter
@@ -121,7 +121,9 @@ The config file supports the following syntax, where comments start with a \fB#\
 cluster <name>
     < <forward | any_of | failover> [useall] |
       <carbon_ch | fnv1a_ch | jump_fnv1a_ch> [replication <count>] >
-        <host[:port][=instance] [proto <udp | tcp>]> \.\.\.
+        <host[:port][=instance] [proto <udp | tcp>]
+                                [type linemode]
+                                [transport <gzip | lz4 | ssl>]> \.\.\.
     ;
 
 cluster <name>
@@ -165,7 +167,7 @@ statistics
     ;
 
 listen
-    <linemode [gzip | bzip2 | ssl <pemcert>]>
+    type linemode [transport <gzip | lz4 | ssl <pemcert>>]
         <<interface[:port] | port> proto <udp | tcp>> \.\.\.
         </ptah/to/file proto unix> \.\.\.
     ;
