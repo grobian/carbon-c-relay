@@ -968,6 +968,7 @@ router_add_listener(
 	struct addrinfo *swalk;
 	struct addrinfo *lswalk;
 	int addrcnt;
+	struct stat st;
 
 	if (saddrs == NULL && (ctype == CON_UDP || ctype == CON_TCP)) {
 		char msg[256];
@@ -1038,6 +1039,13 @@ router_add_listener(
 	lwalk->ctx = NULL;
 	lwalk->sslstrms = NULL;
 	lwalk->pemcert = pemcert;
+	if (stat(pemcert, &st) != -1) {
+		memcpy(&(lwalk->pemmtimespec), &(st.st_mtimespec),
+				sizeof(struct timespec));
+	} else {
+		lwalk->pemmtimespec.tv_sec = 0;
+		lwalk->pemmtimespec.tv_nsec = 0;
+	}
 #else
 	(void)pemcert;  /* not used */
 #endif
@@ -1756,7 +1764,7 @@ router_printconfig(router *rtr, FILE *f, char pmode)
 		fprintf(f, "listen\n");
 		for (walk = rtr->listeners; walk != NULL; walk = walk->next) {
 			if (walk->lsnrtype == T_LINEMODE) {
-				fprintf(f, "    type linemode%s%s%s\n",
+				fprintf(f, "    type linemode%s%s%s",
 						walk->transport == W_PLAIN ? "" :
 						walk->transport == W_GZIP  ? " transport gzip" :
 						walk->transport == W_LZ4   ? " transport lz4" :
@@ -1769,6 +1777,14 @@ router_printconfig(router *rtr, FILE *f, char pmode)
 						""
 #endif
 						);
+#ifdef HAVE_SSL
+				if (walk->transport == W_SSL && pmode & PMODE_PEMT) {
+					fprintf(f, "  # mtime %ld.%ld",
+							walk->pemmtimespec.tv_sec,
+							walk->pemmtimespec.tv_nsec);
+				}
+#endif
+				fprintf(f, "\n");
 				do {
 					if (walk->ctype == CON_UNIX) {
 						fprintf(f, "        %s proto unix\n", walk->ip);
@@ -2053,7 +2069,7 @@ router_printdiffs(router *old, router *new, FILE *out)
 				patho, strerror(errno));
 		return 1;
 	}
-	router_printconfig(old, f, PMODE_AGGR);
+	router_printconfig(old, f, PMODE_AGGR | PMODE_PEMT);
 	fclose(f);
 
 	snprintf(pathn, sizeof(pathn), "%s/carbon-c-relay_route.XXXXXX", tmp);
@@ -2070,7 +2086,7 @@ router_printdiffs(router *old, router *new, FILE *out)
 				pathn, strerror(errno));
 		return 1;
 	}
-	router_printconfig(new, f, PMODE_AGGR);
+	router_printconfig(new, f, PMODE_AGGR | PMODE_PEMT);
 	fclose(f);
 
 	/* diff and print its output */

@@ -20,6 +20,7 @@
 
 #include <stdio.h>
 #include <regex.h>
+#include <time.h>
 
 #include "relay.h"
 #include "server.h"
@@ -33,6 +34,7 @@
 #define PMODE_AGGR    (1 << 1)
 #define PMODE_HASH    (1 << 2)
 #define PMODE_STUB    (1 << 3)
+#define PMODE_PEMT    (1 << 4)
 #define PMODE_DEBUG   (PMODE_HASH | PMODE_STUB)
 
 #define CONN_DESTS_SIZE    64
@@ -59,6 +61,7 @@ typedef struct _router_listener {
 	SSL_CTX *ctx;
 	SSL **sslstrms;
 	char *pemcert;
+	struct timespec pemmtimespec;
 #endif
 	struct addrinfo *saddrs;
 	struct _router_listener *next;

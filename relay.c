@@ -768,7 +768,8 @@ main(int argc, char * const argv[])
 	} else {
 		fprintf(relay_stdout, "parsed configuration follows:\n");
 		router_printconfig(rtr, relay_stdout,
-				PMODE_AGGR + (mode & MODE_DEBUG ? PMODE_DEBUG : PMODE_NORM));
+				PMODE_AGGR + (mode & MODE_DEBUG ?
+					PMODE_DEBUG | PMODE_PEMT : PMODE_NORM));
 	}
 	fprintf(relay_stdout, "\n");
 
