@@ -347,9 +347,36 @@ cluster_opt_type:
 				;
 
 cluster_opt_transport:                      { $$ = W_PLAIN; }
-					 | crTRANSPORT crGZIP   { $$ = W_GZIP;  }
-					 | crTRANSPORT crLZ4    { $$ = W_LZ4;   }
-					 | crTRANSPORT crSSL    { $$ = W_SSL;   }
+					 | crTRANSPORT crGZIP   {
+#ifdef HAVE_GZIP
+							$$ = W_GZIP;
+#else
+							router_yyerror(&yylloc, yyscanner, rtr,
+								ralloc, palloc,
+								"feature gzip not compiled in");
+							YYERROR;
+#endif
+					 }
+					 | crTRANSPORT crLZ4    {
+#ifdef HAVE_LZ4
+							$$ = W_LZ4;
+#else
+							router_yyerror(&yylloc, yyscanner, rtr,
+								ralloc, palloc,
+								"feature lz4 not compiled in");
+							YYERROR;
+#endif
+					 }
+					 | crTRANSPORT crSSL    {
+#ifdef HAVE_SSL
+							$$ = W_SSL;
+#else
+							router_yyerror(&yylloc, yyscanner, rtr,
+								ralloc, palloc,
+								"feature ssl not compiled in");
+							YYERROR;
+#endif
+					 }
 					 ;
 /*** }}} END cluster ***/
 
