@@ -855,6 +855,10 @@ server_new(
 		ret->strmerror = &sslerror;
 	}
 #endif
+	else {
+		logerr("no transport type defined for server!!! (this is a BUG)\n");
+		assert(0);
+	}
 	ret->saddr = saddr;
 	ret->reresolve = 0;
 	ret->hint = NULL;
