@@ -1042,7 +1042,7 @@ router_add_listener(
 	lwalk->sslstrms = NULL;
 	lwalk->pemcert = pemcert;
 	if (stat(pemcert, &st) != -1) {
-		memcpy(&(lwalk->pemmtimespec), &(st.st_mtimespec),
+		memcpy(&(lwalk->pemmtimespec), &(st.st_mtime),
 				sizeof(struct timespec));
 	} else {
 		lwalk->pemmtimespec.tv_sec = 0;
