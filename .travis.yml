@@ -36,11 +36,11 @@ script:
       curl -s 'https://scan.coverity.com/scripts/travisci_build_coverity_scan.sh' | bash
     else
       # everything disabled, this MUST work
-      ./configure --without-gzip --without-lza4 --without-ssl \
+      ./configure --without-gzip --without-lz4 --without-ssl \
         || { cat config.log ; exit 1 ; }
       make CFLAGS="-O3 -Wall -Werror -Wshadow -pipe" clean check || exit 1
       # compile some enabled/disabled variants compile only
-      if ./configure --with-gzip --without-lza4 --without-ssl ; then
+      if ./configure --with-gzip --without-lz4 --without-ssl ; then
         make CFLAGS="-O3 -Wall -Werror -Wshadow -pipe" clean relay || exit 1
       fi
       if ./configure --without-gzip --with-lz4 --without-ssl ; then
