@@ -2203,8 +2203,18 @@ router_contains_listener(router *rtr, listener *lsnr)
 				}
 
 				if (lsnr->port == rwalk->port && strcmp(l, r) == 0) {
-					match = 1;
-					break;
+#ifdef HAVE_SSL
+					/* check pemmtimespec */
+					if (lsnr->transport == W_SSL &&
+							lsnr->pemmtimespec.tv_sec ==
+									rwalk->pemmtimespec.tv_sec &&
+							lsnr->pemmtimespec.tv_nsec ==
+									rwalk->pemmtimespec.tv_nsec)
+#endif
+					{
+						match = 1;
+						break;
+					}
 				}
 			}
 		}
