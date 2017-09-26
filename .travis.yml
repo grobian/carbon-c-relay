@@ -21,7 +21,7 @@ matrix:
 script:
   - |
     if [ $TRAVIS_OS_NAME = linux ]; then
-      sudo apt-get install lz4
+      sudo apt-get install lz4 liblz4-dev
     else
       brew install lz4
     fi
