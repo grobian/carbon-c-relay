@@ -968,7 +968,9 @@ router_add_listener(
 	struct addrinfo *swalk;
 	struct addrinfo *lswalk;
 	int addrcnt;
+#ifdef HAVE_SSL
 	struct stat st;
+#endif
 
 	if (saddrs == NULL && (ctype == CON_UDP || ctype == CON_TCP)) {
 		char msg[256];
