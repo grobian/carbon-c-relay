@@ -22,7 +22,7 @@ script:
   - |
     if [ $TRAVIS_OS_NAME = osx ]; then
       brew update > /dev/null
-      brew install lz4
+      brew install lz4 openssl
     fi
   # workaround git not retaining mtimes and bison/flex not being uptodate
   - touch conffile.yy.c conffile.tab.c conffile.tab.h
