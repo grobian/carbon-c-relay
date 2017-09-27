@@ -100,8 +100,8 @@ AC_ARG_WITH([lz4], [support lz4 compression for sending/receiving],
 LIBLZ4=
 AS_IF([test "x$with_lz4" != xno],
 	  [AC_CHECK_HEADERS([lz4.h], [], [LIBLZ4=_missing_header])
-	   AC_SEARCH_LIBS([LZ4_createStream], [lz4${LIBLZ4} lz4-1${LIBLZ4}],
-					[AC_SUBST([LIBLZ4], [${ac_cv_search_lz4_createstream}])
+	   AC_CHECK_LIB([lz4${LIBLZ4}], [LZ4_createStream],
+					[AC_SUBST([LIBLZ4], [-llz4])
 					AC_DEFINE([HAVE_LZ4], [1], [Define if you have lz4])
 					],
 					[if test "x$with_lz4" != xcheck; then
