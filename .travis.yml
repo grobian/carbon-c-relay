@@ -24,6 +24,7 @@ script:
       sudo apt-get -qq update
       sudo apt-get install -y liblz4 liblz4-dev
     else
+      brew update > /dev/null
       brew install lz4
     fi
   # workaround git not retaining mtimes and bison/flex not being uptodate
