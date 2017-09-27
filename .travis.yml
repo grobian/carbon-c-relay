@@ -22,7 +22,7 @@ script:
   - |
     if [ $TRAVIS_OS_NAME = linux ]; then
       sudo apt-get -qq update
-      sudo apt-get install -y liblz4 liblz4-dev
+      sudo apt-get install -y liblz4-dev
     else
       brew update > /dev/null
       brew install lz4
