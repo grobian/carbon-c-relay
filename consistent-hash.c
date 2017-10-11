@@ -297,8 +297,16 @@ ch_addnode(ch_ring *ring, server *s)
 	}
 
 	ring->entrycnt += ring->hash_replicas;
-	if (ring->entrycnt == ring->entrysize)
+	if (ring->entrycnt == ring->entrysize) {
 		qsort(&ring->entrylist[0], ring->entrycnt, sizeof(ch_ring_entry), cmp);
+
+		/* overwrite successive duplicates with the first entry to ensure
+		 * our binary search hits the "first" matching entry */
+		for (i = 0; i < ring->entrycnt - 1; i++) {
+			if (ring->entrylist[i].pos == ring->entrylist[i + 1].pos)
+				ring->entrylist[i + 1].server = ring->entrylist[i].server;
+		}
+	}
 
 	return ring;
 }
@@ -371,8 +379,9 @@ ch_get_nodes(
 	i = 0;
 	j = ring->entrycnt;
 	t = 0;
+	/* 1 3 4 6 6 8 8 9 */
 	while (1) {
-		t = ((j - i) / 2) + i;
+		t = (i + j) / 2;
 		if (ring->entrylist[t].pos == pos)
 			break;  /* exact match */
 		if (ring->entrylist[t].pos < pos) {
