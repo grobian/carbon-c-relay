@@ -375,7 +375,7 @@ dispatch_removelistener(listener *lsnr)
 				break;
 		if (c == MAX_LISTENERS) {
 			/* not found?!? */
-			logerr("dispatch: cannot find listener!\n");
+			logerr("dispatch: cannot find listener to remove!\n");
 			pthread_rwlock_unlock(&listenerslock);
 			return;
 		}
