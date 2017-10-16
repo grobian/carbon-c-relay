@@ -698,7 +698,7 @@ static const yytype_uint16 yyrline[] =
      699,   702,   706,   707,   709,   724,   725,   726,   727,   728,
      729,   730,   740,   741,   744,   745,   750,   765,   790,   791,
      802,   803,   806,   807,   812,   830,   854,   863,   879,   895,
-     914,   917,   918,   921,   955,   977,   978,   983
+     914,   917,   918,   921,   958,   980,   981,   986
 };
 #endif
 
@@ -2856,6 +2856,9 @@ yyreduce:
 					rtr,
 					&((*(struct _rcptr **)(&yyval))->ip), &((*(struct _rcptr **)(&yyval))->port), &((*(struct _rcptr **)(&yyval))->saddr), &hint,
 					(*(char **)(&yyvsp[-2])), (*(con_proto*)(&yyvsp[0])));
+			/* help some static analysis tools to see bcip isn't going
+			 * out of scope */
+			(*(char **)(&yyvsp[-2])) = NULL;
 			if (err != NULL) {
 				router_yyerror(&yylloc, yyscanner, rtr,
 						ralloc, palloc, err);
@@ -2864,11 +2867,11 @@ yyreduce:
 			free(hint);
 			(*(struct _rcptr **)(&yyval))->next = NULL;
 		}
-#line 2868 "conffile.tab.c" /* yacc.c:1646  */
+#line 2871 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 114:
-#line 956 "conffile.y" /* yacc.c:1646  */
+#line 959 "conffile.y" /* yacc.c:1646  */
     {
 			char *err;
 
@@ -2888,32 +2891,32 @@ yyreduce:
 			}
 			(*(struct _rcptr **)(&yyval))->next = NULL;
 		}
-#line 2892 "conffile.tab.c" /* yacc.c:1646  */
+#line 2895 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 115:
-#line 977 "conffile.y" /* yacc.c:1646  */
+#line 980 "conffile.y" /* yacc.c:1646  */
     { (*(con_proto*)(&yyval)) = CON_TCP; }
-#line 2898 "conffile.tab.c" /* yacc.c:1646  */
+#line 2901 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 116:
-#line 978 "conffile.y" /* yacc.c:1646  */
+#line 981 "conffile.y" /* yacc.c:1646  */
     { (*(con_proto*)(&yyval)) = CON_UDP; }
-#line 2904 "conffile.tab.c" /* yacc.c:1646  */
+#line 2907 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 117:
-#line 984 "conffile.y" /* yacc.c:1646  */
+#line 987 "conffile.y" /* yacc.c:1646  */
     {
 	   	if (router_readconfig(rtr, (*(char **)(&yyvsp[0])), 0, 0, 0, 0, 0, 0, 0) == NULL)
 			YYERROR;
 	   }
-#line 2913 "conffile.tab.c" /* yacc.c:1646  */
+#line 2916 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
 
-#line 2917 "conffile.tab.c" /* yacc.c:1646  */
+#line 2920 "conffile.tab.c" /* yacc.c:1646  */
       default: break;
     }
   /* User semantic actions sometimes alter yychar, and that requires

@@ -944,6 +944,9 @@ receptor: crSTRING[ip] crPROTO rcptr_proto[prot]
 					rtr,
 					&($$->ip), &($$->port), &($$->saddr), &hint,
 					$ip, $prot);
+			/* help some static analysis tools to see bcip isn't going
+			 * out of scope */
+			$ip = NULL;
 			if (err != NULL) {
 				router_yyerror(&yylloc, yyscanner, rtr,
 						ralloc, palloc, err);
