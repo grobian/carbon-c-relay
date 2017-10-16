@@ -241,15 +241,18 @@ include </path/to/file/or/glob>
     ;
 ```
 
+### CLUSTERS
 Multiple clusters can be defined, and need not to be referenced by a
 match rule.   All clusters point to one or more hosts, except the `file`
 cluster which writes to files in the local filesystem.  `host` may be an
 IPv4 or IPv6 address, or a hostname.  Since host is followed by an
 optional `:` and port, for IPv6 addresses not to be interpreted wrongly,
 either a port must be given, or the IPv6 address surrounded by brackets,
-e.g. `[::1]`.  An optional `proto udp` or `proto tcp` may be added to
-specify the use of UDP or TCP to connect to the remote server.  When
-omitted this defaults to a TCP connection.
+e.g. `[::1]`.  Optional `transport` and `proto` clauses can be used to
+wrap the connection in a compression or encryption later or specify the
+use of UDP or TCP to connect to the remote server.  When omitted the
+connection defaults to an unwrapped TCP connection.  `type` can only be
+linemode at the moment.
 
 The `forward` and `file` clusters simply send everything they receive to
 all defined members (host addresses or files).  The `any_of` cluster is
@@ -302,6 +305,7 @@ rules in [RFC 3484](https://www.ietf.org/rfc/rfc3484.txt).  The
 flag that enables expansion for hostnames resolving to multiple
 addresses.  Each address returned becomes a cluster destination.
 
+### MATCHES
 Match rules are the way to direct incoming metrics to one or more
 clusters.  Match rules are processed top to bottom as they are defined
 in the file.  It is possible to define multiple matches in the same
@@ -330,6 +334,7 @@ the key used for input to the consistent hashing routines.  The primary
 purpose is to route traffic so that appropriate data is sent to the
 needed aggregation instances.
 
+### REWRITES
 Rewrite rules take a regular expression as input to match incoming
 metrics, and transform them into the desired new metric name.  In the
 replacement,
@@ -360,6 +365,7 @@ underscore or caret to replace dots with underscores in the
 substitution.  This can be handy for some situations where metrics are
 sent to graphite.
 
+### AGGREGATIONS
 The aggregations defined take one or more input metrics expressed by one
 or more regular expresions, similar to the match rules.  Incoming
 metrics are aggregated over a period of time defined by the interval in
@@ -379,6 +385,7 @@ possible.  Like for match rules, it is possible to define multiple
 cluster targets.  Also, like match rules, the `stop` keyword applies to
 control the flow of metrics in the matching process.
 
+### STATISTICS
 The `send statistics to` construct is deprecated and will be removed in
 the next release.  Use the special `statistics` construct instead.
 
@@ -404,6 +411,20 @@ To obtain a more compatible set of values to carbon-cache.py, use the
 `reset counters after interval` clause to make values non-cumulative,
 that is, they will report the change compared to the previous value.
 
+### LISTENERS
+The ports and protocols the relay should listen for incoming connections
+can be specified using the `listen` directive.  Currently, all listeners
+need to be of `linemode` type.  An optional compression or encryption
+wrapping can be specified for the port and optional interface given by
+ip address, or unix socket by file.  When interface is not specified,
+the any interface on all available ip protocols is assumed.  If no
+`listen` directive is present, the relay will use the default listeners
+for port 2003 on tcp and udp, plus the unix socket
+`/tmp/.s.carbon-c-relay.2003`.  This typically expands to 5 listeners on
+an IPv6 enabled system.  The default matches the behaviour of versions
+prior to v3.2.
+
+### INCLUDES
 In case configuration becomes very long, or is managed better in
 separate files, the `include` directive can be used to read another
 file.  The given file will be read in place and added to the router
@@ -940,4 +961,5 @@ failover targets and more.
 This program was originally developed for Booking.com.  With approval
 from Booking.com, the code was generalised and published as Open Source
 on GitHub, for which the author would like to express his gratitude.
-Author no longer works for Booking.com.
+Author no longer works for Booking.com.  Development has continued
+since.
