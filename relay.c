@@ -816,6 +816,9 @@ main(int argc, char * const argv[])
 	}
 
 	dispatch_set_bufsize(sockbufsize);
+	if (dispatch_init_listeners() != 0) {
+		exit_err("failed to allocate listeners\n");
+	}
 
 	lsnrs = router_get_listeners(rtr);
 	for ( ; lsnrs != NULL; lsnrs = lsnrs->next) {

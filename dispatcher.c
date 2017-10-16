@@ -1020,22 +1020,30 @@ dispatch_set_bufsize(unsigned int nsockbufsize)
 }
 
 /**
+ * Initialise the listeners array.  This is a one-time allocation that
+ * currently never is extended.  This code does no locking, as it
+ * assumes to be run before any access to listeners occur.
+ */
+char
+dispatch_init_listeners()
+{
+	int i;
+	/* once all-or-nothing allocation */
+	if ((listeners = malloc(sizeof(listener *) * MAX_LISTENERS)) == NULL)
+		return 1;
+	for (i = 0; i < MAX_LISTENERS; i++)
+		listeners[i] = NULL;
+
+	return 0;
+}
+
+/**
  * Starts a new dispatcher specialised in handling incoming connections
  * (and putting them on the queue for handling the connections).
  */
 dispatcher *
 dispatch_new_listener(unsigned char id)
 {
-	/* initialise listeners, this code runs before the first listener
-	 * dispatcher runs, and is only run by the main thread */
-	if (listeners == NULL) {
-		int i;
-		/* once all-or-nothing allocation */
-		if ((listeners = malloc(sizeof(listener *) * MAX_LISTENERS)) == NULL)
-			return NULL;
-		for (i = 0; i < MAX_LISTENERS; i++)
-			listeners[i] = NULL;
-	}
 	return dispatch_new(id, LISTENER, NULL, NULL);
 }
 

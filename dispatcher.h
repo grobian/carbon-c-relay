@@ -31,6 +31,7 @@ void dispatch_transplantlistener(listener *olsnr, listener *nlsnr, router *r);
 int dispatch_addconnection(int sock, listener *lsnr);
 int dispatch_addconnection_aggr(int sock);
 void dispatch_set_bufsize(unsigned int sockbufsize);
+char dispatch_init_listeners(void);
 dispatcher *dispatch_new_listener(unsigned char id);
 dispatcher *dispatch_new_connection(unsigned char id, router *r, char *allowed_chars);
 void dispatch_stop(dispatcher *d);
