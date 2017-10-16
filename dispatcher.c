@@ -128,7 +128,9 @@ sockread(void *strm, void *buf, size_t sze)
 static inline int
 sockclose(void *strm)
 {
-	return close(*((int *)strm));
+	int ret = close(*((int *)strm));
+	free(strm);
+	return ret;
 }
 
 #ifdef HAVE_GZIP
@@ -496,7 +498,15 @@ dispatch_addconnection(int sock, listener *lsnr)
 	}
 	connections[c].sock = sock;
 	if (lsnr == NULL || lsnr->transport == W_PLAIN) {
-		connections[c].strm = &connections[c].sock;
+		int *strm = malloc(sizeof(connections[c].sock));
+		if (strm == NULL) {
+			logerr("cannot add new connection: "
+					"out of memory allocating stream\n");
+			__sync_bool_compare_and_swap(&(connections[c].takenby), -2, -1);
+			return -1;
+		}
+		*strm = sock;
+		connections[c].strm = strm;
 		connections[c].strmread = &sockread;
 		connections[c].strmclose = &sockclose;
 	}
