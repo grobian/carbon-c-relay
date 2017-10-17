@@ -958,8 +958,9 @@ failover targets and more.
 
 ## ACKNOWLEDGEMENTS
 
-This program was originally developed for Booking.com.  With approval
-from Booking.com, the code was generalised and published as Open Source
-on GitHub, for which the author would like to express his gratitude.
-Author no longer works for Booking.com.  Development has continued
-since.
+This program was originally developed for Booking.com, which approved
+that the code was published and released as Open Source on GitHub, for
+which the author would like to express his gratitude.
+Development has continued since with the help of many contributors
+suggesting features, reporting bugs, adding patches and more to make
+carbon-c-relay into what it is today.
