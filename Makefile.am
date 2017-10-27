@@ -27,6 +27,8 @@ conffile.tab.c conffile.tab.h: conffile.y
 conffile.yy.c: conffile.l conffile.tab.h
 	flex -o $@ $<
 
+router.c: conffile.tab.h
+
 man:
 	sed -e '/travis-ci.org\/grobian\/carbon-c-relay.svg/d' carbon-c-relay.md | \
 	ronn \
