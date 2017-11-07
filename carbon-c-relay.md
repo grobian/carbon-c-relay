@@ -36,6 +36,8 @@ rule sees the metric:
   - irregular char replacement with underscores (\_), currently
     irregular is defined as not being in `[0-9a-zA-Z-_:#]`, but can be
     overridden on the command line.
+    Note that tags (when present and allowed) are not processed this
+    way.
 
 ## OPTIONS
 

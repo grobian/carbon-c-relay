@@ -1,5 +1,14 @@
 # 3.3 (unreleased master branch)
 
+### New Features
+
+* **dispatcher** tags support was added, it is only activated when the
+  `;` character is *not* in the list of allowed characters (`-c` flag).
+  Note that by default this character is not allowed, hence tags support
+  enabled.
+  [Issue #311](https://github.com/grobian/carbon-c-relay/issues/311)
+
+
 # 3.2 (21-10-2017)
 
 ### Notes

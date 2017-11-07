@@ -1,7 +1,7 @@
 .\" generated with Ronn/v0.7.3
 .\" http://github.com/rtomayko/ronn/tree/0.7.3
 .
-.TH "CARBON\-C\-RELAY" "1" "October 2017" "Graphite" "Graphite data collection and visualisation"
+.TH "CARBON\-C\-RELAY" "1" "November 2017" "Graphite" "Graphite data collection and visualisation"
 .
 .SH "NAME"
 \fBcarbon\-c\-relay\fR \- graphite relay, aggregator and rewriter
@@ -28,7 +28,7 @@ trailing/leading dot elimination
 whitespace normalisation (this mostly affects output of the relay to other targets: metric, value and timestamp will be separated by a single space only, ever)
 .
 .IP "\(bu" 4
-irregular char replacement with underscores (_), currently irregular is defined as not being in \fB[0\-9a\-zA\-Z\-_:#]\fR, but can be overridden on the command line\.
+irregular char replacement with underscores (_), currently irregular is defined as not being in \fB[0\-9a\-zA\-Z\-_:#]\fR, but can be overridden on the command line\. Note that tags (when present and allowed) are not processed this way\.
 .
 .IP "" 0
 .

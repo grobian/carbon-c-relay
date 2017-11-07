@@ -105,6 +105,7 @@ struct _dispatcher {
 	char route_refresh_pending;  /* full byte for atomic access */
 	char hold;  /* full byte for atomic access */
 	char *allowed_chars;
+	char tags_supported;
 };
 
 static listener **listeners = NULL;
@@ -688,11 +689,15 @@ dispatch_connection(connection *conn, dispatcher *self, struct timeval start)
 #endif
 		}
 
-		/* metrics look like this: metric_path value timestamp\n
+		/* Metrics look like this: metric_path value timestamp\n
 		 * due to various messups we need to sanitise the
 		 * metrics_path here, to ensure we can calculate the metric
 		 * name off the filesystem path (and actually retrieve it in
-		 * the web interface). */
+		 * the web interface).
+		 * Since tag support, metrics can look like this:
+		 *   metric_path[;tag=value ...] value timestamp\n
+		 * where the tag=value part can be repeated.  It should not be
+		 * sanitised, however. */
 		q = conn->metric;
 		firstspace = NULL;
 		lastnl = NULL;
@@ -759,6 +764,10 @@ dispatch_connection(connection *conn, dispatcher *self, struct timeval start)
 					if (*(q - 1) != *p && (q - 1) != firstspace)
 						*q++ = *p;
 				}
+			} else if (self->tags_supported && *p == ';') {
+				/* copy up to next space */
+				firstspace = q;
+				*q++ = *p;
 			} else if (
 					*p != '\0' && (
 						firstspace != NULL ||
@@ -995,6 +1004,7 @@ dispatch_new(
 	ret->route_refresh_pending = 0;
 	ret->hold = 0;
 	ret->allowed_chars = allowed_chars;
+	ret->tags_supported = 0;
 
 	ret->metrics = 0;
 	ret->blackholes = 0;
@@ -1004,6 +1014,11 @@ dispatch_new(
 	ret->prevblackholes = 0;
 	ret->prevticks = 0;
 	ret->prevsleeps = 0;
+
+	/* switch tag support on when the user didn't allow ';' as valid
+	 * character in metrics */
+	if (allowed_chars != NULL && strchr(allowed_chars, ';') == NULL)
+		ret->tags_supported = 1;
 
 	if (pthread_create(&ret->tid, NULL, dispatch_runner, ret) != 0) {
 		free(ret);
