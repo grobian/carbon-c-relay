@@ -1712,12 +1712,20 @@ router_set_collectorvals(router *rtr, int intv, char *prefix, col_mode smode)
 		char *dummy = relay_hostname + strlen(relay_hostname);
 		size_t nmatch = 3;
 		regmatch_t pmatch[3];
+		int reret;
 
-		if (regcomp(&re, expr, REG_EXTENDED) != 0)
-			return ra_strdup(rtr->a, "failed to compile hostname regexp");
-		if (regexec(&re, relay_hostname, nmatch, pmatch, 0) != 0) {
+		if ((reret = regcomp(&re, expr, REG_EXTENDED)) != 0) {
+			size_t len = snprintf(cprefix, sizeof(cprefix),
+					"failed to compile hostname regexp: ");
+			regerror(reret, &re, cprefix + len, sizeof(cprefix) - len);
+			return ra_strdup(rtr->a, cprefix);
+		}
+		if ((reret = regexec(&re, relay_hostname, nmatch, pmatch, 0)) != 0) {
+			size_t len = snprintf(cprefix, sizeof(cprefix),
+					"failed to executte hostname regexp: ");
+			regerror(reret, &re, cprefix + len, sizeof(cprefix) - len);
 			regfree(&re);
-			return ra_strdup(rtr->a, "failed to execute hostname regexp");
+			return ra_strdup(rtr->a, cprefix);
 		}
 		if (router_rewrite_metric(
 				&cprefix, &dummy,
