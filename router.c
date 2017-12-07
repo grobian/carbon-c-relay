@@ -1175,7 +1175,7 @@ router_readconfig(router *orig,
 
 		err = router_set_collectorvals(ret, 60, "carbon.relays.\\.1", CUM);
 		if (err != NULL) {
-			logerr("setcollectorvals: %s\n");
+			logerr("setcollectorvals: %s\n", err);
 			router_free(ret);
 			return NULL;
 		}
