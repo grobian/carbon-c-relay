@@ -22,7 +22,9 @@ script:
   - |
     if [ $TRAVIS_OS_NAME = osx ]; then
       brew update > /dev/null
-      brew install lz4 openssl
+      brew install lz4 openssl onigurama pcre pcre2
+    else
+      apt-get install libonig-dev libpcre3-dev libpcre2-dev
     fi
   # workaround git not retaining mtimes and bison/flex not being uptodate
   - touch conffile.yy.c conffile.tab.c conffile.tab.h
@@ -36,23 +38,40 @@ script:
       curl -s 'https://scan.coverity.com/scripts/travisci_build_coverity_scan.sh' | bash
     else
       # everything disabled, this MUST work
+      echo "==> base test, all disabled"
       ./configure --without-gzip --without-lz4 --without-ssl \
+        --without-onigurama --without-pcre2 --without-prce \
         || { cat config.log ; exit 1 ; }
       make CFLAGS="-O3 -Wall -Werror -Wshadow -pipe" clean check || exit 1
       # compile some enabled/disabled variants compile only
+      echo "==> gzip enabled"
       if ./configure --with-gzip --without-lz4 --without-ssl ; then
         make CFLAGS="-O3 -Wall -Werror -Wshadow -pipe" clean relay || exit 1
       fi
+      echo "==> lz4 enabled"
       if ./configure --without-gzip --with-lz4 --without-ssl ; then
         make CFLAGS="-O3 -Wall -Werror -Wshadow -pipe" clean relay || exit 1
       fi
+      echo "==> gzip,lz4 enabled"
       if ./configure --with-gzip --with-lz4 --without-ssl ; then
         make CFLAGS="-O3 -Wall -Werror -Wshadow -pipe" clean relay || exit 1
       fi
+      echo "==> gzip,lz4,ssl enabled"
       if ./configure --with-gzip --with-lz4 --with-ssl ; then
         make CFLAGS="-O3 -Wall -Werror -Wshadow -pipe" clean relay || exit 1
       fi
+      # test the regex implementations
+      echo "==> onigurama enabled"
+      ./configure --with-onigurama --without-pcre2 --without-pcre || exit
+      make CFLAGS="-O3 -Wall -Werror -Wshadow -pipe" clean check || exit 1
+      echo "==> pcre2 enabled"
+      ./configure --without-onigurama --with-pcre2 --without-pcre || exit
+      make CFLAGS="-O3 -Wall -Werror -Wshadow -pipe" clean check || exit 1
+      echo "==> pcre enabled"
+      ./configure --without-onigurama --without-pcre2 --with-pcre || exit
+      make CFLAGS="-O3 -Wall -Werror -Wshadow -pipe" clean check || exit 1
       # final test with everything enabled that is detected
+      echo "==> everything default"
       ./configure || { cat config.log ; exit 1 ; }
       make CFLAGS="-O3 -Wall -Werror -Wshadow -pipe" clean check || exit 1
     fi
