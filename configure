@@ -621,6 +621,9 @@ ac_includes_default="\
 ac_subst_vars='am__EXEEXT_FALSE
 am__EXEEXT_TRUE
 LTLIBOBJS
+LIBPCRE
+LIBPCRE2
+LIBONIGURUMA
 LIBSSL
 LIBLZ4
 LIBGZIP
@@ -718,6 +721,9 @@ enable_dependency_tracking
 with_gzip
 with_lz4
 with_ssl
+with_oniguruma
+with_pcre2
+with_pcre
 '
       ac_precious_vars='build_alias
 host_alias
@@ -1355,6 +1361,9 @@ Optional Packages:
 support gzip compression for sending/receiving
 support lz4 compression for sending/receiving
 support ssl encryption for sending/receiving
+use oniguruma regex library
+use pcre2 regex library
+use pcre regex library
 
 Some influential environment variables:
   CC          C compiler command
@@ -5273,6 +5282,258 @@ as_fn_error $? "--with-ssl was given, but test for ssl failed
 See \`config.log' for more details" "$LINENO" 5; }
 					 fi
 					 LIBSSL=
+
+
+fi
+
+fi
+
+
+# Check whether --with-oniguruma was given.
+if test "${with_oniguruma+set}" = set; then :
+  withval=$with_oniguruma;
+else
+  with_oniguruma=check
+fi
+
+LIBONIGURUMA=
+if test "x$with_oniguruma" != xno; then :
+  for ac_header in onigposix.h
+do :
+  ac_fn_c_check_header_mongrel "$LINENO" "onigposix.h" "ac_cv_header_onigposix_h" "$ac_includes_default"
+if test "x$ac_cv_header_onigposix_h" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_ONIGPOSIX_H 1
+_ACEOF
+
+else
+  LIBONIGURUMA=_missing_header
+fi
+
+done
+
+	   as_ac_Lib=`$as_echo "ac_cv_lib_onig${LIBONIGURUMA}''_regexec" | $as_tr_sh`
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for regexec in -lonig${LIBONIGURUMA}" >&5
+$as_echo_n "checking for regexec in -lonig${LIBONIGURUMA}... " >&6; }
+if eval \${$as_ac_Lib+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lonig${LIBONIGURUMA}  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char regexec ();
+int
+main ()
+{
+return regexec ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  eval "$as_ac_Lib=yes"
+else
+  eval "$as_ac_Lib=no"
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+eval ac_res=\$$as_ac_Lib
+	       { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_res" >&5
+$as_echo "$ac_res" >&6; }
+if eval test \"x\$"$as_ac_Lib"\" = x"yes"; then :
+  LIBONIGURUMA="-lonig"
+
+$as_echo "#define HAVE_ONIGURAMA 1" >>confdefs.h
+
+					LIBONIGURUMA="${LIBONIGURUMA}"
+
+
+else
+  if test "x$with_oniguruma" != xcheck; then
+					 { { $as_echo "$as_me:${as_lineno-$LINENO}: error: in \`$ac_pwd':" >&5
+$as_echo "$as_me: error: in \`$ac_pwd':" >&2;}
+as_fn_error $? "--with-oniguruma was given, but test for oniguruma failed
+See \`config.log' for more details" "$LINENO" 5; }
+					 fi
+					 LIBONIGURUMA=
+
+
+fi
+
+fi
+
+
+# Check whether --with-pcre2 was given.
+if test "${with_pcre2+set}" = set; then :
+  withval=$with_pcre2;
+else
+  with_pcre2=check
+fi
+
+LIBPCRE2=
+if test "x${LIBONIGURUMA}" = "x" && test "x$with_pcre2" != xno; then :
+  for ac_header in pcre2posix.h
+do :
+  ac_fn_c_check_header_mongrel "$LINENO" "pcre2posix.h" "ac_cv_header_pcre2posix_h" "$ac_includes_default"
+if test "x$ac_cv_header_pcre2posix_h" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_PCRE2POSIX_H 1
+_ACEOF
+
+else
+  LIBPCRE2=_missing_header
+fi
+
+done
+
+	   as_ac_Lib=`$as_echo "ac_cv_lib_pcre2-posix${LIBPRCRE2}''_regexec" | $as_tr_sh`
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for regexec in -lpcre2-posix${LIBPRCRE2}" >&5
+$as_echo_n "checking for regexec in -lpcre2-posix${LIBPRCRE2}... " >&6; }
+if eval \${$as_ac_Lib+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lpcre2-posix${LIBPRCRE2}  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char regexec ();
+int
+main ()
+{
+return regexec ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  eval "$as_ac_Lib=yes"
+else
+  eval "$as_ac_Lib=no"
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+eval ac_res=\$$as_ac_Lib
+	       { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_res" >&5
+$as_echo "$ac_res" >&6; }
+if eval test \"x\$"$as_ac_Lib"\" = x"yes"; then :
+  LIBPCRE2="-lpcre2-posix"
+
+$as_echo "#define HAVE_PCRE2 1" >>confdefs.h
+
+					LIBPCRE2="${LIBPCRE2}"
+
+
+else
+  if test "x$with_pcre2" != xcheck; then
+					 { { $as_echo "$as_me:${as_lineno-$LINENO}: error: in \`$ac_pwd':" >&5
+$as_echo "$as_me: error: in \`$ac_pwd':" >&2;}
+as_fn_error $? "--with-pcre2 was given, but test for pcre2 failed
+See \`config.log' for more details" "$LINENO" 5; }
+					 fi
+					 LIBPCRE2=
+
+
+fi
+
+fi
+
+
+# Check whether --with-pcre was given.
+if test "${with_pcre+set}" = set; then :
+  withval=$with_pcre;
+else
+  with_pcre=check
+fi
+
+LIBPCRE=
+if test "x${LIBONIGURUMA}${LIBPCRE2}" = "x" && test "x$with_pcre" != xno; then :
+  for ac_header in pcreposix.h
+do :
+  ac_fn_c_check_header_mongrel "$LINENO" "pcreposix.h" "ac_cv_header_pcreposix_h" "$ac_includes_default"
+if test "x$ac_cv_header_pcreposix_h" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_PCREPOSIX_H 1
+_ACEOF
+
+else
+  LIBPCRE=_missing_header
+fi
+
+done
+
+	   as_ac_Lib=`$as_echo "ac_cv_lib_pcreposix${LIBPRCRE}''_regexec" | $as_tr_sh`
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for regexec in -lpcreposix${LIBPRCRE}" >&5
+$as_echo_n "checking for regexec in -lpcreposix${LIBPRCRE}... " >&6; }
+if eval \${$as_ac_Lib+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lpcreposix${LIBPRCRE}  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char regexec ();
+int
+main ()
+{
+return regexec ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  eval "$as_ac_Lib=yes"
+else
+  eval "$as_ac_Lib=no"
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+eval ac_res=\$$as_ac_Lib
+	       { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_res" >&5
+$as_echo "$ac_res" >&6; }
+if eval test \"x\$"$as_ac_Lib"\" = x"yes"; then :
+  LIBPCRE="-lpcreposix"
+
+$as_echo "#define HAVE_PCRE 1" >>confdefs.h
+
+					LIBPCRE="${LIBPCRE}"
+
+
+else
+  if test "x$with_pcre" != xcheck; then
+					 { { $as_echo "$as_me:${as_lineno-$LINENO}: error: in \`$ac_pwd':" >&5
+$as_echo "$as_me: error: in \`$ac_pwd':" >&2;}
+as_fn_error $? "--with-pcre was given, but test for pcre failed
+See \`config.log' for more details" "$LINENO" 5; }
+					 fi
+					 LIBPCRE=
 
 
 fi

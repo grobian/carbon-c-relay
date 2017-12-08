@@ -41,6 +41,7 @@
 #include "aggregator.h"
 #include "collector.h"
 #include "conffile.h"
+#include "posixregex.h"
 
 unsigned char keep_running = 1;
 int pending_signal = -1;

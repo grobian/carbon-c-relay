@@ -22,7 +22,6 @@
 #include <string.h>
 #include <ctype.h>
 #include <glob.h>
-#include <regex.h>
 #include <sys/stat.h>
 #include <netdb.h>
 #include <sys/socket.h>
@@ -39,6 +38,7 @@
 #include "allocator.h"
 #include "relay.h"
 #include "router.h"
+#include "posixregex.h"
 #include "conffile.h"
 #include "conffile.tab.h"
 
@@ -1722,7 +1722,7 @@ router_set_collectorvals(router *rtr, int intv, char *prefix, col_mode smode)
 		}
 		if ((reret = regexec(&re, relay_hostname, nmatch, pmatch, 0)) != 0) {
 			size_t len = snprintf(cprefix, sizeof(cprefix),
-					"failed to executte hostname regexp: ");
+					"failed to execute hostname regexp: ");
 			regerror(reret, &re, cprefix + len, sizeof(cprefix) - len);
 			regfree(&re);
 			return ra_strdup(rtr->a, cprefix);

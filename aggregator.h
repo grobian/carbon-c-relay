@@ -18,10 +18,10 @@
 #ifndef AGGREGATOR_H
 #define AGGREGATOR_H 1
 
-#include <regex.h>
 #include <pthread.h>
 
 #include "server.h"
+#include "posixregex.h"
 
 #define AGGR_HT_POW_SIZE  12  /* 4096: too big? issue #60 */
 typedef struct _aggregator {

@@ -21,7 +21,6 @@
 #include <string.h>
 #include <time.h>
 #include <math.h>
-#include <regex.h>
 #include <pthread.h>
 #include <errno.h>
 #include <assert.h>
@@ -32,6 +31,7 @@
 #include "router.h"
 #include "fnv1a.h"
 #include "aggregator.h"
+#include "posixregex.h"
 
 static pthread_t aggregatorid;
 static size_t prevreceived = 0;

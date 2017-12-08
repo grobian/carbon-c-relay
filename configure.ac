@@ -135,5 +135,60 @@ AS_IF([test "x$with_ssl" != xno],
 					]
 	)])
 
+AC_ARG_WITH([oniguruma], [use oniguruma regex library],
+			[], [with_oniguruma=check])
+LIBONIGURUMA=
+AS_IF([test "x$with_oniguruma" != xno],
+	  [AC_CHECK_HEADERS([onigposix.h], [], [LIBONIGURUMA=_missing_header])
+	   AC_CHECK_LIB([onig${LIBONIGURUMA}], [regexec],
+					[LIBONIGURUMA="-lonig"
+					AC_DEFINE([HAVE_ONIGURAMA], [1],
+							  [Define if you have onigurama])
+					AC_SUBST([LIBONIGURUMA], ["${LIBONIGURUMA}"])
+					],
+					[if test "x$with_oniguruma" != xcheck; then
+					 AC_MSG_FAILURE(
+					   [--with-oniguruma was given, but test for oniguruma failed])
+					 fi
+					 LIBONIGURUMA=
+					]
+	)])
+
+AC_ARG_WITH([pcre2], [use pcre2 regex library],
+			[], [with_pcre2=check])
+LIBPCRE2=
+AS_IF([test "x${LIBONIGURUMA}" = "x" && test "x$with_pcre2" != xno],
+	  [AC_CHECK_HEADERS([pcre2posix.h], [], [LIBPCRE2=_missing_header])
+	   AC_CHECK_LIB([pcre2-posix${LIBPRCRE2}], [regexec],
+					[LIBPCRE2="-lpcre2-posix"
+					AC_DEFINE([HAVE_PCRE2], [1], [Define if you have pcre2])
+					AC_SUBST([LIBPCRE2], ["${LIBPCRE2}"])
+					],
+					[if test "x$with_pcre2" != xcheck; then
+					 AC_MSG_FAILURE(
+					   [--with-pcre2 was given, but test for pcre2 failed])
+					 fi
+					 LIBPCRE2=
+					]
+	)])
+
+AC_ARG_WITH([pcre], [use pcre regex library],
+			[], [with_pcre=check])
+LIBPCRE=
+AS_IF([test "x${LIBONIGURUMA}${LIBPCRE2}" = "x" && test "x$with_pcre" != xno],
+	  [AC_CHECK_HEADERS([pcreposix.h], [], [LIBPCRE=_missing_header])
+	   AC_CHECK_LIB([pcreposix${LIBPRCRE}], [regexec],
+					[LIBPCRE="-lpcreposix"
+					AC_DEFINE([HAVE_PCRE], [1], [Define if you have pcre])
+					AC_SUBST([LIBPCRE], ["${LIBPCRE}"])
+					],
+					[if test "x$with_pcre" != xcheck; then
+					 AC_MSG_FAILURE(
+					   [--with-pcre was given, but test for pcre failed])
+					 fi
+					 LIBPCRE=
+					]
+	)])
+
 AC_CONFIG_FILES([Makefile])
 AC_OUTPUT

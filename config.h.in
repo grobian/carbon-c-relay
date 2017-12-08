@@ -64,11 +64,29 @@
 /* Define to 1 if you have the <netinet/tcp.h> header file. */
 #undef HAVE_NETINET_TCP_H
 
+/* Define to 1 if you have the <onigposix.h> header file. */
+#undef HAVE_ONIGPOSIX_H
+
+/* Define if you have onigurama */
+#undef HAVE_ONIGURAMA
+
 /* Define to 1 if you have the <openssl/err.h> header file. */
 #undef HAVE_OPENSSL_ERR_H
 
 /* Define to 1 if you have the <openssl/ssl.h> header file. */
 #undef HAVE_OPENSSL_SSL_H
+
+/* Define if you have pcre */
+#undef HAVE_PCRE
+
+/* Define if you have pcre2 */
+#undef HAVE_PCRE2
+
+/* Define to 1 if you have the <pcre2posix.h> header file. */
+#undef HAVE_PCRE2POSIX_H
+
+/* Define to 1 if you have the <pcreposix.h> header file. */
+#undef HAVE_PCREPOSIX_H
 
 /* Define to 1 if you have the <poll.h> header file. */
 #undef HAVE_POLL_H

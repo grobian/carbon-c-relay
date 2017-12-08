@@ -19,12 +19,12 @@
 #define ROUTER_H 1
 
 #include <stdio.h>
-#include <regex.h>
 #include <time.h>
 
 #include "relay.h"
 #include "server.h"
 #include "aggregator.h"
+#include "posixregex.h"
 
 #ifdef HAVE_SSL
 #include <openssl/ssl.h>
