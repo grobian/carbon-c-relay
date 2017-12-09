@@ -24,7 +24,7 @@ script:
       brew update > /dev/null
       brew install lz4 openssl oniguruma pcre pcre2
     else
-      sudo apt-get install libonig-dev libpcre3-dev libpcre2-dev
+      sudo apt-get install libonig-dev libpcre3-dev
     fi
   # workaround git not retaining mtimes and bison/flex not being uptodate
   - touch conffile.yy.c conffile.tab.c conffile.tab.h
@@ -64,9 +64,11 @@ script:
       echo "==> oniguruma enabled"
       ./configure --with-oniguruma --without-pcre2 --without-pcre || exit
       make CFLAGS="-O3 -Wall -Werror -Wshadow -pipe" clean check || exit 1
-      echo "==> pcre2 enabled"
-      ./configure --without-oniguruma --with-pcre2 --without-pcre || exit
-      make CFLAGS="-O3 -Wall -Werror -Wshadow -pipe" clean check || exit 1
+      if [ $TRAVIS_OS_NAME = osx ] ; then
+        echo "==> pcre2 enabled"
+        ./configure --without-oniguruma --with-pcre2 --without-pcre || exit
+        make CFLAGS="-O3 -Wall -Werror -Wshadow -pipe" clean check || exit 1
+      fi
       echo "==> pcre enabled"
       ./configure --without-oniguruma --without-pcre2 --with-pcre || exit
       make CFLAGS="-O3 -Wall -Werror -Wshadow -pipe" clean check || exit 1
