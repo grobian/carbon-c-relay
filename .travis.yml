@@ -40,7 +40,7 @@ script:
       # everything disabled, this MUST work
       echo "==> base test, all disabled"
       ./configure --without-gzip --without-lz4 --without-ssl \
-        --without-oniguruma --without-pcre2 --without-prce \
+        --without-oniguruma --without-pcre2 --without-pcre \
         || { cat config.log ; exit 1 ; }
       make CFLAGS="-O3 -Wall -Werror -Wshadow -pipe" clean check || exit 1
       # compile some enabled/disabled variants compile only
