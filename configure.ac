@@ -143,7 +143,7 @@ AS_IF([test "x$with_oniguruma" != xno],
 	   AC_CHECK_LIB([onig${LIBONIGURUMA}], [regexec],
 					[LIBONIGURUMA="-lonig"
 					AC_DEFINE([HAVE_ONIGURAMA], [1],
-							  [Define if you have onigurama])
+							  [Define if you have oniguruma])
 					AC_SUBST([LIBONIGURUMA], ["${LIBONIGURUMA}"])
 					],
 					[if test "x$with_oniguruma" != xcheck; then

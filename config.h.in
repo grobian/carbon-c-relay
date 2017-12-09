@@ -67,7 +67,7 @@
 /* Define to 1 if you have the <onigposix.h> header file. */
 #undef HAVE_ONIGPOSIX_H
 
-/* Define if you have onigurama */
+/* Define if you have oniguruma */
 #undef HAVE_ONIGURAMA
 
 /* Define to 1 if you have the <openssl/err.h> header file. */
