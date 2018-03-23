@@ -10,7 +10,7 @@
   Note that by default this character is not allowed, hence tags support
   enabled.
   [Issue #311](https://github.com/grobian/carbon-c-relay/issues/311)
-* **dispatcher** support for onigurama, pcre2 and pcre regex libraries
+* **dispatcher** support for oniguruma, pcre2 and pcre regex libraries
   was added.  These libraries perform all better than the libc
   implementation, bringing down cpu time of the relay considerably.
 
