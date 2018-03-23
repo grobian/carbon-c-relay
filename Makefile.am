@@ -82,6 +82,7 @@ EXTRA_DIST = \
 	README.md \
 	conffile.tab.c conffile.tab.h conffile.y \
 	conffile.yy.c conffile.l \
+	posixregex.h \
 	$(NULL)
 
 CRTESTS = \
