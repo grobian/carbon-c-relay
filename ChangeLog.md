@@ -1,4 +1,7 @@
-# 3.3 (unreleased master branch)
+# 3.4 (unreleased master branch)
+
+
+# 3.3 (23-03-2018)
 
 ### New Features
 
@@ -7,7 +10,13 @@
   Note that by default this character is not allowed, hence tags support
   enabled.
   [Issue #311](https://github.com/grobian/carbon-c-relay/issues/311)
+* **dispatcher** support for onigurama, pcre2 and pcre regex libraries
+  was added.  These libraries perform all better than the libc
+  implementation, bringing down cpu time of the relay considerably.
 
+### Bugfixes
+
+* Fix conffile.tab.h dependency for parallel make.
 
 # 3.2 (21-10-2017)
 
