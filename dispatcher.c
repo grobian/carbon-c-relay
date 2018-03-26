@@ -153,6 +153,11 @@ gzipread(void *strm, void *buf, size_t sze)
 		((z_strm *)strm)->ipos += ret;
 	} else if (ret < 0) {
 		err = errno;
+	} else {
+		/* ret == 0: EOF, which means we didn't read anything here, so
+		 * calling inflate again will be pointless, because there is
+		 * nothing new. */
+		return 0;
 	}
 
 	zstrm->next_in = (Bytef *)ibuf;
@@ -235,6 +240,9 @@ lzread(void *strm, void *buf, size_t sze)
 		((z_strm *)strm)->ipos += ret;
 	} else if (ret < 0) {
 		return -1;
+	} else {
+		/* ret == 0, a.k.a. EOF */
+		return 0;
 	}
 
 	ret = LZ4_decompress_safe_continue(((z_strm *)strm)->hdl.lz,

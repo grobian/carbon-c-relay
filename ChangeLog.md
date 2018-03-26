@@ -1,5 +1,10 @@
 # 3.4 (unreleased master branch)
 
+### Bugfixes
+
+* [Issue #327](https://github.com/grobian/carbon-c-relay/issues/327)
+  gzip compression leaking half closed sockets
+
 
 # 3.3 (23-03-2018)
 
