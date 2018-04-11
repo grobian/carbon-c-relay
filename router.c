@@ -2647,7 +2647,6 @@ router_route_intern(
 						 * (MAX_INT % c) can be considered neglicible given
 						 * the number of occurances of c in the range of
 						 * MAX_INT, therefore we stick with a simple mod. */
-						server *ds;
 						hash %= d->cl->members.anyof->count;
 						failif(retsize, *curlen + 1);
 						ret[*curlen].dest =
