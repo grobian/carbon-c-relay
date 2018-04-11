@@ -48,7 +48,7 @@
 extern int router_yydebug;
 #endif
 /* "%code requires" blocks.  */
-#line 11 "conffile.y" /* yacc.c:1909  */
+#line 11 "conffile.y" /* yacc.c:1915  */
 
 struct _clust {
 	enum clusttype t;
@@ -59,6 +59,7 @@ struct _clhost {
 	int port;
 	char *inst;
 	int proto;
+	con_type type;
 	con_trnsp trnsp;
 	void *saddr;
 	void *hint;
@@ -92,7 +93,7 @@ struct _rcptr_trsp {
 	char *pemcert;
 };
 
-#line 96 "conffile.tab.h" /* yacc.c:1909  */
+#line 97 "conffile.tab.h" /* yacc.c:1915  */
 
 /* Token type.  */
 #ifndef ROUTER_YYTOKENTYPE
@@ -159,16 +160,17 @@ struct _rcptr_trsp {
     crLISTEN = 315,
     crTYPE = 316,
     crLINEMODE = 317,
-    crTRANSPORT = 318,
-    crGZIP = 319,
-    crLZ4 = 320,
-    crSSL = 321,
-    crUNIX = 322,
-    crINCLUDE = 323,
-    crCOMMENT = 324,
-    crSTRING = 325,
-    crUNEXPECTED = 326,
-    crINTVAL = 327
+    crSYSLOGMODE = 318,
+    crTRANSPORT = 319,
+    crGZIP = 320,
+    crLZ4 = 321,
+    crSSL = 322,
+    crUNIX = 323,
+    crINCLUDE = 324,
+    crCOMMENT = 325,
+    crSTRING = 326,
+    crUNEXPECTED = 327,
+    crINTVAL = 328
   };
 #endif
 
@@ -200,6 +202,8 @@ union ROUTER_YYSTYPE
   con_proto rcptr_proto;
   /* cluster_opt_transport  */
   con_trnsp cluster_opt_transport;
+  /* cluster_opt_type  */
+  con_type cluster_opt_type;
   /* match_opt_send_to  */
   destinations * match_opt_send_to;
   /* match_send_to  */
@@ -280,7 +284,7 @@ union ROUTER_YYSTYPE
   struct _rcptr * receptor;
   /* transport_mode  */
   struct _rcptr_trsp * transport_mode;
-#line 284 "conffile.tab.h" /* yacc.c:1909  */
+#line 288 "conffile.tab.h" /* yacc.c:1915  */
 };
 
 typedef union ROUTER_YYSTYPE ROUTER_YYSTYPE;
