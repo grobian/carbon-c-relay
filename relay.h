@@ -44,7 +44,7 @@ extern char relay_hostname[];
 enum logdst { LOGOUT, LOGERR };
 
 typedef enum { CON_TCP, CON_UDP, CON_PIPE, CON_FILE, CON_UNIX } con_proto;
-typedef enum { T_LINEMODE } con_type;
+typedef enum { T_LINEMODE, T_SYSLOGMODE } con_type;
 typedef enum { W_PLAIN, W_GZIP, W_LZ4, W_SSL } con_trnsp;
 
 int relaylog(enum logdst dest, const char *fmt, ...);
