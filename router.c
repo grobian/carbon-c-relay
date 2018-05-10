@@ -81,6 +81,29 @@ int router_yylex_destroy(void *);
 /* catch string used for collector output */
 #define STUB_STATS  "_collector_stub_"
 
+/* string representations for symbols in the matching enums from
+ * router.h */
+const char *con_proto_str[] = {
+	/* 0 */ "<unset>",
+	/* 1 */ "tcp",
+	/* 2 */ "udp",
+	/* 3 */ "pipe",
+	/* 4 */ "file",
+	/* 5 */ "unix"
+};
+const char *con_type_str[] = {
+	/* 0 */ "<unset>",
+	/* 1 */ "linemode",
+	/* 2 */ "syslog"
+};
+const char *con_trnsp_str[] = {
+	/* 0 */ "<unset>",
+	/* 1 */ "plain",
+	/* 2 */ "gzip",
+	/* 3 */ "lz4",
+	/* 4 */ "ssl"
+};
+
 /**
  * Frees regexes from routes.
  */
@@ -614,9 +637,7 @@ router_add_server(
 				snprintf(errbuf, sizeof(errbuf),
 						"failed to add server %s:%d (%s) "
 						"to cluster %s", ip, port,
-						proto == CON_UDP ? "udp" :
-						proto == CON_TCP ? "tcp" :
-						proto == CON_FILE ? "file" : "???", cl->name);
+						con_proto_str[proto], cl->name);
 				return ra_strdup(ret->a, errbuf);
 			}
 			if (ret->srvrs == NULL) {
@@ -1761,26 +1782,26 @@ router_printconfig(router *rtr, FILE *f, char pmode)
 	/* start with configuration wise standard components */
 #define PPROTO \
 	server_ctype(s->server) == CON_UDP ? " proto udp" : ""
+#define PTYPEFMT "%s%s"
 #define PTYPE \
+	server_type(s->server) == T_LINEMODE ? "" : " type ", \
 	server_type(s->server) == T_LINEMODE ? "" : \
-	server_type(s->server) == T_SYSLOGMODE ? " syslog" : " type ???"
+		con_type_str[server_type(s->server)]
+#define PTRNSPFMT "%s%s"
 #define PTRNSP \
+	server_transport(s->server) == W_PLAIN ? "" : " transport ", \
 	server_transport(s->server) == W_PLAIN ? "" : \
-	server_transport(s->server) == W_GZIP  ? " transport gzip" : \
-	server_transport(s->server) == W_LZ4   ? " transport lz4" : \
-	server_transport(s->server) == W_SSL   ? " transport ssl" : " unknown"
+		con_trnsp_str[server_transport(s->server)]
 
 	if (rtr->listeners != NULL) {
 		listener *walk;
 		fprintf(f, "listen\n");
 		for (walk = rtr->listeners; walk != NULL; walk = walk->next) {
 			if (walk->lsnrtype == T_LINEMODE) {
-				fprintf(f, "    type linemode%s%s%s",
+				fprintf(f, "    type linemode%s%s%s%s",
+						walk->transport == W_PLAIN ? "" : " transport ",
 						walk->transport == W_PLAIN ? "" :
-						walk->transport == W_GZIP  ? " transport gzip" :
-						walk->transport == W_LZ4   ? " transport lz4" :
-						walk->transport == W_SSL   ? " transport ssl" :
-						                             " unknown",
+							con_trnsp_str[walk->transport],
 						walk->transport == W_SSL ? " " : "",
 #ifdef HAVE_SSL
 						walk->transport == W_SSL ? walk->pemcert : ""
@@ -1803,8 +1824,7 @@ router_printconfig(router *rtr, FILE *f, char pmode)
 						fprintf(f, "        %s%s%u proto %s\n",
 								walk->ip == NULL ? "" : walk->ip,
 								walk->ip == NULL ? "" : ":",
-								walk->port,
-								walk->ctype == CON_UDP ? "udp" : "tcp");
+								walk->port, con_proto_str[walk->ctype]);
 					}
 				} while (walk->next != NULL
 						&& walk->lsnrtype == walk->next->lsnrtype
@@ -1850,7 +1870,7 @@ router_printconfig(router *rtr, FILE *f, char pmode)
 		if (c->type == FORWARD) {
 			fprintf(f, "    forward\n");
 			for (s = c->members.forward; s != NULL; s = s->next)
-				fprintf(f, "        %s:%d%s%s%s\n",
+				fprintf(f, "        %s:%d%s" PTYPEFMT PTRNSPFMT "\n",
 						serverip(s->server), server_port(s->server),
 						PPROTO, PTYPE, PTRNSP);
 		} else if (c->type == FILELOG || c->type == FILELOGIP) {
@@ -1861,7 +1881,7 @@ router_printconfig(router *rtr, FILE *f, char pmode)
 		} else if (c->type == ANYOF || c->type == FAILOVER) {
 			fprintf(f, "    %s\n", c->type == ANYOF ? "any_of" : "failover");
 			for (s = c->members.anyof->list; s != NULL; s = s->next)
-				fprintf(f, "        %s:%d%s%s%s\n",
+				fprintf(f, "        %s:%d%s" PTYPEFMT PTRNSPFMT "\n",
 						serverip(s->server), server_port(s->server),
 						PPROTO, PTYPE, PTRNSP);
 		} else if (c->type == CARBON_CH ||
@@ -1873,10 +1893,11 @@ router_printconfig(router *rtr, FILE *f, char pmode)
 					c->type == FNV1A_CH ? "fnv1a" : "jump_fnv1a",
 					c->members.ch->repl_factor);
 			for (s = c->members.ch->servers; s != NULL; s = s->next)
-				fprintf(f, "        %s:%d%s%s%s%s%s\n",
+				fprintf(f, "        %s:%d%s%s%s" PTYPEFMT PTRNSPFMT "\n",
 						serverip(s->server), server_port(s->server),
 						server_instance(s->server) ? "=" : "",
-						server_instance(s->server) ? server_instance(s->server) : "",
+						server_instance(s->server) ?
+							server_instance(s->server) : "",
 						PPROTO, PTYPE, PTRNSP);
 		}
 		fprintf(f, "    ;\n");
@@ -2603,7 +2624,9 @@ router_route_intern(
 						firstspace,
 						w->dests->cl->members.routes,
 						dispatcher_id);
-		} else if (router_metric_matches(w, metric, firstspace, pmatch, dispatcher_id)) {
+		} else if (router_metric_matches(w, metric, firstspace,
+					pmatch, dispatcher_id))
+		{
 			stop = w->stop;
 			/* rule matches, send to destination(s) */
 			for (d = w->dests; d != NULL; d = d->next) {
