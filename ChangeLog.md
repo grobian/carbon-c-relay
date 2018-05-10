@@ -1,5 +1,10 @@
 # 3.4 (unreleased master branch)
 
+### New Features
+
+* [Pull Request #329](https://github.com/grobian/carbon-c-relay/pull/329)
+  add `syslog` message type to emit syslog packets
+
 ### Bugfixes
 
 * [Issue #327](https://github.com/grobian/carbon-c-relay/issues/327)
