@@ -48,7 +48,7 @@
 extern int router_yydebug;
 #endif
 /* "%code requires" blocks.  */
-#line 11 "conffile.y" /* yacc.c:1915  */
+#line 11 "conffile.y" /* yacc.c:1909  */
 
 struct _clust {
 	enum clusttype t;
@@ -93,7 +93,7 @@ struct _rcptr_trsp {
 	char *pemcert;
 };
 
-#line 97 "conffile.tab.h" /* yacc.c:1915  */
+#line 97 "conffile.tab.h" /* yacc.c:1909  */
 
 /* Token type.  */
 #ifndef ROUTER_YYTOKENTYPE
@@ -284,7 +284,7 @@ union ROUTER_YYSTYPE
   struct _rcptr * receptor;
   /* transport_mode  */
   struct _rcptr_trsp * transport_mode;
-#line 288 "conffile.tab.h" /* yacc.c:1915  */
+#line 288 "conffile.tab.h" /* yacc.c:1909  */
 };
 
 typedef union ROUTER_YYSTYPE ROUTER_YYSTYPE;

@@ -1719,7 +1719,7 @@ yyreduce:
   switch (yyn)
     {
         case 14:
-#line 144 "conffile.y" /* yacc.c:1661  */
+#line 144 "conffile.y" /* yacc.c:1646  */
     {
 	   	struct _clhost *w;
 		char *err;
@@ -1786,11 +1786,11 @@ yyreduce:
 			YYERROR;
 		}
 	   }
-#line 1790 "conffile.tab.c" /* yacc.c:1661  */
+#line 1790 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 15:
-#line 211 "conffile.y" /* yacc.c:1661  */
+#line 211 "conffile.y" /* yacc.c:1646  */
     {
 	   	struct _clhost *w;
 		char *err;
@@ -1828,113 +1828,113 @@ yyreduce:
 			YYERROR;
 		}
 	   }
-#line 1832 "conffile.tab.c" /* yacc.c:1661  */
+#line 1832 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 16:
-#line 252 "conffile.y" /* yacc.c:1661  */
+#line 252 "conffile.y" /* yacc.c:1646  */
     { (*(struct _clust*)(&yyval)).t = (*(enum clusttype*)(&yyvsp[-1])); (*(struct _clust*)(&yyval)).ival = (*(int*)(&yyvsp[0])); }
-#line 1838 "conffile.tab.c" /* yacc.c:1661  */
+#line 1838 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 17:
-#line 254 "conffile.y" /* yacc.c:1661  */
+#line 254 "conffile.y" /* yacc.c:1646  */
     { (*(struct _clust*)(&yyval)).t = (*(enum clusttype*)(&yyvsp[-1])); (*(struct _clust*)(&yyval)).ival = (*(int*)(&yyvsp[0])); }
-#line 1844 "conffile.tab.c" /* yacc.c:1661  */
+#line 1844 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 18:
-#line 257 "conffile.y" /* yacc.c:1661  */
+#line 257 "conffile.y" /* yacc.c:1646  */
     { (*(enum clusttype*)(&yyval)) = FORWARD; }
-#line 1850 "conffile.tab.c" /* yacc.c:1661  */
+#line 1850 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 19:
-#line 258 "conffile.y" /* yacc.c:1661  */
+#line 258 "conffile.y" /* yacc.c:1646  */
     { (*(enum clusttype*)(&yyval)) = ANYOF; }
-#line 1856 "conffile.tab.c" /* yacc.c:1661  */
+#line 1856 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 20:
-#line 259 "conffile.y" /* yacc.c:1661  */
+#line 259 "conffile.y" /* yacc.c:1646  */
     { (*(enum clusttype*)(&yyval)) = FAILOVER; }
-#line 1862 "conffile.tab.c" /* yacc.c:1661  */
+#line 1862 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 21:
-#line 262 "conffile.y" /* yacc.c:1661  */
+#line 262 "conffile.y" /* yacc.c:1646  */
     { (*(int*)(&yyval)) = 0; }
-#line 1868 "conffile.tab.c" /* yacc.c:1661  */
+#line 1868 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 22:
-#line 263 "conffile.y" /* yacc.c:1661  */
+#line 263 "conffile.y" /* yacc.c:1646  */
     { (*(int*)(&yyval)) = 1; }
-#line 1874 "conffile.tab.c" /* yacc.c:1661  */
+#line 1874 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 23:
-#line 266 "conffile.y" /* yacc.c:1661  */
+#line 266 "conffile.y" /* yacc.c:1646  */
     { (*(enum clusttype*)(&yyval)) = CARBON_CH; }
-#line 1880 "conffile.tab.c" /* yacc.c:1661  */
+#line 1880 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 24:
-#line 267 "conffile.y" /* yacc.c:1661  */
+#line 267 "conffile.y" /* yacc.c:1646  */
     { (*(enum clusttype*)(&yyval)) = FNV1A_CH; }
-#line 1886 "conffile.tab.c" /* yacc.c:1661  */
+#line 1886 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 25:
-#line 268 "conffile.y" /* yacc.c:1661  */
+#line 268 "conffile.y" /* yacc.c:1646  */
     { (*(enum clusttype*)(&yyval)) = JUMP_CH; }
-#line 1892 "conffile.tab.c" /* yacc.c:1661  */
+#line 1892 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 26:
-#line 271 "conffile.y" /* yacc.c:1661  */
+#line 271 "conffile.y" /* yacc.c:1646  */
     { (*(int*)(&yyval)) = 1; }
-#line 1898 "conffile.tab.c" /* yacc.c:1661  */
+#line 1898 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 27:
-#line 272 "conffile.y" /* yacc.c:1661  */
+#line 272 "conffile.y" /* yacc.c:1646  */
     { (*(int*)(&yyval)) = (*(int*)(&yyvsp[0])); }
-#line 1904 "conffile.tab.c" /* yacc.c:1661  */
+#line 1904 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 28:
-#line 275 "conffile.y" /* yacc.c:1661  */
+#line 275 "conffile.y" /* yacc.c:1646  */
     { (*(struct _clust*)(&yyval)).t = FILELOGIP; (*(struct _clust*)(&yyval)).ival = 0; }
-#line 1910 "conffile.tab.c" /* yacc.c:1661  */
+#line 1910 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 29:
-#line 276 "conffile.y" /* yacc.c:1661  */
+#line 276 "conffile.y" /* yacc.c:1646  */
     { (*(struct _clust*)(&yyval)).t = FILELOG; (*(struct _clust*)(&yyval)).ival = 0; }
-#line 1916 "conffile.tab.c" /* yacc.c:1661  */
+#line 1916 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 30:
-#line 279 "conffile.y" /* yacc.c:1661  */
+#line 279 "conffile.y" /* yacc.c:1646  */
     { (*(struct _clhost **)(&yyvsp[-1]))->next = (*(struct _clhost **)(&yyvsp[0])); (*(struct _clhost **)(&yyval)) = (*(struct _clhost **)(&yyvsp[-1])); }
-#line 1922 "conffile.tab.c" /* yacc.c:1661  */
+#line 1922 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 31:
-#line 281 "conffile.y" /* yacc.c:1661  */
+#line 281 "conffile.y" /* yacc.c:1646  */
     { (*(struct _clhost **)(&yyval)) = NULL; }
-#line 1928 "conffile.tab.c" /* yacc.c:1661  */
+#line 1928 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 32:
-#line 282 "conffile.y" /* yacc.c:1661  */
+#line 282 "conffile.y" /* yacc.c:1646  */
     { (*(struct _clhost **)(&yyval)) = (*(struct _clhost **)(&yyvsp[0])); }
-#line 1934 "conffile.tab.c" /* yacc.c:1661  */
+#line 1934 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 33:
-#line 285 "conffile.y" /* yacc.c:1661  */
+#line 285 "conffile.y" /* yacc.c:1646  */
     {
 				struct _clhost *ret = ra_malloc(palloc, sizeof(struct _clhost));
 				char *err = router_validate_path(rtr, (*(char **)(&yyvsp[0])));
@@ -1952,29 +1952,29 @@ yyreduce:
 				ret->next = NULL;
 				(*(struct _clhost **)(&yyval)) = ret;
 			}
-#line 1956 "conffile.tab.c" /* yacc.c:1661  */
+#line 1956 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 34:
-#line 304 "conffile.y" /* yacc.c:1661  */
+#line 304 "conffile.y" /* yacc.c:1646  */
     { (*(struct _clhost **)(&yyvsp[-1]))->next = (*(struct _clhost **)(&yyvsp[0])); (*(struct _clhost **)(&yyval)) = (*(struct _clhost **)(&yyvsp[-1])); }
-#line 1962 "conffile.tab.c" /* yacc.c:1661  */
+#line 1962 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 35:
-#line 306 "conffile.y" /* yacc.c:1661  */
+#line 306 "conffile.y" /* yacc.c:1646  */
     { (*(struct _clhost **)(&yyval)) = NULL; }
-#line 1968 "conffile.tab.c" /* yacc.c:1661  */
+#line 1968 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 36:
-#line 307 "conffile.y" /* yacc.c:1661  */
+#line 307 "conffile.y" /* yacc.c:1646  */
     { (*(struct _clhost **)(&yyval)) = (*(struct _clhost **)(&yyvsp[0])); }
-#line 1974 "conffile.tab.c" /* yacc.c:1661  */
+#line 1974 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 37:
-#line 312 "conffile.y" /* yacc.c:1661  */
+#line 312 "conffile.y" /* yacc.c:1646  */
     {
 			  	struct _clhost *ret = ra_malloc(palloc, sizeof(struct _clhost));
 				char *err = router_validate_address(
@@ -1993,23 +1993,23 @@ yyreduce:
 				ret->next = NULL;
 				(*(struct _clhost **)(&yyval)) = ret;
 			  }
-#line 1997 "conffile.tab.c" /* yacc.c:1661  */
+#line 1997 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 38:
-#line 331 "conffile.y" /* yacc.c:1661  */
+#line 331 "conffile.y" /* yacc.c:1646  */
     { (*(char **)(&yyval)) = NULL; }
-#line 2003 "conffile.tab.c" /* yacc.c:1661  */
+#line 2003 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 39:
-#line 332 "conffile.y" /* yacc.c:1661  */
+#line 332 "conffile.y" /* yacc.c:1646  */
     { (*(char **)(&yyval)) = (*(char **)(&yyvsp[0])); }
-#line 2009 "conffile.tab.c" /* yacc.c:1661  */
+#line 2009 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 40:
-#line 334 "conffile.y" /* yacc.c:1661  */
+#line 334 "conffile.y" /* yacc.c:1646  */
     {
 						(*(char **)(&yyval)) = ra_malloc(palloc, sizeof(char) * 12);
 						if ((*(char **)(&yyval)) == NULL) {
@@ -2018,53 +2018,53 @@ yyreduce:
 						}
 						snprintf((*(char **)(&yyval)), 12, "%d", (*(int*)(&yyvsp[0])));
 					}
-#line 2022 "conffile.tab.c" /* yacc.c:1661  */
+#line 2022 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 41:
-#line 343 "conffile.y" /* yacc.c:1661  */
+#line 343 "conffile.y" /* yacc.c:1646  */
     { (*(con_proto*)(&yyval)) = CON_TCP; }
-#line 2028 "conffile.tab.c" /* yacc.c:1661  */
+#line 2028 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 42:
-#line 344 "conffile.y" /* yacc.c:1661  */
+#line 344 "conffile.y" /* yacc.c:1646  */
     { (*(con_proto*)(&yyval)) = CON_UDP; }
-#line 2034 "conffile.tab.c" /* yacc.c:1661  */
+#line 2034 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 43:
-#line 345 "conffile.y" /* yacc.c:1661  */
+#line 345 "conffile.y" /* yacc.c:1646  */
     { (*(con_proto*)(&yyval)) = CON_TCP; }
-#line 2040 "conffile.tab.c" /* yacc.c:1661  */
+#line 2040 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 44:
-#line 348 "conffile.y" /* yacc.c:1661  */
+#line 348 "conffile.y" /* yacc.c:1646  */
     { (*(con_type*)(&yyval)) = T_LINEMODE; }
-#line 2046 "conffile.tab.c" /* yacc.c:1661  */
+#line 2046 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 45:
-#line 349 "conffile.y" /* yacc.c:1661  */
+#line 349 "conffile.y" /* yacc.c:1646  */
     { (*(con_type*)(&yyval)) = T_LINEMODE; }
-#line 2052 "conffile.tab.c" /* yacc.c:1661  */
+#line 2052 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 46:
-#line 350 "conffile.y" /* yacc.c:1661  */
+#line 350 "conffile.y" /* yacc.c:1646  */
     { (*(con_type*)(&yyval)) = T_SYSLOGMODE; }
-#line 2058 "conffile.tab.c" /* yacc.c:1661  */
+#line 2058 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 47:
-#line 353 "conffile.y" /* yacc.c:1661  */
+#line 353 "conffile.y" /* yacc.c:1646  */
     { (*(con_trnsp*)(&yyval)) = W_PLAIN; }
-#line 2064 "conffile.tab.c" /* yacc.c:1661  */
+#line 2064 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 48:
-#line 354 "conffile.y" /* yacc.c:1661  */
+#line 354 "conffile.y" /* yacc.c:1646  */
     {
 #ifdef HAVE_GZIP
 							(*(con_trnsp*)(&yyval)) = W_GZIP;
@@ -2075,11 +2075,11 @@ yyreduce:
 							YYERROR;
 #endif
 					 }
-#line 2079 "conffile.tab.c" /* yacc.c:1661  */
+#line 2079 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 49:
-#line 364 "conffile.y" /* yacc.c:1661  */
+#line 364 "conffile.y" /* yacc.c:1646  */
     {
 #ifdef HAVE_LZ4
 							(*(con_trnsp*)(&yyval)) = W_LZ4;
@@ -2090,11 +2090,11 @@ yyreduce:
 							YYERROR;
 #endif
 					 }
-#line 2094 "conffile.tab.c" /* yacc.c:1661  */
+#line 2094 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 50:
-#line 374 "conffile.y" /* yacc.c:1661  */
+#line 374 "conffile.y" /* yacc.c:1646  */
     {
 #ifdef HAVE_SSL
 							(*(con_trnsp*)(&yyval)) = W_SSL;
@@ -2105,11 +2105,11 @@ yyreduce:
 							YYERROR;
 #endif
 					 }
-#line 2109 "conffile.tab.c" /* yacc.c:1661  */
+#line 2109 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 51:
-#line 390 "conffile.y" /* yacc.c:1661  */
+#line 390 "conffile.y" /* yacc.c:1646  */
     {
 	 	/* each expr comes with an allocated route, populate it */
 		struct _maexpr *we;
@@ -2161,11 +2161,11 @@ yyreduce:
 			}
 		}
 	 }
-#line 2165 "conffile.tab.c" /* yacc.c:1661  */
+#line 2165 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 52:
-#line 444 "conffile.y" /* yacc.c:1661  */
+#line 444 "conffile.y" /* yacc.c:1646  */
     {
 			if (((*(struct _maexpr **)(&yyval)) = ra_malloc(palloc, sizeof(struct _maexpr))) == NULL) {
 				logerr("out of memory\n");
@@ -2177,35 +2177,35 @@ yyreduce:
 			(*(struct _maexpr **)(&yyval))->drop = 0;
 			(*(struct _maexpr **)(&yyval))->next = NULL;
 		   }
-#line 2181 "conffile.tab.c" /* yacc.c:1661  */
+#line 2181 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 53:
-#line 455 "conffile.y" /* yacc.c:1661  */
+#line 455 "conffile.y" /* yacc.c:1646  */
     { (*(struct _maexpr **)(&yyval)) = (*(struct _maexpr **)(&yyvsp[0])); }
-#line 2187 "conffile.tab.c" /* yacc.c:1661  */
+#line 2187 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 54:
-#line 458 "conffile.y" /* yacc.c:1661  */
+#line 458 "conffile.y" /* yacc.c:1646  */
     { (*(struct _maexpr **)(&yyvsp[-1]))->next = (*(struct _maexpr **)(&yyvsp[0])); (*(struct _maexpr **)(&yyval)) = (*(struct _maexpr **)(&yyvsp[-1])); }
-#line 2193 "conffile.tab.c" /* yacc.c:1661  */
+#line 2193 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 55:
-#line 460 "conffile.y" /* yacc.c:1661  */
+#line 460 "conffile.y" /* yacc.c:1646  */
     { (*(struct _maexpr **)(&yyval)) = NULL; }
-#line 2199 "conffile.tab.c" /* yacc.c:1661  */
+#line 2199 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 56:
-#line 461 "conffile.y" /* yacc.c:1661  */
+#line 461 "conffile.y" /* yacc.c:1646  */
     { (*(struct _maexpr **)(&yyval)) = (*(struct _maexpr **)(&yyvsp[0])); }
-#line 2205 "conffile.tab.c" /* yacc.c:1661  */
+#line 2205 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 57:
-#line 465 "conffile.y" /* yacc.c:1661  */
+#line 465 "conffile.y" /* yacc.c:1646  */
     {
 			char *err;
 			if (((*(struct _maexpr **)(&yyval)) = ra_malloc(palloc, sizeof(struct _maexpr))) == NULL) {
@@ -2222,17 +2222,17 @@ yyreduce:
 			(*(struct _maexpr **)(&yyval))->drop = 0;
 			(*(struct _maexpr **)(&yyval))->next = NULL;
 		  }
-#line 2226 "conffile.tab.c" /* yacc.c:1661  */
+#line 2226 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 58:
-#line 483 "conffile.y" /* yacc.c:1661  */
+#line 483 "conffile.y" /* yacc.c:1646  */
     { (*(struct _maexpr **)(&yyval)) = NULL; }
-#line 2232 "conffile.tab.c" /* yacc.c:1661  */
+#line 2232 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 59:
-#line 485 "conffile.y" /* yacc.c:1661  */
+#line 485 "conffile.y" /* yacc.c:1646  */
     {
 					char *err;
 					if (((*(struct _maexpr **)(&yyval)) = ra_malloc(palloc, sizeof(struct _maexpr))) == NULL) {
@@ -2249,53 +2249,53 @@ yyreduce:
 					(*(struct _maexpr **)(&yyval))->drop = (*(int*)(&yyvsp[0]));
 					(*(struct _maexpr **)(&yyval))->next = NULL;
 				  }
-#line 2253 "conffile.tab.c" /* yacc.c:1661  */
+#line 2253 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 60:
-#line 503 "conffile.y" /* yacc.c:1661  */
+#line 503 "conffile.y" /* yacc.c:1646  */
     { (*(int*)(&yyval)) = 0; }
-#line 2259 "conffile.tab.c" /* yacc.c:1661  */
+#line 2259 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 61:
-#line 504 "conffile.y" /* yacc.c:1661  */
+#line 504 "conffile.y" /* yacc.c:1646  */
     { (*(int*)(&yyval)) = 1; }
-#line 2265 "conffile.tab.c" /* yacc.c:1661  */
+#line 2265 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 62:
-#line 507 "conffile.y" /* yacc.c:1661  */
+#line 507 "conffile.y" /* yacc.c:1646  */
     { (*(char **)(&yyval)) = NULL; }
-#line 2271 "conffile.tab.c" /* yacc.c:1661  */
+#line 2271 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 63:
-#line 508 "conffile.y" /* yacc.c:1661  */
+#line 508 "conffile.y" /* yacc.c:1646  */
     { (*(char **)(&yyval)) = (*(char **)(&yyvsp[0])); }
-#line 2277 "conffile.tab.c" /* yacc.c:1661  */
+#line 2277 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 64:
-#line 511 "conffile.y" /* yacc.c:1661  */
+#line 511 "conffile.y" /* yacc.c:1646  */
     { (*(destinations **)(&yyval)) = NULL; }
-#line 2283 "conffile.tab.c" /* yacc.c:1661  */
+#line 2283 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 65:
-#line 512 "conffile.y" /* yacc.c:1661  */
+#line 512 "conffile.y" /* yacc.c:1646  */
     { (*(destinations **)(&yyval)) = (*(destinations **)(&yyvsp[0])); }
-#line 2289 "conffile.tab.c" /* yacc.c:1661  */
+#line 2289 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 66:
-#line 515 "conffile.y" /* yacc.c:1661  */
+#line 515 "conffile.y" /* yacc.c:1646  */
     { (*(destinations **)(&yyval)) = (*(destinations **)(&yyvsp[0])); }
-#line 2295 "conffile.tab.c" /* yacc.c:1661  */
+#line 2295 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 67:
-#line 519 "conffile.y" /* yacc.c:1661  */
+#line 519 "conffile.y" /* yacc.c:1646  */
     {
 			if (((*(destinations **)(&yyval)) = ra_malloc(ralloc, sizeof(destinations))) == NULL) {
 				logerr("out of memory\n");
@@ -2305,35 +2305,35 @@ yyreduce:
 				YYABORT;
 			(*(destinations **)(&yyval))->next = NULL;
 		  }
-#line 2309 "conffile.tab.c" /* yacc.c:1661  */
+#line 2309 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 68:
-#line 528 "conffile.y" /* yacc.c:1661  */
+#line 528 "conffile.y" /* yacc.c:1646  */
     { (*(destinations **)(&yyval)) = (*(destinations **)(&yyvsp[0])); }
-#line 2315 "conffile.tab.c" /* yacc.c:1661  */
+#line 2315 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 69:
-#line 531 "conffile.y" /* yacc.c:1661  */
+#line 531 "conffile.y" /* yacc.c:1646  */
     { (*(destinations **)(&yyvsp[-1]))->next = (*(destinations **)(&yyvsp[0])); (*(destinations **)(&yyval)) = (*(destinations **)(&yyvsp[-1])); }
-#line 2321 "conffile.tab.c" /* yacc.c:1661  */
+#line 2321 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 70:
-#line 533 "conffile.y" /* yacc.c:1661  */
+#line 533 "conffile.y" /* yacc.c:1646  */
     { (*(destinations **)(&yyval)) = NULL; }
-#line 2327 "conffile.tab.c" /* yacc.c:1661  */
+#line 2327 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 71:
-#line 534 "conffile.y" /* yacc.c:1661  */
+#line 534 "conffile.y" /* yacc.c:1646  */
     { (*(destinations **)(&yyval)) = (*(destinations **)(&yyvsp[0])); }
-#line 2333 "conffile.tab.c" /* yacc.c:1661  */
+#line 2333 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 72:
-#line 538 "conffile.y" /* yacc.c:1661  */
+#line 538 "conffile.y" /* yacc.c:1646  */
     {
 			char *err;
 			if (((*(destinations **)(&yyval)) = ra_malloc(ralloc, sizeof(destinations))) == NULL) {
@@ -2347,23 +2347,23 @@ yyreduce:
 			}
 			(*(destinations **)(&yyval))->next = NULL;
 		 }
-#line 2351 "conffile.tab.c" /* yacc.c:1661  */
+#line 2351 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 73:
-#line 553 "conffile.y" /* yacc.c:1661  */
+#line 553 "conffile.y" /* yacc.c:1646  */
     { (*(int*)(&yyval)) = 0; }
-#line 2357 "conffile.tab.c" /* yacc.c:1661  */
+#line 2357 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 74:
-#line 554 "conffile.y" /* yacc.c:1661  */
+#line 554 "conffile.y" /* yacc.c:1646  */
     { (*(int*)(&yyval)) = 1; }
-#line 2363 "conffile.tab.c" /* yacc.c:1661  */
+#line 2363 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 75:
-#line 560 "conffile.y" /* yacc.c:1661  */
+#line 560 "conffile.y" /* yacc.c:1646  */
     {
 		char *err;
 		route *r = NULL;
@@ -2404,11 +2404,11 @@ yyreduce:
 			YYERROR;
 		}
 	   }
-#line 2408 "conffile.tab.c" /* yacc.c:1661  */
+#line 2408 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 76:
-#line 610 "conffile.y" /* yacc.c:1661  */
+#line 610 "conffile.y" /* yacc.c:1646  */
     {
 		 	cluster *w;
 			aggregator *a;
@@ -2492,59 +2492,59 @@ yyreduce:
 			if ((*(destinations **)(&yyvsp[-1])) != NULL)
 				router_add_stubroute(rtr, AGGRSTUB, w, (*(destinations **)(&yyvsp[-1])));
 		 }
-#line 2496 "conffile.tab.c" /* yacc.c:1661  */
+#line 2496 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 77:
-#line 695 "conffile.y" /* yacc.c:1661  */
+#line 695 "conffile.y" /* yacc.c:1646  */
     { (*(enum _aggr_timestamp*)(&yyval)) = TS_END; }
-#line 2502 "conffile.tab.c" /* yacc.c:1661  */
+#line 2502 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 78:
-#line 698 "conffile.y" /* yacc.c:1661  */
+#line 698 "conffile.y" /* yacc.c:1646  */
     { (*(enum _aggr_timestamp*)(&yyval)) = (*(enum _aggr_timestamp*)(&yyvsp[-2])); }
-#line 2508 "conffile.tab.c" /* yacc.c:1661  */
+#line 2508 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 79:
-#line 701 "conffile.y" /* yacc.c:1661  */
+#line 701 "conffile.y" /* yacc.c:1646  */
     { (*(enum _aggr_timestamp*)(&yyval)) = TS_START; }
-#line 2514 "conffile.tab.c" /* yacc.c:1661  */
+#line 2514 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 80:
-#line 702 "conffile.y" /* yacc.c:1661  */
+#line 702 "conffile.y" /* yacc.c:1646  */
     { (*(enum _aggr_timestamp*)(&yyval)) = TS_MIDDLE; }
-#line 2520 "conffile.tab.c" /* yacc.c:1661  */
+#line 2520 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 81:
-#line 703 "conffile.y" /* yacc.c:1661  */
+#line 703 "conffile.y" /* yacc.c:1646  */
     { (*(enum _aggr_timestamp*)(&yyval)) = TS_END; }
-#line 2526 "conffile.tab.c" /* yacc.c:1661  */
+#line 2526 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 82:
-#line 707 "conffile.y" /* yacc.c:1661  */
+#line 707 "conffile.y" /* yacc.c:1646  */
     { (*(struct _agcomp **)(&yyvsp[-1]))->next = (*(struct _agcomp **)(&yyvsp[0])); (*(struct _agcomp **)(&yyval)) = (*(struct _agcomp **)(&yyvsp[-1])); }
-#line 2532 "conffile.tab.c" /* yacc.c:1661  */
+#line 2532 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 83:
-#line 710 "conffile.y" /* yacc.c:1661  */
+#line 710 "conffile.y" /* yacc.c:1646  */
     { (*(struct _agcomp **)(&yyval)) = NULL; }
-#line 2538 "conffile.tab.c" /* yacc.c:1661  */
+#line 2538 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 84:
-#line 711 "conffile.y" /* yacc.c:1661  */
+#line 711 "conffile.y" /* yacc.c:1646  */
     { (*(struct _agcomp **)(&yyval)) = (*(struct _agcomp **)(&yyvsp[0])); }
-#line 2544 "conffile.tab.c" /* yacc.c:1661  */
+#line 2544 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 85:
-#line 715 "conffile.y" /* yacc.c:1661  */
+#line 715 "conffile.y" /* yacc.c:1646  */
     {
 					(*(struct _agcomp **)(&yyval)) = ra_malloc(palloc, sizeof(struct _agcomp));
 					if ((*(struct _agcomp **)(&yyval)) == NULL) {
@@ -2556,47 +2556,47 @@ yyreduce:
 					(*(struct _agcomp **)(&yyval))->metric = (*(char **)(&yyvsp[0]));
 					(*(struct _agcomp **)(&yyval))->next = NULL;
 				 }
-#line 2560 "conffile.tab.c" /* yacc.c:1661  */
+#line 2560 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 86:
-#line 728 "conffile.y" /* yacc.c:1661  */
+#line 728 "conffile.y" /* yacc.c:1646  */
     { (*(struct _agcomp*)(&yyval)).ctype = SUM; }
-#line 2566 "conffile.tab.c" /* yacc.c:1661  */
+#line 2566 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 87:
-#line 729 "conffile.y" /* yacc.c:1661  */
+#line 729 "conffile.y" /* yacc.c:1646  */
     { (*(struct _agcomp*)(&yyval)).ctype = CNT; }
-#line 2572 "conffile.tab.c" /* yacc.c:1661  */
+#line 2572 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 88:
-#line 730 "conffile.y" /* yacc.c:1661  */
+#line 730 "conffile.y" /* yacc.c:1646  */
     { (*(struct _agcomp*)(&yyval)).ctype = MAX; }
-#line 2578 "conffile.tab.c" /* yacc.c:1661  */
+#line 2578 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 89:
-#line 731 "conffile.y" /* yacc.c:1661  */
+#line 731 "conffile.y" /* yacc.c:1646  */
     { (*(struct _agcomp*)(&yyval)).ctype = MIN; }
-#line 2584 "conffile.tab.c" /* yacc.c:1661  */
+#line 2584 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 90:
-#line 732 "conffile.y" /* yacc.c:1661  */
+#line 732 "conffile.y" /* yacc.c:1646  */
     { (*(struct _agcomp*)(&yyval)).ctype = AVG; }
-#line 2590 "conffile.tab.c" /* yacc.c:1661  */
+#line 2590 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 91:
-#line 733 "conffile.y" /* yacc.c:1661  */
+#line 733 "conffile.y" /* yacc.c:1646  */
     { (*(struct _agcomp*)(&yyval)).ctype = MEDN; }
-#line 2596 "conffile.tab.c" /* yacc.c:1661  */
+#line 2596 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 92:
-#line 735 "conffile.y" /* yacc.c:1661  */
+#line 735 "conffile.y" /* yacc.c:1646  */
     {
 				    if ((*(int*)(&yyvsp[0])) < 1 || (*(int*)(&yyvsp[0])) > 99) {
 						router_yyerror(&yylloc, yyscanner, rtr, ralloc, palloc,
@@ -2606,35 +2606,35 @@ yyreduce:
 				   	(*(struct _agcomp*)(&yyval)).ctype = PCTL;
 					(*(struct _agcomp*)(&yyval)).pctl = (unsigned char)(*(int*)(&yyvsp[0]));
 				   }
-#line 2610 "conffile.tab.c" /* yacc.c:1661  */
+#line 2610 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 93:
-#line 744 "conffile.y" /* yacc.c:1661  */
+#line 744 "conffile.y" /* yacc.c:1646  */
     { (*(struct _agcomp*)(&yyval)).ctype = VAR; }
-#line 2616 "conffile.tab.c" /* yacc.c:1661  */
+#line 2616 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 94:
-#line 745 "conffile.y" /* yacc.c:1661  */
+#line 745 "conffile.y" /* yacc.c:1646  */
     { (*(struct _agcomp*)(&yyval)).ctype = SDEV; }
-#line 2622 "conffile.tab.c" /* yacc.c:1661  */
+#line 2622 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 95:
-#line 748 "conffile.y" /* yacc.c:1661  */
+#line 748 "conffile.y" /* yacc.c:1646  */
     { (*(destinations **)(&yyval)) = NULL; }
-#line 2628 "conffile.tab.c" /* yacc.c:1661  */
+#line 2628 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 96:
-#line 749 "conffile.y" /* yacc.c:1661  */
+#line 749 "conffile.y" /* yacc.c:1646  */
     { (*(destinations **)(&yyval)) = (*(destinations **)(&yyvsp[0])); }
-#line 2634 "conffile.tab.c" /* yacc.c:1661  */
+#line 2634 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 97:
-#line 755 "conffile.y" /* yacc.c:1661  */
+#line 755 "conffile.y" /* yacc.c:1646  */
     {
 		char *err = router_set_statistics(rtr, (*(destinations **)(&yyvsp[-1])));
 		if (err != NULL) {
@@ -2645,11 +2645,11 @@ yyreduce:
 				"removed in a future version, use 'statistics send to ...' "
 				"instead\n");
 	}
-#line 2649 "conffile.tab.c" /* yacc.c:1661  */
+#line 2649 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 98:
-#line 775 "conffile.y" /* yacc.c:1661  */
+#line 775 "conffile.y" /* yacc.c:1646  */
     {
 		  	char *err;
 		  	err = router_set_collectorvals(rtr, (*(int*)(&yyvsp[-4])), (*(char **)(&yyvsp[-2])), (*(col_mode*)(&yyvsp[-3])));
@@ -2667,17 +2667,17 @@ yyreduce:
 				}
 			}
 		  }
-#line 2671 "conffile.tab.c" /* yacc.c:1661  */
+#line 2671 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 99:
-#line 794 "conffile.y" /* yacc.c:1661  */
+#line 794 "conffile.y" /* yacc.c:1646  */
     { (*(int*)(&yyval)) = -1; }
-#line 2677 "conffile.tab.c" /* yacc.c:1661  */
+#line 2677 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 100:
-#line 796 "conffile.y" /* yacc.c:1661  */
+#line 796 "conffile.y" /* yacc.c:1646  */
     {
 					   	if ((*(int*)(&yyvsp[-1])) <= 0) {
 							router_yyerror(&yylloc, yyscanner, rtr,
@@ -2686,35 +2686,35 @@ yyreduce:
 						}
 						(*(int*)(&yyval)) = (*(int*)(&yyvsp[-1]));
 					   }
-#line 2690 "conffile.tab.c" /* yacc.c:1661  */
+#line 2690 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 101:
-#line 806 "conffile.y" /* yacc.c:1661  */
+#line 806 "conffile.y" /* yacc.c:1646  */
     { (*(col_mode*)(&yyval)) = CUM; }
-#line 2696 "conffile.tab.c" /* yacc.c:1661  */
+#line 2696 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 102:
-#line 807 "conffile.y" /* yacc.c:1661  */
+#line 807 "conffile.y" /* yacc.c:1646  */
     { (*(col_mode*)(&yyval)) = SUB; }
-#line 2702 "conffile.tab.c" /* yacc.c:1661  */
+#line 2702 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 103:
-#line 810 "conffile.y" /* yacc.c:1661  */
+#line 810 "conffile.y" /* yacc.c:1646  */
     { (*(char **)(&yyval)) = NULL; }
-#line 2708 "conffile.tab.c" /* yacc.c:1661  */
+#line 2708 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 104:
-#line 811 "conffile.y" /* yacc.c:1661  */
+#line 811 "conffile.y" /* yacc.c:1646  */
     { (*(char **)(&yyval)) = (*(char **)(&yyvsp[0])); }
-#line 2714 "conffile.tab.c" /* yacc.c:1661  */
+#line 2714 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 105:
-#line 817 "conffile.y" /* yacc.c:1661  */
+#line 817 "conffile.y" /* yacc.c:1646  */
     {
 	  	struct _rcptr *walk;
 		char *err;
@@ -2730,11 +2730,11 @@ yyreduce:
 			}
 		}
 	  }
-#line 2734 "conffile.tab.c" /* yacc.c:1661  */
+#line 2734 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 106:
-#line 835 "conffile.y" /* yacc.c:1661  */
+#line 835 "conffile.y" /* yacc.c:1646  */
     {
 			if (((*(struct _lsnr **)(&yyval)) = ra_malloc(palloc, sizeof(struct _lsnr))) == NULL) {
 				logerr("malloc failed\n");
@@ -2756,11 +2756,11 @@ yyreduce:
 				}
 			}
 		}
-#line 2760 "conffile.tab.c" /* yacc.c:1661  */
+#line 2760 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 107:
-#line 858 "conffile.y" /* yacc.c:1661  */
+#line 858 "conffile.y" /* yacc.c:1646  */
     {
 							if (((*(struct _rcptr_trsp **)(&yyval)) = ra_malloc(palloc,
 									sizeof(struct _rcptr_trsp))) == NULL)
@@ -2770,11 +2770,11 @@ yyreduce:
 							}
 							(*(struct _rcptr_trsp **)(&yyval))->mode = W_PLAIN;
 						}
-#line 2774 "conffile.tab.c" /* yacc.c:1661  */
+#line 2774 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 108:
-#line 867 "conffile.y" /* yacc.c:1661  */
+#line 867 "conffile.y" /* yacc.c:1646  */
     {
 #ifdef HAVE_GZIP
 							if (((*(struct _rcptr_trsp **)(&yyval)) = ra_malloc(palloc,
@@ -2791,11 +2791,11 @@ yyreduce:
 							YYERROR;
 #endif
 						}
-#line 2795 "conffile.tab.c" /* yacc.c:1661  */
+#line 2795 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 109:
-#line 883 "conffile.y" /* yacc.c:1661  */
+#line 883 "conffile.y" /* yacc.c:1646  */
     {
 #ifdef HAVE_LZ4
 							if (((*(struct _rcptr_trsp **)(&yyval)) = ra_malloc(palloc,
@@ -2812,11 +2812,11 @@ yyreduce:
 							YYERROR;
 #endif
 						}
-#line 2816 "conffile.tab.c" /* yacc.c:1661  */
+#line 2816 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 110:
-#line 899 "conffile.y" /* yacc.c:1661  */
+#line 899 "conffile.y" /* yacc.c:1646  */
     {
 #ifdef HAVE_SSL
 							if (((*(struct _rcptr_trsp **)(&yyval)) = ra_malloc(palloc,
@@ -2834,29 +2834,29 @@ yyreduce:
 							YYERROR;
 #endif
 						}
-#line 2838 "conffile.tab.c" /* yacc.c:1661  */
+#line 2838 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 111:
-#line 918 "conffile.y" /* yacc.c:1661  */
+#line 918 "conffile.y" /* yacc.c:1646  */
     { (*(struct _rcptr **)(&yyvsp[-1]))->next = (*(struct _rcptr **)(&yyvsp[0])); (*(struct _rcptr **)(&yyval)) = (*(struct _rcptr **)(&yyvsp[-1])); }
-#line 2844 "conffile.tab.c" /* yacc.c:1661  */
+#line 2844 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 112:
-#line 921 "conffile.y" /* yacc.c:1661  */
+#line 921 "conffile.y" /* yacc.c:1646  */
     { (*(struct _rcptr **)(&yyval)) = NULL; }
-#line 2850 "conffile.tab.c" /* yacc.c:1661  */
+#line 2850 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 113:
-#line 922 "conffile.y" /* yacc.c:1661  */
+#line 922 "conffile.y" /* yacc.c:1646  */
     { (*(struct _rcptr **)(&yyval)) = (*(struct _rcptr **)(&yyvsp[0]));   }
-#line 2856 "conffile.tab.c" /* yacc.c:1661  */
+#line 2856 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 114:
-#line 926 "conffile.y" /* yacc.c:1661  */
+#line 926 "conffile.y" /* yacc.c:1646  */
     {
 			char *err;
 			void *hint = NULL;
@@ -2893,11 +2893,11 @@ yyreduce:
 			free(hint);
 			(*(struct _rcptr **)(&yyval))->next = NULL;
 		}
-#line 2897 "conffile.tab.c" /* yacc.c:1661  */
+#line 2897 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 115:
-#line 963 "conffile.y" /* yacc.c:1661  */
+#line 963 "conffile.y" /* yacc.c:1646  */
     {
 			char *err;
 
@@ -2917,32 +2917,32 @@ yyreduce:
 			}
 			(*(struct _rcptr **)(&yyval))->next = NULL;
 		}
-#line 2921 "conffile.tab.c" /* yacc.c:1661  */
+#line 2921 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 116:
-#line 984 "conffile.y" /* yacc.c:1661  */
+#line 984 "conffile.y" /* yacc.c:1646  */
     { (*(con_proto*)(&yyval)) = CON_TCP; }
-#line 2927 "conffile.tab.c" /* yacc.c:1661  */
+#line 2927 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 117:
-#line 985 "conffile.y" /* yacc.c:1661  */
+#line 985 "conffile.y" /* yacc.c:1646  */
     { (*(con_proto*)(&yyval)) = CON_UDP; }
-#line 2933 "conffile.tab.c" /* yacc.c:1661  */
+#line 2933 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
   case 118:
-#line 991 "conffile.y" /* yacc.c:1661  */
+#line 991 "conffile.y" /* yacc.c:1646  */
     {
 	   	if (router_readconfig(rtr, (*(char **)(&yyvsp[0])), 0, 0, 0, 0, 0, 0, 0) == NULL)
 			YYERROR;
 	   }
-#line 2942 "conffile.tab.c" /* yacc.c:1661  */
+#line 2942 "conffile.tab.c" /* yacc.c:1646  */
     break;
 
 
-#line 2946 "conffile.tab.c" /* yacc.c:1661  */
+#line 2946 "conffile.tab.c" /* yacc.c:1646  */
       default: break;
     }
   /* User semantic actions sometimes alter yychar, and that requires
