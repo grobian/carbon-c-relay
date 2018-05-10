@@ -109,6 +109,7 @@ CRTESTS = \
 	issue288 \
 	issue293 \
 	issue310 \
+	server-type \
 	$(NULL)
 
 test: check

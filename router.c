@@ -651,7 +651,22 @@ router_add_server(
 			s->refcnt = 1;
 			s->server = newserver;
 		}
-		
+
+		/* check if the type matches */
+		if (s->refcnt > 1 && type != server_type(newserver)) {
+			freeaddrinfo(saddrs);
+			if (hint)
+				free(hint);
+			snprintf(errbuf, sizeof(errbuf),
+					"cannot set type '%s' for "
+					"server %s:%d: server was previously "
+					"defined with type '%s'",
+					con_type_str[type], serverip(newserver),
+					server_port(newserver),
+					con_type_str[server_type(newserver)]);
+			return ra_strdup(ret->a, errbuf);
+		}
+
 		/* check instance matches the existing server */
 		if (s->refcnt > 1) {
 			char *sinst = server_instance(newserver);

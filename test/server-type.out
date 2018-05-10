@@ -1,0 +1,4 @@
+server-type.conf:11:1: cannot set type 'linemode' for server 127.0.0.1:2020: server was previously defined with type 'syslog'
+	;
+	^
+failed to read configuration 'server-type.conf'
