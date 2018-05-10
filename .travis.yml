@@ -37,7 +37,7 @@ script:
       ./configure || { cat config.log ; exit 1 ; }
       curl -s 'https://scan.coverity.com/scripts/travisci_build_coverity_scan.sh' | bash
     else
-      v() { echo "$@"; "$@" }
+      v() { echo "$@"; "$@"; }
       # everything disabled, this MUST work
       echo "==> base test, all disabled"
       v ./configure --without-gzip --without-lz4 --without-ssl \
