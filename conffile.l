@@ -81,6 +81,7 @@ cluster				{
 <idcl>tcp				return crTCP;
 <idcl>type				return crTYPE;
 <idcl>linemode			return crLINEMODE;
+<idcl>syslog			return crSYSLOGMODE;
 <idcl>transport			return crTRANSPORT;
 <idcl>gzip				return crGZIP;
 <idcl>lz4				return crLZ4;

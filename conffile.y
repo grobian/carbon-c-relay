@@ -18,6 +18,7 @@ struct _clhost {
 	int port;
 	char *inst;
 	int proto;
+	con_type type;
 	con_trnsp trnsp;
 	void *saddr;
 	void *hint;
@@ -66,6 +67,7 @@ struct _rcptr_trsp {
 %type <struct _clust> cluster_type cluster_file
 %type <int> cluster_opt_repl cluster_opt_useall
 %type <con_proto> cluster_opt_proto
+%type <con_type> cluster_opt_type
 %type <char *> cluster_opt_instance
 %type <cluster *> cluster
 %type <struct _clhost *> cluster_host cluster_hosts cluster_opt_host
@@ -104,7 +106,7 @@ struct _rcptr_trsp {
 %type <char *> statistics_opt_prefix
 
 %token crLISTEN
-%token crTYPE crLINEMODE crTRANSPORT crGZIP crLZ4 crSSL crUNIX
+%token crTYPE crLINEMODE crSYSLOGMODE crTRANSPORT crGZIP crLZ4 crSSL crUNIX
 %type <con_proto> rcptr_proto
 %type <struct _rcptr *> receptor opt_receptor receptors
 %type <struct _rcptr_trsp *> transport_mode
@@ -191,7 +193,7 @@ cluster: crCLUSTER crSTRING[name] cluster_type[type] cluster_hosts[servers]
 		
 		for (w = $servers; w != NULL; w = w->next) {
 			err = router_add_server(rtr, w->ip, w->port, w->inst,
-					T_LINEMODE, w->trnsp, w->proto,
+					w->type, w->trnsp, w->proto,
 					w->saddr, w->hint, $type.ival, $$);
 			if (err != NULL) {
 				router_yyerror(&yylloc, yyscanner, rtr, ralloc, palloc, err);
@@ -320,6 +322,7 @@ cluster_host: crSTRING[ip] cluster_opt_instance[inst]
 				}
 				ret->inst = $inst;
 				ret->proto = $prot;
+				ret->type = $type;
 				ret->trnsp = $trnsp;
 				ret->next = NULL;
 				$$ = ret;
@@ -342,8 +345,9 @@ cluster_opt_proto:               { $$ = CON_TCP; }
 				 | crPROTO crTCP { $$ = CON_TCP; }
 				 ;
 
-cluster_opt_type:
-				| crTYPE crLINEMODE
+cluster_opt_type:                     { $$ = T_LINEMODE; }
+				| crTYPE crLINEMODE   { $$ = T_LINEMODE; }
+				| crTYPE crSYSLOGMODE { $$ = T_SYSLOGMODE; }
 				;
 
 cluster_opt_transport:                      { $$ = W_PLAIN; }

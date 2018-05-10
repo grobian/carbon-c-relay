@@ -1762,7 +1762,8 @@ router_printconfig(router *rtr, FILE *f, char pmode)
 #define PPROTO \
 	server_ctype(s->server) == CON_UDP ? " proto udp" : ""
 #define PTYPE \
-	server_type(s->server) == T_LINEMODE ? "" : " type ???"
+	server_type(s->server) == T_LINEMODE ? "" : \
+	server_type(s->server) == T_SYSLOGMODE ? " syslog" : " type ???"
 #define PTRNSP \
 	server_transport(s->server) == W_PLAIN ? "" : \
 	server_transport(s->server) == W_GZIP  ? " transport gzip" : \
@@ -2551,6 +2552,25 @@ router_route_intern(
 		return 1; \
 	}
 
+#define fmtmetric(RET, POS, SRCADDR, CBUFF, NBUFF) \
+    if (server_type(RET[*POS].dest) == T_SYSLOGMODE) { \
+        time_t now; \
+        struct tm tm_now; \
+        char ts_now[17]; \
+        char *srcaddr_default = "127.0.0.1"; \
+        char *srcaddr_f = SRCADDR; \
+        \
+        time(&now); \
+        localtime_r(&now, &tm_now); \
+        strftime(ts_now, sizeof(ts_now), "%b %e %H:%M:%S", &tm_now); \
+        if (strlen(SRCADDR) == 0) { \
+            srcaddr_f = srcaddr_default; \
+        } \
+        snprintf(NBUFF, sizeof(NBUFF), "<30>%s %s crelay: %s", ts_now, srcaddr_f, CBUFF); \
+        RET[(*POS)++].metric = strdup(NBUFF); \
+    } else { \
+        RET[(*POS)++].metric = strdup(CBUFF); \
+    }
 
 	for (w = r; w != NULL; w = w->next) {
 		if (w->dests->cl->type == GROUP) {
@@ -2611,7 +2631,7 @@ router_route_intern(
 						{
 							failif(retsize, *curlen + 1);
 							ret[*curlen].dest = s->server;
-							ret[(*curlen)++].metric = strdup(metric);
+							fmtmetric(ret, curlen, srcaddr, metric, newmetric);
 						}
 						wassent = 1;
 					}	break;
@@ -2630,8 +2650,8 @@ router_route_intern(
 						hash %= d->cl->members.anyof->count;
 						failif(retsize, *curlen + 1);
 						ret[*curlen].dest =
-							d->cl->members.anyof->servers[hash];
-						ret[(*curlen)++].metric = strdup(metric);
+						    d->cl->members.anyof->servers[hash];
+						fmtmetric(ret, curlen, srcaddr, metric, newmetric);
 						wassent = 1;
 					}	break;
 					case FAILOVER: {
@@ -2651,7 +2671,8 @@ router_route_intern(
 							/* all failed, take first server */
 							ret[*curlen].dest =
 								d->cl->members.anyof->servers[0];
-						ret[(*curlen)++].metric = strdup(metric);
+
+						fmtmetric(ret, curlen, srcaddr, metric, newmetric);
 						wassent = 1;
 					}	break;
 					case CARBON_CH:
@@ -2682,7 +2703,7 @@ router_route_intern(
 								w->masq ? newmetric : metric,
 								w->masq ? newfirstspace : firstspace);
 						for (i = 0; i < d->cl->members.ch->repl_factor; i++)
-							ret[(*curlen)++].metric = strdup(metric);
+							fmtmetric(ret, curlen, srcaddr, metric, newmetric);
 						wassent = 1;
 					}	break;
 					case AGGREGATION: {
