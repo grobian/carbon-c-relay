@@ -1700,7 +1700,7 @@ router_getcollectormode(router *rtr)
  * Sets the collector interval in seconds, the metric prefix string, and
  * the emission mode (cumulative or sum).
  */
-inline char *
+char *
 router_set_collectorvals(router *rtr, int intv, char *prefix, col_mode smode)
 {
 	if (intv >= 0)
@@ -2368,7 +2368,7 @@ router_metric_matches(
 	return ret;
 }
 
-inline size_t
+size_t
 router_rewrite_metric(
 		char (*newmetric)[METRIC_BUFSIZ],
 		char **newfirstspace,
