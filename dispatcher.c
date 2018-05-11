@@ -531,7 +531,7 @@ dispatch_addconnection(int sock, listener *lsnr)
 	}
 	connections[c].sock = sock;
 	if (lsnr == NULL || lsnr->transport == W_PLAIN) {
-		if (lsnr->ctype != CON_UDP) {
+		if (lsnr == NULL || lsnr->ctype != CON_UDP) {
 			int *strm = malloc(sizeof(connections[c].sock));
 			if (strm == NULL) {
 				logerr("cannot add new connection: "
