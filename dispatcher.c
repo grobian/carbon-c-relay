@@ -134,6 +134,30 @@ sockclose(void *strm)
 	return ret;
 }
 
+/* udp variant (in order to receive info about sender) */
+struct udp_strm {
+	int sock;
+	struct sockaddr saddr;
+	char *srcaddr[24];
+};
+
+static inline ssize_t
+udpsockread(void *strm, void *buf, size_t sze)
+{
+	struct udp_strm *s = (struct udp_strm *)strm;
+	socklen_t slen = sizeof(s->saddr);
+	return recvfrom(s->sock, buf, sze, 0, &s->saddr, &slen);
+}
+
+static inline int
+udpsockclose(void *strm)
+{
+	struct udp_strm *s = (struct udp_strm *)strm;
+	int ret = close(s->sock);
+	free(strm);
+	return ret;
+}
+
 #ifdef HAVE_GZIP
 /* gzip wrapped socket */
 static inline ssize_t
@@ -507,17 +531,31 @@ dispatch_addconnection(int sock, listener *lsnr)
 	}
 	connections[c].sock = sock;
 	if (lsnr == NULL || lsnr->transport == W_PLAIN) {
-		int *strm = malloc(sizeof(connections[c].sock));
-		if (strm == NULL) {
-			logerr("cannot add new connection: "
-					"out of memory allocating stream\n");
-			__sync_bool_compare_and_swap(&(connections[c].takenby), -2, -1);
-			return -1;
+		if (lsnr->ctype != CON_UDP) {
+			int *strm = malloc(sizeof(connections[c].sock));
+			if (strm == NULL) {
+				logerr("cannot add new connection: "
+						"out of memory allocating stream\n");
+				__sync_bool_compare_and_swap(&(connections[c].takenby), -2, -1);
+				return -1;
+			}
+			*strm = sock;
+			connections[c].strm = strm;
+			connections[c].strmread = &sockread;
+			connections[c].strmclose = &sockclose;
+		} else {
+			struct udp_strm *strm = malloc(sizeof(struct udp_strm));
+			if (strm == NULL) {
+				logerr("cannot add new connection: "
+						"out of memory allocating udp stream\n");
+				__sync_bool_compare_and_swap(&(connections[c].takenby), -2, -1);
+				return -1;
+			}
+			strm->sock = sock;
+			connections[c].strm = strm;
+			connections[c].strmread = &udpsockread;
+			connections[c].strmclose = &udpsockclose;
 		}
-		*strm = sock;
-		connections[c].strm = strm;
-		connections[c].strmread = &sockread;
-		connections[c].strmclose = &sockclose;
 	}
 #ifdef HAVE_GZIP
 	else if (lsnr->transport == W_GZIP) {
