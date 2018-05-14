@@ -697,13 +697,13 @@ server_queuereader(void *d)
 		}
 
 		for (; *metric != NULL; metric++) {
-			len = strlen(*metric);
+			len = *(size_t *)(*metric);
 			/* Write to the stream, this may not succeed completely due
 			 * to flow control and whatnot, which the docs suggest need
 			 * resuming to complete.  So, use a loop, but to avoid
 			 * getting endlessly stuck on this, only try a limited
 			 * number of times for a single metric. */
-			for (cnt = 0, p = *metric; cnt < 10; cnt++) {
+			for (cnt = 0, p = *metric + sizeof(size_t); cnt < 10; cnt++) {
 				if ((slen = self->strmwrite(self->strm, p, len)) != len) {
 					if (slen >= 0) {
 						p += slen;
@@ -734,7 +734,8 @@ server_queuereader(void *d)
 					if (!queue_putback(self->queue, *metric)) {
 						if (mode & MODE_DEBUG)
 							logerr("server %s:%u: dropping metric: %s",
-									self->ip, self->port, *metric);
+									self->ip, self->port,
+									*metric + sizeof(size_t));
 						free((char *)*metric);
 						__sync_add_and_fetch(&(self->dropped), 1);
 					}

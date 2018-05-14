@@ -2557,6 +2557,60 @@ router_rewrite_metric(
 	return 0;  /* we couldn't copy everything */
 }
 
+static inline const char *
+router_format_linemode(
+		const char *in,
+		char *out,
+		size_t *outlen,
+		char *srcaddr)
+{
+	(void)out;
+	*outlen = strlen(in);
+	return in;
+}
+
+static inline const char *
+router_format_linemodeip(
+		const char *in,
+		char *out,
+		size_t *outlen,
+		char *srcaddr)
+{
+	*outlen = snprintf(out, *outlen, "%s %s", srcaddr, in);
+	return out;
+}
+
+static inline const char *
+router_format_syslog(
+		const char *in,
+		char *out,
+		size_t *outlen,
+		char *srcaddr)
+{
+	time_t now;
+	struct tm tm_now;
+	char ts_now[32];
+
+	time(&now);
+	gmtime_r(&now, &tm_now);
+	/* https://tools.ietf.org/html/rfc5424#section-6.2.3 */
+	strftime(ts_now, sizeof(ts_now), "%Y-%m-%dT%H:%M:%S.000Z", &tm_now);
+	/* https://tools.ietf.org/html/rfc5424#section-6
+	 * PRI = 3 (system daemons) * 8 + 6 (informational)
+	 * VERSION = 1
+	 * TIMESTAMP = see above
+	 * HOSTNAME = src address
+	 * APP-NAME = carbon-c-relay
+	 * PROCID = - (NILVALUE)
+	 * MSGID = - (NILVALUE)
+	 * STRUCTURED-DATA = - (NILVALUE)
+	 * MSG = metric */
+	*outlen = snprintf(out, *outlen,
+			"<30>1 %s %s carbon-c-relay - - - %s",
+			ts_now, srcaddr, in);
+	return out;
+}
+
 static char
 router_route_intern(
 		char *blackholed,
@@ -2578,6 +2632,7 @@ router_route_intern(
 	const char *t;
 	char newmetric[METRIC_BUFSIZ];
 	char *newfirstspace = NULL;
+	const char *fmtmetric;
 	size_t len;
 	regmatch_t pmatch[RE_MAX_MATCHES];
 
@@ -2587,26 +2642,6 @@ router_route_intern(
 				"increase CONN_DESTS_SIZE in router.h\n"); \
 		return 1; \
 	}
-
-#define fmtmetric(RET, POS, SRCADDR, CBUFF, NBUFF) \
-    if (server_type(RET[*POS].dest) == T_SYSLOGMODE) { \
-        time_t now; \
-        struct tm tm_now; \
-        char ts_now[17]; \
-        char *srcaddr_default = "127.0.0.1"; \
-        char *srcaddr_f = SRCADDR; \
-        \
-        time(&now); \
-        localtime_r(&now, &tm_now); \
-        strftime(ts_now, sizeof(ts_now), "%b %e %H:%M:%S", &tm_now); \
-        if (strlen(SRCADDR) == 0) { \
-            srcaddr_f = srcaddr_default; \
-        } \
-        snprintf(NBUFF, sizeof(NBUFF), "<30>%s %s crelay: %s", ts_now, srcaddr_f, CBUFF); \
-        RET[(*POS)++].metric = strdup(NBUFF); \
-    } else { \
-        RET[(*POS)++].metric = strdup(CBUFF); \
-    }
 
 	for (w = r; w != NULL; w = w->next) {
 		if (w->dests->cl->type == GROUP) {
@@ -2645,19 +2680,35 @@ router_route_intern(
 			stop = w->stop;
 			/* rule matches, send to destination(s) */
 			for (d = w->dests; d != NULL; d = d->next) {
+#define produce_metric(RET) \
+				len = sizeof(newmetric); \
+				if (server_type(RET.dest) == T_SYSLOGMODE) { \
+					fmtmetric = router_format_syslog( \
+							metric, newmetric, &len, srcaddr); \
+				} else { \
+					fmtmetric = router_format_linemode( \
+							metric, newmetric, &len, srcaddr); \
+				}
+#define set_metric(RET) \
+				RET.metric = malloc(sizeof(char) * len + sizeof(len)); \
+				*((size_t *)RET.metric) = len; \
+				memcpy((void *)(RET.metric + sizeof(len)), fmtmetric, len);
+
 				switch (d->cl->type) {
 					case BLACKHOLE:
 						*blackholed = 1;
 						break;
 					case FILELOGIP: {
 						servers *s;
-						snprintf(newmetric, sizeof(newmetric), "%s %s",
-								srcaddr, metric);
+						len = sizeof(newmetric);
+						fmtmetric = router_format_linemodeip(
+								metric, newmetric, &len, srcaddr);
 						for (s = d->cl->members.forward; s != NULL; s = s->next)
 						{
 							failif(retsize, *curlen + 1);
 							ret[*curlen].dest = s->server;
-							ret[(*curlen)++].metric = strdup(newmetric);
+							set_metric(ret[*curlen]);
+							(*curlen)++;
 						}
 						wassent = 1;
 					}	break;
@@ -2669,7 +2720,9 @@ router_route_intern(
 						{
 							failif(retsize, *curlen + 1);
 							ret[*curlen].dest = s->server;
-							fmtmetric(ret, curlen, srcaddr, metric, newmetric);
+							produce_metric(ret[*curlen]);
+							set_metric(ret[*curlen]);
+							(*curlen)++;
 						}
 						wassent = 1;
 					}	break;
@@ -2688,8 +2741,10 @@ router_route_intern(
 						hash %= d->cl->members.anyof->count;
 						failif(retsize, *curlen + 1);
 						ret[*curlen].dest =
-						    d->cl->members.anyof->servers[hash];
-						fmtmetric(ret, curlen, srcaddr, metric, newmetric);
+							d->cl->members.anyof->servers[hash];
+						produce_metric(ret[*curlen]);
+						set_metric(ret[*curlen]);
+						(*curlen)++;
 						wassent = 1;
 					}	break;
 					case FAILOVER: {
@@ -2710,7 +2765,9 @@ router_route_intern(
 							ret[*curlen].dest =
 								d->cl->members.anyof->servers[0];
 
-						fmtmetric(ret, curlen, srcaddr, metric, newmetric);
+						produce_metric(ret[*curlen]);
+						set_metric(ret[*curlen]);
+						(*curlen)++;
 						wassent = 1;
 					}	break;
 					case CARBON_CH:
@@ -2740,8 +2797,11 @@ router_route_intern(
 								d->cl->members.ch->repl_factor,
 								w->masq ? newmetric : metric,
 								w->masq ? newfirstspace : firstspace);
-						for (i = 0; i < d->cl->members.ch->repl_factor; i++)
-							fmtmetric(ret, curlen, srcaddr, metric, newmetric);
+						for (i = 0; i < d->cl->members.ch->repl_factor; i++) {
+							produce_metric(ret[*curlen]);
+							set_metric(ret[*curlen]);
+							(*curlen)++;
+						}
 						wassent = 1;
 					}	break;
 					case AGGREGATION: {
