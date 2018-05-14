@@ -137,16 +137,36 @@ sockclose(void *strm)
 /* udp variant (in order to receive info about sender) */
 struct udp_strm {
 	int sock;
-	struct sockaddr saddr;
-	char *srcaddr[24];
+	struct sockaddr_in6 saddr;
+	char *srcaddr;
+	size_t srcaddrlen;
 };
 
 static inline ssize_t
 udpsockread(void *strm, void *buf, size_t sze)
 {
+	ssize_t ret;
 	struct udp_strm *s = (struct udp_strm *)strm;
 	socklen_t slen = sizeof(s->saddr);
-	return recvfrom(s->sock, buf, sze, 0, &s->saddr, &slen);
+	ret = recvfrom(s->sock, buf, sze, 0, (struct sockaddr *)&s->saddr, &slen);
+	if (ret <= 0)
+		return ret;
+
+	/* figure out who's calling */
+	s->srcaddr[0] = '\0';
+	switch (s->saddr.sin6_family) {
+		case PF_INET:
+			inet_ntop(s->saddr.sin6_family,
+					&((struct sockaddr_in *)&s->saddr)->sin_addr,
+					s->srcaddr, s->srcaddrlen);
+			break;
+		case PF_INET6:
+			inet_ntop(s->saddr.sin6_family, &s->saddr.sin6_addr,
+					s->srcaddr, s->srcaddrlen);
+			break;
+	}
+
+	return ret;
 }
 
 static inline int
@@ -552,6 +572,8 @@ dispatch_addconnection(int sock, listener *lsnr)
 				return -1;
 			}
 			strm->sock = sock;
+			strm->srcaddr = connections[c].srcaddr;
+			strm->srcaddrlen = sizeof(connections[c].srcaddr);
 			connections[c].strm = strm;
 			connections[c].strmread = &udpsockread;
 			connections[c].strmclose = &udpsockclose;
