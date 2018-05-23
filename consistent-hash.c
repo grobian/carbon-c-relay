@@ -235,8 +235,9 @@ ch_new(allocator *a, ch_type type, int servercnt)
  * on the hashpos function.  The server name usually is the IPv4
  * address.  The port component is just stored and not used in the
  * carbon hash calculation in case of carbon_ch.  The instance component
- * is used in the hash calculation of carbon_ch, it is ignored for
- * fnv1a_ch.  Returns an updated ring once the last server is added.
+ * is used in addition in the hash calculation of carbon_ch.  For
+ * fnv1a_ch it is used solely when defined, e.g. disregarding host and
+ * port.  Returns an updated ring once the last server is added.
  */
 ch_ring *
 ch_addnode(ch_ring *ring, server *s)
