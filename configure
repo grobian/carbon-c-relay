@@ -5231,9 +5231,9 @@ if eval test \"x\$"$as_ac_Lib"\" = x"yes"; then :
 
 $as_echo "#define HAVE_SSL 1" >>confdefs.h
 
-					{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for OPENSSL_add_all_algorithms_noconf in -lcrypto" >&5
-$as_echo_n "checking for OPENSSL_add_all_algorithms_noconf in -lcrypto... " >&6; }
-if ${ac_cv_lib_crypto_OPENSSL_add_all_algorithms_noconf+:} false; then :
+					{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for ERR_reason_error_string in -lcrypto" >&5
+$as_echo_n "checking for ERR_reason_error_string in -lcrypto... " >&6; }
+if ${ac_cv_lib_crypto_ERR_reason_error_string+:} false; then :
   $as_echo_n "(cached) " >&6
 else
   ac_check_lib_save_LIBS=$LIBS
@@ -5247,27 +5247,27 @@ cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 #ifdef __cplusplus
 extern "C"
 #endif
-char OPENSSL_add_all_algorithms_noconf ();
+char ERR_reason_error_string ();
 int
 main ()
 {
-return OPENSSL_add_all_algorithms_noconf ();
+return ERR_reason_error_string ();
   ;
   return 0;
 }
 _ACEOF
 if ac_fn_c_try_link "$LINENO"; then :
-  ac_cv_lib_crypto_OPENSSL_add_all_algorithms_noconf=yes
+  ac_cv_lib_crypto_ERR_reason_error_string=yes
 else
-  ac_cv_lib_crypto_OPENSSL_add_all_algorithms_noconf=no
+  ac_cv_lib_crypto_ERR_reason_error_string=no
 fi
 rm -f core conftest.err conftest.$ac_objext \
     conftest$ac_exeext conftest.$ac_ext
 LIBS=$ac_check_lib_save_LIBS
 fi
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_crypto_OPENSSL_add_all_algorithms_noconf" >&5
-$as_echo "$ac_cv_lib_crypto_OPENSSL_add_all_algorithms_noconf" >&6; }
-if test "x$ac_cv_lib_crypto_OPENSSL_add_all_algorithms_noconf" = xyes; then :
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_crypto_ERR_reason_error_string" >&5
+$as_echo "$ac_cv_lib_crypto_ERR_reason_error_string" >&6; }
+if test "x$ac_cv_lib_crypto_ERR_reason_error_string" = xyes; then :
   LIBSSL="${LIBSSL} -lcrypto"
 fi
 
