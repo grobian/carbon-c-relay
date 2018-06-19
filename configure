@@ -5241,6 +5241,15 @@ LIBS="-lcrypto  $LIBS"
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 
+#include <openssl/opensslv.h>
+
+#if OPENSSL_VERSION_NUMBER >= 0x1010000fL
+
+#include <openssl/crypto.h>
+#include <openssl/evp.h>
+
+#else /* OPENSSL_VERSION_NUMBER >= 0x1010000fL */
+
 /* Override any GCC internal prototype to avoid an error.
    Use char because int might match the return type of a GCC
    builtin and then its argument prototype would still apply.  */
@@ -5248,6 +5257,9 @@ cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 extern "C"
 #endif
 char OPENSSL_add_all_algorithms_noconf ();
+
+#endif /* OPENSSL_VERSION_NUMBER >= 0x1010000fL */
+
 int
 main ()
 {
