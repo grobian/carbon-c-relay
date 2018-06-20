@@ -5480,14 +5480,14 @@ fi
 
 done
 
-	   as_ac_Lib=`$as_echo "ac_cv_lib_pcreposix${LIBPRCRE}''_regexec" | $as_tr_sh`
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for regexec in -lpcreposix${LIBPRCRE}" >&5
-$as_echo_n "checking for regexec in -lpcreposix${LIBPRCRE}... " >&6; }
+	   as_ac_Lib=`$as_echo "ac_cv_lib_pcreposix${LIBPCRE}''_regexec" | $as_tr_sh`
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for regexec in -lpcreposix${LIBPCRE}" >&5
+$as_echo_n "checking for regexec in -lpcreposix${LIBPCRE}... " >&6; }
 if eval \${$as_ac_Lib+:} false; then :
   $as_echo_n "(cached) " >&6
 else
   ac_check_lib_save_LIBS=$LIBS
-LIBS="-lpcreposix${LIBPRCRE}  $LIBS"
+LIBS="-lpcreposix${LIBPCRE}  $LIBS"
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 
