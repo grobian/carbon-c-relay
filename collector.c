@@ -85,11 +85,11 @@ collector_runner(void *s)
 		logout("%s", metric); \
 	else { \
 		size_t len = strlen(metric); \
-		char *m = malloc(sizeof(char) * len + sizeof(len)); \
-		if (m != NULL) { \
-			*((size_t *)m) = len; \
-			memcpy(m + sizeof(len), metric, len); \
-			server_send(submission, m, 1); \
+		char *mtrc = malloc(sizeof(char) * len + sizeof(len)); \
+		if (mtrc != NULL) { \
+			*((size_t *)mtrc) = len; \
+			memcpy(mtrc + sizeof(len), metric, len); \
+			server_send(submission, mtrc, 1); \
 		} \
 	}
 
