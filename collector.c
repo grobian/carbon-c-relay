@@ -83,8 +83,15 @@ collector_runner(void *s)
 #define send(metric) \
 	if (debug & 1) \
 		logout("%s", metric); \
-	else \
-		server_send(submission, strdup(metric), 1);
+	else { \
+		size_t len = strlen(metric); \
+		char *m = malloc(sizeof(char) * len + sizeof(len)); \
+		if (m != NULL) { \
+			*((size_t *)m) = len; \
+			memcpy(m + sizeof(len), metric, len); \
+			server_send(submission, m, 1); \
+		} \
+	}
 
 	nextcycle = time(NULL) + collector_interval;
 	while (__sync_bool_compare_and_swap(&keep_running, 1, 1)) {
