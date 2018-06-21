@@ -1,7 +1,7 @@
 .\" generated with Ronn/v0.7.3
 .\" http://github.com/rtomayko/ronn/tree/0.7.3
 .
-.TH "CARBON\-C\-RELAY" "1" "November 2017" "Graphite" "Graphite data collection and visualisation"
+.TH "CARBON\-C\-RELAY" "1" "June 2018" "Graphite" "Graphite data collection and visualisation"
 .
 .SH "NAME"
 \fBcarbon\-c\-relay\fR \- graphite relay, aggregator and rewriter
@@ -94,6 +94,10 @@ Sets the socket send/receive buffer sizes in bytes, for both TCP and UDP scenari
 .TP
 \fB\-T\fR \fItimeout\fR
 Specifies the IO timeout in milliseconds used for server connections\. The default is \fI600\fR milliseconds, but may need increasing when WAN links are used for target servers\. A relatively low value for connection timeout allows the relay to quickly establish a server is unreachable, and as such failover strategies to kick in before the queue runs high\.
+.
+.TP
+\fB\-E\fR
+Disable disconnecting idle incoming connections\. By default the relay disconnects idle client connections after 10 minutes\. It does this to prevent resources clogging up when a faulty or malicious client keeps on opening connections without closing them\. It typically prevents running out of file descriptors\. For some scenarios, however, it is not desirable for idle connections to be disconnected, hence passing this flag will disable this behaviour\.
 .
 .TP
 \fB\-c\fR \fIchars\fR

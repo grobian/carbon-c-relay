@@ -627,7 +627,7 @@ dispatch_addconnection(int sock, listener *lsnr)
 #endif
 	connections[c].buflen = 0;
 	connections[c].needmore = 0;
-	connections[c].noexpire = 0;
+	connections[c].noexpire = noexpire;
 	connections[c].isaggr = 0;
 	connections[c].isudp = 0;
 	connections[c].destlen = 0;
@@ -894,7 +894,7 @@ dispatch_connection(connection *conn, dispatcher *self, struct timeval start)
 		 * size argument is 0) -> this is good, because we can't do much
 		 * with such client */
 
-		if (conn->noexpire) {
+		if (conn->isaggr || conn->isudp) {
 			/* reset buffer only (UDP/aggregations) and move on */
 			conn->needmore = 1;
 			conn->buflen = 0;

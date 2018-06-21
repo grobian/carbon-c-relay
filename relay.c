@@ -47,6 +47,7 @@ unsigned char keep_running = 1;
 int pending_signal = -1;
 char relay_hostname[256];
 unsigned char mode = 0;
+char noexpire = 0;
 
 static char *config = NULL;
 static int batchsize = 2500;
@@ -359,6 +360,7 @@ do_usage(char *name, int exitcode)
 	printf("  -B  connection listen backlog, defaults to 32\n");
 	printf("  -U  socket receive buffer size, max/min/default values depend on OS\n");
 	printf("  -T  IO timeout in milliseconds for server connections, defaults to %d\n", iotimeout);
+	printf("  -E  disable disconnecting idle connections after 10 minutes\n");
 	printf("  -m  send statistics like carbon-cache.py, e.g. not cumulative\n");
 	printf("  -c  characters to allow next to [A-Za-z0-9], defaults to -_:#\n");
 	printf("  -d  debug mode: currently writes statistics to log, prints hash\n"
@@ -394,7 +396,7 @@ main(int argc, char * const argv[])
 	if (gethostname(relay_hostname, sizeof(relay_hostname)) < 0)
 		snprintf(relay_hostname, sizeof(relay_hostname), "127.0.0.1");
 
-	while ((ch = getopt(argc, argv, ":hvdstf:l:p:w:b:q:L:T:c:H:B:U:DP:O:")) != -1) {
+	while ((ch = getopt(argc, argv, ":hvdstf:l:p:w:b:q:L:T:c:H:B:U:EDP:O:")) != -1) {
 		switch (ch) {
 			case 'v':
 				do_version();
@@ -475,6 +477,9 @@ main(int argc, char * const argv[])
 				}
 				iotimeout = (unsigned short)val;
 			}	break;
+			case 'E':
+				noexpire = 1;
+				break;
 			case 'c':
 				allowed_chars = optarg;
 				break;
@@ -722,6 +727,8 @@ main(int argc, char * const argv[])
 			fprintf(relay_stdout, "    socket bufsize = %u\n", sockbufsize);
 		fprintf(relay_stdout, "    server connection IO timeout = %dms\n",
 				iotimeout);
+		fprintf(relay_stdout, "    idle connections disconnect timeout = %s\n",
+				noexpire ? "never" : "10m");
 		if (allowed_chars != NULL)
 			fprintf(relay_stdout, "    extra allowed characters = %s\n",
 					allowed_chars);

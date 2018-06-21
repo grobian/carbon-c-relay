@@ -156,6 +156,15 @@ These options control the behaviour of **carbon-c-relay**.
     unreachable, and as such failover strategies to kick in before the
     queue runs high.
 
+  * `-E`:
+    Disable disconnecting idle incoming connections.  By default the
+    relay disconnects idle client connections after 10 minutes.  It does
+    this to prevent resources clogging up when a faulty or malicious
+    client keeps on opening connections without closing them.  It
+    typically prevents running out of file descriptors.  For some
+    scenarios, however, it is not desirable for idle connections to be
+    disconnected, hence passing this flag will disable this behaviour.
+
   * `-c` *chars*:
     Defines the characters that are next to `[A-Za-z0-9]` allowed in
     metrics to *chars*.  Any character not in this list, is replaced by

@@ -2,8 +2,11 @@
 
 ### New Features
 
-* [Pull Request #329](https://github.com/grobian/carbon-c-relay/pull/329)
-  add `syslog` message type to emit syslog packets
+* **router** `syslog` message type to emit syslog packets as added.
+  [Pull Request #329](https://github.com/grobian/carbon-c-relay/pull/329)
+* **relay** a new flag `-E` was added to disable disconnecting idle
+  clients.
+  [Bug #330](https://github.com/grobian/carbon-c-relay/issues/330)
 
 ### Bugfixes
 
