@@ -652,6 +652,7 @@ server_queuereader(void *d)
 			if (self->transport == W_SSL) {
 				int rv;
 				self->strm = SSL_new(self->ctx);
+				SSL_set_tlsext_host_name(self->strm, self->ip);
 				if (SSL_set_fd(self->strm, self->fd) == 0) {
 					logerr("failed to SSL_set_fd: %s\n",
 							ERR_reason_error_string(ERR_get_error()));
