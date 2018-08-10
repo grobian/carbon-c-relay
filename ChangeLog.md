@@ -4,6 +4,7 @@
 
 * **router** `syslog` message type to emit syslog packets as added.
   [Pull Request #329](https://github.com/grobian/carbon-c-relay/pull/329)
+* **server** will now set the SNI hostname before connecting over TLS.
 * **relay** a new flag `-E` was added to disable disconnecting idle
   clients.
   [Bug #330](https://github.com/grobian/carbon-c-relay/issues/330)
