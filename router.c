@@ -1189,6 +1189,12 @@ router_readconfig(router *orig,
 		return NULL;
 	}
 
+	/* if we're not dealing with a file, say so */
+	if (!S_ISREG(st.st_mode)) {
+		logerr("cannot open non-regular file '%s'\n", path);
+		return NULL;
+	}
+
 	if (orig == NULL) {
 		cluster *cl;
 		char *err;
