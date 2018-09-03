@@ -13,6 +13,8 @@
 
 * [Issue #327](https://github.com/grobian/carbon-c-relay/issues/327)
   gzip compression leaking half closed sockets
+* [Issue #341](https://github.com/grobian/carbon-c-relay/issues/341)
+  after SIGHUP with changed config relay no longer accepts connections
 * passing a directory as config file silently succeeds with empty config
   as result
 

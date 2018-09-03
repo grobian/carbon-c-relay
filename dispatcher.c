@@ -472,6 +472,7 @@ dispatch_transplantlistener(listener *olsnr, listener *nlsnr, router *r)
 			break;  /* found and done */
 		}
 	}
+	pthread_rwlock_unlock(&listenerslock);
 }
 
 #define CONNGROWSZ  1024
