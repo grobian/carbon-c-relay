@@ -199,7 +199,7 @@ cluster <name>
       <carbon_ch | fnv1a_ch | jump_fnv1a_ch> [replication <count>] >
         <host[:port][=instance] [proto <udp | tcp>]
                                 [type linemode]
-                                [transport <gzip | lz4 | ssl>]> ...
+                                [transport <gzip | lz4 | snappy | ssl>]> ...
     ;
 
 cluster <name>

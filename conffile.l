@@ -85,6 +85,7 @@ cluster				{
 <idcl>transport			return crTRANSPORT;
 <idcl>gzip				return crGZIP;
 <idcl>lz4				return crLZ4;
+<idcl>snappy			return crSNAPPY;
 <idcl>ssl				return crSSL;
 <idcl>=					return '=';
 
@@ -237,6 +238,11 @@ listen				{
 						identstate = li;
 						BEGIN(idli);
 						return crLZ4;
+					}
+<idli>snappy		{
+						identstate = li;
+						BEGIN(idli);
+						return crSNAPPY;
 					}
 <idli>ssl			{
 						identstate = idli;

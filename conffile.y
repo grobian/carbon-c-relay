@@ -106,7 +106,8 @@ struct _rcptr_trsp {
 %type <char *> statistics_opt_prefix
 
 %token crLISTEN
-%token crTYPE crLINEMODE crSYSLOGMODE crTRANSPORT crGZIP crLZ4 crSSL crUNIX
+%token crTYPE crLINEMODE crSYSLOGMODE crTRANSPORT
+%token crGZIP crLZ4 crSNAPPY crSSL crUNIX
 %type <con_proto> rcptr_proto
 %type <struct _rcptr *> receptor opt_receptor receptors
 %type <struct _rcptr_trsp *> transport_mode
@@ -368,6 +369,16 @@ cluster_opt_transport:                      { $$ = W_PLAIN; }
 							router_yyerror(&yylloc, yyscanner, rtr,
 								ralloc, palloc,
 								"feature lz4 not compiled in");
+							YYERROR;
+#endif
+					 }
+					 | crTRANSPORT crSNAPPY    {
+#ifdef HAVE_SNAPPY
+							$$ = W_SNAPPY;
+#else
+							router_yyerror(&yylloc, yyscanner, rtr,
+								ralloc, palloc,
+								"feature snappy not compiled in");
 							YYERROR;
 #endif
 					 }
@@ -893,6 +904,22 @@ transport_mode:         {
 							router_yyerror(&yylloc, yyscanner, rtr,
 								ralloc, palloc,
 								"feature lz4 not compiled in");
+							YYERROR;
+#endif
+						}
+			  | crTRANSPORT crSNAPPY {
+#ifdef HAVE_SNAPPY
+							if (($$ = ra_malloc(palloc,
+									sizeof(struct _rcptr_trsp))) == NULL)
+							{
+								logerr("malloc failed\n");
+								YYABORT;
+							}
+							$$->mode = W_SNAPPY;
+#else
+							router_yyerror(&yylloc, yyscanner, rtr,
+								ralloc, palloc,
+								"feature snappy not compiled in");
 							YYERROR;
 #endif
 						}

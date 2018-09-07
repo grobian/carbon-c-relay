@@ -45,6 +45,9 @@
 #ifdef HAVE_LZ4
 #include <lz4.h>
 #endif
+#ifdef HAVE_SNAPPY
+#include <snappy-c.h>
+#endif
 #ifdef HAVE_SSL
 #include <openssl/ssl.h>
 #include <openssl/err.h>
@@ -97,11 +100,16 @@ struct _server {
 /* connection specific writers and closers */
 
 typedef struct _z_strm {
+#if defined(HAVE_LZ4) || defined(HAVE_SNAPPY)
 	char obuf[METRIC_BUFSIZ];
+#endif
 	int sock;
 	union {
 #ifdef HAVE_LZ4
 		LZ4_stream_t *lz;
+#endif
+#ifdef HAVE_SNAPPY
+		int obuflen;
 #endif
 		void *dummy;
 	} hdl;
@@ -197,6 +205,68 @@ lzclose(void *strm)
 }
 #endif
 
+#ifdef HAVE_SNAPPY
+/* snappy wrapped socket */
+static inline int snappyflush(void *strm);
+
+static inline ssize_t
+snappywrite(void *strm, const void *buf, size_t sze)
+{
+	int oret;
+	char *obuf = ((z_strm *)strm)->obuf;
+	int cret;
+
+	/* ensure we have space available */
+	if (((z_strm *)strm)->hdl.obuflen + sze > METRIC_BUFSIZ)
+		if (snappyflush(strm) != 0)
+			return -1;
+
+	/* append metric to buf */
+	memcpy(obuf + ((z_strm *)strm)->hdl.obuflen, buf, sze);
+	((z_strm *)strm)->hdl.obuflen += sze;
+
+	return sze;
+}
+
+static inline int
+snappyflush(void *strm)
+{
+	int cret;
+	char cbuf[METRIC_BUFSIZ];
+	size_t cbuflen = sizeof(cbuf);
+	char *cbufp = cbuf;
+	int oret;
+
+	cret = snappy_compress(((z_strm *)strm)->obuf,
+			((z_strm *)strm)->hdl.obuflen,
+			cbuf, &cbuflen);
+	/* reset the write position, from this point it will always need to
+	 * restart */
+	((z_strm *)strm)->hdl.obuflen = 0;
+
+	if (cret != SNAPPY_OK)
+		return -1;  /* we must reset/free snappy */
+	while (cbuflen > 0) {
+		oret = write(((z_strm *)strm)->sock, cbufp, cbuflen);
+		if (oret < 0)
+			return -1;  /* failure is failure */
+		/* update counters to possibly retry the remaining bit */
+		cbufp += oret;
+		cbuflen -= oret;
+	}
+
+	return 0;
+}
+
+static inline int
+snappyclose(void *strm)
+{
+	int ret = close(((z_strm *)strm)->sock);
+	free(strm);
+	return ret;
+}
+#endif
+
 #ifdef HAVE_SSL
 /* (Open|Libre)SSL wrapped socket */
 static inline ssize_t
@@ -272,7 +342,7 @@ server_queuereader(void *d)
 			if (idle == 1)
 				/* ensure blocks are pushed out as soon as we're idling,
 				 * this allows compressors to benefit from a larger
-				 * stream of data to gain better compresion */
+				 * stream of data to gain better compression */
 				self->strmflush(self->strm);
 			gettimeofday(&stop, NULL);
 			__sync_add_and_fetch(&(self->ticks), timediff(start, stop));
@@ -648,6 +718,20 @@ server_queuereader(void *d)
 				self->strm = s;
 			}
 #endif
+#ifdef HAVE_SNAPPY
+			if (self->transport == W_SNAPPY) {
+				z_strm *s = (z_strm *)malloc(sizeof(z_strm));
+				if (s == NULL) {
+					logerr("failed to allocate snappy stream: %s\n",
+							strerror(errno));
+					close(self->fd);
+					self->fd = -1;
+					continue;
+				}
+				s->sock = self->fd;
+				self->strm = s;
+			}
+#endif
 #ifdef HAVE_SSL
 			if (self->transport == W_SSL) {
 				int rv;
@@ -833,6 +917,14 @@ server_new(
 		ret->strmwrite = &lzwrite;
 		ret->strmflush = &lzflush;
 		ret->strmclose = &lzclose;
+		ret->strmerror = &sockerror;
+	}
+#endif
+#ifdef HAVE_SNAPPY
+	else if (transport == W_SNAPPY) {
+		ret->strmwrite = &snappywrite;
+		ret->strmflush = &snappyflush;
+		ret->strmclose = &snappyclose;
 		ret->strmerror = &sockerror;
 	}
 #endif

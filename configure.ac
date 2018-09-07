@@ -112,6 +112,23 @@ AS_IF([test "x$with_lz4" != xno],
 					]
 	)])
 
+AC_ARG_WITH([snappy], [support snappy compression for sending/receiving],
+			[], [with_snappy=check])
+LIBSNAPPY=
+AS_IF([test "x$with_snappy" != xno],
+	  [AC_CHECK_HEADERS([snappy-c.h], [], [LIBSNAPPY=_missing_header])
+	   AC_CHECK_LIB([snappy${LIBSNAPPY}], [snappy_compress],
+					[AC_SUBST([LIBSNAPPY], [-lsnappy])
+					AC_DEFINE([HAVE_SNAPPY], [1], [Define if you have snappy])
+					],
+					[if test "x$with_snappy" != xcheck; then
+					 AC_MSG_FAILURE(
+					   [--with-snappy was given, but test for snappy failed])
+					 fi
+					 LIBSNAPPY=
+					]
+	)])
+
 AC_ARG_WITH([ssl], [support ssl encryption for sending/receiving],
 			[], [with_ssl=check])
 LIBSSL=

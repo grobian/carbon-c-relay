@@ -127,7 +127,8 @@ relay_OBJECTS = $(am_relay_OBJECTS)
 am__DEPENDENCIES_1 =
 relay_DEPENDENCIES = $(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
+	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
+	$(am__DEPENDENCIES_1)
 AM_V_P = $(am__v_P_@AM_V@)
 am__v_P_ = $(am__v_P_@AM_DEFAULT_V@)
 am__v_P_0 = false
@@ -276,6 +277,7 @@ LIBONIGURUMA = @LIBONIGURUMA@
 LIBPCRE = @LIBPCRE@
 LIBPCRE2 = @LIBPCRE2@
 LIBS = @LIBS@
+LIBSNAPPY = @LIBSNAPPY@
 LIBSSL = @LIBSSL@
 LTLIBOBJS = @LTLIBOBJS@
 MAKEINFO = @MAKEINFO@
@@ -339,7 +341,7 @@ AUTOMAKE_OPTIONS = foreign
 GIT_VERSION := $(shell git describe --abbrev=6 --dirty --always 2>/dev/null || date +%F)
 GVCFLAGS = -DGIT_VERSION=\"$(GIT_VERSION)\"
 relay_LINK = $(CCLD) $(AM_LDFLAGS) $(LDFLAGS) -o $@
-relay_LDADD = $(LIBGZIP) $(LIBLZ4) $(LIBSSL) \
+relay_LDADD = $(LIBGZIP) $(LIBLZ4) $(LIBSNAPPY) $(LIBSSL) \
 			  $(LIBONIGURUMA) $(LIBPCRE2) $(LIBPCRE)
 
 relay_SOURCES = \

@@ -39,7 +39,7 @@ man:
 
 bin_PROGRAMS = relay
 relay_LINK = $(CCLD) $(AM_LDFLAGS) $(LDFLAGS) -o $@
-relay_LDADD = $(LIBGZIP) $(LIBLZ4) $(LIBSSL) \
+relay_LDADD = $(LIBGZIP) $(LIBLZ4) $(LIBSNAPPY) $(LIBSSL) \
 			  $(LIBONIGURUMA) $(LIBPCRE2) $(LIBPCRE)
 relay_SOURCES = \
 	relay.c \

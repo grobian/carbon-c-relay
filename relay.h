@@ -56,10 +56,11 @@ typedef enum {
 	T_SYSLOGMODE = 2
 } con_type;
 typedef enum {
-	W_PLAIN = 1,
-	W_GZIP  = 2,
-	W_LZ4   = 3,
-	W_SSL   = 4
+	W_PLAIN  = 1,
+	W_GZIP   = 2,
+	W_LZ4    = 3,
+	W_SNAPPY = 4,
+	W_SSL    = 5
 } con_trnsp;
 
 int relaylog(enum logdst dest, const char *fmt, ...);

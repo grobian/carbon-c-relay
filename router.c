@@ -101,7 +101,8 @@ const char *con_trnsp_str[] = {
 	/* 1 */ "plain",
 	/* 2 */ "gzip",
 	/* 3 */ "lz4",
-	/* 4 */ "ssl"
+	/* 4 */ "snappy",
+	/* 5 */ "ssl"
 };
 
 /**

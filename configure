@@ -625,6 +625,7 @@ LIBPCRE
 LIBPCRE2
 LIBONIGURUMA
 LIBSSL
+LIBSNAPPY
 LIBLZ4
 LIBGZIP
 LIBOBJS
@@ -720,6 +721,7 @@ enable_silent_rules
 enable_dependency_tracking
 with_gzip
 with_lz4
+with_snappy
 with_ssl
 with_oniguruma
 with_pcre2
@@ -1360,6 +1362,7 @@ Optional Packages:
   --without-PACKAGE       do not use PACKAGE (same as --with-PACKAGE=no)
 support gzip compression for sending/receiving
 support lz4 compression for sending/receiving
+support snappy compression for sending/receiving
 support ssl encryption for sending/receiving
 use oniguruma regex library
 use pcre2 regex library
@@ -5156,6 +5159,89 @@ as_fn_error $? "--with-lz4 was given, but test for lz4 failed
 See \`config.log' for more details" "$LINENO" 5; }
 					 fi
 					 LIBLZ4=
+
+
+fi
+
+fi
+
+
+# Check whether --with-snappy was given.
+if test "${with_snappy+set}" = set; then :
+  withval=$with_snappy;
+else
+  with_snappy=check
+fi
+
+LIBSNAPPY=
+if test "x$with_snappy" != xno; then :
+  for ac_header in snappy-c.h
+do :
+  ac_fn_c_check_header_mongrel "$LINENO" "snappy-c.h" "ac_cv_header_snappy_c_h" "$ac_includes_default"
+if test "x$ac_cv_header_snappy_c_h" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_SNAPPY_C_H 1
+_ACEOF
+
+else
+  LIBSNAPPY=_missing_header
+fi
+
+done
+
+	   as_ac_Lib=`$as_echo "ac_cv_lib_snappy${LIBSNAPPY}''_snappy_compress" | $as_tr_sh`
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for snappy_compress in -lsnappy${LIBSNAPPY}" >&5
+$as_echo_n "checking for snappy_compress in -lsnappy${LIBSNAPPY}... " >&6; }
+if eval \${$as_ac_Lib+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lsnappy${LIBSNAPPY}  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char snappy_compress ();
+int
+main ()
+{
+return snappy_compress ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  eval "$as_ac_Lib=yes"
+else
+  eval "$as_ac_Lib=no"
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+eval ac_res=\$$as_ac_Lib
+	       { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_res" >&5
+$as_echo "$ac_res" >&6; }
+if eval test \"x\$"$as_ac_Lib"\" = x"yes"; then :
+  LIBSNAPPY=-lsnappy
+
+
+$as_echo "#define HAVE_SNAPPY 1" >>confdefs.h
+
+
+else
+  if test "x$with_snappy" != xcheck; then
+					 { { $as_echo "$as_me:${as_lineno-$LINENO}: error: in \`$ac_pwd':" >&5
+$as_echo "$as_me: error: in \`$ac_pwd':" >&2;}
+as_fn_error $? "--with-snappy was given, but test for snappy failed
+See \`config.log' for more details" "$LINENO" 5; }
+					 fi
+					 LIBSNAPPY=
 
 
 fi

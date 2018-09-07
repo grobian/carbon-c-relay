@@ -337,6 +337,34 @@ static void
 do_version(void)
 {
 	printf("carbon-c-relay v" VERSION " (" GIT_VERSION ")\n");
+#if defined(HAVE_GZIP) || defined(HAVE_LZ4) || defined(HAVE_SNAPPY) || defined(HAVE_SSL)
+	printf("enabled support for:");
+#endif
+#ifdef HAVE_GZIP
+	printf(" gzip");
+#endif
+#ifdef HAVE_LZ4
+	printf(" lz4");
+#endif
+#ifdef HAVE_SNAPPY
+	printf(" snappy");
+#endif
+#ifdef HAVE_SSL
+	printf(" ssl");
+#endif
+	printf("\n");
+
+	printf("regular expressions library:");
+#if defined(HAVE_ONIGURAMA)
+	printf(" oniguruma");
+#elif defined (HAVE_PCRE2)
+	printf(" PCRE2");
+#elif defined (HAVE_PCRE)
+	printf(" PCRE");
+#else
+	printf(" libc");
+#endif
+	printf("\n");
 
 	exit(0);
 }

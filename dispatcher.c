@@ -42,6 +42,9 @@
 #ifdef HAVE_LZ4
 #include <lz4.h>
 #endif
+#ifdef HAVE_SNAPPY
+#include <snappy-c.h>
+#endif
 #ifdef HAVE_SSL
 #include <openssl/ssl.h>
 #endif
@@ -304,7 +307,54 @@ lzread(void *strm, void *buf, size_t sze)
 static inline int
 lzclose(void *strm)
 {
-	int ret = LZ4_freeStreamDecode(((z_strm *)strm)->hdl.lz);
+	int ret = close(((z_strm *)strm)->sock);
+	LZ4_freeStreamDecode(((z_strm *)strm)->hdl.lz);
+	free(strm);
+	return ret;
+}
+#endif
+
+#ifdef HAVE_SNAPPY
+/* snappy wrapped socket */
+static inline ssize_t
+snappyread(void *strm, void *buf, size_t sze)
+{
+	char *ibuf = ((z_strm *)strm)->ibuf;
+	int ret;
+	size_t buflen = sze;
+
+	/* read any available data, if it fits */
+	ret = read(((z_strm *)strm)->sock,
+			ibuf + ((z_strm *)strm)->ipos,
+			METRIC_BUFSIZ - ((z_strm *)strm)->ipos);
+	if (ret > 0) {
+		((z_strm *)strm)->ipos += ret;
+	} else if (ret < 0) {
+		return -1;
+	} else {
+		/* ret == 0, a.k.a. EOF */
+		return 0;
+	}
+
+	ret = snappy_uncompress(ibuf, ((z_strm *)strm)->ipos, buf, &buflen);
+
+	/* if we decompressed something, update our ibuf */
+	if (ret == SNAPPY_OK) {
+		((z_strm *)strm)->ipos = ((z_strm *)strm)->ipos - buflen;
+		memmove(ibuf, ibuf + buflen, ((z_strm *)strm)->ipos);
+	} else if (ret == SNAPPY_BUFFER_TOO_SMALL) {
+		logerr("discarding snappy buffer: "
+				"the uncompressed block is too large\n");
+		((z_strm *)strm)->ipos = 0;
+	}
+
+	return (ssize_t)(ret == SNAPPY_OK ? buflen : -1);
+}
+
+static inline int
+snappyclose(void *strm)
+{
+	int ret = close(((z_strm *)strm)->sock);
 	free(strm);
 	return ret;
 }
@@ -614,6 +664,21 @@ dispatch_addconnection(int sock, listener *lsnr)
 		connections[c].strm = lzstrm;
 		connections[c].strmread = &lzread;
 		connections[c].strmclose = &lzclose;
+	}
+#endif
+#ifdef HAVE_SNAPPY
+	else if (lsnr->transport == W_SNAPPY) {
+		z_strm *lzstrm = malloc(sizeof(z_strm));
+		if (lzstrm == NULL) {
+			logerr("cannot add new connection: "
+					"out of memory allocating snappy stream\n");
+			__sync_bool_compare_and_swap(&(connections[c].takenby), -2, -1);
+			return -1;
+		}
+		lzstrm->sock = sock;
+		connections[c].strm = lzstrm;
+		connections[c].strmread = &snappyread;
+		connections[c].strmclose = &snappyclose;
 	}
 #endif
 #ifdef HAVE_SSL
