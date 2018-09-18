@@ -638,8 +638,11 @@ dispatch_addconnection(int sock, listener *lsnr)
 	}
 
 	/* setup decompressor */
+	if (lsnr == NULL) {
+		/* do nothing, catch case only */
+	}
 #ifdef HAVE_GZIP
-	if ((lsnr->transport & 0xFFFF) == W_GZIP) {
+	else if ((lsnr->transport & 0xFFFF) == W_GZIP) {
 		z_strm *zstrm = malloc(sizeof(z_strm));
 		if (zstrm == NULL) {
 			logerr("cannot add new connection: "
