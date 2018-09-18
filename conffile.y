@@ -72,7 +72,8 @@ struct _rcptr_trsp {
 %type <cluster *> cluster
 %type <struct _clhost *> cluster_host cluster_hosts cluster_opt_host
 	cluster_path cluster_paths cluster_opt_path
-%type <con_trnsp> cluster_opt_transport
+%type <con_trnsp> cluster_opt_transport cluster_transport_zip
+	cluster_transport_ssl
 
 %token crMATCH
 %token crVALIDATE crELSE crLOG crDROP crROUTE crUSING
@@ -351,8 +352,21 @@ cluster_opt_type:                     { $$ = T_LINEMODE; }
 				| crTYPE crSYSLOGMODE { $$ = T_SYSLOGMODE; }
 				;
 
-cluster_opt_transport:                      { $$ = W_PLAIN; }
-					 | crTRANSPORT crGZIP   {
+cluster_opt_transport:                { $$ = W_PLAIN; }
+					 | cluster_transport_zip
+					 {
+					 	$$ = $1;
+					 }
+					 | cluster_transport_ssl
+					 {
+					 	$$ = $1;
+					 }
+					 | cluster_transport_zip cluster_transport_ssl
+					 {
+					 	$$ = $1 | $2;
+					 }
+					 ;
+cluster_transport_zip: crTRANSPORT crGZIP   {
 #ifdef HAVE_GZIP
 							$$ = W_GZIP;
 #else
@@ -382,7 +396,8 @@ cluster_opt_transport:                      { $$ = W_PLAIN; }
 							YYERROR;
 #endif
 					 }
-					 | crTRANSPORT crSSL    {
+					 ;
+cluster_transport_ssl: crTRANSPORT crSSL    {
 #ifdef HAVE_SSL
 							$$ = W_SSL;
 #else
@@ -392,7 +407,7 @@ cluster_opt_transport:                      { $$ = W_PLAIN; }
 							YYERROR;
 #endif
 					 }
-					 ;
+				 	 ;
 /*** }}} END cluster ***/
 
 /*** {{{ BEGIN match ***/

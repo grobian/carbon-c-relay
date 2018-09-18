@@ -54,11 +54,36 @@ enum conntype {
 	CONNECTION
 };
 
+typedef struct _z_strm {
+	ssize_t (*strmread)(struct _z_strm *, void *, size_t);  /* read func */
+	int (*strmclose)(struct _z_strm *);
+	union {
+#ifdef HAVE_GZIP
+		z_stream z;
+#endif
+#ifdef HAVE_LZ4
+		LZ4_streamDecode_t *lz;
+#endif
+#ifdef HAVE_SSL
+		SSL *ssl;
+#endif
+		int sock;
+		/* udp variant (in order to receive info about sender) */
+		struct udp_strm {
+			int sock;
+			struct sockaddr_in6 saddr;
+			char *srcaddr;
+			size_t srcaddrlen;
+		} udp;
+	} hdl;
+	char ibuf[METRIC_BUFSIZ];
+	unsigned short ipos;
+	struct _z_strm *nextstrm;
+} z_strm;
+
 typedef struct _connection {
 	int sock;
-	void *strm;
-	ssize_t (*strmread)(void *, void *, size_t);  /* read func */
-	int (*strmclose)(void *);
+	z_strm *strm;
 	char takenby;   /* -2: being setup, -1: free, 0: not taken, >0: tid */
 	char srcaddr[24];  /* string representation of source address */
 	char buf[METRIC_BUFSIZ];
@@ -74,21 +99,6 @@ typedef struct _connection {
 	char isaggr:1;
 	char isudp:1;
 } connection;
-
-typedef struct _z_strm {
-	int sock;
-	union {
-#ifdef HAVE_GZIP
-		z_stream z;
-#endif
-#ifdef HAVE_LZ4
-		LZ4_streamDecode_t *lz;
-#endif
-		char dummy;
-	} hdl;
-	char ibuf[METRIC_BUFSIZ];
-	unsigned short ipos;
-} z_strm;
 
 struct _dispatcher {
 	pthread_t tid;
@@ -124,32 +134,25 @@ static unsigned int sockbufsize = 0;
 
 /* ordinary socket */
 static inline ssize_t
-sockread(void *strm, void *buf, size_t sze)
+sockread(z_strm *strm, void *buf, size_t sze)
 {
-	return read(*((int *)strm), buf, sze);
+	return read(strm->hdl.sock, buf, sze);
 }
 
 static inline int
-sockclose(void *strm)
+sockclose(z_strm *strm)
 {
-	int ret = close(*((int *)strm));
+	int ret = close(strm->hdl.sock);
 	free(strm);
 	return ret;
 }
 
-/* udp variant (in order to receive info about sender) */
-struct udp_strm {
-	int sock;
-	struct sockaddr_in6 saddr;
-	char *srcaddr;
-	size_t srcaddrlen;
-};
-
+/* udp socket */
 static inline ssize_t
-udpsockread(void *strm, void *buf, size_t sze)
+udpsockread(z_strm *strm, void *buf, size_t sze)
 {
 	ssize_t ret;
-	struct udp_strm *s = (struct udp_strm *)strm;
+	struct udp_strm *s = &strm->hdl.udp;
 	socklen_t slen = sizeof(s->saddr);
 	ret = recvfrom(s->sock, buf, sze, 0, (struct sockaddr *)&s->saddr, &slen);
 	if (ret <= 0)
@@ -173,10 +176,9 @@ udpsockread(void *strm, void *buf, size_t sze)
 }
 
 static inline int
-udpsockclose(void *strm)
+udpsockclose(z_strm *strm)
 {
-	struct udp_strm *s = (struct udp_strm *)strm;
-	int ret = close(s->sock);
+	int ret = close(strm->hdl.udp.sock);
 	free(strm);
 	return ret;
 }
@@ -184,20 +186,20 @@ udpsockclose(void *strm)
 #ifdef HAVE_GZIP
 /* gzip wrapped socket */
 static inline ssize_t
-gzipread(void *strm, void *buf, size_t sze)
+gzipread(z_strm *strm, void *buf, size_t sze)
 {
-	z_stream *zstrm = &(((z_strm *)strm)->hdl.z);
-	char *ibuf = ((z_strm *)strm)->ibuf;
+	z_stream *zstrm = &(strm->hdl.z);
+	char *ibuf = strm->ibuf;
 	int ret;
 	int iret;
 	int err = 0;
 
 	/* read any available data, if it fits */
-	ret = read(((z_strm *)strm)->sock,
-			ibuf + ((z_strm *)strm)->ipos,
-			METRIC_BUFSIZ - ((z_strm *)strm)->ipos);
+	ret = strm->nextstrm->strmread(strm->nextstrm,
+			ibuf + strm->ipos,
+			METRIC_BUFSIZ - strm->ipos);
 	if (ret > 0) {
-		((z_strm *)strm)->ipos += ret;
+		strm->ipos += ret;
 	} else if (ret < 0) {
 		err = errno;
 	} else {
@@ -208,16 +210,16 @@ gzipread(void *strm, void *buf, size_t sze)
 	}
 
 	zstrm->next_in = (Bytef *)ibuf;
-	zstrm->avail_in = (uInt)(((z_strm *)strm)->ipos);
+	zstrm->avail_in = (uInt)(strm->ipos);
 	zstrm->next_out = (Bytef *)buf;
 	zstrm->avail_out = (uInt)sze;
 
 	iret = inflate(zstrm, Z_SYNC_FLUSH);
 
-	/* if deflate read something, update our ibuf */
+	/* if inflate consumed something, update our ibuf */
 	if ((Bytef *)ibuf != zstrm->next_in) {
 		memmove(ibuf, zstrm->next_in, zstrm->avail_in);
-		((z_strm *)strm)->ipos = zstrm->avail_in;
+		strm->ipos = zstrm->avail_in;
 	}
 
 	switch (iret) {
@@ -262,10 +264,10 @@ gzipread(void *strm, void *buf, size_t sze)
 }
 
 static inline int
-gzipclose(void *strm)
+gzipclose(z_strm *strm)
 {
-	int ret = close(((z_strm *)strm)->sock);
-	inflateEnd(&(((z_strm *)strm)->hdl.z));
+	int ret = strm->nextstrm->strmclose(strm->nextstrm);
+	inflateEnd(&(strm->hdl.z));
 	free(strm);
 	return ret;
 }
@@ -274,17 +276,16 @@ gzipclose(void *strm)
 #ifdef HAVE_LZ4
 /* lz4 wrapped socket */
 static inline ssize_t
-lzread(void *strm, void *buf, size_t sze)
+lzread(z_strm *strm, void *buf, size_t sze)
 {
-	char *ibuf = ((z_strm *)strm)->ibuf;
+	char *ibuf = strm->ibuf;
 	int ret;
 
 	/* read any available data, if it fits */
-	ret = read(((z_strm *)strm)->sock,
-			ibuf + ((z_strm *)strm)->ipos,
-			METRIC_BUFSIZ - ((z_strm *)strm)->ipos);
+	ret = strm->nextstrm->strmread(strm->nextstrm,
+			ibuf + strm->ipos, METRIC_BUFSIZ - strm->ipos);
 	if (ret > 0) {
-		((z_strm *)strm)->ipos += ret;
+		strm->ipos += ret;
 	} else if (ret < 0) {
 		return -1;
 	} else {
@@ -292,23 +293,23 @@ lzread(void *strm, void *buf, size_t sze)
 		return 0;
 	}
 
-	ret = LZ4_decompress_safe_continue(((z_strm *)strm)->hdl.lz,
-			ibuf, buf, ((z_strm *)strm)->ipos, sze);
+	ret = LZ4_decompress_safe_continue(strm->hdl.lz,
+			ibuf, buf, strm->ipos, sze);
 
 	/* if we decompressed something, update our ibuf */
 	if (ret > 0) {
-		((z_strm *)strm)->ipos = ((z_strm *)strm)->ipos - ret;
-		memmove(ibuf, ibuf + ret, ((z_strm *)strm)->ipos);
+		strm->ipos = strm->ipos - ret;
+		memmove(ibuf, ibuf + ret, strm->ipos);
 	}
 
 	return (ssize_t)ret;
 }
 
 static inline int
-lzclose(void *strm)
+lzclose(z_strm *strm)
 {
-	int ret = close(((z_strm *)strm)->sock);
-	LZ4_freeStreamDecode(((z_strm *)strm)->hdl.lz);
+	int ret = strm->nextstrm->strmclose(strm->nextstrm);
+	LZ4_freeStreamDecode(strm->hdl.lz);
 	free(strm);
 	return ret;
 }
@@ -317,18 +318,18 @@ lzclose(void *strm)
 #ifdef HAVE_SNAPPY
 /* snappy wrapped socket */
 static inline ssize_t
-snappyread(void *strm, void *buf, size_t sze)
+snappyread(z_strm *strm, void *buf, size_t sze)
 {
-	char *ibuf = ((z_strm *)strm)->ibuf;
+	char *ibuf = strm->ibuf;
 	int ret;
 	size_t buflen = sze;
 
 	/* read any available data, if it fits */
-	ret = read(((z_strm *)strm)->sock,
-			ibuf + ((z_strm *)strm)->ipos,
-			METRIC_BUFSIZ - ((z_strm *)strm)->ipos);
+	ret = strm->nextstrm->strmread(strm->nextstrm,
+			ibuf + strm->ipos,
+			METRIC_BUFSIZ - strm->ipos);
 	if (ret > 0) {
-		((z_strm *)strm)->ipos += ret;
+		strm->ipos += ret;
 	} else if (ret < 0) {
 		return -1;
 	} else {
@@ -336,25 +337,25 @@ snappyread(void *strm, void *buf, size_t sze)
 		return 0;
 	}
 
-	ret = snappy_uncompress(ibuf, ((z_strm *)strm)->ipos, buf, &buflen);
+	ret = snappy_uncompress(ibuf, strm->ipos, buf, &buflen);
 
 	/* if we decompressed something, update our ibuf */
 	if (ret == SNAPPY_OK) {
-		((z_strm *)strm)->ipos = ((z_strm *)strm)->ipos - buflen;
-		memmove(ibuf, ibuf + buflen, ((z_strm *)strm)->ipos);
+		strm->ipos = strm->ipos - buflen;
+		memmove(ibuf, ibuf + buflen, strm->ipos);
 	} else if (ret == SNAPPY_BUFFER_TOO_SMALL) {
 		logerr("discarding snappy buffer: "
 				"the uncompressed block is too large\n");
-		((z_strm *)strm)->ipos = 0;
+		strm->ipos = 0;
 	}
 
 	return (ssize_t)(ret == SNAPPY_OK ? buflen : -1);
 }
 
 static inline int
-snappyclose(void *strm)
+snappyclose(z_strm *strm)
 {
-	int ret = close(((z_strm *)strm)->sock);
+	int ret = strm->nextstrm->strmclose(strm->nextstrm);
 	free(strm);
 	return ret;
 }
@@ -363,16 +364,16 @@ snappyclose(void *strm)
 #ifdef HAVE_SSL
 /* (Open|Libre)SSL wrapped socket */
 static inline ssize_t
-sslread(void *strm, void *buf, size_t sze)
+sslread(z_strm *strm, void *buf, size_t sze)
 {
-	return (ssize_t)SSL_read((SSL *)strm, buf, (int)sze);
+	return (ssize_t)SSL_read(strm->hdl.ssl, buf, (int)sze);
 }
 
 static inline int
-sslclose(void *strm)
+sslclose(z_strm *strm)
 {
-	int sock = SSL_get_fd((SSL *)strm);
-	SSL_free((SSL *)strm);
+	int sock = SSL_get_fd(strm->hdl.ssl);
+	SSL_free(strm->hdl.ssl);
 	return close(sock);
 }
 #endif
@@ -479,7 +480,7 @@ dispatch_removelistener(listener *lsnr)
 	}
 	/* cleanup */
 #ifdef HAVE_SSL
-	if (lsnr->transport == W_SSL)
+	if ((lsnr->transport & ~0xFFFF) == W_SSL)
 		SSL_CTX_free(lsnr->ctx);
 #endif
 	/* acquire a write lock on connections, which is a bit wrong, but it
@@ -511,7 +512,7 @@ dispatch_transplantlistener(listener *olsnr, listener *nlsnr, router *r)
 		if (listeners[c] == olsnr) {
 			router_transplant_listener_socks(r, olsnr, nlsnr);
 #ifdef HAVE_SSL
-			if (nlsnr->transport == W_SSL)
+			if ((nlsnr->transport & ~0xFFFF) == W_SSL)
 				nlsnr->ctx = olsnr->ctx;
 #endif
 			if (olsnr->saddrs) {
@@ -601,37 +602,44 @@ dispatch_addconnection(int sock, listener *lsnr)
 			;
 	}
 	connections[c].sock = sock;
-	if (lsnr == NULL || lsnr->transport == W_PLAIN) {
-		if (lsnr == NULL || lsnr->ctype != CON_UDP) {
-			int *strm = malloc(sizeof(connections[c].sock));
-			if (strm == NULL) {
-				logerr("cannot add new connection: "
-						"out of memory allocating stream\n");
-				__sync_bool_compare_and_swap(&(connections[c].takenby), -2, -1);
-				return -1;
-			}
-			*strm = sock;
-			connections[c].strm = strm;
-			connections[c].strmread = &sockread;
-			connections[c].strmclose = &sockclose;
-		} else {
-			struct udp_strm *strm = malloc(sizeof(struct udp_strm));
-			if (strm == NULL) {
-				logerr("cannot add new connection: "
-						"out of memory allocating udp stream\n");
-				__sync_bool_compare_and_swap(&(connections[c].takenby), -2, -1);
-				return -1;
-			}
-			strm->sock = sock;
-			strm->srcaddr = connections[c].srcaddr;
-			strm->srcaddrlen = sizeof(connections[c].srcaddr);
-			connections[c].strm = strm;
-			connections[c].strmread = &udpsockread;
-			connections[c].strmclose = &udpsockclose;
-		}
+	connections[c].strm = malloc(sizeof(z_strm));
+	if (connections[c].strm == NULL) {
+		logerr("cannot add new connection: "
+				"out of memory allocating stream\n");
+		__sync_bool_compare_and_swap(&(connections[c].takenby), -2, -1);
+		return -1;
 	}
+
+	/* set socket or SSL connection */
+	connections[c].strm->nextstrm = NULL;
+	if (lsnr == NULL || (lsnr->transport & ~0xFFFF) != W_SSL) {
+		if (lsnr == NULL || lsnr->ctype != CON_UDP) {
+			connections[c].strm->hdl.sock = sock;
+			connections[c].strm->strmread = &sockread;
+			connections[c].strm->strmclose = &sockclose;
+		} else {
+			connections[c].strm->hdl.udp.sock = sock;
+			connections[c].strm->hdl.udp.srcaddr =
+				connections[c].srcaddr;
+			connections[c].strm->hdl.udp.srcaddrlen =
+				sizeof(connections[c].srcaddr);
+			connections[c].strm->strmread = &udpsockread;
+			connections[c].strm->strmclose = &udpsockclose;
+		}
+#ifdef HAVE_SSL
+	} else {
+		connections[c].strm->hdl.ssl = SSL_new(lsnr->ctx);
+		SSL_set_fd(connections[c].strm->hdl.ssl, sock);
+		SSL_set_accept_state(connections[c].strm->hdl.ssl);
+
+		connections[c].strm->strmread = &sslread;
+		connections[c].strm->strmclose = &sslclose;
+#endif
+	}
+
+	/* setup decompressor */
 #ifdef HAVE_GZIP
-	else if (lsnr->transport == W_GZIP) {
+	if ((lsnr->transport & 0xFFFF) == W_GZIP) {
 		z_strm *zstrm = malloc(sizeof(z_strm));
 		if (zstrm == NULL) {
 			logerr("cannot add new connection: "
@@ -643,15 +651,15 @@ dispatch_addconnection(int sock, listener *lsnr)
 		zstrm->hdl.z.zfree = Z_NULL;
 		zstrm->hdl.z.opaque = Z_NULL;
 		zstrm->ipos = 0;
-		zstrm->sock = sock;
 		inflateInit2(&(zstrm->hdl.z), 15 + 16);
+		zstrm->strmread = &gzipread;
+		zstrm->strmclose = &gzipclose;
+		zstrm->nextstrm = connections[c].strm;
 		connections[c].strm = zstrm;
-		connections[c].strmread = &gzipread;
-		connections[c].strmclose = &gzipclose;
 	}
 #endif
 #ifdef HAVE_LZ4
-	else if (lsnr->transport == W_LZ4) {
+	else if ((lsnr->transport & 0xFFFF) == W_LZ4) {
 		z_strm *lzstrm = malloc(sizeof(z_strm));
 		if (lzstrm == NULL) {
 			logerr("cannot add new connection: "
@@ -659,15 +667,15 @@ dispatch_addconnection(int sock, listener *lsnr)
 			__sync_bool_compare_and_swap(&(connections[c].takenby), -2, -1);
 			return -1;
 		}
-		lzstrm->sock = sock;
 		lzstrm->hdl.lz = LZ4_createStreamDecode();
+		lzstrm->strmread = &lzread;
+		lzstrm->strmclose = &lzclose;
+		lzstrm->nextstrm = connections[c].strm;
 		connections[c].strm = lzstrm;
-		connections[c].strmread = &lzread;
-		connections[c].strmclose = &lzclose;
 	}
 #endif
 #ifdef HAVE_SNAPPY
-	else if (lsnr->transport == W_SNAPPY) {
+	else if ((lsnr->transport & 0xFFFF) == W_SNAPPY) {
 		z_strm *lzstrm = malloc(sizeof(z_strm));
 		if (lzstrm == NULL) {
 			logerr("cannot add new connection: "
@@ -675,20 +683,10 @@ dispatch_addconnection(int sock, listener *lsnr)
 			__sync_bool_compare_and_swap(&(connections[c].takenby), -2, -1);
 			return -1;
 		}
-		lzstrm->sock = sock;
+		lzstrm->strmread = &snappyread;
+		lzstrm->strmclose = &snappyclose;
+		lzstrm->nextstrm = connections[c].strm;
 		connections[c].strm = lzstrm;
-		connections[c].strmread = &snappyread;
-		connections[c].strmclose = &snappyclose;
-	}
-#endif
-#ifdef HAVE_SSL
-	else if (lsnr->transport == W_SSL) {
-		connections[c].strm = SSL_new(lsnr->ctx);
-		SSL_set_fd(connections[c].strm, sock);
-		SSL_set_accept_state(connections[c].strm);
-
-		connections[c].strmread = &sslread;
-		connections[c].strmclose = &sslclose;
 	}
 #endif
 	connections[c].buflen = 0;
@@ -809,7 +807,7 @@ dispatch_connection(connection *conn, dispatcher *self, struct timeval start)
 	 * left in the buffer, try to process the buffer */
 	if (
 			(!conn->needmore && conn->buflen > 0) ||
-			(len = conn->strmread(conn->strm,
+			(len = conn->strm->strmread(conn->strm,
 						conn->buf + conn->buflen,
 						(sizeof(conn->buf) - 1) - conn->buflen)) > 0
 	   )
@@ -972,7 +970,7 @@ dispatch_connection(connection *conn, dispatcher *self, struct timeval start)
 					self->id, conn->sock, len,
 					len < 0 ? strerror(errno) : "");
 			__sync_add_and_fetch(&closedconnections, 1);
-			conn->strmclose(conn->strm);
+			conn->strm->strmclose(conn->strm);
 
 			/* flag this connection as no longer in use, unless there is
 			 * pending metrics to send */

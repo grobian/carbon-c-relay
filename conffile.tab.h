@@ -203,6 +203,10 @@ union ROUTER_YYSTYPE
   con_proto rcptr_proto;
   /* cluster_opt_transport  */
   con_trnsp cluster_opt_transport;
+  /* cluster_transport_zip  */
+  con_trnsp cluster_transport_zip;
+  /* cluster_transport_ssl  */
+  con_trnsp cluster_transport_ssl;
   /* cluster_opt_type  */
   con_type cluster_opt_type;
   /* match_opt_send_to  */
@@ -285,7 +289,7 @@ union ROUTER_YYSTYPE
   struct _rcptr * receptor;
   /* transport_mode  */
   struct _rcptr_trsp * transport_mode;
-#line 289 "conffile.tab.h" /* yacc.c:1913  */
+#line 293 "conffile.tab.h" /* yacc.c:1913  */
 };
 
 typedef union ROUTER_YYSTYPE ROUTER_YYSTYPE;

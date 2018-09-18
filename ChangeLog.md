@@ -9,6 +9,8 @@
   clients.
   [Bug #330](https://github.com/grobian/carbon-c-relay/issues/330)
 * **relay** support for snappy compression was added.
+* **relay** SSL support can now be used next to compression
+  [Bug #323](https://github.com/grobian/carbon-c-relay/issues/323)
 
 ### Bugfixes
 

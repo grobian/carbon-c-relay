@@ -53,6 +53,33 @@
 #include <openssl/err.h>
 #endif
 
+typedef struct _z_strm {
+	ssize_t (*strmwrite)(struct _z_strm *, const void *, size_t);
+	int (*strmflush)(struct _z_strm *);
+	int (*strmclose)(struct _z_strm *);
+	const char *(*strmerror)(struct _z_strm *, int);     /* get last err str */
+	struct _z_strm *nextstrm;                            /* set when chained */
+#if defined(HAVE_LZ4) || defined(HAVE_SNAPPY) || defined(HAVE_GZIP)
+	char obuf[METRIC_BUFSIZ];
+	int obuflen;
+#endif
+#ifdef HAVE_SSL
+	SSL_CTX *ctx;
+#endif
+	union {
+#ifdef HAVE_GZIP
+		z_streamp gz;
+#endif
+#ifdef HAVE_LZ4
+		LZ4_stream_t *lz;
+#endif
+#ifdef HAVE_SSL
+		SSL *ssl;
+#endif
+		int sock;
+	} hdl;
+} z_strm;
+
 struct _server {
 	const char *ip;
 	unsigned short port;
@@ -61,14 +88,7 @@ struct _server {
 	struct addrinfo *hint;
 	char reresolve:1;
 	int fd;
-	void *strm;
-	ssize_t (*strmwrite)(void *, const void *, size_t);  /* write impl */
-	int (*strmflush)(void *);                            /* flush impl */
-	int (*strmclose)(void *);                            /* close impl */
-	const char *(*strmerror)(void *, int);               /* get last err str */
-#ifdef HAVE_SSL
-	SSL_CTX *ctx;
-#endif
+	z_strm *strm;
 	queue *queue;
 	size_t bsize;
 	short iotimeout;
@@ -99,44 +119,29 @@ struct _server {
 
 /* connection specific writers and closers */
 
-typedef struct _z_strm {
-#if defined(HAVE_LZ4) || defined(HAVE_SNAPPY)
-	char obuf[METRIC_BUFSIZ];
-#endif
-	int sock;
-	union {
-#ifdef HAVE_LZ4
-		LZ4_stream_t *lz;
-#endif
-#ifdef HAVE_SNAPPY
-		int obuflen;
-#endif
-		void *dummy;
-	} hdl;
-} z_strm;
-
 /* ordinary socket */
 static inline ssize_t
-sockwrite(void *strm, const void *buf, size_t sze)
+sockwrite(z_strm *strm, const void *buf, size_t sze)
 {
-	return write(*((int *)strm), buf, sze);
+	return write(strm->hdl.sock, buf, sze);
 }
 
 static inline int
-sockflush(void *strm)
+sockflush(z_strm *strm)
 {
 	/* noop, we don't use a stream in the normal case */
+	(void)strm;
 	return 0;
 }
 
 static inline int
-sockclose(void *strm)
+sockclose(z_strm *strm)
 {
-	return close(*((int *)strm));
+	return close(strm->hdl.sock);
 }
 
 static inline const char *
-sockerror(void *strm, int rval)
+sockerror(z_strm *strm, int rval)
 {
 	(void)strm;
 	(void)rval;
@@ -145,40 +150,112 @@ sockerror(void *strm, int rval)
 
 #ifdef HAVE_GZIP
 /* gzip wrapped socket */
+static inline int gzipflush(z_strm *strm);
+
 static inline ssize_t
-gzipwrite(void *strm, const void *buf, size_t sze)
+gzipwrite(z_strm *strm, const void *buf, size_t sze)
 {
-	return (ssize_t)gzwrite((gzFile)strm, buf, (unsigned)sze);
+	/* ensure we have space available */
+	if (strm->obuflen + sze > METRIC_BUFSIZ)
+		if (gzipflush(strm) != 0)
+			return -1;
+
+	/* append metric to buf */
+	memcpy(strm->obuf + strm->obuflen, buf, sze);
+	strm->obuflen += sze;
+
+	return sze;
 }
 
 static inline int
-gzipflush(void *strm)
+gzipflush(z_strm *strm)
 {
-	return gzflush((gzFile)strm, Z_SYNC_FLUSH);
+	int cret;
+	char cbuf[METRIC_BUFSIZ];
+	size_t cbuflen;
+	char *cbufp;
+	int oret;
+
+	strm->hdl.gz->next_in = (Bytef *)strm->obuf;
+	strm->hdl.gz->avail_in = strm->obuflen;
+	strm->hdl.gz->next_out = (Bytef *)cbuf;
+	strm->hdl.gz->avail_out = sizeof(cbuf);
+
+	do {
+		cret = deflate(strm->hdl.gz, Z_PARTIAL_FLUSH);
+		if (cret == Z_OK && strm->hdl.gz->avail_out == 0) {
+			/* too large output block, unlikely given the input, discard */
+			/* TODO */
+			break;
+		}
+		if (cret == Z_OK) {
+			cbufp = cbuf;
+			cbuflen = sizeof(cbuf) - strm->hdl.gz->avail_out;
+			while (cbuflen > 0) {
+				oret = strm->nextstrm->strmwrite(strm->nextstrm,
+						cbufp, cbuflen);
+				if (oret < 0)
+					return -1;  /* failure is failure */
+
+				/* update counters to possibly retry the remaining bit */
+				cbufp += oret;
+				cbuflen -= oret;
+			}
+
+			if (strm->hdl.gz->avail_in == 0)
+				break;
+
+			strm->hdl.gz->next_out = (Bytef *)cbuf;
+			strm->hdl.gz->avail_out = sizeof(cbuf);
+		} else {
+			/* discard */
+			break;
+		}
+	} while (1);
+	/* flush whatever we wrote */
+	strm->nextstrm->strmflush(strm->nextstrm);
+
+	/* reset the write position, from this point it will always need to
+	 * restart */
+	strm->obuflen = 0;
+
+	if (cret != Z_OK)
+		return -1;  /* we must reset/free gzip */
+
+	return 0;
 }
 
 static inline int
-gzipclose(void *strm)
+gzipclose(z_strm *strm)
 {
-	return gzclose((gzFile)strm);
+	int ret = strm->nextstrm->strmclose(strm->nextstrm);
+	deflateEnd(strm->hdl.gz);
+	free(strm->hdl.gz);
+	return ret;
+}
+
+static inline const char *
+gziperror(z_strm *strm, int rval)
+{
+	return strm->nextstrm->strmerror(strm->nextstrm, rval);
 }
 #endif
 
 #ifdef HAVE_LZ4
 /* lz4 wrapped socket */
 static inline ssize_t
-lzwrite(void *strm, const void *buf, size_t sze)
+lzwrite(z_strm *strm, const void *buf, size_t sze)
 {
 	int oret;
-	char *obuf = ((z_strm *)strm)->obuf;
+	char *obuf = strm->obuf;
 	int cret;
 
-	cret = LZ4_compress_fast_continue(((z_strm *)strm)->hdl.lz,
-			buf, obuf, sze, METRIC_BUFSIZ, 0);
+	cret = LZ4_compress_fast_continue(strm->hdl.lz,
+			buf, strm->obuf, sze, METRIC_BUFSIZ, 0);
 	if (cret == 0)
 		return -1;  /* we must reset/free lz */
 	while (cret > 0) {
-		oret = write(((z_strm *)strm)->sock, obuf, cret);
+		oret = strm->nextstrm->strmwrite(strm->nextstrm, strm->obuf, cret);
 		if (oret < 0)
 			return -1;  /* failure is failure */
 		/* update counters to possibly retry the remaining bit */
@@ -190,46 +267,47 @@ lzwrite(void *strm, const void *buf, size_t sze)
 }
 
 static inline int
-lzflush(void *strm)
+lzflush(z_strm *strm)
 {
-	return 0;
+	return strm->nextstrm->strmflush(strm->nextstrm);
 }
 
 static inline int
-lzclose(void *strm)
+lzclose(z_strm *strm)
 {
-	int ret = close(((z_strm *)strm)->sock);
-	LZ4_freeStream(((z_strm *)strm)->hdl.lz);
-	free(strm);
+	int ret = strm->nextstrm->strmclose(strm->nextstrm);
+	LZ4_freeStream(strm->hdl.lz);
 	return ret;
+}
+
+static inline const char *
+lzerror(z_strm *strm, int rval)
+{
+	return strm->nextstrm->strmerror(strm->nextstrm, rval);
 }
 #endif
 
 #ifdef HAVE_SNAPPY
 /* snappy wrapped socket */
-static inline int snappyflush(void *strm);
+static inline int snappyflush(z_strm *strm);
 
 static inline ssize_t
-snappywrite(void *strm, const void *buf, size_t sze)
+snappywrite(z_strm *strm, const void *buf, size_t sze)
 {
-	int oret;
-	char *obuf = ((z_strm *)strm)->obuf;
-	int cret;
-
 	/* ensure we have space available */
-	if (((z_strm *)strm)->hdl.obuflen + sze > METRIC_BUFSIZ)
+	if (strm->obuflen + sze > METRIC_BUFSIZ)
 		if (snappyflush(strm) != 0)
 			return -1;
 
 	/* append metric to buf */
-	memcpy(obuf + ((z_strm *)strm)->hdl.obuflen, buf, sze);
-	((z_strm *)strm)->hdl.obuflen += sze;
+	memcpy(strm->obuf + strm->obuflen, buf, sze);
+	strm->obuflen += sze;
 
 	return sze;
 }
 
 static inline int
-snappyflush(void *strm)
+snappyflush(z_strm *strm)
 {
 	int cret;
 	char cbuf[METRIC_BUFSIZ];
@@ -237,19 +315,18 @@ snappyflush(void *strm)
 	char *cbufp = cbuf;
 	int oret;
 
-	cret = snappy_compress(((z_strm *)strm)->obuf,
-			((z_strm *)strm)->hdl.obuflen,
-			cbuf, &cbuflen);
+	cret = snappy_compress(strm->obuf, strm->obuflen, cbuf, &cbuflen);
 	/* reset the write position, from this point it will always need to
 	 * restart */
-	((z_strm *)strm)->hdl.obuflen = 0;
+	strm->obuflen = 0;
 
 	if (cret != SNAPPY_OK)
 		return -1;  /* we must reset/free snappy */
 	while (cbuflen > 0) {
-		oret = write(((z_strm *)strm)->sock, cbufp, cbuflen);
+		oret = strm->nextstrm->strmwrite(strm->nextstrm, cbufp, cbuflen);
 		if (oret < 0)
 			return -1;  /* failure is failure */
+		strm->nextstrm->strmflush(strm->nextstrm);
 		/* update counters to possibly retry the remaining bit */
 		cbufp += oret;
 		cbuflen -= oret;
@@ -259,41 +336,47 @@ snappyflush(void *strm)
 }
 
 static inline int
-snappyclose(void *strm)
+snappyclose(z_strm *strm)
 {
-	int ret = close(((z_strm *)strm)->sock);
-	free(strm);
+	int ret = strm->nextstrm->strmclose(strm->nextstrm);
 	return ret;
+}
+
+static inline const char *
+snappyerror(z_strm *strm, int rval)
+{
+	return strm->nextstrm->strmerror(strm->nextstrm, rval);
 }
 #endif
 
 #ifdef HAVE_SSL
 /* (Open|Libre)SSL wrapped socket */
 static inline ssize_t
-sslwrite(void *strm, const void *buf, size_t sze)
+sslwrite(z_strm *strm, const void *buf, size_t sze)
 {
-	return (ssize_t)SSL_write((SSL *)strm, buf, (int)sze);
+	return (ssize_t)SSL_write(strm->hdl.ssl, buf, (int)sze);
 }
 
 static inline int
-sslflush(void *strm)
+sslflush(z_strm *strm)
 {
 	/* noop */
+	(void)strm;
 	return 0;
 }
 
 static inline int
-sslclose(void *strm)
+sslclose(z_strm *strm)
 {
-	int sock = SSL_get_fd((SSL *)strm);
-	SSL_free((SSL *)strm);
+	int sock = SSL_get_fd(strm->hdl.ssl);
+	SSL_free(strm->hdl.ssl);
 	return close(sock);
 }
 
 static inline const char *
-sslerror(void *strm, int rval)
+sslerror(z_strm *strm, int rval)
 {
-	int err = SSL_get_error((SSL *)strm, rval);
+	int err = SSL_get_error(strm->hdl.ssl, rval);
 	return ERR_reason_error_string(err);
 }
 #endif
@@ -336,14 +419,14 @@ server_queuereader(void *d)
 			if (self->ctype == CON_TCP && self->fd >= 0 &&
 					idle++ > DISCONNECT_WAIT_TIME)
 			{
-				self->strmclose(self->strm);
+				self->strm->strmclose(self->strm);
 				self->fd = -1;
 			}
 			if (idle == 1)
 				/* ensure blocks are pushed out as soon as we're idling,
 				 * this allows compressors to benefit from a larger
 				 * stream of data to gain better compression */
-				self->strmflush(self->strm);
+				self->strm->strmflush(self->strm);
 			gettimeofday(&stop, NULL);
 			__sync_add_and_fetch(&(self->ticks), timediff(start, stop));
 			if (__sync_bool_compare_and_swap(&(self->keep_running), 0, 0))
@@ -686,74 +769,87 @@ server_queuereader(void *d)
 #endif
 
 #ifdef HAVE_GZIP
-			if (self->transport == W_GZIP) {
-				self->strm = gzdopen(self->fd, "w");
-				if (self->strm == Z_NULL) {
-					logerr("failed to open gzip stream: %s\n", strerror(errno));
+			if ((self->transport & 0xFFFF) == W_GZIP) {
+				self->strm->hdl.gz = malloc(sizeof(z_stream));
+				if (self->strm->hdl.gz != NULL) {
+					self->strm->hdl.gz->zalloc = Z_NULL;
+					self->strm->hdl.gz->zfree = Z_NULL;
+					self->strm->hdl.gz->opaque = Z_NULL;
+					self->strm->hdl.gz->next_in = Z_NULL;
+				}
+				if (self->strm->hdl.gz == NULL ||
+						deflateInit2(self->strm->hdl.gz,
+							Z_DEFAULT_COMPRESSION,
+							Z_DEFLATED,
+							15 + 16,
+							8,
+							Z_DEFAULT_STRATEGY) != Z_OK)
+				{
+					logerr("failed to open gzip stream: out of memory\n");
 					close(self->fd);
 					self->fd = -1;
 					continue;
 				}
+				self->strm->obuflen = 0;
 			}
 #endif
 #ifdef HAVE_LZ4
-			if (self->transport == W_LZ4) {
-				z_strm *s = (z_strm *)malloc(sizeof(z_strm));
-				if (s == NULL) {
-					logerr("failed to allocate lz4 stream: %s\n",
-							strerror(errno));
-					close(self->fd);
-					self->fd = -1;
-					continue;
-				}
-				s->sock = self->fd;
-				s->hdl.lz = LZ4_createStream();
-				if (s->hdl.lz == NULL) {
+			if ((self->transport & 0xFFFF) == W_LZ4) {
+				self->strm->hdl.lz = LZ4_createStream();
+				if (self->strm->hdl.lz == NULL) {
 					logerr("failed to create lz4 stream: out of memory\n");
-					free(s);
 					close(self->fd);
 					self->fd = -1;
 					continue;
 				}
-				self->strm = s;
 			}
 #endif
 #ifdef HAVE_SNAPPY
-			if (self->transport == W_SNAPPY) {
-				z_strm *s = (z_strm *)malloc(sizeof(z_strm));
-				if (s == NULL) {
-					logerr("failed to allocate snappy stream: %s\n",
-							strerror(errno));
-					close(self->fd);
-					self->fd = -1;
-					continue;
-				}
-				s->sock = self->fd;
-				self->strm = s;
+			if ((self->transport & 0xFFFF) == W_SNAPPY) {
+				self->strm->obuflen = 0;
 			}
 #endif
+
 #ifdef HAVE_SSL
-			if (self->transport == W_SSL) {
+			if ((self->transport & ~0xFFFF) == W_SSL) {
 				int rv;
-				self->strm = SSL_new(self->ctx);
-				SSL_set_tlsext_host_name(self->strm, self->ip);
-				if (SSL_set_fd(self->strm, self->fd) == 0) {
+				z_strm *sstrm;
+
+				if (self->transport == W_SSL) { /* just SSL, nothing else */
+					sstrm = self->strm;
+				} else {
+					sstrm = self->strm->nextstrm;
+				}
+
+				sstrm->hdl.ssl = SSL_new(sstrm->ctx);
+				SSL_set_tlsext_host_name(sstrm->hdl.ssl, self->ip);
+				if (SSL_set_fd(sstrm->hdl.ssl, self->fd) == 0) {
 					logerr("failed to SSL_set_fd: %s\n",
 							ERR_reason_error_string(ERR_get_error()));
-					self->strmclose(self->strm);
+					sstrm->strmclose(sstrm);
 					self->fd = -1;
 					continue;
 				}
-				if ((rv = SSL_connect(self->strm)) != 1) {
+				if ((rv = SSL_connect(sstrm->hdl.ssl)) != 1) {
 					logerr("failed to  connect ssl stream: %s\n",
 							ERR_reason_error_string(
-								SSL_get_error(self->strm, rv)));
-					self->strmclose(self->strm);
+								SSL_get_error(sstrm->hdl.ssl, rv)));
+					sstrm->strmclose(sstrm);
 					self->fd = -1;
 					continue;
 				}
-			}
+			} else
 #endif
+			{
+				z_strm *pstrm;
+
+				if (self->transport == W_PLAIN) { /* just plain socket */
+					pstrm = self->strm;
+				} else {
+					pstrm = self->strm->nextstrm;
+				}
+				pstrm->hdl.sock = self->fd;
+			}
 		}
 
 		/* send up to batch size */
@@ -789,7 +885,7 @@ server_queuereader(void *d)
 			 * getting endlessly stuck on this, only try a limited
 			 * number of times for a single metric. */
 			for (cnt = 0, p = *metric + sizeof(size_t); cnt < 10; cnt++) {
-				if ((slen = self->strmwrite(self->strm, p, len)) != len) {
+				if ((slen = self->strm->strmwrite(self->strm, p, len)) != len) {
 					if (slen >= 0) {
 						p += slen;
 						len -= slen;
@@ -810,9 +906,10 @@ server_queuereader(void *d)
 						__sync_fetch_and_add(&(self->failure), 1) == 0)
 					logerr("failed to write() to %s:%u: %s\n",
 							self->ip, self->port,
-							(slen < 0 ? self->strmerror(self->strm, slen) :
+							(slen < 0 ?
+							 self->strm->strmerror(self->strm, slen) :
 							 "incomplete write"));
-				self->strmclose(self->strm);
+				self->strm->strmclose(self->strm);
 				self->fd = -1;
 				/* put back stuff we couldn't process */
 				for (; *metric != NULL; metric++) {
@@ -843,7 +940,7 @@ server_queuereader(void *d)
 	__sync_and_and_fetch(&(self->running), 0);
 
 	if (self->fd >= 0)
-		self->strmclose(self->strm);
+		self->strm->strmclose(self->strm);
 	if (secpos != NULL)
 		free(secpos);
 	return NULL;
@@ -897,62 +994,100 @@ server_new(
 		return NULL;
 	}
 	ret->fd = -1;
-	if (transport == W_PLAIN) {
-		ret->strm = &(ret->fd);
-		ret->strmwrite = &sockwrite;
-		ret->strmflush = &sockflush;
-		ret->strmclose = &sockclose;
-		ret->strmerror = &sockerror;
+	if ((ret->strm = malloc(sizeof(z_strm))) == NULL) {
+		free((char *)ret->ip);
+		free(ret->batch);
+		free(ret);
+		return NULL;
 	}
-#ifdef HAVE_GZIP
-	else if (transport == W_GZIP) {
-		ret->strmwrite = &gzipwrite;
-		ret->strmflush = &gzipflush;
-		ret->strmclose = &gzipclose;
-		ret->strmerror = &sockerror;
-	}
-#endif
-#ifdef HAVE_LZ4
-	else if (transport == W_LZ4) {
-		ret->strmwrite = &lzwrite;
-		ret->strmflush = &lzflush;
-		ret->strmclose = &lzclose;
-		ret->strmerror = &sockerror;
-	}
-#endif
-#ifdef HAVE_SNAPPY
-	else if (transport == W_SNAPPY) {
-		ret->strmwrite = &snappywrite;
-		ret->strmflush = &snappyflush;
-		ret->strmclose = &snappyclose;
-		ret->strmerror = &sockerror;
-	}
-#endif
+	ret->strm->nextstrm = NULL;
+
+	/* setup normal or SSL-wrapped socket first */
 #ifdef HAVE_SSL
-	else if (transport == W_SSL) {
-		/* create a auto-negotiate context */
+	if ((transport & ~0xFFFF) == W_SSL) {
+		/* create an auto-negotiate context */
 		const SSL_METHOD *m = SSLv23_client_method();
-		ret->ctx = SSL_CTX_new(m);
+		ret->strm->ctx = SSL_CTX_new(m);
 		
-		if (ret->ctx == NULL) {
+		if (ret->strm->ctx == NULL) {
 			char *err = ERR_error_string(ERR_get_error(), NULL);
 			logerr("failed to create SSL context for server "
 					"%s:%d: %s\n", ret->ip, ret->port, err);
 			free((char *)ret->ip);
+			free(ret->batch);
+			free(ret->strm);
 			free(ret);
 			return NULL;
 		}
 
-		ret->strmwrite = &sslwrite;
-		ret->strmflush = &sslflush;
-		ret->strmclose = &sslclose;
-		ret->strmerror = &sslerror;
+		ret->strm->strmwrite = &sslwrite;
+		ret->strm->strmflush = &sslflush;
+		ret->strm->strmclose = &sslclose;
+		ret->strm->strmerror = &sslerror;
+	} else
+#endif
+	{
+		ret->strm->strmwrite = &sockwrite;
+		ret->strm->strmflush = &sockflush;
+		ret->strm->strmclose = &sockclose;
+		ret->strm->strmerror = &sockerror;
+	}
+	
+	/* now see if we have a compressor defined */
+#ifdef HAVE_GZIP
+	if ((transport & 0xFFFF) == W_GZIP) {
+		z_strm *gzstrm = malloc(sizeof(z_strm));
+		if (gzstrm == NULL) {
+			free((char *)ret->ip);
+			free(ret->batch);
+			free(ret->strm);
+			free(ret);
+			return NULL;
+		}
+		gzstrm->strmwrite = &gzipwrite;
+		gzstrm->strmflush = &gzipflush;
+		gzstrm->strmclose = &gzipclose;
+		gzstrm->strmerror = &gziperror;
+		gzstrm->nextstrm = ret->strm;
+		ret->strm = gzstrm;
 	}
 #endif
-	else {
-		logerr("no transport type defined for server!!! (this is a BUG)\n");
-		assert(0);
+#ifdef HAVE_LZ4
+	else if ((transport & 0xFFFF) == W_LZ4) {
+		z_strm *lzstrm = malloc(sizeof(z_strm));
+		if (lzstrm == NULL) {
+			free((char *)ret->ip);
+			free(ret->batch);
+			free(ret->strm);
+			free(ret);
+			return NULL;
+		}
+		lzstrm->strmwrite = &lzwrite;
+		lzstrm->strmflush = &lzflush;
+		lzstrm->strmclose = &lzclose;
+		lzstrm->strmerror = &lzerror;
+		lzstrm->nextstrm = ret->strm;
+		ret->strm = lzstrm;
 	}
+#endif
+#ifdef HAVE_SNAPPY
+	else if ((transport & 0xFFFF) == W_SNAPPY) {
+		z_strm *snpstrm = malloc(sizeof(z_strm));
+		if (snpstrm == NULL) {
+			free((char *)ret->ip);
+			free(ret->batch);
+			free(ret->strm);
+			free(ret);
+			return NULL;
+		}
+		snpstrm->strmwrite = &snappywrite;
+		snpstrm->strmflush = &snappyflush;
+		snpstrm->strmclose = &snappyclose;
+		snpstrm->strmerror = &snappyerror;
+		snpstrm->nextstrm = ret->strm;
+		ret->strm = snpstrm;
+	}
+#endif
 	ret->saddr = saddr;
 	ret->reresolve = 0;
 	ret->hint = NULL;
@@ -1193,6 +1328,9 @@ server_free(server *s) {
 	if (s->hint)
 		free(s->hint);
 	free((char *)s->ip);
+	if (s->strm->nextstrm != NULL)
+		free(s->strm->nextstrm);
+	free(s->strm);
 	s->ip = NULL;
 	free(s);
 }

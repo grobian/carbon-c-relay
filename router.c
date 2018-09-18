@@ -101,8 +101,7 @@ const char *con_trnsp_str[] = {
 	/* 1 */ "plain",
 	/* 2 */ "gzip",
 	/* 3 */ "lz4",
-	/* 4 */ "snappy",
-	/* 5 */ "ssl"
+	/* 4 */ "snappy"
 };
 
 /**
@@ -1809,11 +1808,12 @@ router_printconfig(router *rtr, FILE *f, char pmode)
 	server_type(s->server) == T_LINEMODE ? "" : " type ", \
 	server_type(s->server) == T_LINEMODE ? "" : \
 		con_type_str[server_type(s->server)]
-#define PTRNSPFMT "%s%s"
+#define PTRNSPFMT "%s%s%s"
 #define PTRNSP \
 	server_transport(s->server) == W_PLAIN ? "" : " transport ", \
-	server_transport(s->server) == W_PLAIN ? "" : \
-		con_trnsp_str[server_transport(s->server)]
+	(server_transport(s->server) & 0xFFFF) == W_PLAIN ? "" : \
+		con_trnsp_str[server_transport(s->server) & 0xFFFF], \
+	(server_transport(s->server) & ~0xFFFF) == W_SSL ? " ssl" : ""
 
 	if (rtr->listeners != NULL) {
 		listener *walk;
@@ -1822,17 +1822,18 @@ router_printconfig(router *rtr, FILE *f, char pmode)
 			if (walk->lsnrtype == T_LINEMODE) {
 				fprintf(f, "    type linemode%s%s%s%s",
 						walk->transport == W_PLAIN ? "" : " transport ",
-						walk->transport == W_PLAIN ? "" :
-							con_trnsp_str[walk->transport],
-						walk->transport == W_SSL ? " " : "",
+						(walk->transport & 0xFFFF) == W_PLAIN ? "" :
+							con_trnsp_str[walk->transport & 0xFFFF],
+						(walk->transport & ~0xFFFF) == W_SSL ? " ssl " : "",
 #ifdef HAVE_SSL
-						walk->transport == W_SSL ? walk->pemcert : ""
+						(walk->transport & ~0xFFFF) == W_SSL ? walk->pemcert : ""
 #else
 						""
 #endif
 						);
 #ifdef HAVE_SSL
-				if (walk->transport == W_SSL && pmode & PMODE_PEMT) {
+				if ((walk->transport & ~0xFFFF) == W_SSL && pmode & PMODE_PEMT)
+				{
 					fprintf(f, "  # mtime %ld.%ld",
 							walk->pemmtimespec.tv_sec,
 							walk->pemmtimespec.tv_nsec);
@@ -2259,7 +2260,7 @@ router_contains_listener(router *rtr, listener *lsnr)
 				if (lsnr->port == rwalk->port && strcmp(l, r) == 0) {
 #ifdef HAVE_SSL
 					/* check pemmtimespec */
-					if (lsnr->transport == W_SSL &&
+					if ((lsnr->transport & ~0xFFFF) == W_SSL &&
 							lsnr->pemmtimespec.tv_sec ==
 									rwalk->pemmtimespec.tv_sec &&
 							lsnr->pemmtimespec.tv_nsec ==

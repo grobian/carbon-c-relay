@@ -60,7 +60,7 @@ typedef enum {
 	W_GZIP   = 2,
 	W_LZ4    = 3,
 	W_SNAPPY = 4,
-	W_SSL    = 5
+	W_SSL    = 1 << 16   /* used as bit-flag */
 } con_trnsp;
 
 int relaylog(enum logdst dest, const char *fmt, ...);
