@@ -1034,8 +1034,11 @@ server_new(
 	}
 	
 	/* now see if we have a compressor defined */
+	if ((transport & 0xFFFF) == W_PLAIN) {
+		/* catch noop */
+	}
 #ifdef HAVE_GZIP
-	if ((transport & 0xFFFF) == W_GZIP) {
+	else if ((transport & 0xFFFF) == W_GZIP) {
 		z_strm *gzstrm = malloc(sizeof(z_strm));
 		if (gzstrm == NULL) {
 			free((char *)ret->ip);
@@ -1088,6 +1091,7 @@ server_new(
 		ret->strm = snpstrm;
 	}
 #endif
+
 	ret->saddr = saddr;
 	ret->reresolve = 0;
 	ret->hint = NULL;
