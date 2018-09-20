@@ -41,6 +41,8 @@ extern unsigned char mode;
 
 extern char relay_hostname[];
 extern char noexpire;
+extern char *sslCA;
+extern char sslCAisdir;
 
 enum logdst { LOGOUT, LOGERR };
 

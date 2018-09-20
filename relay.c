@@ -25,6 +25,7 @@
 #include <signal.h>
 #include <time.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
 #include <errno.h>
 #include <assert.h>
 
@@ -48,6 +49,10 @@ int pending_signal = -1;
 char relay_hostname[256];
 unsigned char mode = 0;
 char noexpire = 0;
+#ifdef HAVE_SSL
+char *sslCA = NULL;
+char sslCAisdir = 0;
+#endif
 
 static char *config = NULL;
 static int batchsize = 2500;
@@ -112,7 +117,8 @@ relaylog(enum logdst dest, const char *fmt, ...)
 	len = strftime(prefix, sizeof(prefix), "[%Y-%m-%d %H:%M:%S]", &tm_now);
 
 	if (!console)
-		(void)snprintf(prefix + len, sizeof(prefix) - len, " (%s)", dest == LOGOUT ? "MSG" : "ERR");
+		(void)snprintf(prefix + len, sizeof(prefix) - len,
+				" (%s)", dest == LOGOUT ? "MSG" : "ERR");
 
 	fprintf(dst, "%s ", prefix);
 
@@ -384,6 +390,9 @@ do_usage(char *name, int exitcode)
 	printf("  -b  server send batch size, defaults to %d\n", batchsize);
 	printf("  -q  server queue size, defaults to %d\n", queuesize);
 	printf("  -L  server max stalls, defaults to %d\n", maxstalls);
+#ifdef HAVE_SSL
+	printf("  -C  use CA <cert> to verify SSL connections\n");
+#endif
 	printf("  -S  statistics sending interval in seconds, defaults to 60\n");
 	printf("  -B  connection listen backlog, defaults to 32\n");
 	printf("  -U  socket receive buffer size, max/min/default values depend on OS\n");
@@ -424,7 +433,9 @@ main(int argc, char * const argv[])
 	if (gethostname(relay_hostname, sizeof(relay_hostname)) < 0)
 		snprintf(relay_hostname, sizeof(relay_hostname), "127.0.0.1");
 
-	while ((ch = getopt(argc, argv, ":hvdstf:l:p:w:b:q:L:T:c:H:B:U:EDP:O:")) != -1) {
+	while ((ch = getopt(argc, argv,
+					":hvdstf:l:p:w:b:q:L:C:T:c:H:B:U:EDP:O:")) != -1)
+	{
 		switch (ch) {
 			case 'v':
 				do_version();
@@ -491,6 +502,11 @@ main(int argc, char * const argv[])
 							"between 0 and %d\n", (1 << SERVER_STALL_BITS) - 1);
 					do_usage(argv[0], 1);
 				}
+				break;
+			case 'C':
+#ifdef HAVE_SSL
+				sslCA = optarg;
+#endif
 				break;
 			case 'T': {
 				int val = atoi(optarg);
@@ -640,6 +656,20 @@ main(int argc, char * const argv[])
 		}
 	}
 
+#ifdef HAVE_SSL
+	/* check if we can read the given CA before starting up and stuff */
+	if (sslCA != NULL) {
+		struct stat st;
+		if (stat(sslCA, &st) == -1) {
+			fprintf(stderr, "failed to open TLS/SSL CA file '%s': %s\n",
+					sslCA, strerror(errno));
+			exit(1);
+		}
+		if (S_ISDIR(st.st_mode))
+			sslCAisdir = 1;
+	}
+#endif
+
 	if (mode & MODE_DAEMON) {
 		pid_t p;
 
@@ -753,6 +783,10 @@ main(int argc, char * const argv[])
 		fprintf(relay_stdout, "    listen backlog = %u\n", listenbacklog);
 		if (sockbufsize > 0)
 			fprintf(relay_stdout, "    socket bufsize = %u\n", sockbufsize);
+#ifdef HAVE_SSL
+		if (sslCA != NULL)
+			fprintf(relay_stdout, "    tls/ssl CA = %s\n", sslCA);
+#endif
 		fprintf(relay_stdout, "    server connection IO timeout = %dms\n",
 				iotimeout);
 		fprintf(relay_stdout, "    idle connections disconnect timeout = %s\n",

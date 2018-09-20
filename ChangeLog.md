@@ -11,6 +11,9 @@
 * **relay** support for snappy compression was added.
 * **relay** SSL support can now be used next to compression
   [Bug #323](https://github.com/grobian/carbon-c-relay/issues/323)
+* **relay** add option to set CA certs using `-C`, in addition
+  certificate verification failures are now treated as fatal
+  [Bug #314](https://github.com/grobian/carbon-c-relay/issues/314)
 
 ### Bugfixes
 
