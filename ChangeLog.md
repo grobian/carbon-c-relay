@@ -1,4 +1,6 @@
-# 3.4 (unreleased master branch)
+# 3.5 (unreleased master branch)
+
+# 3.4 (18-10-2018)
 
 ### New Features
 
