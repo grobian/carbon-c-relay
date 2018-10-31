@@ -398,7 +398,6 @@ do_usage(char *name, int exitcode)
 	printf("  -U  socket receive buffer size, max/min/default values depend on OS\n");
 	printf("  -T  IO timeout in milliseconds for server connections, defaults to %d\n", iotimeout);
 	printf("  -E  disable disconnecting idle connections after 10 minutes\n");
-	printf("  -m  send statistics like carbon-cache.py, e.g. not cumulative\n");
 	printf("  -c  characters to allow next to [A-Za-z0-9], defaults to -_:#\n");
 	printf("  -d  debug mode: currently writes statistics to log, prints hash\n"
 	       "      ring contents and matching position in test mode (-t)\n");
