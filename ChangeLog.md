@@ -1,5 +1,10 @@
 # 3.5 (unreleased master branch)
 
+### New Features
+
+### Bugfixes
+
+
 # 3.4 (18-10-2018)
 
 ### New Features
@@ -43,6 +48,7 @@
 ### Bugfixes
 
 * Fix conffile.tab.h dependency for parallel make.
+
 
 # 3.2 (21-10-2017)
 
