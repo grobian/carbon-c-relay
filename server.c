@@ -44,6 +44,7 @@
 #endif
 #ifdef HAVE_LZ4
 #include <lz4.h>
+#include <lz4frame.h>
 #endif
 #ifdef HAVE_SNAPPY
 #include <snappy-c.h>
@@ -71,7 +72,7 @@ typedef struct _z_strm {
 		z_streamp gz;
 #endif
 #ifdef HAVE_LZ4
-		LZ4_stream_t *lz;
+		LZ4F_compressionContext_t *lz;
 #endif
 #ifdef HAVE_SSL
 		SSL *ssl;
@@ -243,24 +244,37 @@ gziperror(z_strm *strm, int rval)
 
 #ifdef HAVE_LZ4
 /* lz4 wrapped socket */
+
+static inline int lzflush(z_strm *strm);
+
 static inline ssize_t
 lzwrite(z_strm *strm, const void *buf, size_t sze)
 {
-	int oret;
-	char *obuf = strm->obuf;
-	int cret;
+	size_t towrite = sze;
 
-	cret = LZ4_compress_fast_continue(strm->hdl.lz,
-			buf, strm->obuf, sze, METRIC_BUFSIZ, 0);
-	if (cret == 0)
-		return -1;  /* we must reset/free lz */
-	while (cret > 0) {
-		oret = strm->nextstrm->strmwrite(strm->nextstrm, strm->obuf, cret);
-		if (oret < 0)
-			return -1;  /* failure is failure */
-		/* update counters to possibly retry the remaining bit */
-		obuf += oret;
-		cret -= oret;
+	/* use the same strategy as gzip: fill the buffer until space
+	   runs out. we completely fill the output buffer before flushing */
+
+	while(towrite > 0) {
+
+		size_t avail = METRIC_BUFSIZ - strm->obuflen;
+		size_t copysize = towrite > avail ? avail : towrite;
+
+		/* copy into the output buffer as much as we can */
+
+		if(copysize > 0) {
+			memcpy(strm->obuf + strm->obuflen, buf, copysize);
+			strm->obuflen += copysize;
+			towrite -= copysize;
+			buf += copysize;
+		}
+
+		/* if output buffer is full & still have bytes to write, flush now */
+
+		if(strm->obuflen == METRIC_BUFSIZ && towrite > 0 && lzflush(strm) != 0) {
+			logerr("Failed to flush LZ4 data to make space\n");
+			return -1;
+		}
 	}
 
 	return sze;
@@ -269,15 +283,58 @@ lzwrite(z_strm *strm, const void *buf, size_t sze)
 static inline int
 lzflush(z_strm *strm)
 {
-	return strm->nextstrm->strmflush(strm->nextstrm);
+	int oret;
+	void *cbuf;
+	size_t ret, sizereq;
+
+	/* anything to do? */
+
+	if(strm->obuflen == 0)
+		return 0;
+
+	/* get the maximum size required and allocate for it */
+
+	sizereq = LZ4F_compressFrameBound(strm->obuflen, NULL);
+	if((cbuf = malloc(sizereq)) == NULL) {
+		logerr("Failed to allocate %lu bytes for compressed LZ4 data\n", sizereq);
+		return -1;
+	}
+
+	/* the buffered data goes out as a single frame */
+
+	ret = LZ4F_compressFrame(cbuf, sizereq, strm->obuf, strm->obuflen, NULL);
+	if(LZ4F_isError(ret)) {
+		logerr("Failed to compress %d LZ4 bytes into a frame: %d\n",
+		       strm->obuflen, (int)ret);
+		oret = -1;
+	}
+	else {
+		/* write and flush */
+
+		if((oret = strm->nextstrm->strmwrite(strm->nextstrm,
+						     cbuf, ret)) < 0) {
+			logerr("Failed to write %lu bytes of compressed LZ4 data: %d\n",
+			       ret, oret);
+		}
+		else {
+			strm->nextstrm->strmflush(strm->nextstrm);
+
+			/* the buffer is gone. reset the write position */
+
+			strm->obuflen = 0;
+			oret = 0;
+		}
+	}
+
+	free(cbuf);
+	return oret;
 }
 
 static inline int
 lzclose(z_strm *strm)
 {
-	int ret = strm->nextstrm->strmclose(strm->nextstrm);
-	LZ4_freeStream(strm->hdl.lz);
-	return ret;
+	lzflush(strm);
+	return strm->nextstrm->strmclose(strm->nextstrm);
 }
 
 static inline const char *
@@ -795,13 +852,7 @@ server_queuereader(void *d)
 #endif
 #ifdef HAVE_LZ4
 			if ((self->transport & 0xFFFF) == W_LZ4) {
-				self->strm->hdl.lz = LZ4_createStream();
-				if (self->strm->hdl.lz == NULL) {
-					logerr("failed to create lz4 stream: out of memory\n");
-					close(self->fd);
-					self->fd = -1;
-					continue;
-				}
+				self->strm->obuflen = 0;
 			}
 #endif
 #ifdef HAVE_SNAPPY
