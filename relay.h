@@ -22,7 +22,7 @@
 #include "config.h"
 #endif
 
-#define METRIC_BUFSIZ 8192
+#define METRIC_BUFSIZ 32768
 
 /* these are the various modes in which the relay runs */
 #define MODE_DEBUG      (1 << 0)
