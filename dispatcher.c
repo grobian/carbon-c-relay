@@ -41,6 +41,7 @@
 #endif
 #ifdef HAVE_LZ4
 #include <lz4.h>
+#include <lz4frame.h>
 #endif
 #ifdef HAVE_SNAPPY
 #include <snappy-c.h>
@@ -62,7 +63,7 @@ typedef struct _z_strm {
 		z_stream z;
 #endif
 #ifdef HAVE_LZ4
-		LZ4_streamDecode_t *lz;
+		LZ4F_decompressionContext_t lz;
 #endif
 #ifdef HAVE_SSL
 		SSL *ssl;
@@ -279,37 +280,75 @@ static inline ssize_t
 lzread(z_strm *strm, void *buf, size_t sze)
 {
 	char *ibuf = strm->ibuf;
+	size_t srcsize, destsize, total;
 	int ret;
 
 	/* read any available data, if it fits */
 	ret = strm->nextstrm->strmread(strm->nextstrm,
 			ibuf + strm->ipos, METRIC_BUFSIZ - strm->ipos);
+
+	/* if EOF(0) or no-data(-1) then only get out now if the input buffer is empty
+	   because start of next frame may be waiting for us */
+	
 	if (ret > 0) {
 		strm->ipos += ret;
 	} else if (ret < 0) {
-		return -1;
+		if(strm->ipos == 0)
+			return -1;
 	} else {
 		/* ret == 0, a.k.a. EOF */
-		return 0;
+		if(strm->ipos == 0)
+			return 0;
 	}
 
-	ret = LZ4_decompress_safe_continue(strm->hdl.lz,
-			ibuf, buf, strm->ipos, sze);
+	/* attempt to decompress something from the (partial) frame that's arrived so far.
+	   srcsize is updated to the number of bytes consumed. likewise for destsize and
+	   bytes written */
+
+	srcsize = strm->ipos;
+	destsize = sze;
+	
+	ret = LZ4F_decompress(strm->hdl.lz, buf, &destsize, ibuf, &srcsize, NULL);
+
+	/* check for error before doing anything else */
+
+	if(LZ4F_isError(ret)) {
+
+		/* liblz4 doesn't allow access to the error constants so have to
+		   return a generic code */
+
+		logerr("Error %d reading LZ4 compressed data\n", (int)ret);
+		errno = EBADMSG;
+		strm->ipos = 0;
+
+		return -1;
+	}
 
 	/* if we decompressed something, update our ibuf */
-	if (ret > 0) {
-		strm->ipos = strm->ipos - ret;
-		memmove(ibuf, ibuf + ret, strm->ipos);
+
+	if(srcsize > 0) {
+		memmove(ibuf, ibuf + srcsize, strm->ipos - srcsize);
+		strm->ipos -= srcsize;
 	}
 
-	return (ssize_t)ret;
+	if(destsize == 0) {
+		tracef("No LZ4 data was produced\n");
+		errno = EAGAIN;
+		return -1;
+	}
+
+	/* debug logging */
+	if(ret == 0)
+		tracef("LZ4 frame fully decoded\n");
+
+	return (ssize_t)destsize;
 }
 
 static inline int
 lzclose(z_strm *strm)
 {
 	int ret = strm->nextstrm->strmclose(strm->nextstrm);
-	LZ4_freeStreamDecode(strm->hdl.lz);
+	LZ4F_freeDecompressionContext(strm->hdl.lz);
 	free(strm);
 	return ret;
 }
@@ -670,7 +709,11 @@ dispatch_addconnection(int sock, listener *lsnr)
 			__sync_bool_compare_and_swap(&(connections[c].takenby), -2, -1);
 			return -1;
 		}
-		lzstrm->hdl.lz = LZ4_createStreamDecode();
+		if(LZ4F_isError(LZ4F_createDecompressionContext(&lzstrm->hdl.lz, LZ4F_VERSION))) {
+			logerr("Failed to create LZ4 decompression context\n");
+			return -1;
+		}
+		
 		lzstrm->strmread = &lzread;
 		lzstrm->strmclose = &lzclose;
 		lzstrm->nextstrm = connections[c].strm;
