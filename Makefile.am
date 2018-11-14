@@ -16,7 +16,11 @@ AUTOMAKE_OPTIONS = foreign
 
 CFLAGS ?= -O2 -Wall -Wshadow -pipe
 
-GIT_VERSION := $(shell git describe --abbrev=6 --dirty --always 2>/dev/null || date +%F)
+GIT_VERSION := $(shell \
+	date -u -d "@${SOURCE_DATE_EPOCH}" "+%F" 2>/dev/null || \
+	date -u -r "${SOURCE_DATE_EPOCH}" "+%F" 2>/dev/null || \
+	git describe --abbrev=6 --dirty --always 2>/dev/null || \
+	date +%F)
 GVCFLAGS = -DGIT_VERSION=\"$(GIT_VERSION)\"
 
 override CFLAGS += $(GVCFLAGS) -pthread
