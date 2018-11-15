@@ -280,7 +280,7 @@ static inline ssize_t
 lzread(z_strm *strm, void *buf, size_t sze)
 {
 	char *ibuf = strm->ibuf;
-	size_t srcsize, destsize, total;
+	size_t srcsize, destsize;
 	int ret;
 
 	/* read any available data, if it fits */
