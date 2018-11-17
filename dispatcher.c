@@ -293,11 +293,11 @@ lzread(z_strm *strm, void *buf, size_t sze)
 	if (ret > 0) {
 		strm->ipos += ret;
 	} else if (ret < 0) {
-		if(strm->ipos == 0)
+		if (strm->ipos == 0)
 			return -1;
 	} else {
 		/* ret == 0, a.k.a. EOF */
-		if(strm->ipos == 0)
+		if (strm->ipos == 0)
 			return 0;
 	}
 
@@ -312,7 +312,7 @@ lzread(z_strm *strm, void *buf, size_t sze)
 
 	/* check for error before doing anything else */
 
-	if(LZ4F_isError(ret)) {
+	if (LZ4F_isError(ret)) {
 
 		/* liblz4 doesn't allow access to the error constants so have to
 		   return a generic code */
@@ -326,20 +326,22 @@ lzread(z_strm *strm, void *buf, size_t sze)
 
 	/* if we decompressed something, update our ibuf */
 
-	if(srcsize > 0) {
+	if (srcsize > 0) {
 		memmove(ibuf, ibuf + srcsize, strm->ipos - srcsize);
 		strm->ipos -= srcsize;
 	}
 
-	if(destsize == 0) {
+	if (destsize == 0) {
 		tracef("No LZ4 data was produced\n");
 		errno = EAGAIN;
 		return -1;
 	}
 
+#ifdef ENABLE_TRACE
 	/* debug logging */
-	if(ret == 0)
+	if (ret == 0)
 		tracef("LZ4 frame fully decoded\n");
+#endif
 
 	return (ssize_t)destsize;
 }
@@ -709,7 +711,7 @@ dispatch_addconnection(int sock, listener *lsnr)
 			__sync_bool_compare_and_swap(&(connections[c].takenby), -2, -1);
 			return -1;
 		}
-		if(LZ4F_isError(LZ4F_createDecompressionContext(&lzstrm->hdl.lz, LZ4F_VERSION))) {
+		if (LZ4F_isError(LZ4F_createDecompressionContext(&lzstrm->hdl.lz, LZ4F_VERSION))) {
 			logerr("Failed to create LZ4 decompression context\n");
 			return -1;
 		}

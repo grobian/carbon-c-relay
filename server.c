@@ -255,14 +255,14 @@ lzwrite(z_strm *strm, const void *buf, size_t sze)
 	/* use the same strategy as gzip: fill the buffer until space
 	   runs out. we completely fill the output buffer before flushing */
 
-	while(towrite > 0) {
+	while (towrite > 0) {
 
 		size_t avail = METRIC_BUFSIZ - strm->obuflen;
 		size_t copysize = towrite > avail ? avail : towrite;
 
 		/* copy into the output buffer as much as we can */
 
-		if(copysize > 0) {
+		if (copysize > 0) {
 			memcpy(strm->obuf + strm->obuflen, buf, copysize);
 			strm->obuflen += copysize;
 			towrite -= copysize;
@@ -271,7 +271,7 @@ lzwrite(z_strm *strm, const void *buf, size_t sze)
 
 		/* if output buffer is full & still have bytes to write, flush now */
 
-		if(strm->obuflen == METRIC_BUFSIZ && towrite > 0 && lzflush(strm) != 0) {
+		if (strm->obuflen == METRIC_BUFSIZ && towrite > 0 && lzflush(strm) != 0) {
 			logerr("Failed to flush LZ4 data to make space\n");
 			return -1;
 		}
@@ -289,13 +289,13 @@ lzflush(z_strm *strm)
 
 	/* anything to do? */
 
-	if(strm->obuflen == 0)
+	if (strm->obuflen == 0)
 		return 0;
 
 	/* get the maximum size required and allocate for it */
 
 	sizereq = LZ4F_compressFrameBound(strm->obuflen, NULL);
-	if((cbuf = malloc(sizereq)) == NULL) {
+	if ((cbuf = malloc(sizereq)) == NULL) {
 		logerr("Failed to allocate %lu bytes for compressed LZ4 data\n", sizereq);
 		return -1;
 	}
@@ -303,7 +303,7 @@ lzflush(z_strm *strm)
 	/* the buffered data goes out as a single frame */
 
 	ret = LZ4F_compressFrame(cbuf, sizereq, strm->obuf, strm->obuflen, NULL);
-	if(LZ4F_isError(ret)) {
+	if (LZ4F_isError(ret)) {
 		logerr("Failed to compress %d LZ4 bytes into a frame: %d\n",
 		       strm->obuflen, (int)ret);
 		oret = -1;
@@ -311,7 +311,7 @@ lzflush(z_strm *strm)
 	else {
 		/* write and flush */
 
-		if((oret = strm->nextstrm->strmwrite(strm->nextstrm,
+		if ((oret = strm->nextstrm->strmwrite(strm->nextstrm,
 						     cbuf, ret)) < 0) {
 			logerr("Failed to write %lu bytes of compressed LZ4 data: %d\n",
 			       ret, oret);
