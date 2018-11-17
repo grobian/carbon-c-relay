@@ -72,7 +72,10 @@ typedef struct _z_strm {
 		z_streamp gz;
 #endif
 #ifdef HAVE_LZ4
-		LZ4F_compressionContext_t *lz;
+		struct {
+			void *cbuf;
+			size_t cbuflen;
+		} z;
 #endif
 #ifdef HAVE_SSL
 		SSL *ssl;
@@ -292,48 +295,36 @@ lzflush(z_strm *strm)
 	if (strm->obuflen == 0)
 		return 0;
 
-	/* get the maximum size required and allocate for it */
-
-	sizereq = LZ4F_compressFrameBound(strm->obuflen, NULL);
-	if ((cbuf = malloc(sizereq)) == NULL) {
-		logerr("Failed to allocate %lu bytes for compressed LZ4 data\n", sizereq);
-		return -1;
-	}
-
 	/* the buffered data goes out as a single frame */
 
-	ret = LZ4F_compressFrame(cbuf, sizereq, strm->obuf, strm->obuflen, NULL);
+	ret = LZ4F_compressFrame(strm->hdl.z.cbuf, strm->hdl.z.cbuflen, strm->obuf, strm->obuflen, NULL);
 	if (LZ4F_isError(ret)) {
 		logerr("Failed to compress %d LZ4 bytes into a frame: %d\n",
 		       strm->obuflen, (int)ret);
-		oret = -1;
+		return -1;
 	}
-	else {
 		/* write and flush */
 
-		if ((oret = strm->nextstrm->strmwrite(strm->nextstrm,
-						     cbuf, ret)) < 0) {
-			logerr("Failed to write %lu bytes of compressed LZ4 data: %d\n",
-			       ret, oret);
-		}
-		else {
-			strm->nextstrm->strmflush(strm->nextstrm);
-
-			/* the buffer is gone. reset the write position */
-
-			strm->obuflen = 0;
-			oret = 0;
-		}
+	if ((oret = strm->nextstrm->strmwrite(strm->nextstrm,
+					      strm->hdl.z.cbuf, ret)) < 0) {
+		logerr("Failed to write %lu bytes of compressed LZ4 data: %d\n",
+		       ret, oret);
+		return oret;
 	}
 
-	free(cbuf);
-	return oret;
+	strm->nextstrm->strmflush(strm->nextstrm);
+
+	/* the buffer is gone. reset the write position */
+
+	strm->obuflen = 0;
+	return 0;
 }
 
 static inline int
 lzclose(z_strm *strm)
 {
 	lzflush(strm);
+	free(strm->hdl.z.cbuf);
 	return strm->nextstrm->strmclose(strm->nextstrm);
 }
 
@@ -853,6 +844,16 @@ server_queuereader(void *d)
 #ifdef HAVE_LZ4
 			if ((self->transport & 0xFFFF) == W_LZ4) {
 				self->strm->obuflen = 0;
+
+				/* get the maximum size that should ever be required and allocate for it */
+
+				self->strm->hdl.z.cbuflen = LZ4F_compressFrameBound(sizeof(self->strm->obuf), NULL);
+				if ((self->strm->hdl.z.cbuf = malloc(self->strm->hdl.z.cbuflen)) == NULL) {
+					logerr("Failed to allocate %lu bytes for compressed LZ4 data\n", self->strm->hdl.z.cbuflen);
+					close(self->fd);
+					self->fd = -1;
+					continue;
+				}
 			}
 #endif
 #ifdef HAVE_SNAPPY
