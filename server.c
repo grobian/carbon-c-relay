@@ -287,8 +287,7 @@ static inline int
 lzflush(z_strm *strm)
 {
 	int oret;
-	void *cbuf;
-	size_t ret, sizereq;
+	size_t ret;
 
 	/* anything to do? */
 
