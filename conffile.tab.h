@@ -1,4 +1,4 @@
-/* A Bison parser, made by GNU Bison 3.1.  */
+/* A Bison parser, made by GNU Bison 3.2.1.  */
 
 /* Bison interface for Yacc-like parsers in C
 
@@ -30,6 +30,9 @@
    This special exception was added by the Free Software Foundation in
    version 2.2 of Bison.  */
 
+/* Undocumented macros, especially those whose name start with YY_,
+   are private implementation details.  Do not rely on them.  */
+
 #ifndef YY_ROUTER_YY_CONFFILE_TAB_H_INCLUDED
 # define YY_ROUTER_YY_CONFFILE_TAB_H_INCLUDED
 /* Debug traces.  */
@@ -48,7 +51,7 @@
 extern int router_yydebug;
 #endif
 /* "%code requires" blocks.  */
-#line 11 "conffile.y" /* yacc.c:1913  */
+#line 11 "conffile.y" /* yacc.c:1906  */
 
 struct _clust {
 	enum clusttype t;
@@ -93,7 +96,7 @@ struct _rcptr_trsp {
 	char *pemcert;
 };
 
-#line 97 "conffile.tab.h" /* yacc.c:1913  */
+#line 100 "conffile.tab.h" /* yacc.c:1906  */
 
 /* Token type.  */
 #ifndef ROUTER_YYTOKENTYPE
@@ -289,7 +292,7 @@ union ROUTER_YYSTYPE
   struct _rcptr * receptor;
   /* transport_mode  */
   struct _rcptr_trsp * transport_mode;
-#line 293 "conffile.tab.h" /* yacc.c:1913  */
+#line 296 "conffile.tab.h" /* yacc.c:1906  */
 };
 
 typedef union ROUTER_YYSTYPE ROUTER_YYSTYPE;

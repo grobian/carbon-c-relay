@@ -36,6 +36,9 @@
 /* Define if you have lz4 */
 #undef HAVE_LZ4
 
+/* Define to 1 if you have the <lz4frame.h> header file. */
+#undef HAVE_LZ4FRAME_H
+
 /* Define to 1 if you have the <lz4.h> header file. */
 #undef HAVE_LZ4_H
 
