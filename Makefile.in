@@ -102,6 +102,7 @@ NORMAL_UNINSTALL = :
 PRE_UNINSTALL = :
 POST_UNINSTALL = :
 bin_PROGRAMS = relay$(EXEEXT)
+check_PROGRAMS = sendmetric$(EXEEXT)
 subdir = .
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/configure.ac
@@ -129,6 +130,9 @@ relay_DEPENDENCIES = $(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1)
+am_sendmetric_OBJECTS = sendmetric.$(OBJEXT)
+sendmetric_OBJECTS = $(am_sendmetric_OBJECTS)
+sendmetric_LDADD = $(LDADD)
 AM_V_P = $(am__v_P_@AM_V@)
 am__v_P_ = $(am__v_P_@AM_DEFAULT_V@)
 am__v_P_0 = false
@@ -150,7 +154,8 @@ am__depfiles_remade = ./$(DEPDIR)/aggregator.Po \
 	./$(DEPDIR)/consistent-hash.Po ./$(DEPDIR)/dispatcher.Po \
 	./$(DEPDIR)/md5.Po ./$(DEPDIR)/queue.Po \
 	./$(DEPDIR)/receptor.Po ./$(DEPDIR)/relay.Po \
-	./$(DEPDIR)/router.Po ./$(DEPDIR)/server.Po
+	./$(DEPDIR)/router.Po ./$(DEPDIR)/sendmetric.Po \
+	./$(DEPDIR)/server.Po
 am__mv = mv -f
 COMPILE = $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
 	$(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
@@ -164,8 +169,8 @@ AM_V_CCLD = $(am__v_CCLD_@AM_V@)
 am__v_CCLD_ = $(am__v_CCLD_@AM_DEFAULT_V@)
 am__v_CCLD_0 = @echo "  CCLD    " $@;
 am__v_CCLD_1 = 
-SOURCES = $(relay_SOURCES)
-DIST_SOURCES = $(relay_SOURCES)
+SOURCES = $(relay_SOURCES) $(sendmetric_SOURCES)
+DIST_SOURCES = $(relay_SOURCES) $(sendmetric_SOURCES)
 am__can_run_installinfo = \
   case $$AM_UPDATE_INFO_DIR in \
     n|no|NO) false;; \
@@ -360,6 +365,8 @@ relay_SOURCES = \
 	collector.c \
 	aggregator.c
 
+sendmetric_LINK = $(CCLD) $(AM_LDFLAGS) $(LDFLAGS) -o $@
+sendmetric_SOURCES = sendmetric.c
 noinst_HEADERS = \
 	relay.h \
 	md5.h \
@@ -374,7 +381,9 @@ noinst_HEADERS = \
 	queue.h \
 	server.h \
 	collector.h \
-	aggregator.h
+	aggregator.h \
+	posixregex.h \
+	$(NULL)
 
 man_MANS = carbon-c-relay.1
 EXTRA_DIST = \
@@ -387,7 +396,6 @@ EXTRA_DIST = \
 	README.md \
 	conffile.tab.c conffile.tab.h conffile.y \
 	conffile.yy.c conffile.l \
-	posixregex.h \
 	$(NULL)
 
 CRTESTS = \
@@ -415,6 +423,7 @@ CRTESTS = \
 	issue293 \
 	issue310 \
 	server-type \
+	basic \
 	$(NULL)
 
 all: config.h
@@ -513,9 +522,16 @@ uninstall-binPROGRAMS:
 clean-binPROGRAMS:
 	-test -z "$(bin_PROGRAMS)" || rm -f $(bin_PROGRAMS)
 
+clean-checkPROGRAMS:
+	-test -z "$(check_PROGRAMS)" || rm -f $(check_PROGRAMS)
+
 relay$(EXEEXT): $(relay_OBJECTS) $(relay_DEPENDENCIES) $(EXTRA_relay_DEPENDENCIES) 
 	@rm -f relay$(EXEEXT)
 	$(AM_V_GEN)$(relay_LINK) $(relay_OBJECTS) $(relay_LDADD) $(LIBS)
+
+sendmetric$(EXEEXT): $(sendmetric_OBJECTS) $(sendmetric_DEPENDENCIES) $(EXTRA_sendmetric_DEPENDENCIES) 
+	@rm -f sendmetric$(EXEEXT)
+	$(AM_V_GEN)$(sendmetric_LINK) $(sendmetric_OBJECTS) $(sendmetric_LDADD) $(LIBS)
 
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
@@ -535,6 +551,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/receptor.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/relay.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/router.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sendmetric.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/server.Po@am__quote@ # am--include-marker
 
 $(am__depfiles_remade):
@@ -826,6 +843,7 @@ distcleancheck: distclean
 	       $(distcleancheck_listfiles) ; \
 	       exit 1; } >&2
 check-am: all-am
+	$(MAKE) $(AM_MAKEFLAGS) $(check_PROGRAMS)
 check: check-am
 all-am: Makefile $(PROGRAMS) $(MANS) $(HEADERS) config.h
 installdirs:
@@ -864,7 +882,8 @@ maintainer-clean-generic:
 	@echo "it deletes files that may require special tools to rebuild."
 clean: clean-am
 
-clean-am: clean-binPROGRAMS clean-generic mostlyclean-am
+clean-am: clean-binPROGRAMS clean-checkPROGRAMS clean-generic \
+	mostlyclean-am
 
 distclean: distclean-am
 	-rm -f $(am__CONFIG_DISTCLEAN_FILES)
@@ -880,6 +899,7 @@ distclean: distclean-am
 	-rm -f ./$(DEPDIR)/receptor.Po
 	-rm -f ./$(DEPDIR)/relay.Po
 	-rm -f ./$(DEPDIR)/router.Po
+	-rm -f ./$(DEPDIR)/sendmetric.Po
 	-rm -f ./$(DEPDIR)/server.Po
 	-rm -f Makefile
 distclean-am: clean-am distclean-compile distclean-generic \
@@ -940,6 +960,7 @@ maintainer-clean: maintainer-clean-am
 	-rm -f ./$(DEPDIR)/receptor.Po
 	-rm -f ./$(DEPDIR)/relay.Po
 	-rm -f ./$(DEPDIR)/router.Po
+	-rm -f ./$(DEPDIR)/sendmetric.Po
 	-rm -f ./$(DEPDIR)/server.Po
 	-rm -f Makefile
 maintainer-clean-am: distclean-am maintainer-clean-generic
@@ -960,25 +981,25 @@ uninstall-am: uninstall-binPROGRAMS uninstall-man
 
 uninstall-man: uninstall-man1
 
-.MAKE: all install-am install-strip
+.MAKE: all check-am install-am install-strip
 
 .PHONY: CTAGS GTAGS TAGS all all-am am--depfiles am--refresh check \
-	check-am clean clean-binPROGRAMS clean-cscope clean-generic \
-	cscope cscopelist-am ctags ctags-am dist dist-all dist-bzip2 \
-	dist-gzip dist-lzip dist-shar dist-tarZ dist-xz dist-zip \
-	distcheck distclean distclean-compile distclean-generic \
-	distclean-hdr distclean-tags distcleancheck distdir \
-	distuninstallcheck dvi dvi-am html html-am info info-am \
-	install install-am install-binPROGRAMS install-data \
-	install-data-am install-dvi install-dvi-am install-exec \
-	install-exec-am install-html install-html-am install-info \
-	install-info-am install-man install-man1 install-pdf \
-	install-pdf-am install-ps install-ps-am install-strip \
-	installcheck installcheck-am installdirs maintainer-clean \
-	maintainer-clean-generic mostlyclean mostlyclean-compile \
-	mostlyclean-generic pdf pdf-am ps ps-am tags tags-am uninstall \
-	uninstall-am uninstall-binPROGRAMS uninstall-man \
-	uninstall-man1
+	check-am clean clean-binPROGRAMS clean-checkPROGRAMS \
+	clean-cscope clean-generic cscope cscopelist-am ctags ctags-am \
+	dist dist-all dist-bzip2 dist-gzip dist-lzip dist-shar \
+	dist-tarZ dist-xz dist-zip distcheck distclean \
+	distclean-compile distclean-generic distclean-hdr \
+	distclean-tags distcleancheck distdir distuninstallcheck dvi \
+	dvi-am html html-am info info-am install install-am \
+	install-binPROGRAMS install-data install-data-am install-dvi \
+	install-dvi-am install-exec install-exec-am install-html \
+	install-html-am install-info install-info-am install-man \
+	install-man1 install-pdf install-pdf-am install-ps \
+	install-ps-am install-strip installcheck installcheck-am \
+	installdirs maintainer-clean maintainer-clean-generic \
+	mostlyclean mostlyclean-compile mostlyclean-generic pdf pdf-am \
+	ps ps-am tags tags-am uninstall uninstall-am \
+	uninstall-binPROGRAMS uninstall-man uninstall-man1
 
 .PRECIOUS: Makefile
 
@@ -1004,11 +1025,11 @@ man:
 	> carbon-c-relay.1
 
 test: check
-test-%: relay
+test-%: relay sendmetric
 	@( cd test && ./run-test.sh $* )
-approve-%: relay
+approve-%: relay sendmetric
 	@( cd test && ./run-test.sh -a $* )
-check: relay
+check: relay sendmetric
 	@( cd test && ./run-test.sh $(CRTESTS) )
 
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
