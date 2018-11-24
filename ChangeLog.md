@@ -1,5 +1,10 @@
 # 3.5 (unreleased master branch)
 
+### Bugfixes
+
+* [Issue #336](https://github.com/grobian/carbon-c-relay/issues/336)
+  LZ4 compression update to use framed format.
+
 # 3.4 (18-10-2018)
 
 ### New Features
