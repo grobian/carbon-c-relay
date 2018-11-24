@@ -83,6 +83,7 @@ cluster				{
 <idcl>linemode			return crLINEMODE;
 <idcl>syslog			return crSYSLOGMODE;
 <idcl>transport			return crTRANSPORT;
+<idcl>plain				return crPLAIN;
 <idcl>gzip				return crGZIP;
 <idcl>lz4				return crLZ4;
 <idcl>snappy			return crSNAPPY;
@@ -229,6 +230,7 @@ listen				{
 						return crLINEMODE;
 					}
 <idli>transport			return crTRANSPORT;
+<idli>plain				return crPLAIN;
 <idli>gzip			{
 						identstate = li;
 						BEGIN(idli);

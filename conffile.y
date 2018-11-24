@@ -72,8 +72,8 @@ struct _rcptr_trsp {
 %type <cluster *> cluster
 %type <struct _clhost *> cluster_host cluster_hosts cluster_opt_host
 	cluster_path cluster_paths cluster_opt_path
-%type <con_trnsp> cluster_opt_transport cluster_transport_zip
-	cluster_transport_ssl
+%type <con_trnsp> cluster_opt_transport cluster_transport_trans
+	cluster_transport_opt_ssl
 
 %token crMATCH
 %token crVALIDATE crELSE crLOG crDROP crROUTE crUSING
@@ -108,10 +108,11 @@ struct _rcptr_trsp {
 
 %token crLISTEN
 %token crTYPE crLINEMODE crSYSLOGMODE crTRANSPORT
-%token crGZIP crLZ4 crSNAPPY crSSL crUNIX
+%token crPLAIN crGZIP crLZ4 crSNAPPY crSSL crUNIX
 %type <con_proto> rcptr_proto
 %type <struct _rcptr *> receptor opt_receptor receptors
-%type <struct _rcptr_trsp *> transport_mode
+%type <struct _rcptr_trsp *> transport_mode transport_mode_trans
+	transport_opt_ssl
 %type <struct _lsnr *> listener
 
 %token crINCLUDE
@@ -353,20 +354,18 @@ cluster_opt_type:                     { $$ = T_LINEMODE; }
 				;
 
 cluster_opt_transport:                { $$ = W_PLAIN; }
-					 | cluster_transport_zip
+					 | cluster_transport_trans[trns]
+					   cluster_transport_opt_ssl[ssl]
 					 {
-					 	$$ = $1;
-					 }
-					 | cluster_transport_ssl
-					 {
-					 	$$ = $1;
-					 }
-					 | cluster_transport_zip cluster_transport_ssl
-					 {
-					 	$$ = $1 | $2;
+					 	if ($ssl == W_PLAIN) {
+							$$ = $trns;
+						} else {
+							$$ = $trns | $ssl;
+						}
 					 }
 					 ;
-cluster_transport_zip: crTRANSPORT crGZIP   {
+cluster_transport_trans: crTRANSPORT crPLAIN  { $$ = W_PLAIN; }
+					   | crTRANSPORT crGZIP   {
 #ifdef HAVE_GZIP
 							$$ = W_GZIP;
 #else
@@ -375,8 +374,8 @@ cluster_transport_zip: crTRANSPORT crGZIP   {
 								"feature gzip not compiled in");
 							YYERROR;
 #endif
-					 }
-					 | crTRANSPORT crLZ4    {
+					    }
+					    | crTRANSPORT crLZ4    {
 #ifdef HAVE_LZ4
 							$$ = W_LZ4;
 #else
@@ -385,8 +384,8 @@ cluster_transport_zip: crTRANSPORT crGZIP   {
 								"feature lz4 not compiled in");
 							YYERROR;
 #endif
-					 }
-					 | crTRANSPORT crSNAPPY    {
+					    }
+					    | crTRANSPORT crSNAPPY    {
 #ifdef HAVE_SNAPPY
 							$$ = W_SNAPPY;
 #else
@@ -395,9 +394,11 @@ cluster_transport_zip: crTRANSPORT crGZIP   {
 								"feature snappy not compiled in");
 							YYERROR;
 #endif
-					 }
-					 ;
-cluster_transport_ssl: crTRANSPORT crSSL    {
+					    }
+					    ;
+cluster_transport_opt_ssl: { $$ = W_PLAIN; }
+						 | crSSL
+						 {
 #ifdef HAVE_SSL
 							$$ = W_SSL;
 #else
@@ -406,7 +407,7 @@ cluster_transport_ssl: crTRANSPORT crSSL    {
 								"feature ssl not compiled in");
 							YYERROR;
 #endif
-					 }
+					     }
 				 	 ;
 /*** }}} END cluster ***/
 
@@ -881,80 +882,112 @@ listener: crTYPE crLINEMODE transport_mode[mode] receptors[ifaces]
 		}
 		;
 
-transport_mode:         {
-							if (($$ = ra_malloc(palloc,
-									sizeof(struct _rcptr_trsp))) == NULL)
-							{
-								logerr("malloc failed\n");
-								YYABORT;
-							}
-							$$->mode = W_PLAIN;
-						}
-			  | crTRANSPORT crGZIP  {
-#ifdef HAVE_GZIP
-							if (($$ = ra_malloc(palloc,
-									sizeof(struct _rcptr_trsp))) == NULL)
-							{
-								logerr("malloc failed\n");
-								YYABORT;
-							}
-							$$->mode = W_GZIP;
-#else
-							router_yyerror(&yylloc, yyscanner, rtr,
-								ralloc, palloc,
-								"feature gzip not compiled in");
-							YYERROR;
-#endif
-						}
-			  | crTRANSPORT crLZ4 {
-#ifdef HAVE_LZ4
-							if (($$ = ra_malloc(palloc,
-									sizeof(struct _rcptr_trsp))) == NULL)
-							{
-								logerr("malloc failed\n");
-								YYABORT;
-							}
-							$$->mode = W_LZ4;
-#else
-							router_yyerror(&yylloc, yyscanner, rtr,
-								ralloc, palloc,
-								"feature lz4 not compiled in");
-							YYERROR;
-#endif
-						}
-			  | crTRANSPORT crSNAPPY {
-#ifdef HAVE_SNAPPY
-							if (($$ = ra_malloc(palloc,
-									sizeof(struct _rcptr_trsp))) == NULL)
-							{
-								logerr("malloc failed\n");
-								YYABORT;
-							}
-							$$->mode = W_SNAPPY;
-#else
-							router_yyerror(&yylloc, yyscanner, rtr,
-								ralloc, palloc,
-								"feature snappy not compiled in");
-							YYERROR;
-#endif
-						}
-			  | crTRANSPORT crSSL crSTRING[pemcert]  {
+transport_opt_ssl:
+				 {
+				 	$$ = NULL;
+				 }
+				 | crSSL crSTRING[pemcert]
+				 {
 #ifdef HAVE_SSL
-							if (($$ = ra_malloc(palloc,
-									sizeof(struct _rcptr_trsp))) == NULL)
-							{
-								logerr("malloc failed\n");
-								YYABORT;
-							}
-							$$->mode = W_SSL;
-							$$->pemcert = ra_strdup(ralloc, $pemcert);
+					if (($$ = ra_malloc(palloc,
+							sizeof(struct _rcptr_trsp))) == NULL)
+					{
+						logerr("malloc failed\n");
+						YYABORT;
+					}
+					$$->mode = W_SSL;
+					$$->pemcert = ra_strdup(ralloc, $pemcert);
 #else
-							router_yyerror(&yylloc, yyscanner, rtr,
-								ralloc, palloc,
-								"feature ssl not compiled in");
-							YYERROR;
+					router_yyerror(&yylloc, yyscanner, rtr,
+						ralloc, palloc,
+						"feature ssl not compiled in");
+					YYERROR;
 #endif
+				 }
+				 ;
+
+transport_mode_trans: crTRANSPORT crPLAIN
+					{
+						if (($$ = ra_malloc(palloc,
+								sizeof(struct _rcptr_trsp))) == NULL)
+						{
+							logerr("malloc failed\n");
+							YYABORT;
 						}
+						$$->mode = W_PLAIN;
+					}
+					| crTRANSPORT crGZIP
+					{
+#ifdef HAVE_GZIP
+						if (($$ = ra_malloc(palloc,
+								sizeof(struct _rcptr_trsp))) == NULL)
+						{
+							logerr("malloc failed\n");
+							YYABORT;
+						}
+						$$->mode = W_GZIP;
+#else
+						router_yyerror(&yylloc, yyscanner, rtr,
+							ralloc, palloc,
+							"feature gzip not compiled in");
+						YYERROR;
+#endif
+					}
+			  		| crTRANSPORT crLZ4
+					{
+#ifdef HAVE_LZ4
+						if (($$ = ra_malloc(palloc,
+								sizeof(struct _rcptr_trsp))) == NULL)
+						{
+							logerr("malloc failed\n");
+							YYABORT;
+						}
+						$$->mode = W_LZ4;
+#else
+						router_yyerror(&yylloc, yyscanner, rtr,
+							ralloc, palloc,
+							"feature lz4 not compiled in");
+						YYERROR;
+#endif
+					}
+			  		| crTRANSPORT crSNAPPY
+					{
+#ifdef HAVE_SNAPPY
+						if (($$ = ra_malloc(palloc,
+								sizeof(struct _rcptr_trsp))) == NULL)
+						{
+							logerr("malloc failed\n");
+							YYABORT;
+						}
+						$$->mode = W_SNAPPY;
+#else
+						router_yyerror(&yylloc, yyscanner, rtr,
+							ralloc, palloc,
+							"feature snappy not compiled in");
+						YYERROR;
+#endif
+					}
+				    ;
+
+transport_mode:
+			  { 
+				if (($$ = ra_malloc(palloc,
+						sizeof(struct _rcptr_trsp))) == NULL)
+				{
+					logerr("malloc failed\n");
+					YYABORT;
+				}
+				$$->mode = W_PLAIN;
+			  }
+			  | transport_mode_trans[trnsp] transport_opt_ssl[tssl]
+			  {
+			  	if ($tssl == NULL) {
+					$$ = $trnsp;
+				} else {
+					$$ = $tssl;
+					$$->mode |= $trnsp->mode;
+				}
+			  }
 			  ;
 
 receptors: receptor[l] opt_receptor[r] { $l->next = $r; $$ = $l; }

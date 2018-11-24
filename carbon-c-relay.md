@@ -199,7 +199,8 @@ cluster <name>
       <carbon_ch | fnv1a_ch | jump_fnv1a_ch> [replication <count>] >
         <host[:port][=instance] [proto <udp | tcp>]
                                 [type linemode]
-                                [transport <gzip | lz4 | snappy> [ssl]]> ...
+                                [transport <plain | gzip | lz4 | snappy>
+                                           [ssl]]> ...
     ;
 
 cluster <name>
@@ -243,7 +244,7 @@ statistics
     ;
 
 listen
-    type linemode [transport <gzip | lz4> [ssl <pemcert>]]
+    type linemode [transport <plain | gzip | lz4 | snappy> [ssl <pemcert>]]
         <<interface[:port] | port> proto <udp | tcp>> ...
         </ptah/to/file proto unix> ...
     ;

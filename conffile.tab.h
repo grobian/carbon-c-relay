@@ -165,16 +165,17 @@ struct _rcptr_trsp {
     crLINEMODE = 317,
     crSYSLOGMODE = 318,
     crTRANSPORT = 319,
-    crGZIP = 320,
-    crLZ4 = 321,
-    crSNAPPY = 322,
-    crSSL = 323,
-    crUNIX = 324,
-    crINCLUDE = 325,
-    crCOMMENT = 326,
-    crSTRING = 327,
-    crUNEXPECTED = 328,
-    crINTVAL = 329
+    crPLAIN = 320,
+    crGZIP = 321,
+    crLZ4 = 322,
+    crSNAPPY = 323,
+    crSSL = 324,
+    crUNIX = 325,
+    crINCLUDE = 326,
+    crCOMMENT = 327,
+    crSTRING = 328,
+    crUNEXPECTED = 329,
+    crINTVAL = 330
   };
 #endif
 
@@ -206,10 +207,10 @@ union ROUTER_YYSTYPE
   con_proto rcptr_proto;
   /* cluster_opt_transport  */
   con_trnsp cluster_opt_transport;
-  /* cluster_transport_zip  */
-  con_trnsp cluster_transport_zip;
-  /* cluster_transport_ssl  */
-  con_trnsp cluster_transport_ssl;
+  /* cluster_transport_trans  */
+  con_trnsp cluster_transport_trans;
+  /* cluster_transport_opt_ssl  */
+  con_trnsp cluster_transport_opt_ssl;
   /* cluster_opt_type  */
   con_type cluster_opt_type;
   /* match_opt_send_to  */
@@ -290,9 +291,13 @@ union ROUTER_YYSTYPE
   struct _rcptr * opt_receptor;
   /* receptor  */
   struct _rcptr * receptor;
+  /* transport_opt_ssl  */
+  struct _rcptr_trsp * transport_opt_ssl;
+  /* transport_mode_trans  */
+  struct _rcptr_trsp * transport_mode_trans;
   /* transport_mode  */
   struct _rcptr_trsp * transport_mode;
-#line 296 "conffile.tab.h" /* yacc.c:1906  */
+#line 301 "conffile.tab.h" /* yacc.c:1906  */
 };
 
 typedef union ROUTER_YYSTYPE ROUTER_YYSTYPE;
