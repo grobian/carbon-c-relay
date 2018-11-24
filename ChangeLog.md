@@ -1,5 +1,7 @@
 # 3.5 (unreleased master branch)
 
+### New Features
+
 ### Bugfixes
 
 * [Issue #336](https://github.com/grobian/carbon-c-relay/issues/336)
@@ -48,6 +50,7 @@
 ### Bugfixes
 
 * Fix conffile.tab.h dependency for parallel make.
+
 
 # 3.2 (21-10-2017)
 

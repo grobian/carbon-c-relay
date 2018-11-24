@@ -16,7 +16,7 @@ AUTOMAKE_OPTIONS = foreign
 
 CFLAGS ?= -O2 -Wall -Wshadow -pipe
 
-GIT_VERSION := $(shell git describe --abbrev=6 --dirty --always 2>/dev/null || date +%F)
+GIT_VERSION := $(shell git describe --abbrev=6 --dirty --always 2>/dev/null || echo $(RELEASEDATE))
 GVCFLAGS = -DGIT_VERSION=\"$(GIT_VERSION)\"
 
 override CFLAGS += $(GVCFLAGS) -pthread
@@ -38,6 +38,7 @@ man:
 	> carbon-c-relay.1
 
 bin_PROGRAMS = relay
+check_PROGRAMS = sendmetric
 relay_LINK = $(CCLD) $(AM_LDFLAGS) $(LDFLAGS) -o $@
 relay_LDADD = $(LIBGZIP) $(LIBLZ4) $(LIBSNAPPY) $(LIBSSL) \
 			  $(LIBONIGURUMA) $(LIBPCRE2) $(LIBPCRE)
@@ -55,6 +56,8 @@ relay_SOURCES = \
 	server.c \
 	collector.c \
 	aggregator.c
+sendmetric_LINK = $(CCLD) $(AM_LDFLAGS) $(LDFLAGS) -o $@
+sendmetric_SOURCES = sendmetric.c
 noinst_HEADERS = \
 	relay.h \
 	md5.h \
@@ -69,7 +72,9 @@ noinst_HEADERS = \
 	queue.h \
 	server.h \
 	collector.h \
-	aggregator.h
+	aggregator.h \
+	posixregex.h \
+	$(NULL)
 man_MANS = carbon-c-relay.1
 
 EXTRA_DIST = \
@@ -82,7 +87,6 @@ EXTRA_DIST = \
 	README.md \
 	conffile.tab.c conffile.tab.h conffile.y \
 	conffile.yy.c conffile.l \
-	posixregex.h \
 	$(NULL)
 
 CRTESTS = \
@@ -110,12 +114,13 @@ CRTESTS = \
 	issue293 \
 	issue310 \
 	server-type \
+	basic \
 	$(NULL)
 
 test: check
-test-%: relay
+test-%: relay sendmetric
 	@( cd test && ./run-test.sh $* )
-approve-%: relay
+approve-%: relay sendmetric
 	@( cd test && ./run-test.sh -a $* )
-check: relay
+check: relay sendmetric
 	@( cd test && ./run-test.sh $(CRTESTS) )
