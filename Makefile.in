@@ -275,6 +275,7 @@ CPP = @CPP@
 CPPFLAGS = @CPPFLAGS@
 CYGPATH_W = @CYGPATH_W@
 DEFS = @DEFS@
+DEF_EXTENSIONS = @DEF_EXTENSIONS@
 DEPDIR = @DEPDIR@
 ECHO_C = @ECHO_C@
 ECHO_N = @ECHO_N@
@@ -1036,7 +1037,7 @@ uninstall-man: uninstall-man1
 
 CFLAGS ?= -O2 -Wall -Wshadow -pipe
 
-override CFLAGS += $(GVCFLAGS) -pthread
+override CFLAGS += $(DEF_EXTENSIONS) $(GVCFLAGS) -pthread
 
 conffile.tab.c conffile.tab.h: conffile.y
 	bison -d $^

@@ -104,7 +104,7 @@ AC_TRY_COMPILE([
 void *foo = dlsym (RTLD_NEXT, "exit");
 ],
 [AC_MSG_RESULT(yes)
-AC_DEFINE([_GNU_SOURCE], [1], [Define if you are using glibc])
+AC_SUBST([DEF_EXTENSIONS], [-D_GNU_SOURCE])
 found_rtld_next=yes],
 [AC_MSG_RESULT(no)])
 fi
