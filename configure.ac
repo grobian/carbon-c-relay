@@ -15,7 +15,7 @@ AC_PROG_MAKE_SET
 AC_SEARCH_LIBS([sqrt], [m])
 AC_SEARCH_LIBS([gethostbyname], [nsl])
 AC_SEARCH_LIBS([socket], [socket])
-AC_SEARCH_LIBS([dl], [dlsym])
+AC_SEARCH_LIBS([dlsym], [dl])
 saveLIBS="$LIBS"
 LIBS=
 AC_SEARCH_LIBS([pthread_create], [pthread])
