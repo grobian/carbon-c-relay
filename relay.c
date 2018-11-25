@@ -28,6 +28,7 @@
 #include <sys/stat.h>
 #include <errno.h>
 #include <assert.h>
+#include <dlfcn.h>
 
 #if defined(__MACH__) || defined(BSD)
 # include <sys/types.h>
@@ -53,6 +54,8 @@ char noexpire = 0;
 char *sslCA = NULL;
 char sslCAisdir = 0;
 #endif
+time_t *(*orig_time)(time_t *tloc) = NULL;
+time_t fake_offset = 0;
 
 static char *config = NULL;
 static int batchsize = 2500;
@@ -596,6 +599,9 @@ main(int argc, char * const argv[])
 	if (optind == 1 || config == NULL)
 		do_usage(argv[0], 1);
 
+
+	/* setup for faketime.c, in case linked in (checkrelay) */
+	orig_time = dlsym(RTLD_NEXT, "time");
 
 	/* seed randomiser for dispatcher and aggregator "splay" */
 	srand(time(NULL));

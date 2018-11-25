@@ -1,1 +1,10 @@
 match * send to default;
+
+aggregate ^foo\.bar every 1 seconds expire after 2 seconds
+	timestamp at start of bucket
+	compute sum write to aggregate.foo.bar
+	send to default;
+
+rewrite ^bar\.(.*) into rewrite.\1;
+
+match ^rewrite\.* send to default;

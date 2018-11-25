@@ -102,7 +102,7 @@ NORMAL_UNINSTALL = :
 PRE_UNINSTALL = :
 POST_UNINSTALL = :
 bin_PROGRAMS = relay$(EXEEXT)
-check_PROGRAMS = sendmetric$(EXEEXT)
+check_PROGRAMS = sendmetric$(EXEEXT) checkrelay$(EXEEXT)
 subdir = .
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/configure.ac
@@ -118,6 +118,19 @@ CONFIG_CLEAN_FILES =
 CONFIG_CLEAN_VPATH_FILES =
 am__installdirs = "$(DESTDIR)$(bindir)" "$(DESTDIR)$(man1dir)"
 PROGRAMS = $(bin_PROGRAMS)
+am__objects_1 = relay.$(OBJEXT) md5.$(OBJEXT) \
+	consistent-hash.$(OBJEXT) receptor.$(OBJEXT) \
+	dispatcher.$(OBJEXT) conffile.tab.$(OBJEXT) \
+	conffile.yy.$(OBJEXT) allocator.$(OBJEXT) router.$(OBJEXT) \
+	queue.$(OBJEXT) server.$(OBJEXT) collector.$(OBJEXT) \
+	aggregator.$(OBJEXT)
+am_checkrelay_OBJECTS = $(am__objects_1) faketime.$(OBJEXT)
+checkrelay_OBJECTS = $(am_checkrelay_OBJECTS)
+am__DEPENDENCIES_1 =
+checkrelay_DEPENDENCIES = $(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
+	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
+	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
+	$(am__DEPENDENCIES_1)
 am_relay_OBJECTS = relay.$(OBJEXT) md5.$(OBJEXT) \
 	consistent-hash.$(OBJEXT) receptor.$(OBJEXT) \
 	dispatcher.$(OBJEXT) conffile.tab.$(OBJEXT) \
@@ -125,7 +138,6 @@ am_relay_OBJECTS = relay.$(OBJEXT) md5.$(OBJEXT) \
 	queue.$(OBJEXT) server.$(OBJEXT) collector.$(OBJEXT) \
 	aggregator.$(OBJEXT)
 relay_OBJECTS = $(am_relay_OBJECTS)
-am__DEPENDENCIES_1 =
 relay_DEPENDENCIES = $(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
@@ -152,10 +164,10 @@ am__depfiles_remade = ./$(DEPDIR)/aggregator.Po \
 	./$(DEPDIR)/allocator.Po ./$(DEPDIR)/collector.Po \
 	./$(DEPDIR)/conffile.tab.Po ./$(DEPDIR)/conffile.yy.Po \
 	./$(DEPDIR)/consistent-hash.Po ./$(DEPDIR)/dispatcher.Po \
-	./$(DEPDIR)/md5.Po ./$(DEPDIR)/queue.Po \
-	./$(DEPDIR)/receptor.Po ./$(DEPDIR)/relay.Po \
-	./$(DEPDIR)/router.Po ./$(DEPDIR)/sendmetric.Po \
-	./$(DEPDIR)/server.Po
+	./$(DEPDIR)/faketime.Po ./$(DEPDIR)/md5.Po \
+	./$(DEPDIR)/queue.Po ./$(DEPDIR)/receptor.Po \
+	./$(DEPDIR)/relay.Po ./$(DEPDIR)/router.Po \
+	./$(DEPDIR)/sendmetric.Po ./$(DEPDIR)/server.Po
 am__mv = mv -f
 COMPILE = $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
 	$(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
@@ -169,8 +181,9 @@ AM_V_CCLD = $(am__v_CCLD_@AM_V@)
 am__v_CCLD_ = $(am__v_CCLD_@AM_DEFAULT_V@)
 am__v_CCLD_0 = @echo "  CCLD    " $@;
 am__v_CCLD_1 = 
-SOURCES = $(relay_SOURCES) $(sendmetric_SOURCES)
-DIST_SOURCES = $(relay_SOURCES) $(sendmetric_SOURCES)
+SOURCES = $(checkrelay_SOURCES) $(relay_SOURCES) $(sendmetric_SOURCES)
+DIST_SOURCES = $(checkrelay_SOURCES) $(relay_SOURCES) \
+	$(sendmetric_SOURCES)
 am__can_run_installinfo = \
   case $$AM_UPDATE_INFO_DIR in \
     n|no|NO) false;; \
@@ -363,10 +376,20 @@ relay_SOURCES = \
 	queue.c \
 	server.c \
 	collector.c \
-	aggregator.c
+	aggregator.c \
+	$(NULL)
 
 sendmetric_LINK = $(CCLD) $(AM_LDFLAGS) $(LDFLAGS) -o $@
 sendmetric_SOURCES = sendmetric.c
+checkrelay_LINK = $(CCLD) $(AM_LDFLAGS) $(LDFLAGS) -o $@
+checkrelay_LDADD = $(LIBGZIP) $(LIBLZ4) $(LIBSNAPPY) $(LIBSSL) \
+			  $(LIBONIGURUMA) $(LIBPCRE2) $(LIBPCRE)
+
+checkrelay_SOURCES = \
+	$(relay_SOURCES) \
+	faketime.c \
+	$(NULL)
+
 noinst_HEADERS = \
 	relay.h \
 	md5.h \
@@ -525,6 +548,10 @@ clean-binPROGRAMS:
 clean-checkPROGRAMS:
 	-test -z "$(check_PROGRAMS)" || rm -f $(check_PROGRAMS)
 
+checkrelay$(EXEEXT): $(checkrelay_OBJECTS) $(checkrelay_DEPENDENCIES) $(EXTRA_checkrelay_DEPENDENCIES) 
+	@rm -f checkrelay$(EXEEXT)
+	$(AM_V_GEN)$(checkrelay_LINK) $(checkrelay_OBJECTS) $(checkrelay_LDADD) $(LIBS)
+
 relay$(EXEEXT): $(relay_OBJECTS) $(relay_DEPENDENCIES) $(EXTRA_relay_DEPENDENCIES) 
 	@rm -f relay$(EXEEXT)
 	$(AM_V_GEN)$(relay_LINK) $(relay_OBJECTS) $(relay_LDADD) $(LIBS)
@@ -546,6 +573,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/conffile.yy.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/consistent-hash.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/dispatcher.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/faketime.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/md5.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/queue.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/receptor.Po@am__quote@ # am--include-marker
@@ -894,6 +922,7 @@ distclean: distclean-am
 	-rm -f ./$(DEPDIR)/conffile.yy.Po
 	-rm -f ./$(DEPDIR)/consistent-hash.Po
 	-rm -f ./$(DEPDIR)/dispatcher.Po
+	-rm -f ./$(DEPDIR)/faketime.Po
 	-rm -f ./$(DEPDIR)/md5.Po
 	-rm -f ./$(DEPDIR)/queue.Po
 	-rm -f ./$(DEPDIR)/receptor.Po
@@ -955,6 +984,7 @@ maintainer-clean: maintainer-clean-am
 	-rm -f ./$(DEPDIR)/conffile.yy.Po
 	-rm -f ./$(DEPDIR)/consistent-hash.Po
 	-rm -f ./$(DEPDIR)/dispatcher.Po
+	-rm -f ./$(DEPDIR)/faketime.Po
 	-rm -f ./$(DEPDIR)/md5.Po
 	-rm -f ./$(DEPDIR)/queue.Po
 	-rm -f ./$(DEPDIR)/receptor.Po
@@ -1025,11 +1055,11 @@ man:
 	> carbon-c-relay.1
 
 test: check
-test-%: relay sendmetric
+test-%: checkrelay sendmetric
 	@( cd test && ./run-test.sh $* )
-approve-%: relay sendmetric
+approve-%: checkrelay sendmetric
 	@( cd test && ./run-test.sh -a $* )
-check: relay sendmetric
+check:
 	@( cd test && ./run-test.sh $(CRTESTS) )
 
 # Tell versions [3.59,3.63) of GNU make to not export all variables.

@@ -22,6 +22,8 @@
 #include "config.h"
 #endif
 
+#include <time.h>
+
 #define METRIC_BUFSIZ 32768
 
 /* these are the various modes in which the relay runs */
@@ -43,6 +45,8 @@ extern char relay_hostname[];
 extern char noexpire;
 extern char *sslCA;
 extern char sslCAisdir;
+extern time_t *(*orig_time)(time_t *tloc);
+extern time_t fake_offset;
 
 enum logdst { LOGOUT, LOGERR };
 

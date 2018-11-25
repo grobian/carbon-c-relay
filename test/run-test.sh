@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-EXEC=../relay
+EXEC=../checkrelay
 SMEXEC=../sendmetric
 EFLAGS="-Htest.hostname -t"
 DIFF="diff -Nu"
@@ -77,7 +77,7 @@ run_singleservertest() {
 	} > "${conf}"
 
 	echo -n "${test}: "
-	${EXEC} -f "${conf}" -Htest.hostname -s -D -l "${output}" -P "${pidfile}"
+	${EXEC} -d -f "${conf}" -Htest.hostname -s -D -l "${output}" -P "${pidfile}"
 	if [[ $? != 0 ]] ; then
 		# hmmm
 		echo "failed to start relay"
@@ -90,15 +90,17 @@ run_singleservertest() {
 		echo "failed to send payload"
 		return 1
 	fi
+	# allow everything to be processed
+	sleep 1
 
 	# kill and wait for relay to come down
 	local pid=$(< "${pidfile}")
 	kill ${pid}
 	local i=10
 	while [[ ${i} -gt 0 ]] ; do
-		sleep 1
 		ps -p ${pid} >& /dev/null || break
 		echo -n "."
+		sleep 1
 		: $((i--))
 	done
 	# if it didn't yet die, make it so
@@ -119,8 +121,10 @@ run_singleservertest() {
 		ret=1
 	fi
 
-#	echo "dropping shell in ${tmpdir}"
-#	( cd ${tmpdir} && bash )
+	if [[ -n ${RUN_TEST_DROP_IN_SHELL} ]] ; then
+		echo "dropping shell in ${tmpdir}"
+		( cd ${tmpdir} && ${SHELL} )
+	fi
 
 	# cleanup
 	rm -Rf "${tmpdir}"

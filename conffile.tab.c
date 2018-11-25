@@ -2481,7 +2481,7 @@ yyreduce:
 					"expire must be > 0");
 				YYERROR;
 			}
-			if ((*(int*)(&yyvsp[-5])) < (*(int*)(&yyvsp[-9]))) {
+			if ((*(int*)(&yyvsp[-5])) <= (*(int*)(&yyvsp[-9]))) {
 				router_yyerror(&yylloc, yyscanner, rtr, ralloc, palloc,
 					"expire must be greater than interval");
 				YYERROR;

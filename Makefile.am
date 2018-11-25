@@ -38,7 +38,7 @@ man:
 	> carbon-c-relay.1
 
 bin_PROGRAMS = relay
-check_PROGRAMS = sendmetric
+check_PROGRAMS = sendmetric checkrelay
 relay_LINK = $(CCLD) $(AM_LDFLAGS) $(LDFLAGS) -o $@
 relay_LDADD = $(LIBGZIP) $(LIBLZ4) $(LIBSNAPPY) $(LIBSSL) \
 			  $(LIBONIGURUMA) $(LIBPCRE2) $(LIBPCRE)
@@ -55,9 +55,17 @@ relay_SOURCES = \
 	queue.c \
 	server.c \
 	collector.c \
-	aggregator.c
+	aggregator.c \
+	$(NULL)
 sendmetric_LINK = $(CCLD) $(AM_LDFLAGS) $(LDFLAGS) -o $@
 sendmetric_SOURCES = sendmetric.c
+checkrelay_LINK = $(CCLD) $(AM_LDFLAGS) $(LDFLAGS) -o $@
+checkrelay_LDADD = $(LIBGZIP) $(LIBLZ4) $(LIBSNAPPY) $(LIBSSL) \
+				   $(LIBONIGURUMA) $(LIBPCRE2) $(LIBPCRE)
+checkrelay_SOURCES = \
+	$(relay_SOURCES) \
+	faketime.c \
+	$(NULL)
 noinst_HEADERS = \
 	relay.h \
 	md5.h \
@@ -118,9 +126,9 @@ CRTESTS = \
 	$(NULL)
 
 test: check
-test-%: relay sendmetric
+test-%: checkrelay sendmetric
 	@( cd test && ./run-test.sh $* )
-approve-%: relay sendmetric
+approve-%: checkrelay sendmetric
 	@( cd test && ./run-test.sh -a $* )
-check: relay sendmetric
+check:
 	@( cd test && ./run-test.sh $(CRTESTS) )
