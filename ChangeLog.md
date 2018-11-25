@@ -8,6 +8,7 @@
   LZ4 compression update to use framed format.
 * [Issue #351](https://github.com/grobian/carbon-c-relay/issues/351)
   ssl transport cannot be used due to syntax errors
+* defining aggregator with equal expire and interval causes a crash
 
 
 # 3.4 (18-10-2018)

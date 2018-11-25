@@ -652,7 +652,7 @@ aggregate: crAGGREGATE match_exprs2[exprs] crEVERY crINTVAL[intv] crSECONDS
 					"expire must be > 0");
 				YYERROR;
 			}
-			if ($expire < $intv) {
+			if ($expire <= $intv) {
 				router_yyerror(&yylloc, yyscanner, rtr, ralloc, palloc,
 					"expire must be greater than interval");
 				YYERROR;
