@@ -383,7 +383,7 @@ sendmetric_LINK = $(CCLD) $(AM_LDFLAGS) $(LDFLAGS) -o $@
 sendmetric_SOURCES = sendmetric.c
 checkrelay_LINK = $(CCLD) $(AM_LDFLAGS) $(LDFLAGS) -o $@
 checkrelay_LDADD = $(LIBGZIP) $(LIBLZ4) $(LIBSNAPPY) $(LIBSSL) \
-			  $(LIBONIGURUMA) $(LIBPCRE2) $(LIBPCRE)
+				   $(LIBONIGURUMA) $(LIBPCRE2) $(LIBPCRE)
 
 checkrelay_SOURCES = \
 	$(relay_SOURCES) \

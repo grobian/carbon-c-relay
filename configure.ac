@@ -15,6 +15,7 @@ AC_PROG_MAKE_SET
 AC_SEARCH_LIBS([sqrt], [m])
 AC_SEARCH_LIBS([gethostbyname], [nsl])
 AC_SEARCH_LIBS([socket], [socket])
+AC_SEARCH_LIBS([dl], [dlsym])
 saveLIBS="$LIBS"
 LIBS=
 AC_SEARCH_LIBS([pthread_create], [pthread])
@@ -54,6 +55,8 @@ AC_CHECK_HEADERS([arpa/inet.h \
 				  ],
 				  [],
 				  [AC_MSG_ERROR([required header missing])])
+# non-mandatory headers
+AC_CHECK_HEADERS([dlfcn.h])
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_C_INLINE
@@ -78,6 +81,34 @@ AC_CHECK_FUNCS([gethostname \
 				strtol],
 				[],
 				[AC_MSG_ERROR([required function missing])])
+# non-mandatory funcs
+AC_CHECK_FUNCS([dlsym])
+
+# check if we need some special define for RTLD_NEXT (Linux)
+found_rtld_next=no
+AC_MSG_CHECKING([whether dlsym(RTLD_NEXT, ...) is available])
+AC_TRY_COMPILE([
+#include <dlfcn.h>
+],[
+void *foo = dlsym (RTLD_NEXT, "exit");
+],
+[AC_MSG_RESULT(yes)
+found_rtld_next=yes],
+[AC_MSG_RESULT(no)])
+if test x$found_rtld_next = xno ; then
+AC_MSG_CHECKING([whether dlsym(RTLD_NEXT, ...) is available using _GNU_SOURCE])
+AC_TRY_COMPILE([
+#define _GNU_SOURCE
+#include <dlfcn.h>
+],[
+void *foo = dlsym (RTLD_NEXT, "exit");
+],
+[AC_MSG_RESULT(yes)
+AC_DEFINE([_GNU_SOURCE], [1], [Define if you are using glibc])
+found_rtld_next=yes],
+[AC_MSG_RESULT(no)])
+fi
+AC_DEFINE([HAVE_RTLD_NEXT], [$found_rtld_next], [Define if you have RTLD_NEXT])
 
 AC_ARG_WITH([gzip], [support gzip compression for sending/receiving],
 			[], [with_gzip=check])

@@ -28,7 +28,6 @@
 #include <sys/stat.h>
 #include <errno.h>
 #include <assert.h>
-#include <dlfcn.h>
 
 #if defined(__MACH__) || defined(BSD)
 # include <sys/types.h>
@@ -44,6 +43,10 @@
 #include "collector.h"
 #include "conffile.h"
 #include "posixregex.h"
+
+#ifdef HAVE_DLFCN_H
+# include <dlfcn.h>
+#endif
 
 unsigned char keep_running = 1;
 int pending_signal = -1;
@@ -600,8 +603,10 @@ main(int argc, char * const argv[])
 		do_usage(argv[0], 1);
 
 
+#ifdef HAVE_RTLD_NEXT
 	/* setup for faketime.c, in case linked in (checkrelay) */
 	orig_time = dlsym(RTLD_NEXT, "time");
+#endif
 
 	/* seed randomiser for dispatcher and aggregator "splay" */
 	srand(time(NULL));
