@@ -446,6 +446,7 @@ CRTESTS = \
 	issue288 \
 	issue293 \
 	issue310 \
+	issue357 \
 	server-type \
 	basic \
 	$(NULL)

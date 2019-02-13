@@ -1586,9 +1586,10 @@ router_optimise(router *r, int threshold)
 			rnext = rwalk->next;
 			rwalk->next = NULL;
 			if (rwalk->stop) {
-				bstart = blast;
+				bstart = NULL;
 				rlast = NULL;
 				seq++;
+				tracef("terminating group due to stop rule\n");
 			}
 			continue;
 		}
@@ -1607,6 +1608,9 @@ router_optimise(router *r, int threshold)
 					bwalk->next = NULL;
 				}
 				rlast = rwalk;
+				bstart = NULL;
+				seq++;  /* finish this group */
+				tracef("finishing group due to stop rule\n");
 			}
 		} else {
 			bstart = blast;
@@ -1621,14 +1625,21 @@ router_optimise(router *r, int threshold)
 	blast->next = NULL;
 	blast->seqnr = seq;
 
+	tracef("reducing into groups\n");
 	rwalk = r->routes = NULL;
 	seq = 1;
 	/* create groups, if feasible */
 	for (bwalk = blocks; bwalk != NULL; bwalk = blast) {
-		if (bwalk->seqnr != seq) {
+		tracef("seq=%zd, bwalk=%p, ->seqnr=%zd, ->refcnt=%zd, ->pattern=%s\n",
+				seq, bwalk, bwalk->seqnr, bwalk->refcnt, bwalk->pattern);
+		if (bwalk->seqnr > seq) {
 			seq++;
 			blast = bwalk;
 			continue;
+		} else if (bwalk->seqnr < seq) {
+			logerr("routes optimisation lost track, "
+					"skipping further optimisations\n");
+			return;
 		}
 
 		if (bwalk->refcnt == 0) {

@@ -9,6 +9,8 @@
 * [Issue #351](https://github.com/grobian/carbon-c-relay/issues/351)
   ssl transport cannot be used due to syntax errors
 * defining aggregator with equal expire and interval causes a crash
+* [Issue #357](https://github.com/grobian/carbon-c-relay/issues/357)
+  routes optimiser could get stuck in an infinite loop
 
 
 # 3.4 (18-10-2018)
