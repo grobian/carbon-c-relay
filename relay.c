@@ -399,7 +399,6 @@ do_usage(char *name, int exitcode)
 #ifdef HAVE_SSL
 	printf("  -C  use CA <cert> to verify SSL connections\n");
 #endif
-	printf("  -S  statistics sending interval in seconds, defaults to 60\n");
 	printf("  -B  connection listen backlog, defaults to 32\n");
 	printf("  -U  socket receive buffer size, max/min/default values depend on OS\n");
 	printf("  -T  IO timeout in milliseconds for server connections, defaults to %d\n", iotimeout);
