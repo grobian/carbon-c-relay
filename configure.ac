@@ -2,8 +2,8 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ([2.69])
-AC_INIT([carbon-c-relay], [3.4], [])
-AC_SUBST([RELEASEDATE], [2018-10-18])
+AC_INIT([carbon-c-relay], [3.5], [])
+AC_SUBST([RELEASEDATE], [2019-02-22])
 AC_CONFIG_HEADERS([config.h])
 AM_INIT_AUTOMAKE
 
