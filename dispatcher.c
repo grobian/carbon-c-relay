@@ -852,6 +852,13 @@ dispatch_connection(connection *conn, dispatcher *self, struct timeval start)
 	conn->hadwork = 0;
 
 	len = -2;
+
+    if (conn->isudp && conn->strm->hdl.udp.srcaddr != conn->srcaddr) {
+        /* reset srcaddr after strm free and alloc due to issue 346 */
+        conn->strm->hdl.udp.srcaddr = conn->srcaddr;
+        conn->strm->hdl.udp.srcaddrlen = sizeof(conn->srcaddr);
+    }
+
 	/* try to read more data, if that succeeds, or we still have data
 	 * left in the buffer, try to process the buffer */
 	if (
