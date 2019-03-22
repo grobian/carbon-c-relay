@@ -606,6 +606,14 @@ dispatch_addconnection(int sock, listener *lsnr)
 
 			pthread_rwlock_unlock(&connectionslock);
 			return -1;
+		} else if (newlst != connections) {
+		    /* reset srcaddr after realloc due to issue 346 */
+		    for (c = 0; c < connectionslen; c++) {
+			if (newlst[c].isudp) {
+			    newlst[c].strm->hdl.udp.srcaddr = newlst[c].srcaddr;
+			    newlst[c].strm->hdl.udp.srcaddrlen = sizeof(newlst[c].srcaddr);
+			}
+		    }
 		}
 
 		for (c = connectionslen; c < connectionslen + CONNGROWSZ; c++) {
