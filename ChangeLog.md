@@ -4,6 +4,9 @@
 
 ### Bugfixes
 
+* [Issue #346](https://github.com/grobian/carbon-c-relay/issues/346)
+  sporadic segfaults when using UDP connections
+
 
 # 3.5 (22-02-2019)
 
