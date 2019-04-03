@@ -871,11 +871,11 @@ dispatch_connection(connection *conn, dispatcher *self, struct timeval start)
 	{
 		if (len > 0) {
 			conn->buflen += len;
+#ifdef ENABLE_TRACE
 			tracef("dispatcher %d, connfd %d, read %d bytes from socket\n",
 					self->id, conn->sock, len);
-#ifdef ENABLE_TRACE
-			conn->buf[conn->buflen] = '\0';
 #endif
+			conn->buf[conn->buflen] = '\0';
 		}
 
 		/* Metrics look like this: metric_path value timestamp\n
