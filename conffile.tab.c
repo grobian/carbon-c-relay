@@ -134,7 +134,7 @@ struct _clust {
 };
 struct _clhost {
 	char *ip;
-	int port;
+	unsigned short port;
 	char *inst;
 	int proto;
 	con_type type;
@@ -162,7 +162,7 @@ struct _lsnr {
 struct _rcptr {
 	con_proto ctype;
 	char *ip;
-	int port;
+	unsigned short port;
 	void *saddr;
 	struct _rcptr *next;
 };

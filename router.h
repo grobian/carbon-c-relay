@@ -55,7 +55,7 @@ typedef struct _router_listener {
 	con_trnsp transport;
 	con_proto ctype;
 	char *ip;
-	int port;
+	unsigned short port;
 	int *socks;
 #ifdef HAVE_SSL
 	SSL_CTX *ctx;
