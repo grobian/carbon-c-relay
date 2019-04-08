@@ -1,8 +1,9 @@
-/* A Bison parser, made by GNU Bison 3.2.1.  */
+/* A Bison parser, made by GNU Bison 3.3.2.  */
 
 /* Bison implementation for Yacc-like parsers in C
 
-   Copyright (C) 1984, 1989-1990, 2000-2015, 2018 Free Software Foundation, Inc.
+   Copyright (C) 1984, 1989-1990, 2000-2015, 2018-2019 Free Software Foundation,
+   Inc.
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -47,7 +48,7 @@
 #define YYBISON 1
 
 /* Bison version.  */
-#define YYBISON_VERSION "3.2.1"
+#define YYBISON_VERSION "3.3.2"
 
 /* Skeleton name.  */
 #define YYSKELETON_NAME "yacc.c"
@@ -73,7 +74,7 @@
 
 
 /* First part of user prologue.  */
-#line 1 "conffile.y" /* yacc.c:338  */
+#line 1 "conffile.y" /* yacc.c:337  */
 
 #include "allocator.h"
 #include "conffile.h"
@@ -84,7 +85,7 @@
 
 int router_yylex(ROUTER_YYSTYPE *, ROUTER_YYLTYPE *, void *, router *, allocator *, allocator *);
 
-#line 88 "conffile.tab.c" /* yacc.c:338  */
+#line 89 "conffile.tab.c" /* yacc.c:337  */
 # ifndef YY_NULLPTR
 #  if defined __cplusplus
 #   if 201103L <= __cplusplus
@@ -125,7 +126,7 @@ int router_yylex(ROUTER_YYSTYPE *, ROUTER_YYLTYPE *, void *, router *, allocator
 extern int router_yydebug;
 #endif
 /* "%code requires" blocks.  */
-#line 11 "conffile.y" /* yacc.c:353  */
+#line 11 "conffile.y" /* yacc.c:352  */
 
 struct _clust {
 	enum clusttype t;
@@ -170,7 +171,7 @@ struct _rcptr_trsp {
 	char *pemcert;
 };
 
-#line 174 "conffile.tab.c" /* yacc.c:353  */
+#line 175 "conffile.tab.c" /* yacc.c:352  */
 
 /* Token type.  */
 #ifndef ROUTER_YYTOKENTYPE
@@ -371,7 +372,7 @@ union ROUTER_YYSTYPE
   struct _rcptr_trsp * transport_mode_trans;
   /* transport_mode  */
   struct _rcptr_trsp * transport_mode;
-#line 375 "conffile.tab.c" /* yacc.c:353  */
+#line 376 "conffile.tab.c" /* yacc.c:352  */
 };
 
 typedef union ROUTER_YYSTYPE ROUTER_YYSTYPE;
@@ -645,16 +646,16 @@ union yyalloc
 /* YYNSTATES -- Number of states.  */
 #define YYNSTATES  189
 
-/* YYTRANSLATE[YYX] -- Symbol number corresponding to YYX as returned
-   by yylex, with out-of-bounds checking.  */
 #define YYUNDEFTOK  2
 #define YYMAXUTOK   330
 
+/* YYTRANSLATE(TOKEN-NUM) -- Symbol number corresponding to TOKEN-NUM
+   as returned by yylex, with out-of-bounds checking.  */
 #define YYTRANSLATE(YYX)                                                \
   ((unsigned) (YYX) <= YYMAXUTOK ? yytranslate[YYX] : YYUNDEFTOK)
 
 /* YYTRANSLATE[TOKEN-NUM] -- Symbol number corresponding to TOKEN-NUM
-   as returned by yylex, without out-of-bounds checking.  */
+   as returned by yylex.  */
 static const yytype_uint8 yytranslate[] =
 {
        0,     2,     2,     2,     2,     2,     2,     2,     2,     2,
@@ -965,22 +966,22 @@ static const yytype_uint8 yyr2[] =
 
 #define YYRECOVERING()  (!!yyerrstatus)
 
-#define YYBACKUP(Token, Value)                                  \
-do                                                              \
-  if (yychar == YYEMPTY)                                        \
-    {                                                           \
-      yychar = (Token);                                         \
-      yylval = (Value);                                         \
-      YYPOPSTACK (yylen);                                       \
-      yystate = *yyssp;                                         \
-      goto yybackup;                                            \
-    }                                                           \
-  else                                                          \
-    {                                                           \
-      yyerror (&yylloc, yyscanner, rtr, ralloc, palloc, YY_("syntax error: cannot back up")); \
-      YYERROR;                                                  \
-    }                                                           \
-while (0)
+#define YYBACKUP(Token, Value)                                    \
+  do                                                              \
+    if (yychar == YYEMPTY)                                        \
+      {                                                           \
+        yychar = (Token);                                         \
+        yylval = (Value);                                         \
+        YYPOPSTACK (yylen);                                       \
+        yystate = *yyssp;                                         \
+        goto yybackup;                                            \
+      }                                                           \
+    else                                                          \
+      {                                                           \
+        yyerror (&yylloc, yyscanner, rtr, ralloc, palloc, YY_("syntax error: cannot back up")); \
+        YYERROR;                                                  \
+      }                                                           \
+  while (0)
 
 /* Error token number */
 #define YYTERROR        1
@@ -1271,7 +1272,10 @@ yytnamerr (char *yyres, const char *yystr)
           case '\\':
             if (*++yyp != '\\')
               goto do_not_strip_quotes;
-            /* Fall through.  */
+            else
+              goto append;
+
+          append:
           default:
             if (yyres)
               yyres[yyn] = *yyp;
@@ -1367,10 +1371,10 @@ yysyntax_error (YYSIZE_T *yymsg_alloc, char **yymsg,
                 yyarg[yycount++] = yytname[yyx];
                 {
                   YYSIZE_T yysize1 = yysize + yytnamerr (YY_NULLPTR, yytname[yyx]);
-                  if (! (yysize <= yysize1
-                         && yysize1 <= YYSTACK_ALLOC_MAXIMUM))
+                  if (yysize <= yysize1 && yysize1 <= YYSTACK_ALLOC_MAXIMUM)
+                    yysize = yysize1;
+                  else
                     return 2;
-                  yysize = yysize1;
                 }
               }
         }
@@ -1394,9 +1398,10 @@ yysyntax_error (YYSIZE_T *yymsg_alloc, char **yymsg,
 
   {
     YYSIZE_T yysize1 = yysize + yystrlen (yyformat);
-    if (! (yysize <= yysize1 && yysize1 <= YYSTACK_ALLOC_MAXIMUM))
+    if (yysize <= yysize1 && yysize1 <= YYSTACK_ALLOC_MAXIMUM)
+      yysize = yysize1;
+    else
       return 2;
-    yysize = yysize1;
   }
 
   if (*yymsg_alloc < yysize)
@@ -1551,23 +1556,31 @@ YYLTYPE yylloc = yyloc_default;
   yylsp[0] = yylloc;
   goto yysetstate;
 
+
 /*------------------------------------------------------------.
-| yynewstate -- Push a new state, which is found in yystate.  |
+| yynewstate -- push a new state, which is found in yystate.  |
 `------------------------------------------------------------*/
- yynewstate:
+yynewstate:
   /* In all cases, when you get here, the value and location stacks
      have just been pushed.  So pushing a state here evens the stacks.  */
   yyssp++;
 
- yysetstate:
+
+/*--------------------------------------------------------------------.
+| yynewstate -- set current state (the top of the stack) to yystate.  |
+`--------------------------------------------------------------------*/
+yysetstate:
   *yyssp = (yytype_int16) yystate;
 
   if (yyss + yystacksize - 1 <= yyssp)
+#if !defined yyoverflow && !defined YYSTACK_RELOCATE
+    goto yyexhaustedlab;
+#else
     {
       /* Get the current used size of the three stacks, in elements.  */
       YYSIZE_T yysize = (YYSIZE_T) (yyssp - yyss + 1);
 
-#ifdef yyoverflow
+# if defined yyoverflow
       {
         /* Give user a chance to reallocate the stack.  Use copies of
            these so that the &'s don't force the real ones into
@@ -1589,10 +1602,7 @@ YYLTYPE yylloc = yyloc_default;
         yyvs = yyvs1;
         yyls = yyls1;
       }
-#else /* no yyoverflow */
-# ifndef YYSTACK_RELOCATE
-      goto yyexhaustedlab;
-# else
+# else /* defined YYSTACK_RELOCATE */
       /* Extend the stack our own way.  */
       if (YYMAXDEPTH <= yystacksize)
         goto yyexhaustedlab;
@@ -1609,12 +1619,11 @@ YYLTYPE yylloc = yyloc_default;
         YYSTACK_RELOCATE (yyss_alloc, yyss);
         YYSTACK_RELOCATE (yyvs_alloc, yyvs);
         YYSTACK_RELOCATE (yyls_alloc, yyls);
-#  undef YYSTACK_RELOCATE
+# undef YYSTACK_RELOCATE
         if (yyss1 != yyssa)
           YYSTACK_FREE (yyss1);
       }
 # endif
-#endif /* no yyoverflow */
 
       yyssp = yyss + yysize - 1;
       yyvsp = yyvs + yysize - 1;
@@ -1626,6 +1635,7 @@ YYLTYPE yylloc = yyloc_default;
       if (yyss + yystacksize - 1 <= yyssp)
         YYABORT;
     }
+#endif /* !defined yyoverflow && !defined YYSTACK_RELOCATE */
 
   YYDPRINTF ((stderr, "Entering state %d\n", yystate));
 
@@ -1634,11 +1644,11 @@ YYLTYPE yylloc = yyloc_default;
 
   goto yybackup;
 
+
 /*-----------.
 | yybackup.  |
 `-----------*/
 yybackup:
-
   /* Do appropriate processing given the current state.  Read a
      lookahead token if we need one and don't already have one.  */
 
@@ -1711,7 +1721,7 @@ yydefault:
 
 
 /*-----------------------------.
-| yyreduce -- Do a reduction.  |
+| yyreduce -- do a reduction.  |
 `-----------------------------*/
 yyreduce:
   /* yyn is the number of a rule to reduce with.  */
@@ -1734,373 +1744,373 @@ yyreduce:
   switch (yyn)
     {
         case 14:
-#line 147 "conffile.y" /* yacc.c:1645  */
+#line 147 "conffile.y" /* yacc.c:1652  */
     {
 	   	struct _clhost *w;
 		char *err;
 		int srvcnt;
 
 		/* count number of servers for ch_new */
-		for (srvcnt = 0, w = (*(struct _clhost **)(&yyvsp[0])); w != NULL; w = w->next, srvcnt++)
+		for (srvcnt = 0, w = (yyvsp[0].cluster_hosts); w != NULL; w = w->next, srvcnt++)
 			;
 
-		if (((*(cluster **)(&yyval)) = ra_malloc(ralloc, sizeof(cluster))) == NULL) {
-			logerr("malloc failed for cluster '%s'\n", (*(char **)(&yyvsp[-2])));
+		if (((yyval.cluster) = ra_malloc(ralloc, sizeof(cluster))) == NULL) {
+			logerr("malloc failed for cluster '%s'\n", (yyvsp[-2].crSTRING));
 			YYABORT;
 		}
-		(*(cluster **)(&yyval))->name = ra_strdup(ralloc, (*(char **)(&yyvsp[-2])));
-		(*(cluster **)(&yyval))->next = NULL;
-		(*(cluster **)(&yyval))->type = (*(struct _clust*)(&yyvsp[-1])).t;
-		switch ((*(cluster **)(&yyval))->type) {
+		(yyval.cluster)->name = ra_strdup(ralloc, (yyvsp[-2].crSTRING));
+		(yyval.cluster)->next = NULL;
+		(yyval.cluster)->type = (yyvsp[-1].cluster_type).t;
+		switch ((yyval.cluster)->type) {
 			case CARBON_CH:
 			case FNV1A_CH:
 			case JUMP_CH:
-				(*(cluster **)(&yyval))->members.ch = ra_malloc(ralloc, sizeof(chashring));
-				if ((*(cluster **)(&yyval))->members.ch == NULL) {
-					logerr("malloc failed for ch in cluster '%s'\n", (*(char **)(&yyvsp[-2])));
+				(yyval.cluster)->members.ch = ra_malloc(ralloc, sizeof(chashring));
+				if ((yyval.cluster)->members.ch == NULL) {
+					logerr("malloc failed for ch in cluster '%s'\n", (yyvsp[-2].crSTRING));
 					YYABORT;
 				}
-				if ((*(struct _clust*)(&yyvsp[-1])).ival < 1 || (*(struct _clust*)(&yyvsp[-1])).ival > 255) {
+				if ((yyvsp[-1].cluster_type).ival < 1 || (yyvsp[-1].cluster_type).ival > 255) {
 					router_yyerror(&yylloc, yyscanner, rtr, ralloc, palloc,
 						"replication count must be between 1 and 255");
 					YYERROR;
 				}
-				(*(cluster **)(&yyval))->members.ch->repl_factor = (unsigned char)(*(struct _clust*)(&yyvsp[-1])).ival;
-				(*(cluster **)(&yyval))->members.ch->ring = ch_new(ralloc,
-					(*(cluster **)(&yyval))->type == CARBON_CH ? CARBON :
-					(*(cluster **)(&yyval))->type == FNV1A_CH ? FNV1a :
+				(yyval.cluster)->members.ch->repl_factor = (unsigned char)(yyvsp[-1].cluster_type).ival;
+				(yyval.cluster)->members.ch->ring = ch_new(ralloc,
+					(yyval.cluster)->type == CARBON_CH ? CARBON :
+					(yyval.cluster)->type == FNV1A_CH ? FNV1a :
 					JUMP_FNV1a, srvcnt);
-				(*(cluster **)(&yyval))->members.ch->servers = NULL;
-				(*(struct _clust*)(&yyvsp[-1])).ival = 0;  /* hack, avoid triggering use_all */
+				(yyval.cluster)->members.ch->servers = NULL;
+				(yyvsp[-1].cluster_type).ival = 0;  /* hack, avoid triggering use_all */
 				break;
 			case FORWARD:
-				(*(cluster **)(&yyval))->members.forward = NULL;
+				(yyval.cluster)->members.forward = NULL;
 				break;
 			case ANYOF:
 			case FAILOVER:
-				(*(cluster **)(&yyval))->members.anyof = NULL;
+				(yyval.cluster)->members.anyof = NULL;
 				break;
 			default:
-				logerr("unknown cluster type %zd!\n", (*(cluster **)(&yyval))->type);
+				logerr("unknown cluster type %zd!\n", (yyval.cluster)->type);
 				YYABORT;
 		}
 		
-		for (w = (*(struct _clhost **)(&yyvsp[0])); w != NULL; w = w->next) {
+		for (w = (yyvsp[0].cluster_hosts); w != NULL; w = w->next) {
 			err = router_add_server(rtr, w->ip, w->port, w->inst,
 					w->type, w->trnsp, w->proto,
-					w->saddr, w->hint, (*(struct _clust*)(&yyvsp[-1])).ival, (*(cluster **)(&yyval)));
+					w->saddr, w->hint, (yyvsp[-1].cluster_type).ival, (yyval.cluster));
 			if (err != NULL) {
 				router_yyerror(&yylloc, yyscanner, rtr, ralloc, palloc, err);
 				YYERROR;
 			}
 		}
 
-		err = router_add_cluster(rtr, (*(cluster **)(&yyval)));
+		err = router_add_cluster(rtr, (yyval.cluster));
 		if (err != NULL) {
 			router_yyerror(&yylloc, yyscanner, rtr, ralloc, palloc, err);
 			YYERROR;
 		}
 	   }
-#line 1805 "conffile.tab.c" /* yacc.c:1645  */
+#line 1815 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 15:
-#line 214 "conffile.y" /* yacc.c:1645  */
+#line 214 "conffile.y" /* yacc.c:1652  */
     {
 	   	struct _clhost *w;
 		char *err;
 
-		if (((*(cluster **)(&yyval)) = ra_malloc(ralloc, sizeof(cluster))) == NULL) {
-			logerr("malloc failed for cluster '%s'\n", (*(char **)(&yyvsp[-2])));
+		if (((yyval.cluster) = ra_malloc(ralloc, sizeof(cluster))) == NULL) {
+			logerr("malloc failed for cluster '%s'\n", (yyvsp[-2].crSTRING));
 			YYABORT;
 		}
-		(*(cluster **)(&yyval))->name = ra_strdup(ralloc, (*(char **)(&yyvsp[-2])));
-		(*(cluster **)(&yyval))->next = NULL;
-		(*(cluster **)(&yyval))->type = (*(struct _clust*)(&yyvsp[-1])).t;
-		switch ((*(cluster **)(&yyval))->type) {
+		(yyval.cluster)->name = ra_strdup(ralloc, (yyvsp[-2].crSTRING));
+		(yyval.cluster)->next = NULL;
+		(yyval.cluster)->type = (yyvsp[-1].cluster_file).t;
+		switch ((yyval.cluster)->type) {
 			case FILELOG:
 			case FILELOGIP:
-				(*(cluster **)(&yyval))->members.forward = NULL;
+				(yyval.cluster)->members.forward = NULL;
 				break;
 			default:
-				logerr("unknown cluster type %zd!\n", (*(cluster **)(&yyval))->type);
+				logerr("unknown cluster type %zd!\n", (yyval.cluster)->type);
 				YYABORT;
 		}
 		
-		for (w = (*(struct _clhost **)(&yyvsp[0])); w != NULL; w = w->next) {
+		for (w = (yyvsp[0].cluster_paths); w != NULL; w = w->next) {
 			err = router_add_server(rtr, w->ip, w->port, w->inst,
 					T_LINEMODE, W_PLAIN, w->proto,
-					w->saddr, w->hint, (*(struct _clust*)(&yyvsp[-1])).ival, (*(cluster **)(&yyval)));
+					w->saddr, w->hint, (yyvsp[-1].cluster_file).ival, (yyval.cluster));
 			if (err != NULL) {
 				router_yyerror(&yylloc, yyscanner, rtr, ralloc, palloc, err);
 				YYERROR;
 			}
 		}
 
-		err = router_add_cluster(rtr, (*(cluster **)(&yyval)));
+		err = router_add_cluster(rtr, (yyval.cluster));
 		if (err != NULL) {
 			router_yyerror(&yylloc, yyscanner, rtr, ralloc, palloc, err);
 			YYERROR;
 		}
 	   }
-#line 1847 "conffile.tab.c" /* yacc.c:1645  */
+#line 1857 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 16:
-#line 255 "conffile.y" /* yacc.c:1645  */
-    { (*(struct _clust*)(&yyval)).t = (*(enum clusttype*)(&yyvsp[-1])); (*(struct _clust*)(&yyval)).ival = (*(int*)(&yyvsp[0])); }
-#line 1853 "conffile.tab.c" /* yacc.c:1645  */
+#line 255 "conffile.y" /* yacc.c:1652  */
+    { (yyval.cluster_type).t = (yyvsp[-1].cluster_useall); (yyval.cluster_type).ival = (yyvsp[0].cluster_opt_useall); }
+#line 1863 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 17:
-#line 257 "conffile.y" /* yacc.c:1645  */
-    { (*(struct _clust*)(&yyval)).t = (*(enum clusttype*)(&yyvsp[-1])); (*(struct _clust*)(&yyval)).ival = (*(int*)(&yyvsp[0])); }
-#line 1859 "conffile.tab.c" /* yacc.c:1645  */
+#line 257 "conffile.y" /* yacc.c:1652  */
+    { (yyval.cluster_type).t = (yyvsp[-1].cluster_ch); (yyval.cluster_type).ival = (yyvsp[0].cluster_opt_repl); }
+#line 1869 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 18:
-#line 260 "conffile.y" /* yacc.c:1645  */
-    { (*(enum clusttype*)(&yyval)) = FORWARD; }
-#line 1865 "conffile.tab.c" /* yacc.c:1645  */
+#line 260 "conffile.y" /* yacc.c:1652  */
+    { (yyval.cluster_useall) = FORWARD; }
+#line 1875 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 19:
-#line 261 "conffile.y" /* yacc.c:1645  */
-    { (*(enum clusttype*)(&yyval)) = ANYOF; }
-#line 1871 "conffile.tab.c" /* yacc.c:1645  */
+#line 261 "conffile.y" /* yacc.c:1652  */
+    { (yyval.cluster_useall) = ANYOF; }
+#line 1881 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 20:
-#line 262 "conffile.y" /* yacc.c:1645  */
-    { (*(enum clusttype*)(&yyval)) = FAILOVER; }
-#line 1877 "conffile.tab.c" /* yacc.c:1645  */
+#line 262 "conffile.y" /* yacc.c:1652  */
+    { (yyval.cluster_useall) = FAILOVER; }
+#line 1887 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 21:
-#line 265 "conffile.y" /* yacc.c:1645  */
-    { (*(int*)(&yyval)) = 0; }
-#line 1883 "conffile.tab.c" /* yacc.c:1645  */
+#line 265 "conffile.y" /* yacc.c:1652  */
+    { (yyval.cluster_opt_useall) = 0; }
+#line 1893 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 22:
-#line 266 "conffile.y" /* yacc.c:1645  */
-    { (*(int*)(&yyval)) = 1; }
-#line 1889 "conffile.tab.c" /* yacc.c:1645  */
+#line 266 "conffile.y" /* yacc.c:1652  */
+    { (yyval.cluster_opt_useall) = 1; }
+#line 1899 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 23:
-#line 269 "conffile.y" /* yacc.c:1645  */
-    { (*(enum clusttype*)(&yyval)) = CARBON_CH; }
-#line 1895 "conffile.tab.c" /* yacc.c:1645  */
+#line 269 "conffile.y" /* yacc.c:1652  */
+    { (yyval.cluster_ch) = CARBON_CH; }
+#line 1905 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 24:
-#line 270 "conffile.y" /* yacc.c:1645  */
-    { (*(enum clusttype*)(&yyval)) = FNV1A_CH; }
-#line 1901 "conffile.tab.c" /* yacc.c:1645  */
+#line 270 "conffile.y" /* yacc.c:1652  */
+    { (yyval.cluster_ch) = FNV1A_CH; }
+#line 1911 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 25:
-#line 271 "conffile.y" /* yacc.c:1645  */
-    { (*(enum clusttype*)(&yyval)) = JUMP_CH; }
-#line 1907 "conffile.tab.c" /* yacc.c:1645  */
+#line 271 "conffile.y" /* yacc.c:1652  */
+    { (yyval.cluster_ch) = JUMP_CH; }
+#line 1917 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 26:
-#line 274 "conffile.y" /* yacc.c:1645  */
-    { (*(int*)(&yyval)) = 1; }
-#line 1913 "conffile.tab.c" /* yacc.c:1645  */
+#line 274 "conffile.y" /* yacc.c:1652  */
+    { (yyval.cluster_opt_repl) = 1; }
+#line 1923 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 27:
-#line 275 "conffile.y" /* yacc.c:1645  */
-    { (*(int*)(&yyval)) = (*(int*)(&yyvsp[0])); }
-#line 1919 "conffile.tab.c" /* yacc.c:1645  */
+#line 275 "conffile.y" /* yacc.c:1652  */
+    { (yyval.cluster_opt_repl) = (yyvsp[0].crINTVAL); }
+#line 1929 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 28:
-#line 278 "conffile.y" /* yacc.c:1645  */
-    { (*(struct _clust*)(&yyval)).t = FILELOGIP; (*(struct _clust*)(&yyval)).ival = 0; }
-#line 1925 "conffile.tab.c" /* yacc.c:1645  */
+#line 278 "conffile.y" /* yacc.c:1652  */
+    { (yyval.cluster_file).t = FILELOGIP; (yyval.cluster_file).ival = 0; }
+#line 1935 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 29:
-#line 279 "conffile.y" /* yacc.c:1645  */
-    { (*(struct _clust*)(&yyval)).t = FILELOG; (*(struct _clust*)(&yyval)).ival = 0; }
-#line 1931 "conffile.tab.c" /* yacc.c:1645  */
+#line 279 "conffile.y" /* yacc.c:1652  */
+    { (yyval.cluster_file).t = FILELOG; (yyval.cluster_file).ival = 0; }
+#line 1941 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 30:
-#line 282 "conffile.y" /* yacc.c:1645  */
-    { (*(struct _clhost **)(&yyvsp[-1]))->next = (*(struct _clhost **)(&yyvsp[0])); (*(struct _clhost **)(&yyval)) = (*(struct _clhost **)(&yyvsp[-1])); }
-#line 1937 "conffile.tab.c" /* yacc.c:1645  */
+#line 282 "conffile.y" /* yacc.c:1652  */
+    { (yyvsp[-1].cluster_path)->next = (yyvsp[0].cluster_opt_path); (yyval.cluster_paths) = (yyvsp[-1].cluster_path); }
+#line 1947 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 31:
-#line 284 "conffile.y" /* yacc.c:1645  */
-    { (*(struct _clhost **)(&yyval)) = NULL; }
-#line 1943 "conffile.tab.c" /* yacc.c:1645  */
+#line 284 "conffile.y" /* yacc.c:1652  */
+    { (yyval.cluster_opt_path) = NULL; }
+#line 1953 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 32:
-#line 285 "conffile.y" /* yacc.c:1645  */
-    { (*(struct _clhost **)(&yyval)) = (*(struct _clhost **)(&yyvsp[0])); }
-#line 1949 "conffile.tab.c" /* yacc.c:1645  */
+#line 285 "conffile.y" /* yacc.c:1652  */
+    { (yyval.cluster_opt_path) = (yyvsp[0].cluster_path); }
+#line 1959 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 33:
-#line 288 "conffile.y" /* yacc.c:1645  */
+#line 288 "conffile.y" /* yacc.c:1652  */
     {
 				struct _clhost *ret = ra_malloc(palloc, sizeof(struct _clhost));
-				char *err = router_validate_path(rtr, (*(char **)(&yyvsp[0])));
+				char *err = router_validate_path(rtr, (yyvsp[0].crSTRING));
 				if (err != NULL) {
 					router_yyerror(&yylloc, yyscanner, rtr,
 							ralloc, palloc, err);
 					YYERROR;
 				}
-				ret->ip = (*(char **)(&yyvsp[0]));
+				ret->ip = (yyvsp[0].crSTRING);
 				ret->port = GRAPHITE_PORT;
 				ret->saddr = NULL;
 				ret->hint = NULL;
 				ret->inst = NULL;
 				ret->proto = CON_FILE;
 				ret->next = NULL;
-				(*(struct _clhost **)(&yyval)) = ret;
+				(yyval.cluster_path) = ret;
 			}
-#line 1971 "conffile.tab.c" /* yacc.c:1645  */
+#line 1981 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 34:
-#line 307 "conffile.y" /* yacc.c:1645  */
-    { (*(struct _clhost **)(&yyvsp[-1]))->next = (*(struct _clhost **)(&yyvsp[0])); (*(struct _clhost **)(&yyval)) = (*(struct _clhost **)(&yyvsp[-1])); }
-#line 1977 "conffile.tab.c" /* yacc.c:1645  */
+#line 307 "conffile.y" /* yacc.c:1652  */
+    { (yyvsp[-1].cluster_host)->next = (yyvsp[0].cluster_opt_host); (yyval.cluster_hosts) = (yyvsp[-1].cluster_host); }
+#line 1987 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 35:
-#line 309 "conffile.y" /* yacc.c:1645  */
-    { (*(struct _clhost **)(&yyval)) = NULL; }
-#line 1983 "conffile.tab.c" /* yacc.c:1645  */
+#line 309 "conffile.y" /* yacc.c:1652  */
+    { (yyval.cluster_opt_host) = NULL; }
+#line 1993 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 36:
-#line 310 "conffile.y" /* yacc.c:1645  */
-    { (*(struct _clhost **)(&yyval)) = (*(struct _clhost **)(&yyvsp[0])); }
-#line 1989 "conffile.tab.c" /* yacc.c:1645  */
+#line 310 "conffile.y" /* yacc.c:1652  */
+    { (yyval.cluster_opt_host) = (yyvsp[0].cluster_hosts); }
+#line 1999 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 37:
-#line 315 "conffile.y" /* yacc.c:1645  */
+#line 315 "conffile.y" /* yacc.c:1652  */
     {
 			  	struct _clhost *ret = ra_malloc(palloc, sizeof(struct _clhost));
 				char *err = router_validate_address(
 						rtr,
 						&(ret->ip), &(ret->port), &(ret->saddr), &(ret->hint),
-						(*(char **)(&yyvsp[-4])), (*(con_proto*)(&yyvsp[-2])));
+						(yyvsp[-4].crSTRING), (yyvsp[-2].cluster_opt_proto));
 				if (err != NULL) {
 					router_yyerror(&yylloc, yyscanner, rtr,
 							ralloc, palloc, err);
 					YYERROR;
 				}
-				ret->inst = (*(char **)(&yyvsp[-3]));
-				ret->proto = (*(con_proto*)(&yyvsp[-2]));
-				ret->type = (*(con_type*)(&yyvsp[-1]));
-				ret->trnsp = (*(con_trnsp*)(&yyvsp[0]));
+				ret->inst = (yyvsp[-3].cluster_opt_instance);
+				ret->proto = (yyvsp[-2].cluster_opt_proto);
+				ret->type = (yyvsp[-1].cluster_opt_type);
+				ret->trnsp = (yyvsp[0].cluster_opt_transport);
 				ret->next = NULL;
-				(*(struct _clhost **)(&yyval)) = ret;
+				(yyval.cluster_host) = ret;
 			  }
-#line 2012 "conffile.tab.c" /* yacc.c:1645  */
+#line 2022 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 38:
-#line 334 "conffile.y" /* yacc.c:1645  */
-    { (*(char **)(&yyval)) = NULL; }
-#line 2018 "conffile.tab.c" /* yacc.c:1645  */
+#line 334 "conffile.y" /* yacc.c:1652  */
+    { (yyval.cluster_opt_instance) = NULL; }
+#line 2028 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 39:
-#line 335 "conffile.y" /* yacc.c:1645  */
-    { (*(char **)(&yyval)) = (*(char **)(&yyvsp[0])); }
-#line 2024 "conffile.tab.c" /* yacc.c:1645  */
+#line 335 "conffile.y" /* yacc.c:1652  */
+    { (yyval.cluster_opt_instance) = (yyvsp[0].crSTRING); }
+#line 2034 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 40:
-#line 337 "conffile.y" /* yacc.c:1645  */
+#line 337 "conffile.y" /* yacc.c:1652  */
     {
-						(*(char **)(&yyval)) = ra_malloc(palloc, sizeof(char) * 12);
-						if ((*(char **)(&yyval)) == NULL) {
+						(yyval.cluster_opt_instance) = ra_malloc(palloc, sizeof(char) * 12);
+						if ((yyval.cluster_opt_instance) == NULL) {
 							logerr("out of memory\n");
 							YYABORT;
 						}
-						snprintf((*(char **)(&yyval)), 12, "%d", (*(int*)(&yyvsp[0])));
+						snprintf((yyval.cluster_opt_instance), 12, "%d", (yyvsp[0].crINTVAL));
 					}
-#line 2037 "conffile.tab.c" /* yacc.c:1645  */
+#line 2047 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 41:
-#line 346 "conffile.y" /* yacc.c:1645  */
-    { (*(con_proto*)(&yyval)) = CON_TCP; }
-#line 2043 "conffile.tab.c" /* yacc.c:1645  */
+#line 346 "conffile.y" /* yacc.c:1652  */
+    { (yyval.cluster_opt_proto) = CON_TCP; }
+#line 2053 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 42:
-#line 347 "conffile.y" /* yacc.c:1645  */
-    { (*(con_proto*)(&yyval)) = CON_UDP; }
-#line 2049 "conffile.tab.c" /* yacc.c:1645  */
+#line 347 "conffile.y" /* yacc.c:1652  */
+    { (yyval.cluster_opt_proto) = CON_UDP; }
+#line 2059 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 43:
-#line 348 "conffile.y" /* yacc.c:1645  */
-    { (*(con_proto*)(&yyval)) = CON_TCP; }
-#line 2055 "conffile.tab.c" /* yacc.c:1645  */
+#line 348 "conffile.y" /* yacc.c:1652  */
+    { (yyval.cluster_opt_proto) = CON_TCP; }
+#line 2065 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 44:
-#line 351 "conffile.y" /* yacc.c:1645  */
-    { (*(con_type*)(&yyval)) = T_LINEMODE; }
-#line 2061 "conffile.tab.c" /* yacc.c:1645  */
+#line 351 "conffile.y" /* yacc.c:1652  */
+    { (yyval.cluster_opt_type) = T_LINEMODE; }
+#line 2071 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 45:
-#line 352 "conffile.y" /* yacc.c:1645  */
-    { (*(con_type*)(&yyval)) = T_LINEMODE; }
-#line 2067 "conffile.tab.c" /* yacc.c:1645  */
+#line 352 "conffile.y" /* yacc.c:1652  */
+    { (yyval.cluster_opt_type) = T_LINEMODE; }
+#line 2077 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 46:
-#line 353 "conffile.y" /* yacc.c:1645  */
-    { (*(con_type*)(&yyval)) = T_SYSLOGMODE; }
-#line 2073 "conffile.tab.c" /* yacc.c:1645  */
+#line 353 "conffile.y" /* yacc.c:1652  */
+    { (yyval.cluster_opt_type) = T_SYSLOGMODE; }
+#line 2083 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 47:
-#line 356 "conffile.y" /* yacc.c:1645  */
-    { (*(con_trnsp*)(&yyval)) = W_PLAIN; }
-#line 2079 "conffile.tab.c" /* yacc.c:1645  */
+#line 356 "conffile.y" /* yacc.c:1652  */
+    { (yyval.cluster_opt_transport) = W_PLAIN; }
+#line 2089 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 48:
-#line 359 "conffile.y" /* yacc.c:1645  */
+#line 359 "conffile.y" /* yacc.c:1652  */
     {
-					 	if ((*(con_trnsp*)(&yyvsp[0])) == W_PLAIN) {
-							(*(con_trnsp*)(&yyval)) = (*(con_trnsp*)(&yyvsp[-1]));
+					 	if ((yyvsp[0].cluster_transport_opt_ssl) == W_PLAIN) {
+							(yyval.cluster_opt_transport) = (yyvsp[-1].cluster_transport_trans);
 						} else {
-							(*(con_trnsp*)(&yyval)) = (*(con_trnsp*)(&yyvsp[-1])) | (*(con_trnsp*)(&yyvsp[0]));
+							(yyval.cluster_opt_transport) = (yyvsp[-1].cluster_transport_trans) | (yyvsp[0].cluster_transport_opt_ssl);
 						}
 					 }
-#line 2091 "conffile.tab.c" /* yacc.c:1645  */
+#line 2101 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 49:
-#line 367 "conffile.y" /* yacc.c:1645  */
-    { (*(con_trnsp*)(&yyval)) = W_PLAIN; }
-#line 2097 "conffile.tab.c" /* yacc.c:1645  */
+#line 367 "conffile.y" /* yacc.c:1652  */
+    { (yyval.cluster_transport_trans) = W_PLAIN; }
+#line 2107 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 50:
-#line 368 "conffile.y" /* yacc.c:1645  */
+#line 368 "conffile.y" /* yacc.c:1652  */
     {
 #ifdef HAVE_GZIP
-							(*(con_trnsp*)(&yyval)) = W_GZIP;
+							(yyval.cluster_transport_trans) = W_GZIP;
 #else
 							router_yyerror(&yylloc, yyscanner, rtr,
 								ralloc, palloc,
@@ -2108,14 +2118,14 @@ yyreduce:
 							YYERROR;
 #endif
 					    }
-#line 2112 "conffile.tab.c" /* yacc.c:1645  */
+#line 2122 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 51:
-#line 378 "conffile.y" /* yacc.c:1645  */
+#line 378 "conffile.y" /* yacc.c:1652  */
     {
 #ifdef HAVE_LZ4
-							(*(con_trnsp*)(&yyval)) = W_LZ4;
+							(yyval.cluster_transport_trans) = W_LZ4;
 #else
 							router_yyerror(&yylloc, yyscanner, rtr,
 								ralloc, palloc,
@@ -2123,14 +2133,14 @@ yyreduce:
 							YYERROR;
 #endif
 					    }
-#line 2127 "conffile.tab.c" /* yacc.c:1645  */
+#line 2137 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 52:
-#line 388 "conffile.y" /* yacc.c:1645  */
+#line 388 "conffile.y" /* yacc.c:1652  */
     {
 #ifdef HAVE_SNAPPY
-							(*(con_trnsp*)(&yyval)) = W_SNAPPY;
+							(yyval.cluster_transport_trans) = W_SNAPPY;
 #else
 							router_yyerror(&yylloc, yyscanner, rtr,
 								ralloc, palloc,
@@ -2138,20 +2148,20 @@ yyreduce:
 							YYERROR;
 #endif
 					    }
-#line 2142 "conffile.tab.c" /* yacc.c:1645  */
+#line 2152 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 53:
-#line 399 "conffile.y" /* yacc.c:1645  */
-    { (*(con_trnsp*)(&yyval)) = W_PLAIN; }
-#line 2148 "conffile.tab.c" /* yacc.c:1645  */
+#line 399 "conffile.y" /* yacc.c:1652  */
+    { (yyval.cluster_transport_opt_ssl) = W_PLAIN; }
+#line 2158 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 54:
-#line 401 "conffile.y" /* yacc.c:1645  */
+#line 401 "conffile.y" /* yacc.c:1652  */
     {
 #ifdef HAVE_SSL
-							(*(con_trnsp*)(&yyval)) = W_SSL;
+							(yyval.cluster_transport_opt_ssl) = W_SSL;
 #else
 							router_yyerror(&yylloc, yyscanner, rtr,
 								ralloc, palloc,
@@ -2159,18 +2169,18 @@ yyreduce:
 							YYERROR;
 #endif
 					     }
-#line 2163 "conffile.tab.c" /* yacc.c:1645  */
+#line 2173 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 55:
-#line 417 "conffile.y" /* yacc.c:1645  */
+#line 417 "conffile.y" /* yacc.c:1652  */
     {
 	 	/* each expr comes with an allocated route, populate it */
 		struct _maexpr *we;
 		destinations *d = NULL;
 		char *err;
 
-		if ((*(struct _maexpr **)(&yyvsp[-3])) != NULL) {
+		if ((yyvsp[-3].match_opt_validate) != NULL) {
 			/* optional validate clause */
 			if ((d = ra_malloc(ralloc, sizeof(destinations))) == NULL) {
 				logerr("out of memory\n");
@@ -2189,24 +2199,24 @@ yyreduce:
 				logerr("out of memory\n");
 				YYABORT;
 			}
-			d->cl->members.validation->rule = (*(struct _maexpr **)(&yyvsp[-3]))->r;
-			d->cl->members.validation->action = (*(struct _maexpr **)(&yyvsp[-3]))->drop ? VAL_DROP : VAL_LOG;
+			d->cl->members.validation->rule = (yyvsp[-3].match_opt_validate)->r;
+			d->cl->members.validation->action = (yyvsp[-3].match_opt_validate)->drop ? VAL_DROP : VAL_LOG;
 		}
 		/* add destinations to the chain */
 		if (d != NULL) {
-			d->next = (*(destinations **)(&yyvsp[-1]));
+			d->next = (yyvsp[-1].match_opt_send_to);
 		} else {
-			d = (*(destinations **)(&yyvsp[-1]));
+			d = (yyvsp[-1].match_opt_send_to);
 		}
 		/* replace with copy on the router allocator */
-		if ((*(char **)(&yyvsp[-2])) != NULL)
-			(*(char **)(&yyvsp[-2])) = ra_strdup(ralloc, (*(char **)(&yyvsp[-2])));
-		for (we = (*(struct _maexpr **)(&yyvsp[-4])); we != NULL; we = we->next) {
+		if ((yyvsp[-2].match_opt_route) != NULL)
+			(yyvsp[-2].match_opt_route) = ra_strdup(ralloc, (yyvsp[-2].match_opt_route));
+		for (we = (yyvsp[-4].match_exprs); we != NULL; we = we->next) {
 			we->r->next = NULL;
 			we->r->dests = d;
-			we->r->masq = (*(char **)(&yyvsp[-2]));
-			we->r->stop = (*(destinations **)(&yyvsp[-1])) == NULL ? 0 :
-					(*(destinations **)(&yyvsp[-1]))->cl->type == BLACKHOLE ? 1 : (*(int*)(&yyvsp[0]));
+			we->r->masq = (yyvsp[-2].match_opt_route);
+			we->r->stop = (yyvsp[-1].match_opt_send_to) == NULL ? 0 :
+					(yyvsp[-1].match_opt_send_to)->cl->type == BLACKHOLE ? 1 : (yyvsp[0].match_opt_stop);
 			err = router_add_route(rtr, we->r);
 			if (err != NULL) {
 				router_yyerror(&yylloc, yyscanner, rtr,
@@ -2215,215 +2225,215 @@ yyreduce:
 			}
 		}
 	 }
-#line 2219 "conffile.tab.c" /* yacc.c:1645  */
+#line 2229 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 56:
-#line 471 "conffile.y" /* yacc.c:1645  */
+#line 471 "conffile.y" /* yacc.c:1652  */
     {
-			if (((*(struct _maexpr **)(&yyval)) = ra_malloc(palloc, sizeof(struct _maexpr))) == NULL) {
+			if (((yyval.match_exprs) = ra_malloc(palloc, sizeof(struct _maexpr))) == NULL) {
 				logerr("out of memory\n");
 				YYABORT;
 			}
-		   	(*(struct _maexpr **)(&yyval))->r = NULL;
-			if (router_validate_expression(rtr, &((*(struct _maexpr **)(&yyval))->r), "*") != NULL)
+		   	(yyval.match_exprs)->r = NULL;
+			if (router_validate_expression(rtr, &((yyval.match_exprs)->r), "*") != NULL)
 				YYABORT;
-			(*(struct _maexpr **)(&yyval))->drop = 0;
-			(*(struct _maexpr **)(&yyval))->next = NULL;
+			(yyval.match_exprs)->drop = 0;
+			(yyval.match_exprs)->next = NULL;
 		   }
-#line 2235 "conffile.tab.c" /* yacc.c:1645  */
+#line 2245 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 57:
-#line 482 "conffile.y" /* yacc.c:1645  */
-    { (*(struct _maexpr **)(&yyval)) = (*(struct _maexpr **)(&yyvsp[0])); }
-#line 2241 "conffile.tab.c" /* yacc.c:1645  */
+#line 482 "conffile.y" /* yacc.c:1652  */
+    { (yyval.match_exprs) = (yyvsp[0].match_exprs2); }
+#line 2251 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 58:
-#line 485 "conffile.y" /* yacc.c:1645  */
-    { (*(struct _maexpr **)(&yyvsp[-1]))->next = (*(struct _maexpr **)(&yyvsp[0])); (*(struct _maexpr **)(&yyval)) = (*(struct _maexpr **)(&yyvsp[-1])); }
-#line 2247 "conffile.tab.c" /* yacc.c:1645  */
+#line 485 "conffile.y" /* yacc.c:1652  */
+    { (yyvsp[-1].match_expr)->next = (yyvsp[0].match_opt_expr); (yyval.match_exprs2) = (yyvsp[-1].match_expr); }
+#line 2257 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 59:
-#line 487 "conffile.y" /* yacc.c:1645  */
-    { (*(struct _maexpr **)(&yyval)) = NULL; }
-#line 2253 "conffile.tab.c" /* yacc.c:1645  */
+#line 487 "conffile.y" /* yacc.c:1652  */
+    { (yyval.match_opt_expr) = NULL; }
+#line 2263 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 60:
-#line 488 "conffile.y" /* yacc.c:1645  */
-    { (*(struct _maexpr **)(&yyval)) = (*(struct _maexpr **)(&yyvsp[0])); }
-#line 2259 "conffile.tab.c" /* yacc.c:1645  */
+#line 488 "conffile.y" /* yacc.c:1652  */
+    { (yyval.match_opt_expr) = (yyvsp[0].match_exprs2); }
+#line 2269 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 61:
-#line 492 "conffile.y" /* yacc.c:1645  */
+#line 492 "conffile.y" /* yacc.c:1652  */
     {
 			char *err;
-			if (((*(struct _maexpr **)(&yyval)) = ra_malloc(palloc, sizeof(struct _maexpr))) == NULL) {
+			if (((yyval.match_expr) = ra_malloc(palloc, sizeof(struct _maexpr))) == NULL) {
 				logerr("out of memory\n");
 				YYABORT;
 			}
-		   	(*(struct _maexpr **)(&yyval))->r = NULL;
-		  	err = router_validate_expression(rtr, &((*(struct _maexpr **)(&yyval))->r), (*(char **)(&yyvsp[0])));
+		   	(yyval.match_expr)->r = NULL;
+		  	err = router_validate_expression(rtr, &((yyval.match_expr)->r), (yyvsp[0].crSTRING));
 			if (err != NULL) {
 				router_yyerror(&yylloc, yyscanner, rtr,
 						ralloc, palloc, err);
 				YYERROR;
 			}
-			(*(struct _maexpr **)(&yyval))->drop = 0;
-			(*(struct _maexpr **)(&yyval))->next = NULL;
+			(yyval.match_expr)->drop = 0;
+			(yyval.match_expr)->next = NULL;
 		  }
-#line 2280 "conffile.tab.c" /* yacc.c:1645  */
+#line 2290 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 62:
-#line 510 "conffile.y" /* yacc.c:1645  */
-    { (*(struct _maexpr **)(&yyval)) = NULL; }
-#line 2286 "conffile.tab.c" /* yacc.c:1645  */
+#line 510 "conffile.y" /* yacc.c:1652  */
+    { (yyval.match_opt_validate) = NULL; }
+#line 2296 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 63:
-#line 512 "conffile.y" /* yacc.c:1645  */
+#line 512 "conffile.y" /* yacc.c:1652  */
     {
 					char *err;
-					if (((*(struct _maexpr **)(&yyval)) = ra_malloc(palloc, sizeof(struct _maexpr))) == NULL) {
+					if (((yyval.match_opt_validate) = ra_malloc(palloc, sizeof(struct _maexpr))) == NULL) {
 						logerr("out of memory\n");
 						YYABORT;
 					}
-					(*(struct _maexpr **)(&yyval))->r = NULL;
-					err = router_validate_expression(rtr, &((*(struct _maexpr **)(&yyval))->r), (*(char **)(&yyvsp[-2])));
+					(yyval.match_opt_validate)->r = NULL;
+					err = router_validate_expression(rtr, &((yyval.match_opt_validate)->r), (yyvsp[-2].crSTRING));
 					if (err != NULL) {
 						router_yyerror(&yylloc, yyscanner, rtr,
 								ralloc, palloc, err);
 						YYERROR;
 					}
-					(*(struct _maexpr **)(&yyval))->drop = (*(int*)(&yyvsp[0]));
-					(*(struct _maexpr **)(&yyval))->next = NULL;
+					(yyval.match_opt_validate)->drop = (yyvsp[0].match_log_or_drop);
+					(yyval.match_opt_validate)->next = NULL;
 				  }
-#line 2307 "conffile.tab.c" /* yacc.c:1645  */
+#line 2317 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 64:
-#line 530 "conffile.y" /* yacc.c:1645  */
-    { (*(int*)(&yyval)) = 0; }
-#line 2313 "conffile.tab.c" /* yacc.c:1645  */
+#line 530 "conffile.y" /* yacc.c:1652  */
+    { (yyval.match_log_or_drop) = 0; }
+#line 2323 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 65:
-#line 531 "conffile.y" /* yacc.c:1645  */
-    { (*(int*)(&yyval)) = 1; }
-#line 2319 "conffile.tab.c" /* yacc.c:1645  */
+#line 531 "conffile.y" /* yacc.c:1652  */
+    { (yyval.match_log_or_drop) = 1; }
+#line 2329 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 66:
-#line 534 "conffile.y" /* yacc.c:1645  */
-    { (*(char **)(&yyval)) = NULL; }
-#line 2325 "conffile.tab.c" /* yacc.c:1645  */
+#line 534 "conffile.y" /* yacc.c:1652  */
+    { (yyval.match_opt_route) = NULL; }
+#line 2335 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 67:
-#line 535 "conffile.y" /* yacc.c:1645  */
-    { (*(char **)(&yyval)) = (*(char **)(&yyvsp[0])); }
-#line 2331 "conffile.tab.c" /* yacc.c:1645  */
+#line 535 "conffile.y" /* yacc.c:1652  */
+    { (yyval.match_opt_route) = (yyvsp[0].crSTRING); }
+#line 2341 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 68:
-#line 538 "conffile.y" /* yacc.c:1645  */
-    { (*(destinations **)(&yyval)) = NULL; }
-#line 2337 "conffile.tab.c" /* yacc.c:1645  */
+#line 538 "conffile.y" /* yacc.c:1652  */
+    { (yyval.match_opt_send_to) = NULL; }
+#line 2347 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 69:
-#line 539 "conffile.y" /* yacc.c:1645  */
-    { (*(destinations **)(&yyval)) = (*(destinations **)(&yyvsp[0])); }
-#line 2343 "conffile.tab.c" /* yacc.c:1645  */
+#line 539 "conffile.y" /* yacc.c:1652  */
+    { (yyval.match_opt_send_to) = (yyvsp[0].match_send_to); }
+#line 2353 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 70:
-#line 542 "conffile.y" /* yacc.c:1645  */
-    { (*(destinations **)(&yyval)) = (*(destinations **)(&yyvsp[0])); }
-#line 2349 "conffile.tab.c" /* yacc.c:1645  */
+#line 542 "conffile.y" /* yacc.c:1652  */
+    { (yyval.match_send_to) = (yyvsp[0].match_dsts); }
+#line 2359 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 71:
-#line 546 "conffile.y" /* yacc.c:1645  */
+#line 546 "conffile.y" /* yacc.c:1652  */
     {
-			if (((*(destinations **)(&yyval)) = ra_malloc(ralloc, sizeof(destinations))) == NULL) {
+			if (((yyval.match_dsts) = ra_malloc(ralloc, sizeof(destinations))) == NULL) {
 				logerr("out of memory\n");
 				YYABORT;
 			}
-			if (router_validate_cluster(rtr, &((*(destinations **)(&yyval))->cl), "blackhole") != NULL)
+			if (router_validate_cluster(rtr, &((yyval.match_dsts)->cl), "blackhole") != NULL)
 				YYABORT;
-			(*(destinations **)(&yyval))->next = NULL;
+			(yyval.match_dsts)->next = NULL;
 		  }
-#line 2363 "conffile.tab.c" /* yacc.c:1645  */
+#line 2373 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 72:
-#line 555 "conffile.y" /* yacc.c:1645  */
-    { (*(destinations **)(&yyval)) = (*(destinations **)(&yyvsp[0])); }
-#line 2369 "conffile.tab.c" /* yacc.c:1645  */
+#line 555 "conffile.y" /* yacc.c:1652  */
+    { (yyval.match_dsts) = (yyvsp[0].match_dsts2); }
+#line 2379 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 73:
-#line 558 "conffile.y" /* yacc.c:1645  */
-    { (*(destinations **)(&yyvsp[-1]))->next = (*(destinations **)(&yyvsp[0])); (*(destinations **)(&yyval)) = (*(destinations **)(&yyvsp[-1])); }
-#line 2375 "conffile.tab.c" /* yacc.c:1645  */
+#line 558 "conffile.y" /* yacc.c:1652  */
+    { (yyvsp[-1].match_dst)->next = (yyvsp[0].match_opt_dst); (yyval.match_dsts2) = (yyvsp[-1].match_dst); }
+#line 2385 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 74:
-#line 560 "conffile.y" /* yacc.c:1645  */
-    { (*(destinations **)(&yyval)) = NULL; }
-#line 2381 "conffile.tab.c" /* yacc.c:1645  */
+#line 560 "conffile.y" /* yacc.c:1652  */
+    { (yyval.match_opt_dst) = NULL; }
+#line 2391 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 75:
-#line 561 "conffile.y" /* yacc.c:1645  */
-    { (*(destinations **)(&yyval)) = (*(destinations **)(&yyvsp[0])); }
-#line 2387 "conffile.tab.c" /* yacc.c:1645  */
+#line 561 "conffile.y" /* yacc.c:1652  */
+    { (yyval.match_opt_dst) = (yyvsp[0].match_dsts2); }
+#line 2397 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 76:
-#line 565 "conffile.y" /* yacc.c:1645  */
+#line 565 "conffile.y" /* yacc.c:1652  */
     {
 			char *err;
-			if (((*(destinations **)(&yyval)) = ra_malloc(ralloc, sizeof(destinations))) == NULL) {
+			if (((yyval.match_dst) = ra_malloc(ralloc, sizeof(destinations))) == NULL) {
 				logerr("out of memory\n");
 				YYABORT;
 			}
-			err = router_validate_cluster(rtr, &((*(destinations **)(&yyval))->cl), (*(char **)(&yyvsp[0])));
+			err = router_validate_cluster(rtr, &((yyval.match_dst)->cl), (yyvsp[0].crSTRING));
 			if (err != NULL) {
 				router_yyerror(&yylloc, yyscanner, rtr, ralloc, palloc, err);
 				YYERROR;
 			}
-			(*(destinations **)(&yyval))->next = NULL;
+			(yyval.match_dst)->next = NULL;
 		 }
-#line 2405 "conffile.tab.c" /* yacc.c:1645  */
+#line 2415 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 77:
-#line 580 "conffile.y" /* yacc.c:1645  */
-    { (*(int*)(&yyval)) = 0; }
-#line 2411 "conffile.tab.c" /* yacc.c:1645  */
+#line 580 "conffile.y" /* yacc.c:1652  */
+    { (yyval.match_opt_stop) = 0; }
+#line 2421 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 78:
-#line 581 "conffile.y" /* yacc.c:1645  */
-    { (*(int*)(&yyval)) = 1; }
-#line 2417 "conffile.tab.c" /* yacc.c:1645  */
+#line 581 "conffile.y" /* yacc.c:1652  */
+    { (yyval.match_opt_stop) = 1; }
+#line 2427 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 79:
-#line 587 "conffile.y" /* yacc.c:1645  */
+#line 587 "conffile.y" /* yacc.c:1652  */
     {
 		char *err;
 		route *r = NULL;
 		cluster *cl;
 
-		err = router_validate_expression(rtr, &r, (*(char **)(&yyvsp[-2])));
+		err = router_validate_expression(rtr, &r, (yyvsp[-2].crSTRING));
 		if (err != NULL) {
 			router_yyerror(&yylloc, yyscanner, rtr, ralloc, palloc, err);
 			YYERROR;
@@ -2436,7 +2446,7 @@ yyreduce:
 		}
 		cl->type = REWRITE;
 		cl->name = NULL;
-		cl->members.replacement = ra_strdup(ralloc, (*(char **)(&yyvsp[0])));
+		cl->members.replacement = ra_strdup(ralloc, (yyvsp[0].crSTRING));
 		cl->next = NULL;
 		if (cl->members.replacement == NULL) {
 			logerr("out of memory\n");
@@ -2458,11 +2468,11 @@ yyreduce:
 			YYERROR;
 		}
 	   }
-#line 2462 "conffile.tab.c" /* yacc.c:1645  */
+#line 2472 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 80:
-#line 637 "conffile.y" /* yacc.c:1645  */
+#line 637 "conffile.y" /* yacc.c:1652  */
     {
 		 	cluster *w;
 			aggregator *a;
@@ -2471,17 +2481,17 @@ yyreduce:
 			struct _maexpr *we;
 			char *err;
 
-			if ((*(int*)(&yyvsp[-9])) <= 0) {
+			if ((yyvsp[-9].crINTVAL) <= 0) {
 				router_yyerror(&yylloc, yyscanner, rtr, ralloc, palloc,
 					"interval must be > 0");
 				YYERROR;
 			}
-			if ((*(int*)(&yyvsp[-5])) <= 0) {
+			if ((yyvsp[-5].crINTVAL) <= 0) {
 				router_yyerror(&yylloc, yyscanner, rtr, ralloc, palloc,
 					"expire must be > 0");
 				YYERROR;
 			}
-			if ((*(int*)(&yyvsp[-5])) <= (*(int*)(&yyvsp[-9]))) {
+			if ((yyvsp[-5].crINTVAL) <= (yyvsp[-9].crINTVAL)) {
 				router_yyerror(&yylloc, yyscanner, rtr, ralloc, palloc,
 					"expire must be greater than interval");
 				YYERROR;
@@ -2496,7 +2506,7 @@ yyreduce:
 			w->type = AGGREGATION;
 			w->next = NULL;
 
-			a = aggregator_new((*(int*)(&yyvsp[-9])), (*(int*)(&yyvsp[-5])), (*(enum _aggr_timestamp*)(&yyvsp[-3])));
+			a = aggregator_new((yyvsp[-9].crINTVAL), (yyvsp[-5].crINTVAL), (yyvsp[-3].aggregate_opt_timestamp));
 			if (a == NULL) {
 				logerr("out of memory\n");
 				YYABORT;
@@ -2508,7 +2518,7 @@ yyreduce:
 
 			w->members.aggregation = a;
 			
-			for (acw = (*(struct _agcomp **)(&yyvsp[-2])); acw != NULL; acw = acw->next) {
+			for (acw = (yyvsp[-2].aggregate_computes); acw != NULL; acw = acw->next) {
 				if (aggregator_add_compute(a,
 							acw->metric, acw->ctype, acw->pctl) != 0)
 				{
@@ -2529,12 +2539,12 @@ yyreduce:
 				YYABORT;
 			}
 			d->cl = w;
-			d->next = (*(destinations **)(&yyvsp[-1]));
+			d->next = (yyvsp[-1].aggregate_opt_send_to);
 
-			for (we = (*(struct _maexpr **)(&yyvsp[-11])); we != NULL; we = we->next) {
+			for (we = (yyvsp[-11].match_exprs2); we != NULL; we = we->next) {
 				we->r->next = NULL;
 				we->r->dests = d;
-				we->r->stop = (*(int*)(&yyvsp[0]));
+				we->r->stop = (yyvsp[0].match_opt_stop);
 				err = router_add_route(rtr, we->r);
 				if (err != NULL) {
 					router_yyerror(&yylloc, yyscanner, rtr,
@@ -2543,154 +2553,154 @@ yyreduce:
 				}
 			}
 
-			if ((*(destinations **)(&yyvsp[-1])) != NULL)
-				router_add_stubroute(rtr, AGGRSTUB, w, (*(destinations **)(&yyvsp[-1])));
+			if ((yyvsp[-1].aggregate_opt_send_to) != NULL)
+				router_add_stubroute(rtr, AGGRSTUB, w, (yyvsp[-1].aggregate_opt_send_to));
 		 }
-#line 2550 "conffile.tab.c" /* yacc.c:1645  */
+#line 2560 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 81:
-#line 722 "conffile.y" /* yacc.c:1645  */
-    { (*(enum _aggr_timestamp*)(&yyval)) = TS_END; }
-#line 2556 "conffile.tab.c" /* yacc.c:1645  */
+#line 722 "conffile.y" /* yacc.c:1652  */
+    { (yyval.aggregate_opt_timestamp) = TS_END; }
+#line 2566 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 82:
-#line 725 "conffile.y" /* yacc.c:1645  */
-    { (*(enum _aggr_timestamp*)(&yyval)) = (*(enum _aggr_timestamp*)(&yyvsp[-2])); }
-#line 2562 "conffile.tab.c" /* yacc.c:1645  */
+#line 725 "conffile.y" /* yacc.c:1652  */
+    { (yyval.aggregate_opt_timestamp) = (yyvsp[-2].aggregate_ts_when); }
+#line 2572 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 83:
-#line 728 "conffile.y" /* yacc.c:1645  */
-    { (*(enum _aggr_timestamp*)(&yyval)) = TS_START; }
-#line 2568 "conffile.tab.c" /* yacc.c:1645  */
+#line 728 "conffile.y" /* yacc.c:1652  */
+    { (yyval.aggregate_ts_when) = TS_START; }
+#line 2578 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 84:
-#line 729 "conffile.y" /* yacc.c:1645  */
-    { (*(enum _aggr_timestamp*)(&yyval)) = TS_MIDDLE; }
-#line 2574 "conffile.tab.c" /* yacc.c:1645  */
+#line 729 "conffile.y" /* yacc.c:1652  */
+    { (yyval.aggregate_ts_when) = TS_MIDDLE; }
+#line 2584 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 85:
-#line 730 "conffile.y" /* yacc.c:1645  */
-    { (*(enum _aggr_timestamp*)(&yyval)) = TS_END; }
-#line 2580 "conffile.tab.c" /* yacc.c:1645  */
+#line 730 "conffile.y" /* yacc.c:1652  */
+    { (yyval.aggregate_ts_when) = TS_END; }
+#line 2590 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 86:
-#line 734 "conffile.y" /* yacc.c:1645  */
-    { (*(struct _agcomp **)(&yyvsp[-1]))->next = (*(struct _agcomp **)(&yyvsp[0])); (*(struct _agcomp **)(&yyval)) = (*(struct _agcomp **)(&yyvsp[-1])); }
-#line 2586 "conffile.tab.c" /* yacc.c:1645  */
+#line 734 "conffile.y" /* yacc.c:1652  */
+    { (yyvsp[-1].aggregate_compute)->next = (yyvsp[0].aggregate_opt_compute); (yyval.aggregate_computes) = (yyvsp[-1].aggregate_compute); }
+#line 2596 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 87:
-#line 737 "conffile.y" /* yacc.c:1645  */
-    { (*(struct _agcomp **)(&yyval)) = NULL; }
-#line 2592 "conffile.tab.c" /* yacc.c:1645  */
+#line 737 "conffile.y" /* yacc.c:1652  */
+    { (yyval.aggregate_opt_compute) = NULL; }
+#line 2602 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 88:
-#line 738 "conffile.y" /* yacc.c:1645  */
-    { (*(struct _agcomp **)(&yyval)) = (*(struct _agcomp **)(&yyvsp[0])); }
-#line 2598 "conffile.tab.c" /* yacc.c:1645  */
+#line 738 "conffile.y" /* yacc.c:1652  */
+    { (yyval.aggregate_opt_compute) = (yyvsp[0].aggregate_computes); }
+#line 2608 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 89:
-#line 742 "conffile.y" /* yacc.c:1645  */
+#line 742 "conffile.y" /* yacc.c:1652  */
     {
-					(*(struct _agcomp **)(&yyval)) = ra_malloc(palloc, sizeof(struct _agcomp));
-					if ((*(struct _agcomp **)(&yyval)) == NULL) {
+					(yyval.aggregate_compute) = ra_malloc(palloc, sizeof(struct _agcomp));
+					if ((yyval.aggregate_compute) == NULL) {
 						logerr("malloc failed\n");
 						YYABORT;
 					}
-				 	(*(struct _agcomp **)(&yyval))->ctype = (*(struct _agcomp*)(&yyvsp[-3])).ctype;
-					(*(struct _agcomp **)(&yyval))->pctl = (*(struct _agcomp*)(&yyvsp[-3])).pctl;
-					(*(struct _agcomp **)(&yyval))->metric = (*(char **)(&yyvsp[0]));
-					(*(struct _agcomp **)(&yyval))->next = NULL;
+				 	(yyval.aggregate_compute)->ctype = (yyvsp[-3].aggregate_comp_type).ctype;
+					(yyval.aggregate_compute)->pctl = (yyvsp[-3].aggregate_comp_type).pctl;
+					(yyval.aggregate_compute)->metric = (yyvsp[0].crSTRING);
+					(yyval.aggregate_compute)->next = NULL;
 				 }
-#line 2614 "conffile.tab.c" /* yacc.c:1645  */
+#line 2624 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 90:
-#line 755 "conffile.y" /* yacc.c:1645  */
-    { (*(struct _agcomp*)(&yyval)).ctype = SUM; }
-#line 2620 "conffile.tab.c" /* yacc.c:1645  */
+#line 755 "conffile.y" /* yacc.c:1652  */
+    { (yyval.aggregate_comp_type).ctype = SUM; }
+#line 2630 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 91:
-#line 756 "conffile.y" /* yacc.c:1645  */
-    { (*(struct _agcomp*)(&yyval)).ctype = CNT; }
-#line 2626 "conffile.tab.c" /* yacc.c:1645  */
+#line 756 "conffile.y" /* yacc.c:1652  */
+    { (yyval.aggregate_comp_type).ctype = CNT; }
+#line 2636 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 92:
-#line 757 "conffile.y" /* yacc.c:1645  */
-    { (*(struct _agcomp*)(&yyval)).ctype = MAX; }
-#line 2632 "conffile.tab.c" /* yacc.c:1645  */
+#line 757 "conffile.y" /* yacc.c:1652  */
+    { (yyval.aggregate_comp_type).ctype = MAX; }
+#line 2642 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 93:
-#line 758 "conffile.y" /* yacc.c:1645  */
-    { (*(struct _agcomp*)(&yyval)).ctype = MIN; }
-#line 2638 "conffile.tab.c" /* yacc.c:1645  */
+#line 758 "conffile.y" /* yacc.c:1652  */
+    { (yyval.aggregate_comp_type).ctype = MIN; }
+#line 2648 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 94:
-#line 759 "conffile.y" /* yacc.c:1645  */
-    { (*(struct _agcomp*)(&yyval)).ctype = AVG; }
-#line 2644 "conffile.tab.c" /* yacc.c:1645  */
+#line 759 "conffile.y" /* yacc.c:1652  */
+    { (yyval.aggregate_comp_type).ctype = AVG; }
+#line 2654 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 95:
-#line 760 "conffile.y" /* yacc.c:1645  */
-    { (*(struct _agcomp*)(&yyval)).ctype = MEDN; }
-#line 2650 "conffile.tab.c" /* yacc.c:1645  */
+#line 760 "conffile.y" /* yacc.c:1652  */
+    { (yyval.aggregate_comp_type).ctype = MEDN; }
+#line 2660 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 96:
-#line 762 "conffile.y" /* yacc.c:1645  */
+#line 762 "conffile.y" /* yacc.c:1652  */
     {
-				    if ((*(int*)(&yyvsp[0])) < 1 || (*(int*)(&yyvsp[0])) > 99) {
+				    if ((yyvsp[0].crPERCENTILE) < 1 || (yyvsp[0].crPERCENTILE) > 99) {
 						router_yyerror(&yylloc, yyscanner, rtr, ralloc, palloc,
 							"percentile<x>: value x must be between 1 and 99");
 						YYERROR;
 					}
-				   	(*(struct _agcomp*)(&yyval)).ctype = PCTL;
-					(*(struct _agcomp*)(&yyval)).pctl = (unsigned char)(*(int*)(&yyvsp[0]));
+				   	(yyval.aggregate_comp_type).ctype = PCTL;
+					(yyval.aggregate_comp_type).pctl = (unsigned char)(yyvsp[0].crPERCENTILE);
 				   }
-#line 2664 "conffile.tab.c" /* yacc.c:1645  */
+#line 2674 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 97:
-#line 771 "conffile.y" /* yacc.c:1645  */
-    { (*(struct _agcomp*)(&yyval)).ctype = VAR; }
-#line 2670 "conffile.tab.c" /* yacc.c:1645  */
+#line 771 "conffile.y" /* yacc.c:1652  */
+    { (yyval.aggregate_comp_type).ctype = VAR; }
+#line 2680 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 98:
-#line 772 "conffile.y" /* yacc.c:1645  */
-    { (*(struct _agcomp*)(&yyval)).ctype = SDEV; }
-#line 2676 "conffile.tab.c" /* yacc.c:1645  */
+#line 772 "conffile.y" /* yacc.c:1652  */
+    { (yyval.aggregate_comp_type).ctype = SDEV; }
+#line 2686 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 99:
-#line 775 "conffile.y" /* yacc.c:1645  */
-    { (*(destinations **)(&yyval)) = NULL; }
-#line 2682 "conffile.tab.c" /* yacc.c:1645  */
+#line 775 "conffile.y" /* yacc.c:1652  */
+    { (yyval.aggregate_opt_send_to) = NULL; }
+#line 2692 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 100:
-#line 776 "conffile.y" /* yacc.c:1645  */
-    { (*(destinations **)(&yyval)) = (*(destinations **)(&yyvsp[0])); }
-#line 2688 "conffile.tab.c" /* yacc.c:1645  */
+#line 776 "conffile.y" /* yacc.c:1652  */
+    { (yyval.aggregate_opt_send_to) = (yyvsp[0].match_send_to); }
+#line 2698 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 101:
-#line 782 "conffile.y" /* yacc.c:1645  */
+#line 782 "conffile.y" /* yacc.c:1652  */
     {
-		char *err = router_set_statistics(rtr, (*(destinations **)(&yyvsp[-1])));
+		char *err = router_set_statistics(rtr, (yyvsp[-1].match_dsts));
 		if (err != NULL) {
 			router_yyerror(&yylloc, yyscanner, rtr, ralloc, palloc, err);
 			YYERROR;
@@ -2699,21 +2709,21 @@ yyreduce:
 				"removed in a future version, use 'statistics send to ...' "
 				"instead\n");
 	}
-#line 2703 "conffile.tab.c" /* yacc.c:1645  */
+#line 2713 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 102:
-#line 802 "conffile.y" /* yacc.c:1645  */
+#line 802 "conffile.y" /* yacc.c:1652  */
     {
 		  	char *err;
-		  	err = router_set_collectorvals(rtr, (*(int*)(&yyvsp[-4])), (*(char **)(&yyvsp[-2])), (*(col_mode*)(&yyvsp[-3])));
+		  	err = router_set_collectorvals(rtr, (yyvsp[-4].statistics_opt_interval), (yyvsp[-2].statistics_opt_prefix), (yyvsp[-3].statistics_opt_counters));
 			if (err != NULL) {
 				router_yyerror(&yylloc, yyscanner, rtr, ralloc, palloc, err);
 				YYERROR;
 			}
 
-			if ((*(destinations **)(&yyvsp[-1])) != NULL) {
-				err = router_set_statistics(rtr, (*(destinations **)(&yyvsp[-1])));
+			if ((yyvsp[-1].aggregate_opt_send_to) != NULL) {
+				err = router_set_statistics(rtr, (yyvsp[-1].aggregate_opt_send_to));
 				if (err != NULL) {
 					router_yyerror(&yylloc, yyscanner, rtr,
 							ralloc, palloc, err);
@@ -2721,61 +2731,61 @@ yyreduce:
 				}
 			}
 		  }
-#line 2725 "conffile.tab.c" /* yacc.c:1645  */
+#line 2735 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 103:
-#line 821 "conffile.y" /* yacc.c:1645  */
-    { (*(int*)(&yyval)) = -1; }
-#line 2731 "conffile.tab.c" /* yacc.c:1645  */
+#line 821 "conffile.y" /* yacc.c:1652  */
+    { (yyval.statistics_opt_interval) = -1; }
+#line 2741 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 104:
-#line 823 "conffile.y" /* yacc.c:1645  */
+#line 823 "conffile.y" /* yacc.c:1652  */
     {
-					   	if ((*(int*)(&yyvsp[-1])) <= 0) {
+					   	if ((yyvsp[-1].crINTVAL) <= 0) {
 							router_yyerror(&yylloc, yyscanner, rtr,
 									ralloc, palloc, "interval must be > 0");
 							YYERROR;
 						}
-						(*(int*)(&yyval)) = (*(int*)(&yyvsp[-1]));
+						(yyval.statistics_opt_interval) = (yyvsp[-1].crINTVAL);
 					   }
-#line 2744 "conffile.tab.c" /* yacc.c:1645  */
+#line 2754 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 105:
-#line 833 "conffile.y" /* yacc.c:1645  */
-    { (*(col_mode*)(&yyval)) = CUM; }
-#line 2750 "conffile.tab.c" /* yacc.c:1645  */
+#line 833 "conffile.y" /* yacc.c:1652  */
+    { (yyval.statistics_opt_counters) = CUM; }
+#line 2760 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 106:
-#line 834 "conffile.y" /* yacc.c:1645  */
-    { (*(col_mode*)(&yyval)) = SUB; }
-#line 2756 "conffile.tab.c" /* yacc.c:1645  */
+#line 834 "conffile.y" /* yacc.c:1652  */
+    { (yyval.statistics_opt_counters) = SUB; }
+#line 2766 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 107:
-#line 837 "conffile.y" /* yacc.c:1645  */
-    { (*(char **)(&yyval)) = NULL; }
-#line 2762 "conffile.tab.c" /* yacc.c:1645  */
+#line 837 "conffile.y" /* yacc.c:1652  */
+    { (yyval.statistics_opt_prefix) = NULL; }
+#line 2772 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 108:
-#line 838 "conffile.y" /* yacc.c:1645  */
-    { (*(char **)(&yyval)) = (*(char **)(&yyvsp[0])); }
-#line 2768 "conffile.tab.c" /* yacc.c:1645  */
+#line 838 "conffile.y" /* yacc.c:1652  */
+    { (yyval.statistics_opt_prefix) = (yyvsp[0].crSTRING); }
+#line 2778 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 109:
-#line 844 "conffile.y" /* yacc.c:1645  */
+#line 844 "conffile.y" /* yacc.c:1652  */
     {
 	  	struct _rcptr *walk;
 		char *err;
 
-		for (walk = (*(struct _lsnr **)(&yyvsp[0]))->rcptr; walk != NULL; walk = walk->next) {
-			err = router_add_listener(rtr, (*(struct _lsnr **)(&yyvsp[0]))->type,
-				(*(struct _lsnr **)(&yyvsp[0]))->transport->mode, (*(struct _lsnr **)(&yyvsp[0]))->transport->pemcert,
+		for (walk = (yyvsp[0].listener)->rcptr; walk != NULL; walk = walk->next) {
+			err = router_add_listener(rtr, (yyvsp[0].listener)->type,
+				(yyvsp[0].listener)->transport->mode, (yyvsp[0].listener)->transport->pemcert,
 				walk->ctype, walk->ip, walk->port, walk->saddr);
 			if (err != NULL) {
 				router_yyerror(&yylloc, yyscanner, rtr,
@@ -2784,23 +2794,23 @@ yyreduce:
 			}
 		}
 	  }
-#line 2788 "conffile.tab.c" /* yacc.c:1645  */
+#line 2798 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 110:
-#line 862 "conffile.y" /* yacc.c:1645  */
+#line 862 "conffile.y" /* yacc.c:1652  */
     {
-			if (((*(struct _lsnr **)(&yyval)) = ra_malloc(palloc, sizeof(struct _lsnr))) == NULL) {
+			if (((yyval.listener) = ra_malloc(palloc, sizeof(struct _lsnr))) == NULL) {
 				logerr("malloc failed\n");
 				YYABORT;
 			}
-			(*(struct _lsnr **)(&yyval))->type = T_LINEMODE;
-			(*(struct _lsnr **)(&yyval))->transport = (*(struct _rcptr_trsp **)(&yyvsp[-1]));
-			(*(struct _lsnr **)(&yyval))->rcptr = (*(struct _rcptr **)(&yyvsp[0]));
-			if ((*(struct _rcptr_trsp **)(&yyvsp[-1]))->mode != W_PLAIN) {
+			(yyval.listener)->type = T_LINEMODE;
+			(yyval.listener)->transport = (yyvsp[-1].transport_mode);
+			(yyval.listener)->rcptr = (yyvsp[0].receptors);
+			if ((yyvsp[-1].transport_mode)->mode != W_PLAIN) {
 				struct _rcptr *walk;
 
-				for (walk = (*(struct _rcptr **)(&yyvsp[0])); walk != NULL; walk = walk->next) {
+				for (walk = (yyvsp[0].receptors); walk != NULL; walk = walk->next) {
 					if (walk->ctype == CON_UDP) {
 						router_yyerror(&yylloc, yyscanner, rtr, ralloc, palloc,
 							"cannot use UDP transport for "
@@ -2810,29 +2820,29 @@ yyreduce:
 				}
 			}
 		}
-#line 2814 "conffile.tab.c" /* yacc.c:1645  */
+#line 2824 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 111:
-#line 886 "conffile.y" /* yacc.c:1645  */
+#line 886 "conffile.y" /* yacc.c:1652  */
     {
-				 	(*(struct _rcptr_trsp **)(&yyval)) = NULL;
+				 	(yyval.transport_opt_ssl) = NULL;
 				 }
-#line 2822 "conffile.tab.c" /* yacc.c:1645  */
+#line 2832 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 112:
-#line 890 "conffile.y" /* yacc.c:1645  */
+#line 890 "conffile.y" /* yacc.c:1652  */
     {
 #ifdef HAVE_SSL
-					if (((*(struct _rcptr_trsp **)(&yyval)) = ra_malloc(palloc,
+					if (((yyval.transport_opt_ssl) = ra_malloc(palloc,
 							sizeof(struct _rcptr_trsp))) == NULL)
 					{
 						logerr("malloc failed\n");
 						YYABORT;
 					}
-					(*(struct _rcptr_trsp **)(&yyval))->mode = W_SSL;
-					(*(struct _rcptr_trsp **)(&yyval))->pemcert = ra_strdup(ralloc, (*(char **)(&yyvsp[0])));
+					(yyval.transport_opt_ssl)->mode = W_SSL;
+					(yyval.transport_opt_ssl)->pemcert = ra_strdup(ralloc, (yyvsp[0].crSTRING));
 #else
 					router_yyerror(&yylloc, yyscanner, rtr,
 						ralloc, palloc,
@@ -2840,34 +2850,34 @@ yyreduce:
 					YYERROR;
 #endif
 				 }
-#line 2844 "conffile.tab.c" /* yacc.c:1645  */
+#line 2854 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 113:
-#line 910 "conffile.y" /* yacc.c:1645  */
+#line 910 "conffile.y" /* yacc.c:1652  */
     {
-						if (((*(struct _rcptr_trsp **)(&yyval)) = ra_malloc(palloc,
+						if (((yyval.transport_mode_trans) = ra_malloc(palloc,
 								sizeof(struct _rcptr_trsp))) == NULL)
 						{
 							logerr("malloc failed\n");
 							YYABORT;
 						}
-						(*(struct _rcptr_trsp **)(&yyval))->mode = W_PLAIN;
+						(yyval.transport_mode_trans)->mode = W_PLAIN;
 					}
-#line 2858 "conffile.tab.c" /* yacc.c:1645  */
+#line 2868 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 114:
-#line 920 "conffile.y" /* yacc.c:1645  */
+#line 920 "conffile.y" /* yacc.c:1652  */
     {
 #ifdef HAVE_GZIP
-						if (((*(struct _rcptr_trsp **)(&yyval)) = ra_malloc(palloc,
+						if (((yyval.transport_mode_trans) = ra_malloc(palloc,
 								sizeof(struct _rcptr_trsp))) == NULL)
 						{
 							logerr("malloc failed\n");
 							YYABORT;
 						}
-						(*(struct _rcptr_trsp **)(&yyval))->mode = W_GZIP;
+						(yyval.transport_mode_trans)->mode = W_GZIP;
 #else
 						router_yyerror(&yylloc, yyscanner, rtr,
 							ralloc, palloc,
@@ -2875,20 +2885,20 @@ yyreduce:
 						YYERROR;
 #endif
 					}
-#line 2879 "conffile.tab.c" /* yacc.c:1645  */
+#line 2889 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 115:
-#line 937 "conffile.y" /* yacc.c:1645  */
+#line 937 "conffile.y" /* yacc.c:1652  */
     {
 #ifdef HAVE_LZ4
-						if (((*(struct _rcptr_trsp **)(&yyval)) = ra_malloc(palloc,
+						if (((yyval.transport_mode_trans) = ra_malloc(palloc,
 								sizeof(struct _rcptr_trsp))) == NULL)
 						{
 							logerr("malloc failed\n");
 							YYABORT;
 						}
-						(*(struct _rcptr_trsp **)(&yyval))->mode = W_LZ4;
+						(yyval.transport_mode_trans)->mode = W_LZ4;
 #else
 						router_yyerror(&yylloc, yyscanner, rtr,
 							ralloc, palloc,
@@ -2896,20 +2906,20 @@ yyreduce:
 						YYERROR;
 #endif
 					}
-#line 2900 "conffile.tab.c" /* yacc.c:1645  */
+#line 2910 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 116:
-#line 954 "conffile.y" /* yacc.c:1645  */
+#line 954 "conffile.y" /* yacc.c:1652  */
     {
 #ifdef HAVE_SNAPPY
-						if (((*(struct _rcptr_trsp **)(&yyval)) = ra_malloc(palloc,
+						if (((yyval.transport_mode_trans) = ra_malloc(palloc,
 								sizeof(struct _rcptr_trsp))) == NULL)
 						{
 							logerr("malloc failed\n");
 							YYABORT;
 						}
-						(*(struct _rcptr_trsp **)(&yyval))->mode = W_SNAPPY;
+						(yyval.transport_mode_trans)->mode = W_SNAPPY;
 #else
 						router_yyerror(&yylloc, yyscanner, rtr,
 							ralloc, palloc,
@@ -2917,142 +2927,142 @@ yyreduce:
 						YYERROR;
 #endif
 					}
-#line 2921 "conffile.tab.c" /* yacc.c:1645  */
+#line 2931 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 117:
-#line 973 "conffile.y" /* yacc.c:1645  */
+#line 973 "conffile.y" /* yacc.c:1652  */
     { 
-				if (((*(struct _rcptr_trsp **)(&yyval)) = ra_malloc(palloc,
+				if (((yyval.transport_mode) = ra_malloc(palloc,
 						sizeof(struct _rcptr_trsp))) == NULL)
 				{
 					logerr("malloc failed\n");
 					YYABORT;
 				}
-				(*(struct _rcptr_trsp **)(&yyval))->mode = W_PLAIN;
+				(yyval.transport_mode)->mode = W_PLAIN;
 			  }
-#line 2935 "conffile.tab.c" /* yacc.c:1645  */
+#line 2945 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 118:
-#line 983 "conffile.y" /* yacc.c:1645  */
+#line 983 "conffile.y" /* yacc.c:1652  */
     {
-			  	if ((*(struct _rcptr_trsp **)(&yyvsp[0])) == NULL) {
-					(*(struct _rcptr_trsp **)(&yyval)) = (*(struct _rcptr_trsp **)(&yyvsp[-1]));
+			  	if ((yyvsp[0].transport_opt_ssl) == NULL) {
+					(yyval.transport_mode) = (yyvsp[-1].transport_mode_trans);
 				} else {
-					(*(struct _rcptr_trsp **)(&yyval)) = (*(struct _rcptr_trsp **)(&yyvsp[0]));
-					(*(struct _rcptr_trsp **)(&yyval))->mode |= (*(struct _rcptr_trsp **)(&yyvsp[-1]))->mode;
+					(yyval.transport_mode) = (yyvsp[0].transport_opt_ssl);
+					(yyval.transport_mode)->mode |= (yyvsp[-1].transport_mode_trans)->mode;
 				}
 			  }
-#line 2948 "conffile.tab.c" /* yacc.c:1645  */
+#line 2958 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 119:
-#line 993 "conffile.y" /* yacc.c:1645  */
-    { (*(struct _rcptr **)(&yyvsp[-1]))->next = (*(struct _rcptr **)(&yyvsp[0])); (*(struct _rcptr **)(&yyval)) = (*(struct _rcptr **)(&yyvsp[-1])); }
-#line 2954 "conffile.tab.c" /* yacc.c:1645  */
+#line 993 "conffile.y" /* yacc.c:1652  */
+    { (yyvsp[-1].receptor)->next = (yyvsp[0].opt_receptor); (yyval.receptors) = (yyvsp[-1].receptor); }
+#line 2964 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 120:
-#line 996 "conffile.y" /* yacc.c:1645  */
-    { (*(struct _rcptr **)(&yyval)) = NULL; }
-#line 2960 "conffile.tab.c" /* yacc.c:1645  */
+#line 996 "conffile.y" /* yacc.c:1652  */
+    { (yyval.opt_receptor) = NULL; }
+#line 2970 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 121:
-#line 997 "conffile.y" /* yacc.c:1645  */
-    { (*(struct _rcptr **)(&yyval)) = (*(struct _rcptr **)(&yyvsp[0]));   }
-#line 2966 "conffile.tab.c" /* yacc.c:1645  */
+#line 997 "conffile.y" /* yacc.c:1652  */
+    { (yyval.opt_receptor) = (yyvsp[0].receptors);   }
+#line 2976 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 122:
-#line 1001 "conffile.y" /* yacc.c:1645  */
+#line 1001 "conffile.y" /* yacc.c:1652  */
     {
 			char *err;
 			void *hint = NULL;
 			char *w;
 			char bcip[24];
 
-			if (((*(struct _rcptr **)(&yyval)) = ra_malloc(palloc, sizeof(struct _rcptr))) == NULL) {
+			if (((yyval.receptor) = ra_malloc(palloc, sizeof(struct _rcptr))) == NULL) {
 				logerr("malloc failed\n");
 				YYABORT;
 			}
-			(*(struct _rcptr **)(&yyval))->ctype = (*(con_proto*)(&yyvsp[0]));
+			(yyval.receptor)->ctype = (yyvsp[0].rcptr_proto);
 
 			/* find out if this is just a port */
-			for (w = (*(char **)(&yyvsp[-2])); *w != '\0'; w++)
+			for (w = (yyvsp[-2].crSTRING); *w != '\0'; w++)
 				if (*w < '0' || *w > '9')
 					break;
 			if (*w == '\0') {
-				snprintf(bcip, sizeof(bcip), ":%s", (*(char **)(&yyvsp[-2])));
-				(*(char **)(&yyvsp[-2])) = bcip;
+				snprintf(bcip, sizeof(bcip), ":%s", (yyvsp[-2].crSTRING));
+				(yyvsp[-2].crSTRING) = bcip;
 			}
 
 			err = router_validate_address(
 					rtr,
-					&((*(struct _rcptr **)(&yyval))->ip), &((*(struct _rcptr **)(&yyval))->port), &((*(struct _rcptr **)(&yyval))->saddr), &hint,
-					(*(char **)(&yyvsp[-2])), (*(con_proto*)(&yyvsp[0])));
+					&((yyval.receptor)->ip), &((yyval.receptor)->port), &((yyval.receptor)->saddr), &hint,
+					(yyvsp[-2].crSTRING), (yyvsp[0].rcptr_proto));
 			/* help some static analysis tools to see bcip isn't going
 			 * out of scope */
-			(*(char **)(&yyvsp[-2])) = NULL;
+			(yyvsp[-2].crSTRING) = NULL;
 			if (err != NULL) {
 				router_yyerror(&yylloc, yyscanner, rtr,
 						ralloc, palloc, err);
 				YYERROR;
 			}
 			free(hint);
-			(*(struct _rcptr **)(&yyval))->next = NULL;
+			(yyval.receptor)->next = NULL;
 		}
-#line 3007 "conffile.tab.c" /* yacc.c:1645  */
+#line 3017 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 123:
-#line 1038 "conffile.y" /* yacc.c:1645  */
+#line 1038 "conffile.y" /* yacc.c:1652  */
     {
 			char *err;
 
-			if (((*(struct _rcptr **)(&yyval)) = ra_malloc(palloc, sizeof(struct _rcptr))) == NULL) {
+			if (((yyval.receptor) = ra_malloc(palloc, sizeof(struct _rcptr))) == NULL) {
 				logerr("malloc failed\n");
 				YYABORT;
 			}
-			(*(struct _rcptr **)(&yyval))->ctype = CON_UNIX;
-			(*(struct _rcptr **)(&yyval))->ip = (*(char **)(&yyvsp[-2]));
-			(*(struct _rcptr **)(&yyval))->port = 0;
-			(*(struct _rcptr **)(&yyval))->saddr = NULL;
-			err = router_validate_path(rtr, (*(char **)(&yyvsp[-2])));
+			(yyval.receptor)->ctype = CON_UNIX;
+			(yyval.receptor)->ip = (yyvsp[-2].crSTRING);
+			(yyval.receptor)->port = 0;
+			(yyval.receptor)->saddr = NULL;
+			err = router_validate_path(rtr, (yyvsp[-2].crSTRING));
 			if (err != NULL) {
 				router_yyerror(&yylloc, yyscanner, rtr,
 						ralloc, palloc, err);
 				YYERROR;
 			}
-			(*(struct _rcptr **)(&yyval))->next = NULL;
+			(yyval.receptor)->next = NULL;
 		}
-#line 3031 "conffile.tab.c" /* yacc.c:1645  */
+#line 3041 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 124:
-#line 1059 "conffile.y" /* yacc.c:1645  */
-    { (*(con_proto*)(&yyval)) = CON_TCP; }
-#line 3037 "conffile.tab.c" /* yacc.c:1645  */
+#line 1059 "conffile.y" /* yacc.c:1652  */
+    { (yyval.rcptr_proto) = CON_TCP; }
+#line 3047 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 125:
-#line 1060 "conffile.y" /* yacc.c:1645  */
-    { (*(con_proto*)(&yyval)) = CON_UDP; }
-#line 3043 "conffile.tab.c" /* yacc.c:1645  */
+#line 1060 "conffile.y" /* yacc.c:1652  */
+    { (yyval.rcptr_proto) = CON_UDP; }
+#line 3053 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
   case 126:
-#line 1066 "conffile.y" /* yacc.c:1645  */
+#line 1066 "conffile.y" /* yacc.c:1652  */
     {
-	   	if (router_readconfig(rtr, (*(char **)(&yyvsp[0])), 0, 0, 0, 0, 0, 0, 0) == NULL)
+	   	if (router_readconfig(rtr, (yyvsp[0].crSTRING), 0, 0, 0, 0, 0, 0, 0) == NULL)
 			YYERROR;
 	   }
-#line 3052 "conffile.tab.c" /* yacc.c:1645  */
+#line 3062 "conffile.tab.c" /* yacc.c:1652  */
     break;
 
 
-#line 3056 "conffile.tab.c" /* yacc.c:1645  */
+#line 3066 "conffile.tab.c" /* yacc.c:1652  */
       default: break;
     }
   /* User semantic actions sometimes alter yychar, and that requires
@@ -3167,12 +3177,10 @@ yyerrlab:
 | yyerrorlab -- error raised explicitly by YYERROR.  |
 `---------------------------------------------------*/
 yyerrorlab:
-
-  /* Pacify compilers like GCC when the user code never invokes
-     YYERROR and the label yyerrorlab therefore never appears in user
-     code.  */
-  if (/*CONSTCOND*/ 0)
-     goto yyerrorlab;
+  /* Pacify compilers when the user code never invokes YYERROR and the
+     label yyerrorlab therefore never appears in user code.  */
+  if (0)
+    YYERROR;
 
   /* Do not reclaim the symbols of the rule whose action triggered
      this YYERROR.  */
@@ -3239,12 +3247,14 @@ yyacceptlab:
   yyresult = 0;
   goto yyreturn;
 
+
 /*-----------------------------------.
 | yyabortlab -- YYABORT comes here.  |
 `-----------------------------------*/
 yyabortlab:
   yyresult = 1;
   goto yyreturn;
+
 
 #if !defined yyoverflow || YYERROR_VERBOSE
 /*-------------------------------------------------.
@@ -3256,6 +3266,10 @@ yyexhaustedlab:
   /* Fall through.  */
 #endif
 
+
+/*-----------------------------------------------------.
+| yyreturn -- parsing is finished, return the result.  |
+`-----------------------------------------------------*/
 yyreturn:
   if (yychar != YYEMPTY)
     {
