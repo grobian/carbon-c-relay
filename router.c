@@ -395,10 +395,10 @@ router_yyerror(
 char *
 router_validate_address(
 		router *rtr,
-		char **retip, int *retport, void **retsaddr, void **rethint,
-		char *ip, con_proto proto)
+		char **retip, unsigned short *retport, void **retsaddr,
+		void **rethint, char *ip, con_proto proto)
 {
-	int port = GRAPHITE_PORT;
+	unsigned short port = GRAPHITE_PORT;
 	struct addrinfo *saddr = NULL;
 	struct addrinfo hint;
 	char sport[8];
@@ -412,11 +412,17 @@ router_validate_address(
 	if (*(p - 1) == ']')
 		lastcolon = NULL;
 	if (lastcolon != NULL) {
+		long lport;
 		char *endp = NULL;
 		*lastcolon = '\0';
-		port = (int)strtol(lastcolon + 1, &endp, 10);
-		if (port < 1 || endp != p)
-			return(ra_strdup(rtr->a, "invalid port number"));
+		lport = strtol(lastcolon + 1, &endp, 10);
+		if (lport < 1 || lport > UINT16_MAX || endp != p) {
+			char errbuf[40];
+			snprintf(errbuf, sizeof(errbuf),
+				 "invalid port number '%s'", lastcolon + 1);
+			return(ra_strdup(rtr->a, errbuf));
+		}
+		port = lport;
 	}
 	if (*ip == '[') {
 		ip++;
@@ -579,7 +585,7 @@ char *
 router_add_server(
 		router *ret,
 		char *ip,
-		int port,
+		unsigned short port,
 		char *inst,
 		con_type type,
 		con_trnsp transport,
@@ -625,7 +631,7 @@ router_add_server(
 			}
 		}
 		if (newserver == NULL) {
-			newserver = server_new(ip, (unsigned short)port,
+			newserver = server_new(ip, port,
 					type, transport, proto, walk, hint,
 					ret->conf.queuesize, ret->conf.batchsize,
 					ret->conf.maxstalls, ret->conf.iotimeout,
@@ -996,7 +1002,7 @@ router_add_listener(
 		char *pemcert,
 		con_proto ctype,
 		char *ip,
-		int port,
+		unsigned short port,
 		struct addrinfo *saddrs)
 {
 	listener *lwalk;
@@ -1340,7 +1346,7 @@ router_readconfig(router *orig,
 		if (ret->listeners == NULL) {
 			char sockbuf[128];
 			char *ip;
-			int port;
+			unsigned short port;
 			void *saddrs;
 			void *hint;
 

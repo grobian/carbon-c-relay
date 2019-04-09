@@ -2,6 +2,8 @@
 
 ### New Features
 
+* **router** now emits the bad string if an invalid port was given
+
 ### Bugfixes
 
 * [Issue #346](https://github.com/grobian/carbon-c-relay/issues/346)
