@@ -196,7 +196,7 @@ input until the end of that line:
 ```
 cluster <name>
     < <forward | any_of | failover> [useall] |
-      <carbon_ch | fnv1a_ch | jump_fnv1a_ch> [replication <count>] >
+      <carbon_ch | fnv1a_ch | jump_fnv1a_ch> [replication <count>] [dynamic] >
         <host[:port][=instance] [proto <udp | tcp>]
                                 [type linemode]
                                 [transport <plain | gzip | lz4 | snappy>
@@ -281,7 +281,11 @@ servers are defined.  This is to implement a pure failover scenario
 between servers.  The `carbon_ch` cluster sends the metrics to the
 member that is responsible according to the consistent hash algorithm
 (as used in the original carbon), or multiple members if replication is
-set to more than 1.  The `fnv1a_ch` cluster is a identical in behaviour
+set to more than 1.  When `dynamic` is set, failure of any of the
+servers does not result in metrics being dropped for that server, but
+instead the undeliverable metrics are sent to any other server in the
+cluster in order for the metrics not to get lost.  This is most useful
+when replication is 1.  The `fnv1a_ch` cluster is a identical in behaviour
 to `carbon_ch`, but it uses a different hash technique (FNV1a) which is
 faster but more importantly defined to get by a limitation of
 `carbon_ch` to use both host and port from the members.  This is useful

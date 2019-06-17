@@ -70,6 +70,7 @@ cluster				{
 						return crJUMP_FNV1A_CH;
 					}
 <idcl>replication		return crREPLICATION;
+<idcl>dynamic			return crDYNAMIC;
 <cl>file			{
 						identstate = idcl;
 						BEGIN(idcl);

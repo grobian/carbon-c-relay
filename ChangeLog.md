@@ -3,6 +3,8 @@
 ### New Features
 
 * **router** now emits the bad string if an invalid port was given
+* **router** new support for dynamic clusters
+  [Issue #367](https://github.com/grobian/carbon-c-relay/issues/367)
 
 ### Bugfixes
 

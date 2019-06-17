@@ -62,10 +62,10 @@ struct _rcptr_trsp {
 
 %token crCLUSTER
 %token crFORWARD crANY_OF crFAILOVER crCARBON_CH crFNV1A_CH crJUMP_FNV1A_CH
-	crFILE crIP crREPLICATION crPROTO crUSEALL crUDP crTCP
+	crFILE crIP crREPLICATION crDYNAMIC crPROTO crUSEALL crUDP crTCP
 %type <enum clusttype> cluster_useall cluster_ch
 %type <struct _clust> cluster_type cluster_file
-%type <int> cluster_opt_repl cluster_opt_useall
+%type <int> cluster_opt_repl cluster_opt_useall cluster_opt_dynamic
 %type <con_proto> cluster_opt_proto
 %type <con_type> cluster_opt_type
 %type <char *> cluster_opt_instance
@@ -148,6 +148,7 @@ cluster: crCLUSTER crSTRING[name] cluster_type[type] cluster_hosts[servers]
 	   	struct _clhost *w;
 		char *err;
 		int srvcnt;
+		int replcnt;
 
 		/* count number of servers for ch_new */
 		for (srvcnt = 0, w = $servers; w != NULL; w = w->next, srvcnt++)
@@ -169,12 +170,14 @@ cluster: crCLUSTER crSTRING[name] cluster_type[type] cluster_hosts[servers]
 					logerr("malloc failed for ch in cluster '%s'\n", $name);
 					YYABORT;
 				}
-				if ($type.ival < 1 || $type.ival > 255) {
+				replcnt = $type.ival / 10;
+				$$->isdynamic = $type.ival - (replcnt * 10) == 2;
+				if (replcnt < 1 || replcnt > 255) {
 					router_yyerror(&yylloc, yyscanner, rtr, ralloc, palloc,
 						"replication count must be between 1 and 255");
 					YYERROR;
 				}
-				$$->members.ch->repl_factor = (unsigned char)$type.ival;
+				$$->members.ch->repl_factor = (unsigned char)replcnt;
 				$$->members.ch->ring = ch_new(ralloc,
 					$$->type == CARBON_CH ? CARBON :
 					$$->type == FNV1A_CH ? FNV1a :
@@ -197,7 +200,7 @@ cluster: crCLUSTER crSTRING[name] cluster_type[type] cluster_hosts[servers]
 		for (w = $servers; w != NULL; w = w->next) {
 			err = router_add_server(rtr, w->ip, w->port, w->inst,
 					w->type, w->trnsp, w->proto,
-					w->saddr, w->hint, $type.ival, $$);
+					w->saddr, w->hint, (char)$type.ival, $$);
 			if (err != NULL) {
 				router_yyerror(&yylloc, yyscanner, rtr, ralloc, palloc, err);
 				YYERROR;
@@ -235,7 +238,7 @@ cluster: crCLUSTER crSTRING[name] cluster_type[type] cluster_hosts[servers]
 		for (w = $paths; w != NULL; w = w->next) {
 			err = router_add_server(rtr, w->ip, w->port, w->inst,
 					T_LINEMODE, W_PLAIN, w->proto,
-					w->saddr, w->hint, $type.ival, $$);
+					w->saddr, w->hint, (char)$type.ival, $$);
 			if (err != NULL) {
 				router_yyerror(&yylloc, yyscanner, rtr, ralloc, palloc, err);
 				YYERROR;
@@ -253,8 +256,8 @@ cluster: crCLUSTER crSTRING[name] cluster_type[type] cluster_hosts[servers]
 cluster_type:
 			  cluster_useall[type] cluster_opt_useall[use]
 			  { $$.t = $type; $$.ival = $use; }
-			| cluster_ch[type] cluster_opt_repl[repl]
-			  { $$.t = $type; $$.ival = $repl; }
+			| cluster_ch[type] cluster_opt_repl[repl] cluster_opt_dynamic[dyn]
+			  { $$.t = $type; $$.ival = ($dyn * 2) + ($repl * 10); }
 			;
 
 cluster_useall: crFORWARD  { $$ = FORWARD; }
@@ -274,6 +277,10 @@ cluster_ch: crCARBON_CH     { $$ = CARBON_CH; }
 cluster_opt_repl:                             { $$ = 1; }
 				| crREPLICATION crINTVAL[cnt] { $$ = $cnt; }
 				;
+
+cluster_opt_dynamic:           { $$ = 0; }
+				   | crDYNAMIC { $$ = 1; }
+				   ;
 
 cluster_file: crFILE crIP { $$.t = FILELOGIP; $$.ival = 0; }
 			| crFILE      { $$.t = FILELOG; $$.ival = 0; }

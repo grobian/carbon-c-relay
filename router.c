@@ -1,5 +1,5 @@
 /*
- * Copyright 2013-2018 Fabian Groffen
+ * Copyright 2013-2019 Fabian Groffen
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -865,14 +865,27 @@ router_add_cluster(router *r, cluster *cl)
 		 * number of servers */
 		size_t i = 0;
 		char errbuf[512];
+		server **secondaries;
+
 		for (w = cl->members.ch->servers; w != NULL; w = w->next)
 			i++;
+
 		if (i < cl->members.ch->repl_factor) {
 			snprintf(errbuf, sizeof(errbuf),
 					"invalid cluster '%s': replication count (%u) is "
 					"larger than the number of servers (%zu)\n",
 					cl->name, cl->members.ch->repl_factor, i);
 			return ra_strdup(r->a, errbuf);
+		}
+
+		if (cl->isdynamic) {
+			secondaries = ra_malloc(r->a, sizeof(server *) * i);
+			if (secondaries == NULL)
+				return ra_strdup(r->a, "malloc failed for dynamic servers");
+			for (i = 0, w = cl->members.ch->servers; w != NULL; w = w->next)
+				secondaries[i++] = w->server;
+			for (w = cl->members.ch->servers; w != NULL; w = w->next)
+				server_add_secondaries(w->server, secondaries, i);
 		}
 	}
 	return NULL;
@@ -1928,10 +1941,11 @@ router_printconfig(router *rtr, FILE *f, char pmode)
 				c->type == FNV1A_CH ||
 				c->type == JUMP_CH)
 		{
-			fprintf(f, "    %s_ch replication %d\n",
+			fprintf(f, "    %s_ch replication %d%s\n",
 					c->type == CARBON_CH ? "carbon" : 
 					c->type == FNV1A_CH ? "fnv1a" : "jump_fnv1a",
-					c->members.ch->repl_factor);
+					c->members.ch->repl_factor,
+					c->isdynamic ? " dynamic" : "");
 			for (s = c->members.ch->servers; s != NULL; s = s->next)
 				fprintf(f, "        %s:%d%s%s%s" PTYPEFMT PTRNSPFMT "\n",
 						serverip(s->server), server_port(s->server),
