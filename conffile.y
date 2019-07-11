@@ -193,7 +193,7 @@ cluster: crCLUSTER crSTRING[name] cluster_type[type] cluster_hosts[servers]
 				$$->members.anyof = NULL;
 				break;
 			default:
-				logerr("unknown cluster type %zd!\n", $$->type);
+				logerr("unknown cluster type %zd!\n", (ssize_t)$$->type);
 				YYABORT;
 		}
 		
@@ -231,7 +231,7 @@ cluster: crCLUSTER crSTRING[name] cluster_type[type] cluster_hosts[servers]
 				$$->members.forward = NULL;
 				break;
 			default:
-				logerr("unknown cluster type %zd!\n", $$->type);
+				logerr("unknown cluster type %zd!\n", (ssize_t)$$->type);
 				YYABORT;
 		}
 		

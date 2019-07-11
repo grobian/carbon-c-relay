@@ -1803,7 +1803,7 @@ yyreduce:
 				(yyval.cluster)->members.anyof = NULL;
 				break;
 			default:
-				logerr("unknown cluster type %zd!\n", (yyval.cluster)->type);
+				logerr("unknown cluster type %zd!\n", (ssize_t)(yyval.cluster)->type);
 				YYABORT;
 		}
 		
@@ -1845,7 +1845,7 @@ yyreduce:
 				(yyval.cluster)->members.forward = NULL;
 				break;
 			default:
-				logerr("unknown cluster type %zd!\n", (yyval.cluster)->type);
+				logerr("unknown cluster type %zd!\n", (ssize_t)(yyval.cluster)->type);
 				YYABORT;
 		}
 		
