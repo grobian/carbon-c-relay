@@ -1165,8 +1165,6 @@ server_new(
 	}
 	ret->queue = queue_new(qsize);
 	if (ret->queue == NULL) {
-		if (ret->hint)
-			free(ret->hint);
 		free(ret->batch);
 		free((char *)ret->ip);
 		free(ret);
