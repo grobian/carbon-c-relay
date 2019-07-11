@@ -288,8 +288,8 @@ lzread(z_strm *strm, void *buf, size_t sze)
 	ret = strm->nextstrm->strmread(strm->nextstrm,
 			ibuf + strm->ipos, METRIC_BUFSIZ - strm->ipos);
 
-	/* if EOF(0) or no-data(-1) then only get out now if the input buffer is empty
-	   because start of next frame may be waiting for us */
+	/* if EOF(0) or no-data(-1) then only get out now if the input
+	 * buffer is empty because start of next frame may be waiting for us */
 	
 	if (ret > 0) {
 		strm->ipos += ret;
@@ -302,9 +302,9 @@ lzread(z_strm *strm, void *buf, size_t sze)
 			return 0;
 	}
 
-	/* attempt to decompress something from the (partial) frame that's arrived so far.
-	   srcsize is updated to the number of bytes consumed. likewise for destsize and
-	   bytes written */
+	/* attempt to decompress something from the (partial) frame that's
+	 * arrived so far.  srcsize is updated to the number of bytes
+	 * consumed. likewise for destsize and bytes written */
 
 	srcsize = strm->ipos;
 	destsize = sze;
@@ -316,7 +316,7 @@ lzread(z_strm *strm, void *buf, size_t sze)
 	if (LZ4F_isError(ret)) {
 
 		/* liblz4 doesn't allow access to the error constants so have to
-		   return a generic code */
+		 * return a generic code */
 
 		logerr("Error %d reading LZ4 compressed data\n", (int)ret);
 		errno = EBADMSG;
@@ -485,7 +485,7 @@ dispatch_addlistener(listener *lsnr)
 	}
 	if (c == MAX_LISTENERS) {
 		logerr("cannot add new listener: "
-				"no more free listener slots (max = %zu)\n",
+				"no more free listener slots (max = %d)\n",
 				MAX_LISTENERS);
 		pthread_rwlock_unlock(&listenerslock);
 		return 1;
