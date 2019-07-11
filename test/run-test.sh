@@ -169,6 +169,9 @@ run_servertest() {
 	# if it didn't yet die, make it so
 	[[ ${i} == 0 ]] && kill -KILL ${pids}
 
+	# add errors to the mix
+	sed -n 's/^.*(ERR) //p' ${output} ${output2} >> "${dataout}"
+
 	# compare some notes
 	local ret
 	tdiff=$(${DIFF} "${payloadexpect}" "${dataout}" \
