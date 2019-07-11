@@ -12,6 +12,8 @@
 
 * [Issue #346](https://github.com/grobian/carbon-c-relay/issues/346)
   sporadic segfaults when using UDP connections
+* [Issue #368](https://github.com/grobian/carbon-c-relay/issues/368)
+  segfault sending or receiving metrics using ssl transport
 * [Issue #369](https://github.com/grobian/carbon-c-relay/issues/369)
   quoted expressions aren't printed as such by relay
 

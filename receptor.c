@@ -48,7 +48,7 @@ bindlistenip(listener *lsnr, unsigned int backlog)
 	int sockcur = 0;
 
 #ifdef HAVE_SSL
-	if (lsnr->transport == W_SSL) {
+	if ((lsnr->transport & ~0xFFFF) == W_SSL) {
 		/* create a auto-negotiate context */
 		const SSL_METHOD *m = SSLv23_server_method();
 		lsnr->ctx = SSL_CTX_new(m);

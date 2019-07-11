@@ -866,7 +866,7 @@ server_queuereader(void *d)
 				int rv;
 				z_strm *sstrm;
 
-				if (self->transport == W_SSL) { /* just SSL, nothing else */
+				if ((self->transport & 0xFFFF) == W_PLAIN) { /* just SSL, nothing else */
 					sstrm = self->strm;
 				} else {
 					sstrm = self->strm->nextstrm;
