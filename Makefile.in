@@ -103,6 +103,7 @@ PRE_UNINSTALL = :
 POST_UNINSTALL = :
 bin_PROGRAMS = relay$(EXEEXT)
 check_PROGRAMS = sendmetric$(EXEEXT) checkrelay$(EXEEXT)
+@SSL_ENABLED_TRUE@am__append_1 = dual-ssl
 subdir = .
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/configure.ac
@@ -422,38 +423,11 @@ EXTRA_DIST = \
 	conffile.yy.c conffile.l \
 	$(NULL)
 
-CRTESTS = \
-	issue10 \
-	issue27 \
-	issue117 \
-	issue156 \
-	issue157 \
-	issue163 \
-	issue165 \
-	issue180 \
-	issue184 \
-	issue202 \
-	issue213 \
-	issue218 \
-	issue228 \
-	issue235 \
-	issue236 \
-	issue246 \
-	issue252 \
-	issue253 \
-	issue263 \
-	issue267 \
-	issue288 \
-	issue293 \
-	issue310 \
-	issue357 \
-	issue369 \
-	server-type \
-	basic \
-	dual \
-	metriclimits \
-	$(NULL)
-
+CRTESTS = issue10 issue27 issue117 issue156 issue157 issue163 issue165 \
+	issue180 issue184 issue202 issue213 issue218 issue228 issue235 \
+	issue236 issue246 issue252 issue253 issue263 issue267 issue288 \
+	issue293 issue310 issue357 issue369 server-type basic \
+	metriclimits $(NULL) $(am__append_1)
 all: config.h
 	$(MAKE) $(AM_MAKEFLAGS) all-am
 

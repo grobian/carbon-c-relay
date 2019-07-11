@@ -624,6 +624,8 @@ LTLIBOBJS
 LIBPCRE
 LIBPCRE2
 LIBONIGURUMA
+SSL_ENABLED_FALSE
+SSL_ENABLED_TRUE
 LIBSSL
 LIBSNAPPY
 LIBLZ4
@@ -5522,6 +5524,14 @@ See \`config.log' for more details" "$LINENO" 5; }
 fi
 
 fi
+ if test "x$LIBSSL" != x; then
+  SSL_ENABLED_TRUE=
+  SSL_ENABLED_FALSE='#'
+else
+  SSL_ENABLED_TRUE='#'
+  SSL_ENABLED_FALSE=
+fi
+
 
 
 # Check whether --with-oniguruma was given.
@@ -5908,6 +5918,10 @@ Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
 if test -z "${am__fastdepCC_TRUE}" && test -z "${am__fastdepCC_FALSE}"; then
   as_fn_error $? "conditional \"am__fastdepCC\" was never defined.
+Usually this means the macro was only invoked conditionally." "$LINENO" 5
+fi
+if test -z "${SSL_ENABLED_TRUE}" && test -z "${SSL_ENABLED_FALSE}"; then
+  as_fn_error $? "conditional \"SSL_ENABLED\" was never defined.
 Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
 

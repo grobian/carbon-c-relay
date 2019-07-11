@@ -183,6 +183,7 @@ AS_IF([test "x$with_ssl" != xno],
 					 LIBSSL=
 					]
 	)])
+AM_CONDITIONAL([SSL_ENABLED], [test "x$LIBSSL" != x])
 
 AC_ARG_WITH([oniguruma], [use oniguruma regex library],
 			[], [with_oniguruma=check])

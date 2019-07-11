@@ -125,9 +125,12 @@ CRTESTS = \
 	issue369 \
 	server-type \
 	basic \
-	dual \
 	metriclimits \
 	$(NULL)
+
+if SSL_ENABLED
+CRTESTS += dual-ssl
+endif
 
 test: check
 test-%: checkrelay sendmetric
