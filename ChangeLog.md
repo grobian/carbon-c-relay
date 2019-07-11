@@ -10,6 +10,8 @@
 
 * [Issue #346](https://github.com/grobian/carbon-c-relay/issues/346)
   sporadic segfaults when using UDP connections
+* [Issue #369](https://github.com/grobian/carbon-c-relay/issues/369)
+  quoted expressions aren't printed as such by relay
 
 
 # 3.5 (22-02-2019)

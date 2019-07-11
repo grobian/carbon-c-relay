@@ -10,11 +10,13 @@ statistics
     prefix with carbon.relays.test_hostname
     ;
 
-
-rewrite env\.app\.POS.\.yadda\.count
-    into env.app.POS
+cluster default
+    forward
+        127.0.0.1:2003
     ;
-rewrite env\.app\.POS.\.yadda\.count
-    into "env.app.POS#.yadda.count"
+
+match ";"
+    send to default
+    stop
     ;
 

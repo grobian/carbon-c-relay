@@ -1817,6 +1817,57 @@ router_set_collectorvals(router *rtr, int intv, char *prefix, col_mode smode)
 	return NULL;
 }
 
+static char *_router_quoteident_buf = NULL;
+static size_t _router_quoteident_buflen = 0;
+static const char *router_quoteident(const char *ident)
+{
+	/*
+	IDCHR   [a-zA-Z0-9[\](){}|\\^?*$&%<>:/,._+-]
+	ident = {IDCHR}+(\\[ ]{IDCHR}+)*
+	*/
+	char allowodd[] = { '[', ']', '(', ')', '{', '}', '|', '\\', '^',
+		'?', '*', '$', '%', '<', '>', ':', '/', ',', '.', '_', '+', '-'};
+	size_t idlen = strlen(ident);
+	size_t idpos;
+	size_t bufpos;
+	char needquote = 0;
+
+	/* parser won't accept empty strings for input, so we can assume
+	 * idlen >= 1 here */
+
+	/* setup buf for worst case, allocate in 32-byte blocks to try and
+	 * avoid reallocs for just a few bytes */
+	if (_router_quoteident_buflen < 1 + (idlen * 2) + 1 + 1) {
+		_router_quoteident_buflen = (((1 + (idlen * 2) + 1 + 1) / 32) + 1) * 32;
+		_router_quoteident_buf =
+			realloc(_router_quoteident_buf, _router_quoteident_buflen);
+	}
+
+	bufpos = 0;
+	_router_quoteident_buf[bufpos++] = '"';
+
+	for (idpos = 0; idpos < idlen; idpos++) {
+		if (!(
+				(ident[idpos] >= 'a' && ident[idpos] <= 'z') ||
+				(ident[idpos] >= 'A' && ident[idpos] <= 'Z') ||
+				(ident[idpos] >= '0' && ident[idpos] <= '9') ||
+				strchr(allowodd, (int)ident[idpos]) != NULL)
+		   )
+		{
+			if (!(idpos > 1 && ident[idpos] == ' ' && ident[idpos - 1] == '\\'))
+				needquote = 1;
+		}
+		_router_quoteident_buf[bufpos++] = ident[idpos];
+	}
+	_router_quoteident_buf[bufpos++] = '"';
+	_router_quoteident_buf[bufpos] = '\0';
+
+	if (needquote)
+		return _router_quoteident_buf;
+
+	return ident;
+}
+
 /**
  * Mere debugging function to check if the configuration is picked up
  * alright.  If all is set to false, aggregation rules won't be printed.
@@ -1856,7 +1907,8 @@ router_printconfig(router *rtr, FILE *f, char pmode)
 							con_trnsp_str[walk->transport & 0xFFFF],
 						(walk->transport & ~0xFFFF) == W_SSL ? " ssl " : "",
 #ifdef HAVE_SSL
-						(walk->transport & ~0xFFFF) == W_SSL ? walk->pemcert : ""
+						(walk->transport & ~0xFFFF) == W_SSL ?
+						router_quoteident(walk->pemcert) : ""
 #else
 						""
 #endif
@@ -1872,7 +1924,8 @@ router_printconfig(router *rtr, FILE *f, char pmode)
 				fprintf(f, "\n");
 				do {
 					if (walk->ctype == CON_UNIX) {
-						fprintf(f, "        %s proto unix\n", walk->ip);
+						fprintf(f, "        %s proto unix\n",
+								router_quoteident(walk->ip));
 					} else {
 						fprintf(f, "        %s%s%u proto %s\n",
 								walk->ip == NULL ? "" : walk->ip,
@@ -1892,17 +1945,19 @@ router_printconfig(router *rtr, FILE *f, char pmode)
 				rtr->collector.interval);
 		if (rtr->collector.mode == SUB)
 			fprintf(f, "    reset counters after interval\n");
-		fprintf(f, "    prefix with %s\n", rtr->collector.prefix);
+		fprintf(f, "    prefix with %s\n",
+				router_quoteident(rtr->collector.prefix));
 		if (rtr->collector.stub != NULL) {
 			fprintf(f, "    send to");
 			for (r = rtr->routes; r != NULL; r = r->next) {
 				if (r->dests->cl->type == STATSTUB) {
 					destinations *d = r->dests->cl->members.routes->dests;
 					if (d->next == NULL) {
-						fprintf(f, " %s", d->cl->name);
+						fprintf(f, " %s", router_quoteident(d->cl->name));
 					} else {
 						for ( ; d != NULL; d = d->next)
-							fprintf(f, "\n        %s", d->cl->name);
+							fprintf(f, "\n        %s",
+									router_quoteident(d->cl->name));
 					}
 					fprintf(f, "\n    stop\n");
 					break;
@@ -1919,7 +1974,7 @@ router_printconfig(router *rtr, FILE *f, char pmode)
 				c->type == GROUP || c->type == AGGREGATION ||
 				c->type == AGGRSTUB || c->type == STATSTUB)
 			continue;
-		fprintf(f, "cluster %s\n", c->name);
+		fprintf(f, "cluster %s\n", router_quoteident(c->name));
 		if (c->type == FORWARD) {
 			fprintf(f, "    forward\n");
 			for (s = c->members.forward; s != NULL; s = s->next)
@@ -1930,7 +1985,7 @@ router_printconfig(router *rtr, FILE *f, char pmode)
 			fprintf(f, "    file%s\n", c->type == FILELOGIP ? " ip" : "");
 			for (s = c->members.forward; s != NULL; s = s->next)
 				fprintf(f, "        %s\n",
-						serverip(s->server));
+						router_quoteident(serverip(s->server)));
 		} else if (c->type == ANYOF || c->type == FAILOVER) {
 			fprintf(f, "    %s\n", c->type == ANYOF ? "any_of" : "failover");
 			for (s = c->members.anyof->list; s != NULL; s = s->next)
@@ -1985,11 +2040,11 @@ router_printconfig(router *rtr, FILE *f, char pmode)
 
 			fprintf(f, "aggregate");
 			if (r->next == NULL || r->next->dests->cl != aggr) {
-				fprintf(f, " %s\n", r->pattern);
+				fprintf(f, " %s\n", router_quoteident(r->pattern));
 			} else {
 				fprintf(f, "\n");
 				do {
-					fprintf(f, "        %s\n", r->pattern);
+					fprintf(f, "        %s\n", router_quoteident(r->pattern));
 				} while (r->next != NULL && r->next->dests->cl == aggr
 						&& (r = r->next) != NULL);
 			}
@@ -2002,7 +2057,8 @@ router_printconfig(router *rtr, FILE *f, char pmode)
 					aggr->members.aggregation->tswhen == TS_MIDDLE ? "middle" :
 					aggr->members.aggregation->tswhen == TS_END ? "end" :
 					"<unknown>");
-			for (ac = aggr->members.aggregation->computes; ac != NULL; ac = ac->next) {
+			ac = aggr->members.aggregation->computes;
+			for ( ; ac != NULL; ac = ac->next) {
 				snprintf(percentile, sizeof(percentile),
 						"percentile%d", ac->percentile);
 				fprintf(f, "    compute %s write to\n"
@@ -2015,23 +2071,25 @@ router_printconfig(router *rtr, FILE *f, char pmode)
 						ac->type == VAR ? "variance" :
 						ac->type == SDEV ? "stddev" :
 						"<unknown>",
-						ac->metric + strlen(stubname));
+						router_quoteident(ac->metric + strlen(stubname)));
 			}
 			if (!(pmode & PMODE_STUB) && r->dests->next != NULL) {
 				destinations *dn = r->dests->next;
 				fprintf(f, "    send to");
 				if (dn->next == NULL) {
-					fprintf(f, " %s\n", dn->cl->name);
+					fprintf(f, " %s\n", router_quoteident(dn->cl->name));
 				} else {
 					for (; dn != NULL; dn = dn->next)
-						fprintf(f, "\n        %s", dn->cl->name);
+						fprintf(f, "\n        %s",
+								router_quoteident(dn->cl->name));
 					fprintf(f, "\n");
 				}
 			}
 			fprintf(f, "%s    ;\n", r->stop ? "    stop\n" : "");
 		} else if (r->dests->cl->type == REWRITE) {
 			fprintf(f, "rewrite %s\n    into %s\n    ;\n",
-					r->pattern, r->dests->cl->members.replacement);
+					router_quoteident(r->pattern),
+					router_quoteident(r->dests->cl->members.replacement));
 		} else if (r->dests->cl->type == GROUP) {
 			size_t cnt = 0;
 			route *rwalk;
@@ -2039,7 +2097,8 @@ router_printconfig(router *rtr, FILE *f, char pmode)
 			char *b = &blockname[sizeof(blockname) - 1];
 			char *p;
 
-			for (rwalk = r->dests->cl->members.routes; rwalk != NULL; rwalk = rwalk->next)
+			rwalk = r->dests->cl->members.routes;
+			for ( ; rwalk != NULL; rwalk = rwalk->next)
 				cnt++;
 			/* reverse the name, to make it human consumable */
 			*b-- ='\0';
@@ -2062,14 +2121,16 @@ router_printconfig(router *rtr, FILE *f, char pmode)
 			if (pmode & PMODE_STUB) {
 				fprintf(f, "# stub match for aggregate/statistics rule "
 						"with send to\n");
-				fprintf(f, "match ^%s\n    send to", r->pattern);
+				fprintf(f, "match ^%s\n    send to",
+						router_quoteident(r->pattern));
 				if (r->dests->cl->members.routes->dests->next == NULL) {
-					fprintf(f, " %s",
-							r->dests->cl->members.routes->dests->cl->name);
+					fprintf(f, " %s", router_quoteident(
+							r->dests->cl->members.routes->dests->cl->name));
 				} else {
 					destinations *d = r->dests->cl->members.routes->dests;
 					for (; d != NULL; d = d->next)
-						fprintf(f, "\n        %s", d->cl->name);
+						fprintf(f, "\n        %s",
+								router_quoteident(d->cl->name));
 				}
 				fprintf(f, "%s\n    ;\n", r->stop ? "\n    stop" : "");
 			}
@@ -2079,12 +2140,14 @@ router_printconfig(router *rtr, FILE *f, char pmode)
 			fprintf(f, "match");
 			if (r->next == NULL || r->next->dests != or->dests) {
 				fprintf(f, " %s\n",
-						r->matchtype == MATCHALL ? "*" : r->pattern);
+						r->matchtype == MATCHALL ? "*" :
+						router_quoteident(r->pattern));
 			} else {
 				fprintf(f, "\n");
 				do {
 					fprintf(f, "        %s\n",
-							r->matchtype == MATCHALL ? "*" : r->pattern);
+							r->matchtype == MATCHALL ? "*" :
+							router_quoteident(r->pattern));
 				} while (r->next != NULL && r->next->dests == or->dests
 						&& (r = r->next) != NULL);
 			}
@@ -2092,20 +2155,21 @@ router_printconfig(router *rtr, FILE *f, char pmode)
 			if (d->cl->type == VALIDATION) {
 				validate *v = d->cl->members.validation;
 				fprintf(f, "    validate %s else %s\n",
-						v->rule->pattern,
+						router_quoteident(v->rule->pattern),
 						v->action == VAL_LOG ? "log" : "drop");
 				/* hide this pseudo target */
 				d = d->next;
 			}
 			if (r->masq != NULL)
-				fprintf(f, "    route using %s\n", r->masq);
+				fprintf(f, "    route using %s\n", router_quoteident(r->masq));
 			if (d != NULL) {
 				fprintf(f, "    send to");
 				if (d->next == NULL) {
-					fprintf(f, " %s", d->cl->name);
+					fprintf(f, " %s", router_quoteident(d->cl->name));
 				} else {
 					for ( ; d != NULL; d = d->next)
-						fprintf(f, "\n        %s", d->cl->name);
+						fprintf(f, "\n        %s",
+								router_quoteident(d->cl->name));
 				}
 				fprintf(f, "\n%s    ;\n", or->stop ? "    stop\n" : "");
 			} else {
