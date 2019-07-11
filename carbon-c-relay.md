@@ -832,6 +832,13 @@ namespace:
   processed (received) but still in the sending queue (queued) are not
   included in this counter.
 
+* metricsDiscarded
+
+  The number of input lines that were not considered to be a valid
+  metric.  Such lines can be empty, only containing whitespace, or
+  hitting the limits given for max input length and/or max metric length
+  (see `-m` and `-M` options).
+
 * metricsQueued
 
   The total number of metrics that are currently in the queues for all

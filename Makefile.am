@@ -125,6 +125,7 @@ CRTESTS = \
 	issue369 \
 	server-type \
 	basic \
+	metriclimits \
 	$(NULL)
 
 test: check

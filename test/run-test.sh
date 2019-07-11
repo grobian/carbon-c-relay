@@ -62,6 +62,9 @@ run_singleservertest() {
 	local port=3020  # TODO
 	local unixsock="${tmpdir}/sock.${port}"
 
+	local relayargs=
+	[[ -e ${test}.args ]] && relayargs=$(< ${test}.args)
+
 	# write config file with known listener
 	{
 		echo "listen type linemode"
@@ -72,12 +75,18 @@ run_singleservertest() {
 		echo "    file ${dataout}"
 		echo "    ;"
 		echo
+		if [[ -n ${relayargs} ]] ; then
+			echo "# extra arguments given to ${EXEC}:"
+			echo "#   ${relayargs}"
+			echo
+		fi
 		echo "# contents from ${confarg} below this line"
 		cat "${confarg}"
 	} > "${conf}"
 
 	echo -n "${test}: "
-	${EXEC} -d -f "${conf}" -Htest.hostname -s -D -l "${output}" -P "${pidfile}"
+	${EXEC} -d -f "${conf}" -Htest.hostname -s -D \
+		-l "${output}" -P "${pidfile}" ${relayargs}
 	if [[ $? != 0 ]] ; then
 		# hmmm
 		echo "failed to start relay"

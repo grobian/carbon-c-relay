@@ -404,6 +404,9 @@ do_usage(char *name, int exitcode)
 	printf("  -T  IO timeout in milliseconds for server connections, defaults to %d\n", iotimeout);
 	printf("  -E  disable disconnecting idle connections after 10 minutes\n");
 	printf("  -c  characters to allow next to [A-Za-z0-9], defaults to -_:#\n");
+	printf("  -m  max string length of metric, defaults to 0, limit of -M\n");
+	printf("  -M  max string length of metric+ts+value+nl, defaults to %d\n",
+			METRIC_BUFSIZ);
 	printf("  -d  debug mode: currently writes statistics to log, prints hash\n"
 	       "      ring contents and matching position in test mode (-t)\n");
 #ifdef ENABLE_TRACE
@@ -413,7 +416,7 @@ do_usage(char *name, int exitcode)
 	       "      statistics, report drop counts and queue pressure to log\n");
 	printf("  -t  config test mode: prints rule matches from input on stdin\n");
 	printf("  -H  hostname: override hostname (used in statistics)\n");
-	printf("  -D  daemonise: run in a background\n");
+	printf("  -D  daemonise: detach and run in background\n");
 	printf("  -P  pidfile: write a pid to a specified pidfile\n");
 	printf("  -O  minimum number of rules before optimising the ruleset, default: %d\n", optimiserthreshold); 
 
@@ -433,12 +436,14 @@ main(int argc, char * const argv[])
 	int fds[2];
 	unsigned char startup_success = 0;
 	listener *lsnrs;
+	int maxmetriclen = -1;
+	int maxinplen = -1;
 
 	if (gethostname(relay_hostname, sizeof(relay_hostname)) < 0)
 		snprintf(relay_hostname, sizeof(relay_hostname), "127.0.0.1");
 
 	while ((ch = getopt(argc, argv,
-					":hvdstf:l:p:w:b:q:L:C:T:c:H:B:U:EDP:O:")) != -1)
+					":hvdstf:l:p:w:b:q:L:C:T:c:m:M:H:B:U:EDP:O:")) != -1)
 	{
 		switch (ch) {
 			case 'v':
@@ -531,6 +536,29 @@ main(int argc, char * const argv[])
 			case 'c':
 				allowed_chars = optarg;
 				break;
+			case 'm': {
+				int val = atoi(optarg);
+				if (val < 0) {
+					fprintf(stderr, "error: max metric length needs to "
+							"be a number >=0\n");
+					do_usage(argv[0], 1);
+				}
+				maxmetriclen = val;
+			}	break;
+			case 'M': {
+				int val = atoi(optarg);
+				if (val <= 0) {
+					fprintf(stderr, "error: max length needs to "
+							"be a number >0\n");
+					do_usage(argv[0], 1);
+				}
+				if (val > METRIC_BUFSIZ) {
+					fprintf(stderr, "error: max length cannot be >%d\n",
+							METRIC_BUFSIZ);
+					do_usage(argv[0], 1);
+				}
+				maxinplen = val;
+			}	break;
 			case 'H':
 				snprintf(relay_hostname, sizeof(relay_hostname), "%s", optarg);
 				break;
@@ -622,6 +650,18 @@ main(int argc, char * const argv[])
 		fprintf(stderr, "error: batchsize must be smaller than queuesize\n");
 		exit(1);
 	}
+
+	/* check bufsizes make sense */
+	if (maxinplen > 0 && maxmetriclen > 0 && maxmetriclen >= maxinplen)
+	{
+		fprintf(stderr, "error: max metric len must be smaller than "
+				"max length of input string\n");
+		exit(1);
+	}
+	if (maxinplen == -1)
+		maxinplen = METRIC_BUFSIZ;
+	if (maxmetriclen == -1)
+		maxmetriclen = maxinplen;  /* never hit the limit */
 
 	if (relay_logfile != NULL && (mode & MODE_TEST) == 0) {
 		FILE *f = fopen(relay_logfile, "a");
@@ -803,6 +843,10 @@ main(int argc, char * const argv[])
 		if (allowed_chars != NULL)
 			fprintf(relay_stdout, "    extra allowed characters = %s\n",
 					allowed_chars);
+		if (maxinplen < METRIC_BUFSIZ)
+			fprintf(relay_stdout, "    max input length = %d\n", maxinplen);
+		if (maxmetriclen < maxinplen)
+			fprintf(relay_stdout, "    max metric length = %d\n", maxmetriclen);
 		if (mode & MODE_DEBUG)
 			fprintf(relay_stdout, "    debug = true\n");
 #ifdef ENABLE_TRACE
@@ -917,7 +961,8 @@ main(int argc, char * const argv[])
 	logout("starting %d workers\n", workercnt);
 	for (id = 0; id < workercnt; id++) {
 		workers[id + 1] = dispatch_new_connection(
-				(unsigned char)id, rtr, allowed_chars);
+				(unsigned char)id, rtr, allowed_chars,
+				maxinplen, maxmetriclen);
 		if (workers[id + 1] == NULL) {
 			logerr("failed to add worker %d\n", id);
 			break;

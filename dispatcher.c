@@ -107,10 +107,12 @@ struct _dispatcher {
 	char id;
 	size_t metrics;
 	size_t blackholes;
+	size_t discards;
 	size_t ticks;
 	size_t sleeps;
 	size_t prevmetrics;
 	size_t prevblackholes;
+	size_t prevdiscards;
 	size_t prevticks;
 	size_t prevsleeps;
 	char keep_running;  /* full byte for atomic access */
@@ -120,6 +122,8 @@ struct _dispatcher {
 	char hold;  /* full byte for atomic access */
 	char *allowed_chars;
 	char tags_supported;
+	int maxinplen;
+	int maxmetriclen;
 };
 
 static listener **listeners = NULL;
@@ -895,8 +899,13 @@ dispatch_connection(connection *conn, dispatcher *self, struct timeval start)
 				/* end of metric */
 				lastnl = p;
 
-				/* just a newline on it's own? some random garbage? skip */
-				if (q == conn->metric || firstspace == NULL) {
+				/* just a newline on it's own? some random garbage?
+				 * do we exceed the set limits? drop */
+				if (q == conn->metric || firstspace == NULL ||
+						q - conn->metric > self->maxinplen - 1 ||
+						firstspace - conn->metric > self->maxmetriclen)
+				{
+					__sync_add_and_fetch(&(self->discards), 1);
 					q = conn->metric;
 					firstspace = NULL;
 					continue;
@@ -1174,7 +1183,9 @@ dispatch_new(
 		unsigned char id,
 		enum conntype type,
 		router *r,
-		char *allowed_chars
+		char *allowed_chars,
+		int maxinplen,
+		int maxmetriclen
 	)
 {
 	dispatcher *ret = malloc(sizeof(dispatcher));
@@ -1194,9 +1205,12 @@ dispatch_new(
 	ret->hold = 0;
 	ret->allowed_chars = allowed_chars;
 	ret->tags_supported = 0;
+	ret->maxinplen = maxinplen;
+	ret->maxmetriclen = maxmetriclen;
 
 	ret->metrics = 0;
 	ret->blackholes = 0;
+	ret->discards = 0;
 	ret->ticks = 0;
 	ret->sleeps = 0;
 	ret->prevmetrics = 0;
@@ -1248,7 +1262,7 @@ dispatch_init_listeners()
 dispatcher *
 dispatch_new_listener(unsigned char id)
 {
-	return dispatch_new(id, LISTENER, NULL, NULL);
+	return dispatch_new(id, LISTENER, NULL, NULL, 0, 0);
 }
 
 /**
@@ -1256,9 +1270,11 @@ dispatch_new_listener(unsigned char id)
  * existing connections.
  */
 dispatcher *
-dispatch_new_connection(unsigned char id, router *r, char *allowed_chars)
+dispatch_new_connection(unsigned char id, router *r, char *allowed_chars,
+		int maxinplen, int maxmetriclen)
 {
-	return dispatch_new(id, CONNECTION, r, allowed_chars);
+	return dispatch_new(id, CONNECTION, r, allowed_chars,
+			maxinplen, maxmetriclen);
 }
 
 /**
@@ -1407,6 +1423,27 @@ dispatch_get_blackholes_sub(dispatcher *self)
 {
 	size_t d = dispatch_get_blackholes(self) - self->prevblackholes;
 	self->prevblackholes += d;
+	return d;
+}
+
+/**
+ * Returns the number of metrics that were discarded since start.
+ */
+inline size_t
+dispatch_get_discards(dispatcher *self)
+{
+	return __sync_add_and_fetch(&(self->discards), 0);
+}
+
+/**
+ * Returns the number of metrics that were discarded since last call to
+ * this function.
+ */
+inline size_t
+dispatch_get_discards_sub(dispatcher *self)
+{
+	size_t d = dispatch_get_discards(self) - self->prevdiscards;
+	self->prevdiscards += d;
 	return d;
 }
 

@@ -1,7 +1,7 @@
 .\" generated with Ronn/v0.7.3
 .\" http://github.com/rtomayko/ronn/tree/0.7.3
 .
-.TH "CARBON\-C\-RELAY" "1" "June 2019" "Graphite" "Graphite data collection and visualisation"
+.TH "CARBON\-C\-RELAY" "1" "July 2019" "Graphite" "Graphite data collection and visualisation"
 .
 .SH "NAME"
 \fBcarbon\-c\-relay\fR \- graphite relay, aggregator and rewriter
@@ -586,6 +586,12 @@ metricsSent
 .
 .IP
 The number of metrics that were sent from the relay\. This is a total count for all servers combined\. When incoming metrics are duplicated by the cluster configuration, this counter will include all those duplications\. In other words, the amount of metrics that were successfully sent to other systems\. Note that metrics that are processed (received) but still in the sending queue (queued) are not included in this counter\.
+.
+.IP "\(bu" 4
+metricsDiscarded
+.
+.IP
+The number of input lines that were not considered to be a valid metric\. Such lines can be empty, only containing whitespace, or hitting the limits given for max input length and/or max metric length (see \fB\-m\fR and \fB\-M\fR options)\.
 .
 .IP "\(bu" 4
 metricsQueued

@@ -450,6 +450,7 @@ CRTESTS = \
 	issue369 \
 	server-type \
 	basic \
+	metriclimits \
 	$(NULL)
 
 all: config.h
