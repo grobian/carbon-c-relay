@@ -1825,8 +1825,9 @@ static const char *router_quoteident(const char *ident)
 	IDCHR   [a-zA-Z0-9[\](){}|\\^?*$&%<>:/,._+-]
 	ident = {IDCHR}+(\\[ ]{IDCHR}+)*
 	*/
-	char allowodd[] = { '[', ']', '(', ')', '{', '}', '|', '\\', '^',
-		'?', '*', '$', '%', '<', '>', ':', '/', ',', '.', '_', '+', '-'};
+	char allowodd[] = { '[', ']', '(', ')', '{', '}',
+		'|', '\\', '^', '?', '*', '$', '%', '<', '>',
+		':', '/', ',', '.', '_', '+', '-', '\0' /* string terminator */};
 	size_t idlen = strlen(ident);
 	size_t idpos;
 	size_t bufpos;
