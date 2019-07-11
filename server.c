@@ -1068,19 +1068,21 @@ server_new(
 		const SSL_METHOD *m = SSLv23_client_method();
 		ret->strm->ctx = SSL_CTX_new(m);
 		
-		if (ret->strm->ctx == NULL ||
-			SSL_CTX_load_verify_locations(ret->strm->ctx,
-										   sslCAisdir ? NULL : sslCA,
-										   sslCAisdir ? sslCA : NULL) == 0)
-		{
-			char *err = ERR_error_string(ERR_get_error(), NULL);
-			logerr("failed to create SSL context for server "
-					"%s:%d: %s\n", ret->ip, ret->port, err);
-			free((char *)ret->ip);
-			free(ret->batch);
-			free(ret->strm);
-			free(ret);
-			return NULL;
+		if (sslCA != NULL) {
+			if (ret->strm->ctx == NULL ||
+				SSL_CTX_load_verify_locations(ret->strm->ctx,
+											   sslCAisdir ? NULL : sslCA,
+											   sslCAisdir ? sslCA : NULL) == 0)
+			{
+				char *err = ERR_error_string(ERR_get_error(), NULL);
+				logerr("failed to load SSL verify locations from %s for "
+						"%s:%d: %s\n", sslCA, ret->ip, ret->port, err);
+				free((char *)ret->ip);
+				free(ret->batch);
+				free(ret->strm);
+				free(ret);
+				return NULL;
+			}
 		}
 		SSL_CTX_set_verify(ret->strm->ctx, SSL_VERIFY_PEER, NULL);
 
