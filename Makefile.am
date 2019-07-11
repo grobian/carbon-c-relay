@@ -1,4 +1,4 @@
-# Copyright 2013-2018 Fabian Groffen
+# Copyright 2013-2019 Fabian Groffen
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -125,6 +125,7 @@ CRTESTS = \
 	issue369 \
 	server-type \
 	basic \
+	dual \
 	metriclimits \
 	$(NULL)
 

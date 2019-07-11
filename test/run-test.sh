@@ -47,50 +47,103 @@ run_configtest() {
 	fi
 }
 
-run_singleservertest() {
+run_servertest() {
+	local mode=SINGLE
 	local tmpdir=$(mktemp -d)
-	local output="${tmpdir}"/relay.out
-	local pidfile="${tmpdir}"/pidfile
-	local conf="${tmpdir}"/conf
+	local output=
+	local pidfile=
+	local unixsock=
+	local port=
+	local output2=
+	local pidfile2=
+	local port2=
 	local dataout="${tmpdir}"/data.out
 	local confarg=$1
 	local payload=$2
 	local payloadexpect="${payload}out"
 	local test=${confarg%.*}
+	local confarg2=${test}-2.${confarg##*.}
 
-	# determine a free port to use
-	local port=3020  # TODO
-	local unixsock="${tmpdir}/sock.${port}"
+	[[ -e ${confarg2} ]] && mode=DUAL
 
-	local relayargs=
-	[[ -e ${test}.args ]] && relayargs=$(< ${test}.args)
+	local start_server_result
+	local start_server_lastport=3020  # TODO
+	start_server() {
+		local id=$1
+		local remoteport=$2
+		local confarg=$3
+		# determine a free port to use
+		local port=${start_server_lastport}  # TODO
+		: $((start_server_lastport++))  # TODO
+		local unixsock="${tmpdir}/sock.${port}"
+		local cert="${test}.cert"
+		local ca="${test}.cert"
+		local conf="${tmpdir}"/conf
+		local output="${tmpdir}"/relay-${id}.out
+		local pidfile="${tmpdir}"/pidfile-${id}
 
-	# write config file with known listener
-	{
-		echo "listen type linemode"
-		echo "    ${unixsock} proto unix"
-		echo "    ;"
-		echo
-		echo "cluster default"
-		echo "    file ${dataout}"
-		echo "    ;"
-		echo
-		if [[ -n ${relayargs} ]] ; then
-			echo "# extra arguments given to ${EXEC}:"
-			echo "#   ${relayargs}"
+		local relayargs=
+		[[ -e ${test}.args ]] && relayargs=$(< ${test}.args)
+		[[ -e ${test}-${id}.args ]] && relayargs=$(< ${test}-${id}.args)
+		[[ -e ${ca} ]] && relayargs+=" -C ${ca}"
+
+		# write config file with known listener
+		{
+			echo "# relay ${id}, mode ${mode}"
+			echo "listen type linemode"
+			echo "    ${unixsock} proto unix"
+			echo "    ;"
 			echo
+			echo "cluster default"
+			echo "    file ${dataout}"
+			echo "    ;"
+			echo
+			if [[ -n ${relayargs} ]] ; then
+				echo "# extra arguments given to ${EXEC}:"
+				echo "#   ${relayargs}"
+				echo
+			fi
+			echo "# contents from ${confarg} below this line"
+			sed \
+				-e "s/@port@/${port}/g" \
+				-e "s/@remoteport@/${remoteport}/g" \
+				-e "s/@cert@/${cert}/g" \
+				"${confarg}"
+		} > "${conf}"
+
+		${EXEC} -d -w 1 -f "${conf}" -Htest.hostname -s -D \
+			-l "${output}" -P "${pidfile}" ${relayargs}
+		if [[ $? != 0 ]] ; then
+			# hmmm
+			echo "failed to start relay ${id} in ${PWD}:"
+			echo ${EXEC} -d -f "${conf}" -Htest.hostname -s -D -l \
+				"${output}" -P "${pidfile}" ${relayargs}
+			echo "=== ${conf} ==="
+			cat "${conf}"
+			echo "=== ${output} ==="
+			cat "${output}"
+			return 1
 		fi
-		echo "# contents from ${confarg} below this line"
-		cat "${confarg}"
-	} > "${conf}"
+		echo -n "relay ${id} "
+
+		start_server_result=( ${port} ${unixsock} ${pidfile} ${output} )
+	}
 
 	echo -n "${test}: "
-	${EXEC} -d -f "${conf}" -Htest.hostname -s -D \
-		-l "${output}" -P "${pidfile}" ${relayargs}
-	if [[ $? != 0 ]] ; then
-		# hmmm
-		echo "failed to start relay"
-		return 1
+	start_server 1 "" ${confarg} || return 1
+	port=${start_server_result[0]}
+	unixsock=${start_server_result[1]}
+	pidfile=${start_server_result[2]}
+	output=${start_server_result[3]}
+	if [[ ${mode} == DUAL ]] ; then
+		if ! start_server 2 ${port} ${confarg2} ; then
+			kill -KILL $(< ${pidfile})
+			return 1
+		fi
+		port2=${start_server_result[0]}
+		unixsock=${start_server_result[1]}
+		pidfile2=${start_server_result[2]}
+		output2=${start_server_result[3]}
 	fi
 
 	${SMEXEC} "${unixsock}" < "${payload}"
@@ -103,17 +156,18 @@ run_singleservertest() {
 	sleep 1
 
 	# kill and wait for relay to come down
-	local pid=$(< "${pidfile}")
-	kill ${pid}
+	local pids=$(< "${pidfile}")
+	[[ ${mode} == DUAL ]] && pids+=" $(< "${pidfile2}")"
+	kill ${pids}
 	local i=10
 	while [[ ${i} -gt 0 ]] ; do
-		ps -p ${pid} >& /dev/null || break
+		ps -p ${pids} >& /dev/null || break
 		echo -n "."
 		sleep 1
 		: $((i--))
 	done
 	# if it didn't yet die, make it so
-	[[ ${i} == 0 ]] && kill -KILL ${pid}
+	[[ ${i} == 0 ]] && kill -KILL ${pids}
 
 	# compare some notes
 	local ret
@@ -168,7 +222,7 @@ for t in $* ; do
 		run_configtest "${EFLAGS} -d" "${t}.dbg" || : $((tstfail++))
 	elif [[ -e ${t}.stst ]] ; then
 		: $((tstcnt++))
-		run_singleservertest "${t}.stst" "${t}.payload" || : $((tstfail++))
+		run_servertest "${t}.stst" "${t}.payload" || : $((tstfail++))
 	fi
 done
 echo "Ran ${tstcnt} tests with ${tstfail} failing"

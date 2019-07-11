@@ -73,10 +73,6 @@ These options control the behaviour of **carbon-c-relay**.
     afterwards.  Any standard output is suppressed in this mode, making
     it ideal for start-scripts to test a (new) configuration.
 
-  * `-D`:
-    Deamonise into the background after startup.  This option requires
-    `-l` and `-P` flags to be set as well.
-
   * `-f` *config-file*:
     Read configuration from *config-file*.  A configuration consists of
     clusters and routes.  See [CONFIGURATION SYNTAX](#configuration-syntax)
@@ -133,6 +129,41 @@ These options control the behaviour of **carbon-c-relay**.
     occasional disruption scenario and max effort to not loose metrics
     with moderate slowing down of clients.
 
+  * `-C` *CAcertpath*:
+    Read CA certs (for use with TLS/SSL connections) from given path or
+    file.  When not given, the default locations are used.  Strict
+    verfication of the peer is performed, so when using self-signed
+    certificates, be sure to include the CA cert in the default
+    location, or provide the path to the cert using this option.
+
+  * `-T` *timeout*:
+    Specifies the IO timeout in milliseconds used for server connections.
+    The default is *600* milliseconds, but may need increasing when WAN
+    links are used for target servers.  A relatively low value for
+    connection timeout allows the relay to quickly establish a server is
+    unreachable, and as such failover strategies to kick in before the
+    queue runs high.
+
+  * `-c` *chars*:
+    Defines the characters that are next to `[A-Za-z0-9]` allowed in
+    metrics to *chars*.  Any character not in this list, is replaced by
+    the relay with `_` (underscore).  The default list of allowed
+    characters is *-_:#*.
+
+  * `-m` *length*:
+    Limits the metric names to be of at most *length* bytes long.  Any
+    lines containing metric names larger than this will be discarded.
+
+  * `-M` *length*
+    Limits the input to lines of at most *length* bytes.  Any excess
+    lines will be discarded.  Note that `-m` needs to be smaller than
+    this value.
+
+  * `-H` *hostname*:
+    Override hostname determined by a call to `gethostname`(3) with
+    *hostname*.  The hostname is used mainly in the statistics metrics
+    `carbon.relays.<hostname>.<...>` sent by the relay.
+
   * `-B` *backlog*:
     Sets TCP connection listen backlog to *backlog* connections.  The
     default value is *32* but on servers which receive many concurrent
@@ -148,14 +179,6 @@ These options control the behaviour of **carbon-c-relay**.
     and the *receive errors* values from *netstat* gives a good hint
     about buffer usage.
 
-  * `-T` *timeout*:
-    Specifies the IO timeout in milliseconds used for server connections.
-    The default is *600* milliseconds, but may need increasing when WAN
-    links are used for target servers.  A relatively low value for
-    connection timeout allows the relay to quickly establish a server is
-    unreachable, and as such failover strategies to kick in before the
-    queue runs high.
-
   * `-E`:
     Disable disconnecting idle incoming connections.  By default the
     relay disconnects idle client connections after 10 minutes.  It does
@@ -165,16 +188,9 @@ These options control the behaviour of **carbon-c-relay**.
     scenarios, however, it is not desirable for idle connections to be
     disconnected, hence passing this flag will disable this behaviour.
 
-  * `-c` *chars*:
-    Defines the characters that are next to `[A-Za-z0-9]` allowed in
-    metrics to *chars*.  Any character not in this list, is replaced by
-    the relay with `_` (underscore).  The default list of allowed
-    characters is *-_:#*.
-
-  * `-H` *hostname*:
-    Override hostname determined by a call to `gethostname`(3) with
-    *hostname*.  The hostname is used mainly in the statistics metrics
-    `carbon.relays.<hostname>.<...>` sent by the relay.
+  * `-D`:
+    Deamonise into the background after startup.  This option requires
+    `-l` and `-P` flags to be set as well.
 
   * `-P` *pidfile*:
     Write the pid of the relay process to a file called *pidfile*.  This

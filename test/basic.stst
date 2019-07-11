@@ -7,4 +7,4 @@ aggregate ^foo\.bar every 1 seconds expire after 2 seconds
 
 rewrite ^bar\.(.*) into rewrite.\1;
 
-match ^rewrite\.* send to default;
+match ^rewrite\. send to default;
