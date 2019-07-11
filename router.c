@@ -2088,8 +2088,8 @@ router_printconfig(router *rtr, FILE *f, char pmode)
 			}
 			fprintf(f, "%s    ;\n", r->stop ? "    stop\n" : "");
 		} else if (r->dests->cl->type == REWRITE) {
-			fprintf(f, "rewrite %s\n    into %s\n    ;\n",
-					router_quoteident(r->pattern),
+			fprintf(f, "rewrite %s\n", router_quoteident(r->pattern));
+			fprintf(f, "    into %s\n    ;\n",
 					router_quoteident(r->dests->cl->members.replacement));
 		} else if (r->dests->cl->type == GROUP) {
 			size_t cnt = 0;
