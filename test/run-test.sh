@@ -170,7 +170,9 @@ run_servertest() {
 	[[ ${i} == 0 ]] && kill -KILL ${pids}
 
 	# add errors to the mix
-	sed -n 's/^.*(ERR) //p' ${output} ${output2} >> "${dataout}"
+	sed -n 's/^.*(ERR)/relay 1:/p' ${output} >> "${dataout}"
+	[[ -n ${output2} ]] && \
+		sed -n 's/^.*(ERR)/relay 2:/p' ${output2} >> "${dataout}"
 
 	# compare some notes
 	local ret
