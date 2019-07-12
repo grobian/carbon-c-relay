@@ -40,6 +40,7 @@ trap "rm -Rf ${CHANGES}" EXIT
 sed -e "/^AC_INIT/s:\[${CURRELEASE}\]:[${NEXTRELEASE}]:" \
 	-e "/^AC_SUBST(\[RELEASEDATE\]/d" \
 	-e "/^AC_INIT/a AC_SUBST([RELEASEDATE], [${TODAY}])" \
+	-e "/^AM_MAINTAINER_MODE/d" \
 	configure.ac \
 	| diff -u \
 		--label "${CURRELEASE}/configure.ac" \

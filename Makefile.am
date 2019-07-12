@@ -13,6 +13,7 @@
 # limitations under the License.
 
 AUTOMAKE_OPTIONS = foreign
+ACLOCAL_AMFLAGS = -I m4
 
 CFLAGS ?= -O2 -Wall -Wshadow -pipe
 
@@ -38,7 +39,8 @@ man:
 	> carbon-c-relay.1
 
 bin_PROGRAMS = relay
-check_PROGRAMS = sendmetric checkrelay
+check_PROGRAMS = sendmetric
+lib_LTLIBRARIES = libfaketime.la
 relay_LINK = $(CCLD) $(AM_LDFLAGS) $(LDFLAGS) -o $@
 relay_LDADD = $(LIBGZIP) $(LIBLZ4) $(LIBSNAPPY) $(LIBSSL) \
 			  $(LIBONIGURUMA) $(LIBPCRE2) $(LIBPCRE)
@@ -59,13 +61,7 @@ relay_SOURCES = \
 	$(NULL)
 sendmetric_LINK = $(CCLD) $(AM_LDFLAGS) $(LDFLAGS) -o $@
 sendmetric_SOURCES = sendmetric.c
-checkrelay_LINK = $(CCLD) $(AM_LDFLAGS) $(LDFLAGS) -o $@
-checkrelay_LDADD = $(LIBGZIP) $(LIBLZ4) $(LIBSNAPPY) $(LIBSSL) \
-				   $(LIBONIGURUMA) $(LIBPCRE2) $(LIBPCRE)
-checkrelay_SOURCES = \
-	$(relay_SOURCES) \
-	faketime.c \
-	$(NULL)
+libfaketime_la_SOURCES = faketime.c
 noinst_HEADERS = \
 	relay.h \
 	md5.h \
@@ -133,9 +129,12 @@ CRTESTS += dual-ssl
 endif
 
 test: check
-test-%: checkrelay sendmetric
+test-%: relay libfaketime.la sendmetric
 	@( cd test && ./run-test.sh $* )
-approve-%: checkrelay sendmetric
+approve-%: relay sendmetric
 	@( cd test && ./run-test.sh -a $* )
-check:
+check-local:
 	@( cd test && ./run-test.sh $(CRTESTS) )
+install-exec-local:  # libtool refuses to build shared for check or noinst trg
+	$(LIBTOOL) $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=uninstall \
+		rm -f "$(DESTDIR)$(libdir)/libfaketime.la"

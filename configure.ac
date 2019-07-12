@@ -6,6 +6,9 @@ AC_INIT([carbon-c-relay], [3.5], [])
 AC_SUBST([RELEASEDATE], [2019-02-22])
 AC_CONFIG_HEADERS([config.h])
 AM_INIT_AUTOMAKE
+AM_MAINTAINER_MODE([enable])
+LT_INIT
+AC_CONFIG_MACRO_DIRS([m4])
 
 # Checks for programs.
 AC_PROG_CC
