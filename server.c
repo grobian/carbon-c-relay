@@ -420,11 +420,49 @@ sslclose(z_strm *strm)
 	return close(sock);
 }
 
+static char _sslerror_buf[256];
 static inline const char *
 sslerror(z_strm *strm, int rval)
 {
 	int err = SSL_get_error(strm->hdl.ssl, rval);
-	return ERR_reason_error_string(err);
+	switch (err) {
+		case SSL_ERROR_NONE:
+			snprintf(_sslerror_buf, sizeof(_sslerror_buf),
+					"%d: SSL_ERROR_NONE", err);
+			break;
+		case SSL_ERROR_ZERO_RETURN:
+			snprintf(_sslerror_buf, sizeof(_sslerror_buf),
+					"%d: TLS/SSL connection has been closed", err);
+			break;
+		case SSL_ERROR_WANT_READ:
+		case SSL_ERROR_WANT_WRITE:
+		case SSL_ERROR_WANT_CONNECT:
+		case SSL_ERROR_WANT_ACCEPT:
+			snprintf(_sslerror_buf, sizeof(_sslerror_buf),
+					"%d: the read or write operation did not complete", err);
+			break;
+		case SSL_ERROR_WANT_X509_LOOKUP:
+			snprintf(_sslerror_buf, sizeof(_sslerror_buf),
+					"%d: call callback via SSL_CTX_set_client_cert_cb()", err);
+			break;
+		case SSL_ERROR_WANT_ASYNC:
+			snprintf(_sslerror_buf, sizeof(_sslerror_buf),
+					"%d: asynchronous engine is still processing data", err);
+			break;
+		case SSL_ERROR_WANT_ASYNC_JOB:
+			snprintf(_sslerror_buf, sizeof(_sslerror_buf),
+					"%d: no async jobs available in the pool", err);
+			break;
+		case SSL_ERROR_SYSCALL:
+			snprintf(_sslerror_buf, sizeof(_sslerror_buf),
+					"%d: I/O error: %s", err, strerror(errno));
+			break;
+		case SSL_ERROR_SSL:
+			snprintf(_sslerror_buf, sizeof(_sslerror_buf),
+					"%d: protocol error", err);
+			break;
+	}
+	return _sslerror_buf;
 }
 #endif
 
@@ -883,16 +921,14 @@ server_queuereader(void *d)
 				}
 				if ((rv = SSL_connect(sstrm->hdl.ssl)) != 1) {
 					logerr("failed to connect ssl stream: %s\n",
-							ERR_reason_error_string(
-								SSL_get_error(sstrm->hdl.ssl, rv)));
+							sslerror(sstrm, rv));
 					sstrm->strmclose(sstrm);
 					self->fd = -1;
 					continue;
 				}
 				if ((rv = SSL_get_verify_result(sstrm->hdl.ssl)) != X509_V_OK) {
 					logerr("failed to verify ssl certificate: %s\n",
-							ERR_reason_error_string(
-								SSL_get_error(sstrm->hdl.ssl, rv)));
+							sslerror(sstrm, rv));
 					sstrm->strmclose(sstrm);
 					self->fd = -1;
 					continue;
