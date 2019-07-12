@@ -195,7 +195,8 @@ run_servertest() {
 
 	if [[ -n ${RUN_TEST_DROP_IN_SHELL} ]] ; then
 		echo "dropping shell in ${tmpdir}"
-		( cd ${tmpdir} && ${SHELL} )
+		( unset DYLD_FORCE_FLAT_NAMESPACE DYLD_INSERT_LIBRARIES LD_PRELOAD;
+		  cd ${tmpdir} && ${SHELL} )
 	fi
 
 	# cleanup
