@@ -445,21 +445,25 @@ sslerror(z_strm *strm, int rval)
 			snprintf(_sslerror_buf, sizeof(_sslerror_buf),
 					"%d: call callback via SSL_CTX_set_client_cert_cb()", err);
 			break;
+#ifdef SSL_ERROR_WANT_ASYNC
 		case SSL_ERROR_WANT_ASYNC:
 			snprintf(_sslerror_buf, sizeof(_sslerror_buf),
 					"%d: asynchronous engine is still processing data", err);
 			break;
+#endif
+#ifdef SSL_ERROR_WANT_ASYNC_JOB
 		case SSL_ERROR_WANT_ASYNC_JOB:
 			snprintf(_sslerror_buf, sizeof(_sslerror_buf),
 					"%d: no async jobs available in the pool", err);
 			break;
+#endif
 		case SSL_ERROR_SYSCALL:
 			snprintf(_sslerror_buf, sizeof(_sslerror_buf),
 					"%d: I/O error: %s", err, strerror(errno));
 			break;
 		case SSL_ERROR_SSL:
-			snprintf(_sslerror_buf, sizeof(_sslerror_buf),
-					"%d: protocol error", err);
+			ERR_error_string_n(ERR_get_error(),
+					_sslerror_buf, sizeof(_sslerror_buf));
 			break;
 	}
 	return _sslerror_buf;
