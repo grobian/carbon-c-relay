@@ -34,7 +34,7 @@ script:
       [[ -n ${COVERITY_SCAN_TOKEN} ]] || exit 0;  # don't fail on this for PRs
       # ensure we end up with an existing compiler
       export CC=gcc
-      ./configure || { cat config.log ; exit 1 ; }
+      ./configure --disable-maintainer-mode || { cat config.log ; exit 1 ; }
       curl -s 'https://scan.coverity.com/scripts/travisci_build_coverity_scan.sh' | bash
     else
       v() { echo "$@"; "$@"; }
