@@ -40,42 +40,43 @@ script:
       v() { echo "$@"; "$@"; }
       # everything disabled, this MUST work
       echo "==> base test, all disabled"
-      v ./configure --without-gzip --without-lz4 --without-ssl \
+      econf="./configure --disable-maintainer-mode"
+      v ${econf} --without-gzip --without-lz4 --without-ssl \
         --without-oniguruma --without-pcre2 --without-pcre \
         || { cat config.log ; exit 1 ; }
       v make CFLAGS="-O3 -Wall -Werror -Wshadow -pipe" clean check || exit 1
       # compile some enabled/disabled variants compile only
       echo "==> gzip enabled"
-      if v ./configure --with-gzip --without-lz4 --without-ssl ; then
+      if v ${econf} --with-gzip --without-lz4 --without-ssl ; then
         v make CFLAGS="-O3 -Wall -Werror -Wshadow -pipe" clean relay || exit 1
       fi
       echo "==> lz4 enabled"
-      if v ./configure --without-gzip --with-lz4 --without-ssl ; then
+      if v ${econf} --without-gzip --with-lz4 --without-ssl ; then
         v make CFLAGS="-O3 -Wall -Werror -Wshadow -pipe" clean relay || exit 1
       fi
       echo "==> gzip,lz4 enabled"
-      if v ./configure --with-gzip --with-lz4 --without-ssl ; then
+      if v ${econf} --with-gzip --with-lz4 --without-ssl ; then
         v make CFLAGS="-O3 -Wall -Werror -Wshadow -pipe" clean relay || exit 1
       fi
       echo "==> gzip,lz4,ssl enabled"
-      if v ./configure --with-gzip --with-lz4 --with-ssl ; then
+      if v ${econf} --with-gzip --with-lz4 --with-ssl ; then
         v make CFLAGS="-O3 -Wall -Werror -Wshadow -pipe" clean relay || exit 1
       fi
       # test the regex implementations
       echo "==> oniguruma enabled"
-      v ./configure --with-oniguruma --without-pcre2 --without-pcre || exit
+      v ${econf} --with-oniguruma --without-pcre2 --without-pcre || exit
       v make CFLAGS="-O3 -Wall -Werror -Wshadow -pipe" clean check || exit 1
       if [ $TRAVIS_OS_NAME = osx ] ; then
         echo "==> pcre2 enabled"
-        v ./configure --without-oniguruma --with-pcre2 --without-pcre || exit
+        v ${econf} --without-oniguruma --with-pcre2 --without-pcre || exit
         v make CFLAGS="-O3 -Wall -Werror -Wshadow -pipe" clean check || exit 1
       fi
       echo "==> pcre enabled"
-      v ./configure --without-oniguruma --without-pcre2 --with-pcre || exit
+      v ${econf} --without-oniguruma --without-pcre2 --with-pcre || exit
       v make CFLAGS="-O3 -Wall -Werror -Wshadow -pipe" clean check || exit 1
       # final test with everything enabled that is detected
       echo "==> everything default"
-      v ./configure || { cat config.log ; exit 1 ; }
+      v ${econf} || { cat config.log ; exit 1 ; }
       v make CFLAGS="-O3 -Wall -Werror -Wshadow -pipe" clean check || exit 1
     fi
     exit 0  # all is good here
