@@ -22,20 +22,28 @@
 # error must have dlsym/RTLD_NEXT to fake time
 #endif
 
-#include <time.h>
 #include <dlfcn.h>
 #if 0
-/* we cannot include sys/time.h due to gettimeofday definition being
- * different on some platforms with complex/incompatible restrict
- * definitions, but we do need struct timeval, so we're faking the
- * necessary bits here */
+/* we cannot include time.h and sys/time.h due to gettimeofday
+ * definition being different on some platforms with
+ * complex/incompatible restrict definitions, but we do need struct
+ * timeval, so we're faking the necessary bits here */
+#include <time.h>
 #include <sys/time.h>
 #else
 /* internal definition, we only access tv_sec so don't care about the
  * type/definition of tv_usec */
+#if SIZEOF_TIME_T == 4
+#define time_t int
+#elif SIZEOF_TIME_T == 8
+#define time_t long long int
+#else
+#define time_t ssize_t
+#endif
 struct timeval {
 	time_t tv_sec;
 };
+#define NULL (void *)0
 #endif
 
 /* for repeatability, always return time starting from 1981-02-01 from the

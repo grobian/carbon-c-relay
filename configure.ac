@@ -64,6 +64,9 @@ AC_CHECK_HEADERS([dlfcn.h])
 # Checks for typedefs, structures, and compiler characteristics.
 AC_C_INLINE
 
+# Necessary for emulation in faketime
+AC_CHECK_SIZEOF([time_t])
+
 # Checks for library functions.
 AC_FUNC_FORK
 AC_FUNC_MALLOC
