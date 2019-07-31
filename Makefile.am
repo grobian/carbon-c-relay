@@ -36,7 +36,7 @@ man:
 		--manual="Graphite data collection and visualisation" \
 		--organization=Graphite \
 		--roff \
-	> carbon-c-relay.1
+	> relay.1
 
 bin_PROGRAMS = relay
 check_PROGRAMS = sendmetric
@@ -79,7 +79,7 @@ noinst_HEADERS = \
 	aggregator.h \
 	posixregex.h \
 	$(NULL)
-man_MANS = carbon-c-relay.1
+man_MANS = relay.1
 
 EXTRA_DIST = \
 	issues \
@@ -87,7 +87,7 @@ EXTRA_DIST = \
 	ChangeLog.md \
 	LICENSE.md \
 	carbon-c-relay.md \
-	carbon-c-relay.1 \
+	relay.1 \
 	README.md \
 	conffile.tab.c conffile.tab.h conffile.y \
 	conffile.yy.c conffile.l \
