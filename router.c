@@ -2243,6 +2243,10 @@ router_printdiffs(router *old, router *new, FILE *out)
 	/* diff and print its output */
 	snprintf(buf, sizeof(buf), "diff -u %s %s", patho, pathn);
 	f = popen(buf, "r");
+	if (f == NULL) {
+		logerr("failed to popen diff: %s\n", strerror(errno));
+		return 1;
+	}
 	while ((len = fread(buf, 1, sizeof(buf) - 1, f)) > 0) {
 		if (fwrite(buf, len, 1, out) == 0)
 			/* ignore */
