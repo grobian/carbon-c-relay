@@ -608,7 +608,8 @@ server_queuereader(void *d)
 				__sync_add_and_fetch(&(self->dropped), 1);
 			}
 			gettimeofday(&stop, NULL);
-			self->ticks += timediff(start, stop);
+			__sync_add_and_fetch(&(self->ticks),
+					timediff(start, stop));
 			if (squeue == NULL) {
 				/* we couldn't do anything, take it easy for a bit */
 				if (__sync_add_and_fetch(&(self->failure), 0) > 1) {
