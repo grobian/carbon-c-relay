@@ -308,6 +308,9 @@ handle_signal(int sig)
 		case SIGHUP:
 			sign = "SIGHUP";
 			break;
+		case SIGUSR1:
+			sign = "SIGUSR1";
+			break;
 	}
 	if (keep_running) {
 		logout("caught %s\n", sign);
@@ -319,6 +322,12 @@ handle_signal(int sig)
 	}
 	if (sig == SIGHUP) {
 		do_reload();
+	} else if (sig == SIGUSR1) {
+		if (mode & MODE_DEBUG) {
+			mode &= ~MODE_DEBUG;
+		} else {
+			mode |= MODE_DEBUG;
+		}
 	} else {
 		keep_running = 0;
 	}
@@ -916,6 +925,9 @@ main(int argc, char * const argv[])
 	}
 	if (signal(SIGHUP, sig_handler) == SIG_ERR) {
 		exit_err("failed to create SIGHUP handler: %s\n", strerror(errno));
+	}
+	if (signal(SIGUSR1, sig_handler) == SIG_ERR) {
+		exit_err("failed to create SIGUSR1 handler: %s\n", strerror(errno));
 	}
 	if (signal(SIGPIPE, SIG_IGN) == SIG_ERR) {
 		exit_err("failed to ignore SIGPIPE: %s\n", strerror(errno));
