@@ -95,6 +95,7 @@ struct _server {
 	z_strm *strm;
 	queue *queue;
 	size_t bsize;
+	size_t qreadersendsize;
 	short iotimeout;
 	unsigned int sockbufsize;
 	unsigned char maxstalls:SERVER_STALL_BITS;
@@ -494,6 +495,14 @@ server_queuereader(void *d)
 	const char *p;
 
 	*metric = NULL;
+	char *buf;
+	if (self->qreadersendsize > 0) {
+		buf = malloc(self->qreadersendsize + 1);
+		if (buf == NULL)
+			logerr("unable to allocate queue reader buffer, switch to single metric send");
+	} else {
+		buf = NULL;
+	}
 
 #define FAIL_WAIT_TIME   6  /* 6 * 250ms = 1.5s */
 #define DISCONNECT_WAIT_TIME   12  /* 12 * 250ms = 3s */
@@ -978,24 +987,59 @@ server_queuereader(void *d)
 		}
 
 		for (; *metric != NULL; metric++) {
-			len = *(size_t *)(*metric);
-			/* Write to the stream, this may not succeed completely due
-			 * to flow control and whatnot, which the docs suggest need
-			 * resuming to complete.  So, use a loop, but to avoid
-			 * getting endlessly stuck on this, only try a limited
-			 * number of times for a single metric. */
-			for (cnt = 0, p = *metric + sizeof(size_t); cnt < 10; cnt++) {
-				if ((slen = self->strm->strmwrite(self->strm, p, len)) != len) {
-					if (slen >= 0) {
-						p += slen;
-						len -= slen;
-					} else if (errno != EINTR) {
+			size_t metricscount;
+			if (buf == NULL || *(size_t *)(*metric) >= self->qreadersendsize) {
+				len = *(size_t *)(*metric);
+				metricscount = 1;
+				p = *metric + sizeof(size_t);
+				/* Write to the stream, this may not succeed completely due
+				 * to flow control and whatnot, which the docs suggest need
+				 * resuming to complete.  So, use a loop, but to avoid
+				 * getting endlessly stuck on this, only try a limited
+				 * number of times for a single metric. */
+				for (cnt = 0; cnt < 10; cnt++) {
+					if ((slen = self->strm->strmwrite(self->strm, p, len)) != len) {
+						if (slen >= 0) {
+							p += slen;
+							len -= slen;
+						} else if (errno != EINTR) {
+							break;
+						}
+						/* allow the remote to catch up */
+						usleep((50 + (rand() % 150)) * 1000);  /* 50ms - 200ms */
+					} else {
 						break;
 					}
-					/* allow the remote to catch up */
-					usleep((50 + (rand() % 150)) * 1000);  /* 50ms - 200ms */
-				} else {
-					break;
+				}
+			} else { /* batch send */
+				metricscount = 0;
+				const char **pmetric;
+				len = 0;
+				/* fill metrics buffer for send */
+				for (pmetric = metric; *pmetric != NULL; pmetric++) {
+					if (len + *(size_t *)(*pmetric) >= self->qreadersendsize) {
+						break;
+					}
+					metricscount++;
+					memcpy(buf + len, *pmetric + sizeof(size_t), *(size_t *) (*pmetric));
+					len += *(size_t *)(*pmetric);
+				}
+				buf[len] = '\0';
+				p = buf;
+				for (cnt = 0; cnt < 10; cnt++) {
+					if ((slen = self->strm->strmwrite(self->strm, p, len)) != len) {
+						if (slen >= 0) {
+							p += slen;
+							len -= slen;
+						} else if (errno != EINTR) {
+							break;
+						}
+						/* allow the remote to catch up */
+						usleep((50 + (rand() % 150)) * 1000);  /* 50ms - 200ms */
+					} else {
+						metric += metricscount - 1;
+						break;
+					}
 				}
 			}
 			if (slen != len) {
@@ -1029,7 +1073,7 @@ server_queuereader(void *d)
 				__sync_and_and_fetch(&(self->failure), 0);
 			}
 			free((char *)*metric);
-			__sync_add_and_fetch(&(self->metrics), 1);
+			__sync_add_and_fetch(&(self->metrics), metricscount);
 		}
 
 		gettimeofday(&stop, NULL);
@@ -1043,6 +1087,7 @@ server_queuereader(void *d)
 		self->strm->strmclose(self->strm);
 	if (secpos != NULL)
 		free(secpos);
+	free(buf);
 	return NULL;
 }
 
@@ -1062,6 +1107,7 @@ server_new(
 		struct addrinfo *hint,
 		size_t qsize,
 		size_t bsize,
+		size_t qreadersendsize,
 		int maxstalls,
 		unsigned short iotimeout,
 		unsigned int sockbufsize)
@@ -1088,6 +1134,7 @@ server_new(
 	ret->iotimeout = iotimeout < 250 ? 600 : iotimeout;
 	ret->sockbufsize = sockbufsize;
 	ret->maxstalls = maxstalls;
+	ret->qreadersendsize = qreadersendsize;
 	if ((ret->batch = malloc(sizeof(char *) * (bsize + 1))) == NULL) {
 		free((char *)ret->ip);
 		free(ret);

@@ -105,6 +105,13 @@ These options control the behaviour of **carbon-c-relay**.
     have minimal impact on sending performance, but it controls the amount
     of lock-contention on the queue.  The default is *2500*.
 
+  * `-Q` *qreadersendsize*:
+    Set the buffer size (in bytes( for metrics that sent to remote servers
+    at one write call. Must be synchronized with *batchsize* and *bufsize*.
+    The size of the send buffer can improve of sending performance, 
+    but can send duplicate of some metrics if write failed partially.
+    The default is *0* (disabled).
+
   * `-q` *queuesize*:
     Each server from the configuration where the relay will send metrics
     to, has a queue associated with it.  This queue allows for disruptions

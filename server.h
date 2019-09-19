@@ -36,6 +36,7 @@ server *server_new(
 		struct addrinfo *hint,
 		size_t queuesize,
 		size_t batchsize,
+		size_t qreadersendsize,
 		int maxstalls,
 		unsigned short iotimeout,
 		unsigned int sockbufsize);

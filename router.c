@@ -64,6 +64,7 @@ struct _router {
 		char workercnt;
 		size_t queuesize;
 		size_t batchsize;
+		size_t qreadersendsize;
 		int maxstalls;
 		unsigned short iotimeout;
 		unsigned int sockbufsize;
@@ -633,7 +634,7 @@ router_add_server(
 		if (newserver == NULL) {
 			newserver = server_new(ip, port,
 					type, transport, proto, walk, hint,
-					ret->conf.queuesize, ret->conf.batchsize,
+					ret->conf.queuesize, ret->conf.batchsize, ret->conf.qreadersendsize,
 					ret->conf.maxstalls, ret->conf.iotimeout,
 					ret->conf.sockbufsize);
 			if (newserver == NULL) {
@@ -1139,6 +1140,7 @@ router_readconfig(router *orig,
 		char workercnt,
 		size_t queuesize,
 		size_t batchsize,
+		size_t qreadersendsize,
 		int maxstalls,
 		unsigned short iotimeout,
 		unsigned int sockbufsize,
@@ -1188,7 +1190,7 @@ router_readconfig(router *orig,
 		for (i = 0; i < globbuf.gl_pathc; i++) {
 			globpath = globbuf.gl_pathv[i];
 			ret = router_readconfig(ret, globpath, workercnt, queuesize,
-					batchsize, maxstalls, iotimeout, sockbufsize, listenport);
+					batchsize, qreadersendsize, maxstalls, iotimeout, sockbufsize, listenport);
 			if (ret == NULL) {
 				/* readconfig will have freed when it found the error */
 				break;
@@ -1250,6 +1252,7 @@ router_readconfig(router *orig,
 		ret->conf.maxstalls = maxstalls;
 		ret->conf.iotimeout = iotimeout;
 		ret->conf.sockbufsize = sockbufsize;
+		ret->conf.qreadersendsize = qreadersendsize;
 
 		/* create virtual blackhole cluster */
 		cl = ra_malloc(ret->a, sizeof(cluster));

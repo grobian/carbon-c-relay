@@ -122,6 +122,7 @@ CRTESTS = \
 	server-type \
 	basic \
 	metriclimits \
+	qreadersendsize \
 	$(NULL)
 
 if SSL_ENABLED

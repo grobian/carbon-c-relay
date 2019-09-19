@@ -57,6 +57,7 @@ char sslCAisdir = 0;
 static char *config = NULL;
 static int batchsize = 2500;
 static int queuesize = 25000;
+static int qreadersendsize = 0;
 static int maxstalls = 4;
 static unsigned short iotimeout = 600;
 static unsigned short listenport = GRAPHITE_PORT;
@@ -172,7 +173,7 @@ do_reload(void)
 
 	logout("reloading config from '%s'\n", config);
 	if ((newrtr = router_readconfig(NULL, config, workercnt,
-					queuesize, batchsize, maxstalls,
+					queuesize, batchsize, qreadersendsize, maxstalls,
 					iotimeout, sockbufsize, listenport)) == NULL)
 	{
 		logerr("failed to read configuration '%s', aborting reload\n", config);
@@ -397,6 +398,7 @@ do_usage(char *name, int exitcode)
 	printf("  -l  write output to <file>, defaults to stdout/stderr\n");
 	printf("  -w  use <workers> worker threads, defaults to %d\n", get_cores());
 	printf("  -b  server send batch size, defaults to %d\n", batchsize);
+	printf("  -Q  server send buffer size, defaults to %d\n", qreadersendsize);
 	printf("  -q  server queue size, defaults to %d\n", queuesize);
 	printf("  -L  server max stalls, defaults to %d\n", maxstalls);
 #ifdef HAVE_SSL
@@ -446,7 +448,7 @@ main(int argc, char * const argv[])
 		snprintf(relay_hostname, sizeof(relay_hostname), "127.0.0.1");
 
 	while ((ch = getopt(argc, argv,
-					":hvdstf:l:p:w:b:q:L:C:T:c:m:M:H:B:U:EDP:O:")) != -1)
+					":hvdstf:l:p:w:b:q:L:C:T:c:m:M:H:B:U:EDP:O:Q:")) != -1)
 	{
 		switch (ch) {
 			case 'v':
@@ -504,6 +506,13 @@ main(int argc, char * const argv[])
 				queuesize = atoi(optarg);
 				if (queuesize <= 0) {
 					fprintf(stderr, "error: queue size needs to be a number >0\n");
+					do_usage(argv[0], 1);
+				}
+				break;
+			case 'Q':
+				qreadersendsize = atoi(optarg);
+				if (qreadersendsize <= 1024) {
+					fprintf(stderr, "error: server send buffer size needs to be a number >1024\n");
 					do_usage(argv[0], 1);
 				}
 				break;
@@ -826,6 +835,7 @@ main(int argc, char * const argv[])
 		fprintf(relay_stdout, "    workers = %d\n", workercnt);
 		fprintf(relay_stdout, "    send batch size = %d\n", batchsize);
 		fprintf(relay_stdout, "    server queue size = %d\n", queuesize);
+		fprintf(relay_stdout, "    queue readers send buffer size = %d\n", qreadersendsize);
 		fprintf(relay_stdout, "    server max stalls = %d\n", maxstalls);
 		fprintf(relay_stdout, "    listen backlog = %u\n", listenbacklog);
 		if (sockbufsize > 0)
@@ -867,7 +877,7 @@ main(int argc, char * const argv[])
 #endif
 
 	if ((rtr = router_readconfig(NULL, config, workercnt,
-					queuesize, batchsize, maxstalls,
+					queuesize, batchsize, qreadersendsize, maxstalls,
 					iotimeout, sockbufsize, listenport)) == NULL)
 	{
 		exit_err("failed to read configuration '%s'\n", config);
@@ -980,7 +990,7 @@ main(int argc, char * const argv[])
 	if ((internal_submission = server_new(
 					"internal", listenport, T_LINEMODE, W_PLAIN, CON_PIPE,
 					NULL, NULL, 3000,
-					batchsize, maxstalls, iotimeout, sockbufsize)) == NULL)
+					batchsize, qreadersendsize, maxstalls, iotimeout, sockbufsize)) == NULL)
 	{
 		logerr("failed to create internal submission queue, shutting down\n");
 		keep_running = 0;

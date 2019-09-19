@@ -5,6 +5,8 @@
 * **router** now emits the bad string if an invalid port was given
 * **router** new support for dynamic clusters
 * **router** allow dynamic on/off debug mode (with SIGUSR1 sigal)
+* **server**  a new flag `-Q size` was added to allocate buffer
+  for batch send from metrics queue (in one write call)
   [Issue #367](https://github.com/grobian/carbon-c-relay/issues/367)
 * **dispatcher** allow limits to input and metric lengths
   [Issue #354](https://github.com/grobian/carbon-c-relay/issues/354)
