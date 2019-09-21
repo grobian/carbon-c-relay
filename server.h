@@ -24,6 +24,8 @@
 
 #define SERVER_STALL_BITS  4  /* 0 up to 15 */
 
+#define SERVER_MAX_SEND    10 /* max try write to socket for complete */
+
 typedef struct _server server;
 
 server *server_new(

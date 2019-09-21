@@ -27,6 +27,41 @@ export DYLD_FORCE_FLAT_NAMESPACE=1
 export DYLD_INSERT_LIBRARIES=../.libs/libfaketime.dylib
 export LD_PRELOAD=../.libs/libfaketime.so
 
+large_generate() {
+i=1
+end=5000
+rm -f large.payload
+while [ $i -le $end ]; do
+    echo "foo.bar.${i} 1 349830001" >> large.payload
+    i=$(($i+1))
+done
+cp large.payload large.payloadout
+}
+
+large_ssl_generate() {
+i=1
+end=5000
+rm -f large-ssl.payload
+rm -f large-ssl.payloadout
+while [ $i -le $end ]; do
+    echo "ssl.foo.bar.${i} 1 349830001" >> large-ssl.payload
+    echo "through-ssl.foo.bar.${i} 1 349830001" >> large-ssl.payloadout
+    i=$(($i+1))
+done
+}
+
+large_gzip_generate() {
+i=1
+end=5000
+rm -f large-gzip.payload
+rm -f large-gzip.payloadout
+while [ $i -le $end ]; do
+    echo "gzip.foo.bar.${i} 1 349830001" >> large-gzip.payload
+    echo "through-gzip.foo.bar.${i} 1 349830001" >> large-gzip.payloadout
+    i=$(($i+1))
+done
+}
+
 run_configtest() {
 	local eflags="$1"
 	local test=${2%.*}
@@ -220,6 +255,10 @@ while [[ -n $1 ]] ; do
 	esac
 	shift
 done
+
+large_generate
+large_ssl_generate
+large_gzip_generate
 
 tstcnt=0
 tstfail=0

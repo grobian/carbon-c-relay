@@ -60,10 +60,8 @@ typedef struct _z_strm {
 	int (*strmclose)(struct _z_strm *);
 	const char *(*strmerror)(struct _z_strm *, int);     /* get last err str */
 	struct _z_strm *nextstrm;                            /* set when chained */
-#if defined(HAVE_LZ4) || defined(HAVE_SNAPPY) || defined(HAVE_GZIP)
 	char obuf[METRIC_BUFSIZ];
 	int obuflen;
-#endif
 #ifdef HAVE_SSL
 	SSL_CTX *ctx;
 #endif
@@ -124,18 +122,52 @@ struct _server {
 /* connection specific writers and closers */
 
 /* ordinary socket */
+static inline int sockflush(z_strm *strm);
+
 static inline ssize_t
 sockwrite(z_strm *strm, const void *buf, size_t sze)
 {
-	return write(strm->hdl.sock, buf, sze);
+	/* ensure we have space available */
+	if (strm->obuflen + sze > METRIC_BUFSIZ)
+		if (sockflush(strm) != 0)
+			return -1;
+
+	/* append metric to buf */
+	memcpy(strm->obuf + strm->obuflen, buf, sze);
+	strm->obuflen += sze;
+
+	return sze;
 }
 
 static inline int
 sockflush(z_strm *strm)
 {
-	/* noop, we don't use a stream in the normal case */
-	(void)strm;
-	return 0;
+	ssize_t slen;
+	size_t len;
+	char *p;
+	if (strm->obuflen == 0)
+		return 0;
+	p = strm->obuf;
+	len = strm->obuflen;
+	/* Flush stream, this may not succeed completely due
+	 * to flow control and whatnot, which the docs suggest need
+	 * resuming to complete.  So, use a loop, but to avoid
+	 * getting endlessly stuck on this, only try a limited
+	 * number of times. */
+	for (int cnt = 0; cnt < SERVER_MAX_SEND; cnt++) {
+		if ((slen = write(strm->hdl.sock, p, len)) != len) {
+			if (slen >= 0) {
+				p += slen;
+				len -= slen;
+			} else if (errno != EINTR)
+				return -1;
+		} else {
+			strm->obuflen = 0;
+			return 0;
+		}
+	}
+
+	return -1;
 }
 
 static inline int
@@ -216,15 +248,16 @@ gzipflush(z_strm *strm)
 			break;
 		}
 	} while (1);
+	if (cret != Z_OK)
+		return -1;  /* we must reset/free gzip */
+
 	/* flush whatever we wrote */
-	strm->nextstrm->strmflush(strm->nextstrm);
+	if (strm->nextstrm->strmflush(strm->nextstrm) < 0)
+		return -1;
 
 	/* reset the write position, from this point it will always need to
 	 * restart */
 	strm->obuflen = 0;
-
-	if (cret != Z_OK)
-		return -1;  /* we must reset/free gzip */
 
 	return 0;
 }
@@ -311,7 +344,8 @@ lzflush(z_strm *strm)
 		return oret;
 	}
 
-	strm->nextstrm->strmflush(strm->nextstrm);
+	if (strm->nextstrm->strmflush(strm->nextstrm) < 0)
+		return -1;
 
 	/* the buffer is gone. reset the write position */
 
@@ -363,9 +397,6 @@ snappyflush(z_strm *strm)
 	int oret;
 
 	cret = snappy_compress(strm->obuf, strm->obuflen, cbuf, &cbuflen);
-	/* reset the write position, from this point it will always need to
-	 * restart */
-	strm->obuflen = 0;
 
 	if (cret != SNAPPY_OK)
 		return -1;  /* we must reset/free snappy */
@@ -373,11 +404,15 @@ snappyflush(z_strm *strm)
 		oret = strm->nextstrm->strmwrite(strm->nextstrm, cbufp, cbuflen);
 		if (oret < 0)
 			return -1;  /* failure is failure */
-		strm->nextstrm->strmflush(strm->nextstrm);
 		/* update counters to possibly retry the remaining bit */
 		cbufp += oret;
 		cbuflen -= oret;
 	}
+	if (strm->nextstrm->strmflush(strm->nextstrm) < 0)
+		return -1;
+	/* reset the write position, from this point it will always need to
+	 * restart */
+	strm->obuflen = 0;
 
 	return 0;
 }
@@ -398,18 +433,56 @@ snappyerror(z_strm *strm, int rval)
 
 #ifdef HAVE_SSL
 /* (Open|Libre)SSL wrapped socket */
+static inline int sslflush(z_strm *strm);
 static inline ssize_t
 sslwrite(z_strm *strm, const void *buf, size_t sze)
 {
-	return (ssize_t)SSL_write(strm->hdl.ssl, buf, (int)sze);
+	/* ensure we have space available */
+	if (strm->obuflen + sze > METRIC_BUFSIZ)
+		if (sslflush(strm) != 0)
+			return -1;
+
+	/* append metric to buf */
+	memcpy(strm->obuf + strm->obuflen, buf, sze);
+	strm->obuflen += sze;
+
+	return sze;
 }
 
 static inline int
 sslflush(z_strm *strm)
 {
 	/* noop */
-	(void)strm;
-	return 0;
+	ssize_t slen;
+	size_t len;
+	char *p;
+	if (strm->obuflen == 0)
+		return 0;
+	p = strm->obuf;
+	len = strm->obuflen;
+	for (int cnt = 0; cnt < SERVER_MAX_SEND; cnt++) {
+		errno = 0;
+		if ((slen = SSL_write(strm->hdl.ssl, p, len)) != len) {
+			if (slen >= 0) {
+				p += slen;
+				len -= slen;
+			} else {
+				int ssl_err;
+				if (errno == EINTR)
+					continue;
+				ssl_err = SSL_get_error(strm->hdl.ssl, slen);
+				if (ssl_err == SSL_ERROR_WANT_READ || ssl_err == SSL_ERROR_WANT_WRITE)
+					continue;
+				else
+					return slen;
+			}
+		} else {
+			strm->obuflen = 0;
+			return 0;
+		}
+	}
+
+	return -1;
 }
 
 static inline int
@@ -469,6 +542,16 @@ sslerror(z_strm *strm, int rval)
 	return _sslerror_buf;
 }
 #endif
+
+/* metrics in server stream buffer, detected by endline */
+size_t server_metrics_in_buffer(server *s) {
+	size_t count = 0;
+	for (size_t i = 0; i < s->strm->obuflen; i++) {
+		if (s->strm->obuf[i] == '\n')
+			count++;
+	}
+	return count;
+}
 
 /**
  * Reads from the queue and sends items to the remote server.  This
@@ -783,6 +866,18 @@ server_queuereader(void *d)
 								self->fd = -1;
 								continue;
 							}
+							/*
+							int valopt;
+							socklen_t lon = sizeof(int);
+							if (getsockopt(self->fd, SOL_SOCKET, SO_ERROR, (void*)(&valopt), &lon) < 0) {
+								logerr("failed in getsockopt() %s:%u: %s\n", self->ip, self->port, strerror(errno));
+								continue;
+							}
+							if (valopt) {
+							   logerr("failed delayed connect() %s:%d - %s\n", self->ip, self->port, strerror(valopt));
+							   exit(0);
+							}
+							*/
 						}
 					} else if (ret < 0) {
 						if (walk->ai_next == NULL &&
@@ -848,6 +943,8 @@ server_queuereader(void *d)
 				if (setsockopt(self->fd, SOL_SOCKET, SO_SNDBUF,
 							&self->sockbufsize, sizeof(self->sockbufsize)) != 0)
 					; /* ignore */
+
+			self->strm->obuflen = 0;
 #ifdef SO_NOSIGPIPE
 			if (self->ctype == CON_TCP || self->ctype == CON_UDP) {
 				int enable = 1;
@@ -880,7 +977,6 @@ server_queuereader(void *d)
 					self->fd = -1;
 					continue;
 				}
-				self->strm->obuflen = 0;
 			}
 #endif
 #ifdef HAVE_LZ4
@@ -898,12 +994,6 @@ server_queuereader(void *d)
 				}
 			}
 #endif
-#ifdef HAVE_SNAPPY
-			if ((self->transport & 0xFFFF) == W_SNAPPY) {
-				self->strm->obuflen = 0;
-			}
-#endif
-
 #ifdef HAVE_SSL
 			if ((self->transport & ~0xFFFF) == W_SSL) {
 				int rv;
@@ -957,15 +1047,6 @@ server_queuereader(void *d)
 		self->batch[len] = NULL;
 		metric = self->batch;
 
-		if (len != 0 &&
-				__sync_bool_compare_and_swap(&(self->keep_running), 0, 0))
-		{
-			/* be noisy during shutdown so we can track any slowing down
-			 * servers, possibly preventing us to shut down */
-			logerr("shutting down %s:%u: waiting for %zu metrics\n",
-					self->ip, self->port, len + queue_len(self->queue));
-		}
-
 		if (len == 0 && __sync_add_and_fetch(&(self->failure), 0)) {
 			/* if we don't have anything to send, we have at least a
 			 * connection succeed, so assume the server is up again,
@@ -975,35 +1056,54 @@ server_queuereader(void *d)
 			if (self->ctype != CON_UDP)
 				logerr("server %s:%u: OK after probe\n", self->ip, self->port);
 			__sync_and_and_fetch(&(self->failure), 0);
-		}
+		} else if (len != 0) {
+			if (__sync_bool_compare_and_swap(&(self->keep_running), 0, 0))
+			{
+				/* be noisy during shutdown so we can track any slowing down
+				 * servers, possibly preventing us to shut down */
+				logerr("shutting down %s:%u: waiting for %zu metrics\n",
+						self->ip, self->port, len + queue_len(self->queue));
+			}
 
-		for (; *metric != NULL; metric++) {
-			len = *(size_t *)(*metric);
-			/* Write to the stream, this may not succeed completely due
-			 * to flow control and whatnot, which the docs suggest need
-			 * resuming to complete.  So, use a loop, but to avoid
-			 * getting endlessly stuck on this, only try a limited
-			 * number of times for a single metric. */
-			for (cnt = 0, p = *metric + sizeof(size_t); cnt < 10; cnt++) {
-				if ((slen = self->strm->strmwrite(self->strm, p, len)) != len) {
-					if (slen >= 0) {
-						p += slen;
-						len -= slen;
-					} else if (errno != EINTR) {
+			for (; *metric != NULL; metric++) {
+				len = *(size_t *)(*metric);
+				for (cnt = 0, p = *metric + sizeof(size_t); cnt < 10; cnt++) {
+					if ((slen = self->strm->strmwrite(self->strm, p, len)) != len) {
+						if (slen >= 0) {
+							p += slen;
+							len -= slen;
+						} else if (errno != EINTR) {
+							break;
+						}
+					} else {
 						break;
 					}
-					/* allow the remote to catch up */
-					usleep((50 + (rand() % 150)) * 1000);  /* 50ms - 200ms */
-				} else {
-					break;
 				}
+				if (slen != len) {
+					/* not fully sent (after tries), or failure
+					 * close connection regardless so we don't get
+					 * synchonisation problems */
+					if (self->ctype != CON_UDP &&
+							__sync_fetch_and_add(&(self->failure), 1) == 0)
+						logerr("failed to write() to %s:%u: %s\n",
+								self->ip, self->port,
+								(slen < 0 ?
+								 self->strm->strmerror(self->strm, slen) :
+								 "incomplete write"));
+					self->strm->strmclose(self->strm);
+					self->fd = -1;
+					break;
+				} else if (!__sync_bool_compare_and_swap(&(self->failure), 0, 0)) {
+					if (self->ctype != CON_UDP)
+						logerr("server %s:%u: OK\n", self->ip, self->port);
+					__sync_and_and_fetch(&(self->failure), 0);
+				}
+				__sync_add_and_fetch(&(self->metrics), 1);
+
 			}
-			if (slen != len) {
-				/* not fully sent (after tries), or failure
-				 * close connection regardless so we don't get
-				 * synchonisation problems */
-				if (self->ctype != CON_UDP &&
-						__sync_fetch_and_add(&(self->failure), 1) == 0)
+			/* Flush stream */
+			if (self->fd > 0 && (slen = self->strm->strmflush(self->strm)) < 0) {
+				if (__sync_fetch_and_add(&(self->failure), 1) == 0)
 					logerr("failed to write() to %s:%u: %s\n",
 							self->ip, self->port,
 							(slen < 0 ?
@@ -1011,25 +1111,28 @@ server_queuereader(void *d)
 							 "incomplete write"));
 				self->strm->strmclose(self->strm);
 				self->fd = -1;
-				/* put back stuff we couldn't process */
-				for (; *metric != NULL; metric++) {
-					if (!queue_putback(self->queue, *metric)) {
-						if (mode & MODE_DEBUG)
-							logerr("server %s:%u: dropping metric: %s",
-									self->ip, self->port,
-									*metric + sizeof(size_t));
-						free((char *)*metric);
-						__sync_add_and_fetch(&(self->dropped), 1);
-					}
-				}
-				break;
-			} else if (!__sync_bool_compare_and_swap(&(self->failure), 0, 0)) {
-				if (self->ctype != CON_UDP)
-					logerr("server %s:%u: OK\n", self->ip, self->port);
-				__sync_and_and_fetch(&(self->failure), 0);
 			}
-			free((char *)*metric);
-			__sync_add_and_fetch(&(self->metrics), 1);
+
+			/* reset metric location for requeue metrics from possible unsended buffer
+			 * can duplicate already sended message
+			 */
+			metric -= server_metrics_in_buffer(self);
+			self->strm->obuflen = 0;
+			/* free sended metrics */
+			for (const char **p = self->batch; p != metric && *p != NULL; p++) {
+				free((char *)*p);
+			}
+			/* put back stuff we couldn't process */
+			for (; *metric != NULL; metric++) {
+				if (!queue_putback(self->queue, *metric)) {
+					if (mode & MODE_DEBUG)
+						logerr("server %s:%u: dropping metric: %s",
+								self->ip, self->port,
+								*metric + sizeof(size_t));
+					free((char *)*metric);
+					__sync_add_and_fetch(&(self->dropped), 1);
+				}
+			}
 		}
 
 		gettimeofday(&stop, NULL);
@@ -1100,6 +1203,7 @@ server_new(
 		free(ret);
 		return NULL;
 	}
+	ret->strm->obuflen = 0;
 	ret->strm->nextstrm = NULL;
 
 	/* setup normal or SSL-wrapped socket first */
@@ -1159,6 +1263,7 @@ server_new(
 		gzstrm->strmclose = &gzipclose;
 		gzstrm->strmerror = &gziperror;
 		gzstrm->nextstrm = ret->strm;
+		gzstrm->obuflen = 0;
 		ret->strm = gzstrm;
 	}
 #endif
@@ -1177,6 +1282,7 @@ server_new(
 		lzstrm->strmclose = &lzclose;
 		lzstrm->strmerror = &lzerror;
 		lzstrm->nextstrm = ret->strm;
+		lzstrm->obuflen = 0;
 		ret->strm = lzstrm;
 	}
 #endif
@@ -1195,6 +1301,7 @@ server_new(
 		snpstrm->strmclose = &snappyclose;
 		snpstrm->strmerror = &snappyerror;
 		snpstrm->nextstrm = ret->strm;
+		snpstrm->obuflen = 0;
 		ret->strm = snpstrm;
 	}
 #endif
