@@ -145,6 +145,7 @@ sockflush(z_strm *strm)
 	ssize_t slen;
 	size_t len;
 	char *p;
+	int cnt;
 	if (strm->obuflen == 0)
 		return 0;
 	p = strm->obuf;
@@ -154,7 +155,7 @@ sockflush(z_strm *strm)
 	 * resuming to complete.  So, use a loop, but to avoid
 	 * getting endlessly stuck on this, only try a limited
 	 * number of times. */
-	for (int cnt = 0; cnt < SERVER_MAX_SEND; cnt++) {
+	for (cnt = 0; cnt < SERVER_MAX_SEND; cnt++) {
 		if ((slen = write(strm->hdl.sock, p, len)) != len) {
 			if (slen >= 0) {
 				p += slen;
@@ -546,7 +547,8 @@ sslerror(z_strm *strm, int rval)
 /* metrics in server stream buffer, detected by endline */
 size_t server_metrics_in_buffer(server *s) {
 	size_t count = 0;
-	for (size_t i = 0; i < s->strm->obuflen; i++) {
+	size_t i;
+	for (i = 0; i < s->strm->obuflen; i++) {
 		if (s->strm->obuf[i] == '\n')
 			count++;
 	}
@@ -574,7 +576,6 @@ server_queuereader(void *d)
 	char idle = 0;
 	size_t *secpos = NULL;
 	unsigned char cnt;
-	const char *p;
 
 	*metric = NULL;
 
@@ -1057,6 +1058,8 @@ server_queuereader(void *d)
 				logerr("server %s:%u: OK after probe\n", self->ip, self->port);
 			__sync_and_and_fetch(&(self->failure), 0);
 		} else if (len != 0) {
+			const char **p;
+			const char *m;
 			if (__sync_bool_compare_and_swap(&(self->keep_running), 0, 0))
 			{
 				/* be noisy during shutdown so we can track any slowing down
@@ -1067,10 +1070,10 @@ server_queuereader(void *d)
 
 			for (; *metric != NULL; metric++) {
 				len = *(size_t *)(*metric);
-				for (cnt = 0, p = *metric + sizeof(size_t); cnt < 10; cnt++) {
-					if ((slen = self->strm->strmwrite(self->strm, p, len)) != len) {
+				for (cnt = 0, m = *metric + sizeof(size_t); cnt < 10; cnt++) {
+					if ((slen = self->strm->strmwrite(self->strm, m, len)) != len) {
 						if (slen >= 0) {
-							p += slen;
+							m += slen;
 							len -= slen;
 						} else if (errno != EINTR) {
 							break;
@@ -1119,7 +1122,7 @@ server_queuereader(void *d)
 			metric -= server_metrics_in_buffer(self);
 			self->strm->obuflen = 0;
 			/* free sended metrics */
-			for (const char **p = self->batch; p != metric && *p != NULL; p++) {
+			for (p = self->batch; p != metric && *p != NULL; p++) {
 				free((char *)*p);
 			}
 			/* put back stuff we couldn't process */
