@@ -19,6 +19,8 @@
   quoted expressions aren't printed as such by relay
 * [Issue #377](https://github.com/grobian/carbon-c-relay/issues/377)
   periodic segfault on SIGHUP (diff popen failed)
+* [Issue #381](https://github.com/grobian/carbon-c-relay/issues/381)
+  segfault on reload after removal of node from cluster
 
 
 # 3.5 (22-02-2019)
