@@ -539,8 +539,10 @@ dispatch_removelistener(listener *lsnr)
 		*socks = -1;
 	}
 	pthread_rwlock_unlock(&connectionslock);
-	if (lsnr->saddrs)
+	if (lsnr->saddrs) {
 		freeaddrinfo(lsnr->saddrs);
+		lsnr->saddrs = NULL;
+	}
 }
 
 /**
