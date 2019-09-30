@@ -169,6 +169,14 @@ run_servertest() {
 	}
 
 	echo -n "${test}: "
+
+	if [ "${HAVE_GZIP}" == "0" ]; then
+			if egrep '^listen type linemode transport gzip ' ${confarg} >/dev/null; then
+					echo "SKIP"
+					return 0
+			fi
+	fi
+
 	start_server 1 "" ${confarg} || return 1
 	port=${start_server_result[0]}
 	unixsock=${start_server_result[1]}
@@ -259,6 +267,8 @@ done
 large_generate
 large_ssl_generate
 large_gzip_generate
+
+${EXEC} -v | grep -w gzip >/dev/null && HAVE_GZIP=1 || HAVE_GZIP=0
 
 tstcnt=0
 tstfail=0

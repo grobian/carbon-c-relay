@@ -24,7 +24,7 @@ script:
       brew update > /dev/null
       brew install lz4 openssl oniguruma pcre pcre2
     else
-      sudo apt-get install libonig-dev libpcre3-dev
+      sudo apt-get install libonig-dev libpcre3-dev zlib1g-dev
     fi
   # workaround git not retaining mtimes and bison/flex not being uptodate
   - touch conffile.yy.c conffile.tab.c conffile.tab.h
