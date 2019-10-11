@@ -1333,15 +1333,15 @@ router_readconfig(router *orig,
 			carets = ra_malloc(palloc, carlen + 1);
 			memset(carets, '^', carlen);
 			carets[carlen] = '\0';
-			fprintf(stderr, "%s\n", line);
+			logerr("%s\n", line);
 			/* deal with tabs in the input */
 			for (p = line; p - line < ret->parser_err.start; p++)
 				if (*p != '\t')
 					*p = ' ';
 			*p = '\0';
-			fprintf(stderr, "%s%s\n", line, carets);
+			logerr("%s%s\n", line, carets);
 		} else if (ret->parser_err.msg != NULL) {
-			fprintf(stderr, "%s: %s\n", path, ret->parser_err.msg);
+			logerr("%s: %s\n", path, ret->parser_err.msg);
 		}
 		/* clear the message, so it isn't printed when this was an
 		 * included config */
