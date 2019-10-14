@@ -190,6 +190,7 @@ udpsockclose(z_strm *strm)
 }
 
 #ifdef HAVE_GZIP
+#define GZIP_CHUNK_SIZE 4048
 /* gzip wrapped socket */
 static inline ssize_t
 gzipreadbuf(z_strm *strm, void *buf, size_t sze, int last_ret, int err);
@@ -197,12 +198,11 @@ gzipreadbuf(z_strm *strm, void *buf, size_t sze, int last_ret, int err);
 static inline ssize_t
 gzipread(z_strm *strm, void *buf, size_t sze)
 {
-	char *ibuf = strm->ibuf;
 	int ret;
 
 	/* read any available data, if it fits */
 	ret = strm->nextstrm->strmread(strm->nextstrm,
-			ibuf + strm->ipos,
+			strm->ibuf + strm->ipos,
 			METRIC_BUFSIZ - strm->ipos);
 	if (ret > 0) {
 		strm->ipos += ret;
@@ -229,16 +229,15 @@ gzipreadbuf(z_strm *strm, void *buf, size_t sze, int last_ret, int err)
 	zstrm->next_out = (Bytef *)buf;
 	zstrm->avail_out = (uInt)sze;
 
-	iret = inflate(zstrm, Z_SYNC_FLUSH);
-
-	/* if inflate consumed something, update our ibuf */
-	if ((Bytef *)ibuf != zstrm->next_in) {
-		memmove(ibuf, zstrm->next_in, zstrm->avail_in);
-		strm->ipos = zstrm->avail_in;
-	}
+	iret = inflate(zstrm, Z_NO_FLUSH);
 
 	switch (iret) {
 		case Z_OK:  /* progress has been made */
+			/* if inflate consumed something, update our ibuf */
+			if ((Bytef *)ibuf != zstrm->next_in) {
+				memmove(ibuf, zstrm->next_in, zstrm->avail_in);
+				strm->ipos = zstrm->avail_in;
+			}
 			/* calculate the "returned" bytes */
 			iret = sze - zstrm->avail_out;
 			if (iret == 0) {
@@ -986,7 +985,8 @@ dispatch_received_metrics(connection *conn, dispatcher *self)
 static int
 dispatch_connection(connection *conn, dispatcher *self, struct timeval start)
 {
-	int len;
+	ssize_t len;
+	int err;
 
 	/* first try to resume any work being blocked */
 	if (dispatch_process_dests(conn, self, start) == 0) {
@@ -1012,15 +1012,31 @@ dispatch_connection(connection *conn, dispatcher *self, struct timeval start)
 						(sizeof(conn->buf) - 1) - conn->buflen)) > 0
 	   )
 	{
+		ssize_t ilen;
 		if (len > 0) {
 			conn->buflen += len;
-			tracef("dispatcher %d, connfd %d, read %d bytes from socket\n",
+			tracef("dispatcher %d, connfd %d, read %zd bytes from socket\n",
 					self->id, conn->sock, len);
 #ifdef ENABLE_TRACE
 			conn->buf[conn->buflen] = '\0';
 #endif
+
 		}
+		err = errno;
 		dispatch_received_metrics(conn, self);
+		if (conn->strm->strmreadbuf != NULL) {
+			while((ilen = conn->strm->strmreadbuf(conn->strm,
+							conn->buf + conn->buflen,
+							(sizeof(conn->buf) - 1) - conn->buflen, len, err)) > 0) {
+				conn->buflen += ilen;
+				tracef("dispatcher %d, connfd %d, read %zd bytes from socket\n",
+						self->id, conn->sock, ilen);
+#ifdef ENABLE_TRACE
+				conn->buf[conn->buflen] = '\0';
+#endif
+				dispatch_received_metrics(conn, self);
+			}
+		}
 	}
 	if (len == -1 && (errno == EINTR ||
 				errno == EAGAIN ||
@@ -1053,7 +1069,7 @@ dispatch_connection(connection *conn, dispatcher *self, struct timeval start)
 
 			return len > 0;
 		} else if (conn->destlen == 0) {
-			tracef("dispatcher: %d, connfd: %d, len: %d [%s], disconnecting\n",
+			tracef("dispatcher: %d, connfd: %d, len: %zd [%s], disconnecting\n",
 					self->id, conn->sock, len,
 					len < 0 ? strerror(errno) : "");
 			__sync_add_and_fetch(&closedconnections, 1);
