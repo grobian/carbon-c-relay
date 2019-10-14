@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+
 # Copyright 2013-2018 Fabian Groffen
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -26,6 +27,51 @@ CNFCLN=( sed -e '/^configuration:/,/^parsed configuration follows:/d'
 export DYLD_FORCE_FLAT_NAMESPACE=1
 export DYLD_INSERT_LIBRARIES=../.libs/libfaketime.dylib
 export LD_PRELOAD=../.libs/libfaketime.so
+
+buftest_generate() {
+i=1
+end=1500
+rm -f buftest.payload buftest.payloadout
+while [ $i -le $end ]; do
+    echo "foo.bar.${i} 1 349830001" >> buftest.payload
+    i=$(($i+1))
+done
+ln -sf buftest.payload buftest.payloadout
+}
+
+
+large_generate() {
+i=1
+end=1500
+rm -f large.payload large.payloadout
+while [ $i -le $end ]; do
+    echo "foo.bar.${i} 1 349830001" >> large.payload
+    i=$(($i+1))
+done
+ln -sf large.payload large.payloadout
+}
+
+large_ssl_generate() {
+i=1
+end=1500
+rm -f large-ssl.payload large-ssl.payloadout
+while [ $i -le $end ]; do
+    echo "ssl.foo.bar.${i} 1 349830001" >> large-ssl.payload
+    echo "through-ssl.foo.bar.${i} 1 349830001" >> large-ssl.payloadout
+    i=$(($i+1))
+done
+}
+
+large_gzip_generate() {
+i=1
+end=1500
+rm -f large-gzip.payload large-gzip.payloadout
+while [ $i -le $end ]; do
+    echo "gzip.foo.bar.${i} 1 349830001" >> large-gzip.payload
+    echo "through-gzip.foo.bar.${i} 1 349830001" >> large-gzip.payloadout
+    i=$(($i+1))
+done
+}
 
 run_configtest() {
 	local eflags="$1"
@@ -64,9 +110,20 @@ run_servertest() {
 	local dataout="${tmpdir}"/data.out
 	local confarg=$1
 	local payload=$2
+	local transport=$3
 	local payloadexpect="${payload}out"
 	local test=${confarg%.*}
 	local confarg2=${test}-2.${confarg##*.}
+
+	if [ "${transport}" != "gzip" -a "${transport}" != "" ]; then
+		echo "unsupported transport ${transport}"
+		return 1
+	fi
+	if [ "${transport}" == "gzip" ]; then
+		SMARG="-z"
+	else
+		SMARG=""
+	fi
 
 	[[ -e ${confarg2} ]] && mode=DUAL
 
@@ -76,6 +133,7 @@ run_servertest() {
 		local id=$1
 		local remoteport=$2
 		local confarg=$3
+		local transport="$4"
 		# determine a free port to use
 		local port=${start_server_lastport}  # TODO
 		: $((start_server_lastport++))  # TODO
@@ -91,10 +149,14 @@ run_servertest() {
 		[[ -e ${test}-${id}.args ]] && relayargs=$(< ${test}-${id}.args)
 		[[ -e ${ca} ]] && relayargs+=" -C ${ca}"
 
+		if [ "${transport}" != "" ]; then
+			transport="transport ${transport}"
+		fi
+
 		# write config file with known listener
 		{
 			echo "# relay ${id}, mode ${mode}"
-			echo "listen type linemode"
+			echo "listen type linemode ${transport}"
 			echo "    ${unixsock} proto unix"
 			echo "    ;"
 			echo
@@ -134,7 +196,16 @@ run_servertest() {
 	}
 
 	echo -n "${test}: "
-	start_server 1 "" ${confarg} || return 1
+	[[ "${transport}" != "" ]] && echo -n "${transport} "
+
+	if [ "${HAVE_GZIP}" == "0" ]; then
+		if egrep '^listen type linemode transport gzip ' ${confarg} >/dev/null; then
+			echo "SKIP"
+			return 0
+		fi
+	fi
+
+	start_server 1 "" ${confarg} "${transport}" || return 1
 	port=${start_server_result[0]}
 	unixsock=${start_server_result[1]}
 	pidfile=${start_server_result[2]}
@@ -150,10 +221,13 @@ run_servertest() {
 		output2=${start_server_result[3]}
 	fi
 
-	${SMEXEC} "${unixsock}" < "${payload}"
+	local smargs=
+	[[ -e ${test}.sargs ]] && smargs=$(< ${test}.sargs)
+	${SMEXEC} ${SMARG} ${smargs} "${unixsock}" < "${payload}"
 	if [[ $? != 0 ]] ; then
 		# hmmm
 		echo "failed to send payload"
+		exit 1
 		return 1
 	fi
 	# allow everything to be processed
@@ -221,6 +295,13 @@ while [[ -n $1 ]] ; do
 	shift
 done
 
+buftest_generate
+large_generate
+large_ssl_generate
+large_gzip_generate
+
+${EXEC} -v | grep -w gzip >/dev/null && HAVE_GZIP=1 || HAVE_GZIP=0
+
 tstcnt=0
 tstfail=0
 for t in $* ; do
@@ -230,10 +311,19 @@ for t in $* ; do
 	elif [[ -e ${t}.dbg ]] ; then
 		: $((tstcnt++))
 		run_configtest "${EFLAGS} -d" "${t}.dbg" || : $((tstfail++))
-	elif [[ -e ${t}.stst ]] ; then
-		: $((tstcnt++))
-		run_servertest "${t}.stst" "${t}.payload" || : $((tstfail++))
+	else
+		if [[ -e ${t}.stst ]] ; then
+			: $((tstcnt++))
+			run_servertest "${t}.stst" "${t}.payload" || : $((tstfail++))
+		fi
+		if [ -e ${t}.gz.stst -a "${HAVE_GZIP}" == "1" ]; then
+			: $((tstcnt++))
+			run_servertest "${t}.gz.stst" "${t}.payload" "gzip" || : $((tstfail++))
+		fi
 	fi
 done
+
+rm -f buftest.payload buftest.payloadout large.payload large.payloadout large-ssl.payload large-ssl.payloadout large-gzip.payload large-gzip.payloadout
+
 echo "Ran ${tstcnt} tests with ${tstfail} failing"
 exit ${tstfail}
