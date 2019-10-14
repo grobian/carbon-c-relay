@@ -57,6 +57,7 @@ enum conntype {
 
 typedef struct _z_strm {
 	ssize_t (*strmread)(struct _z_strm *, void *, size_t);  /* read func */
+	ssize_t (*strmreadbuf)(struct _z_strm *, void *, size_t, int, int);  /* read from buffer only func */
 	int (*strmclose)(struct _z_strm *);
 	union {
 #ifdef HAVE_GZIP
@@ -191,13 +192,13 @@ udpsockclose(z_strm *strm)
 #ifdef HAVE_GZIP
 /* gzip wrapped socket */
 static inline ssize_t
+gzipreadbuf(z_strm *strm, void *buf, size_t sze, int last_ret, int err);
+
+static inline ssize_t
 gzipread(z_strm *strm, void *buf, size_t sze)
 {
-	z_stream *zstrm = &(strm->hdl.z);
 	char *ibuf = strm->ibuf;
 	int ret;
-	int iret;
-	int err = 0;
 
 	/* read any available data, if it fits */
 	ret = strm->nextstrm->strmread(strm->nextstrm,
@@ -205,14 +206,23 @@ gzipread(z_strm *strm, void *buf, size_t sze)
 			METRIC_BUFSIZ - strm->ipos);
 	if (ret > 0) {
 		strm->ipos += ret;
-	} else if (ret < 0) {
-		err = errno;
-	} else {
+	} else if (ret == 0) {
 		/* ret == 0: EOF, which means we didn't read anything here, so
 		 * calling inflate again will be pointless, because there is
 		 * nothing new. */
+		/* data in buffers may be exist, read with gzipreadbuf */
 		return 0;
 	}
+	return gzipreadbuf(strm, buf, sze, ret, errno);
+}
+
+/* read data from buffer */
+static inline ssize_t
+gzipreadbuf(z_strm *strm, void *buf, size_t sze, int last_ret, int err)
+{
+	z_stream *zstrm = &(strm->hdl.z);
+	char *ibuf = strm->ibuf;
+	int iret;
 
 	zstrm->next_in = (Bytef *)ibuf;
 	zstrm->avail_in = (uInt)(strm->ipos);
@@ -260,7 +270,7 @@ gzipread(z_strm *strm, void *buf, size_t sze)
 			return -1;
 	}
 
-	if (iret == 0 && ret != 0) {
+	if (iret == 0 && last_ret != 0) {
 		errno = EAGAIN;
 		iret = -1;
 	}
@@ -668,6 +678,7 @@ dispatch_addconnection(int sock, listener *lsnr)
 
 	/* set socket or SSL connection */
 	connections[c].strm->nextstrm = NULL;
+	connections[c].strm->strmreadbuf = NULL;
 	if (lsnr == NULL || (lsnr->transport & ~0xFFFF) != W_SSL) {
 		if (lsnr == NULL || lsnr->ctype != CON_UDP) {
 			connections[c].strm->hdl.sock = sock;
@@ -712,6 +723,7 @@ dispatch_addconnection(int sock, listener *lsnr)
 		zstrm->ipos = 0;
 		inflateInit2(&(zstrm->hdl.z), 15 + 16);
 		zstrm->strmread = &gzipread;
+		zstrm->strmreadbuf = &gzipreadbuf;
 		zstrm->strmclose = &gzipclose;
 		zstrm->nextstrm = connections[c].strm;
 		connections[c].strm = zstrm;
@@ -730,7 +742,7 @@ dispatch_addconnection(int sock, listener *lsnr)
 			logerr("Failed to create LZ4 decompression context\n");
 			return -1;
 		}
-		
+
 		lzstrm->strmread = &lzread;
 		lzstrm->strmclose = &lzclose;
 		lzstrm->nextstrm = connections[c].strm;
@@ -824,6 +836,132 @@ dispatch_process_dests(connection *conn, dispatcher *self, struct timeval now)
 	return 1;
 }
 
+/**
+ * Extract receivedi metrics from buffer.
+ */
+static void
+dispatch_received_metrics(connection *conn, dispatcher *self)
+{
+	/* Metrics look like this: metric_path value timestamp\n
+	 * due to various messups we need to sanitise the
+	 * metrics_path here, to ensure we can calculate the metric
+	 * name off the filesystem path (and actually retrieve it in
+	 * the web interface).
+	 * Since tag support, metrics can look like this:
+	 *   metric_path[;tag=value ...] value timestamp\n
+	 * where the tag=value part can be repeated.  It should not be
+	 * sanitised, however. */
+	char *p, *q, *firstspace, *lastnl;
+	q = conn->metric;
+	firstspace = NULL;
+	lastnl = NULL;
+	for (p = conn->buf; p - conn->buf < conn->buflen; p++) {
+		if (*p == '\n' || *p == '\r') {
+			/* end of metric */
+			lastnl = p;
+
+			/* just a newline on it's own? some random garbage?
+			 * do we exceed the set limits? drop */
+			if (q == conn->metric || firstspace == NULL ||
+					q - conn->metric > self->maxinplen - 1 ||
+					firstspace - conn->metric > self->maxmetriclen)
+			{
+				__sync_add_and_fetch(&(self->discards), 1);
+				q = conn->metric;
+				firstspace = NULL;
+				continue;
+			}
+
+			__sync_add_and_fetch(&(self->metrics), 1);
+			/* add newline and terminate the string, we can do this
+			 * because we substract one from buf and we always store
+			 * a full metric in buf before we copy it to metric
+			 * (which is of the same size) */
+			*q++ = '\n';
+			*q = '\0';
+
+			/* perform routing of this metric */
+			tracef("dispatcher %d, connfd %d, metric %s",
+					self->id, conn->sock, conn->metric);
+			__sync_add_and_fetch(&(self->blackholes),
+					router_route(self->rtr,
+						conn->dests, &conn->destlen, CONN_DESTS_SIZE,
+						conn->srcaddr,
+						conn->metric, firstspace, self->id - 1));
+			tracef("dispatcher %d, connfd %d, destinations %zd\n",
+					self->id, conn->sock, conn->destlen);
+
+			/* restart building new one from the start */
+			q = conn->metric;
+			firstspace = NULL;
+
+			conn->hadwork = 1;
+			gettimeofday(&conn->lastwork, NULL);
+			conn->maxsenddelay = 0;
+			/* send the metric to where it is supposed to go */
+			if (dispatch_process_dests(conn, self, conn->lastwork) == 0)
+				break;
+		} else if (*p == ' ' || *p == '\t' || *p == '.') {
+			/* separator */
+			if (q == conn->metric) {
+				/* make sure we skip this on next iteration to
+				 * avoid an infinite loop, issues #8 and #51 */
+				lastnl = p;
+				continue;
+			}
+			if (*p == '\t')
+				*p = ' ';
+			if (*p == ' ' && firstspace == NULL) {
+				if (*(q - 1) == '.')
+					q--;  /* strip trailing separator */
+				firstspace = q;
+				*q++ = ' ';
+			} else {
+				/* metric_path separator or space,
+				 * - duplicate elimination
+				 * - don't start with separator/space */
+				if (*(q - 1) != *p && (q - 1) != firstspace)
+					*q++ = *p;
+			}
+		} else if (self->tags_supported && *p == ';') {
+			/* copy up to next space */
+			firstspace = q;
+			*q++ = *p;
+		} else if (
+				*p != '\0' && (
+					firstspace != NULL ||
+					(*p >= 'a' && *p <= 'z') ||
+					(*p >= 'A' && *p <= 'Z') ||
+					(*p >= '0' && *p <= '9') ||
+					strchr(self->allowed_chars, *p)
+				)
+			)
+		{
+			/* copy char */
+			*q++ = *p;
+		} else {
+			/* something barf, replace by underscore */
+			*q++ = '_';
+		}
+	}
+	conn->needmore = q != conn->metric;
+	if (lastnl != NULL) {
+		/* move remaining stuff to the front */
+		conn->buflen -= lastnl + 1 - conn->buf;
+		tracef("dispatcher %d, conn->buf: %p, lastnl: %p, diff: %zd, "
+				"conn->buflen: %d, sizeof(conn->buf): %lu, "
+				"memmove(%d, %lu, %d)\n",
+				self->id,
+				conn->buf, lastnl, lastnl - conn->buf,
+				conn->buflen, sizeof(conn->buf),
+				0, lastnl + 1 - conn->buf, conn->buflen + 1);
+		tracef("dispatcher %d, pre conn->buf: %s\n", self->id, conn->buf);
+		/* copy last NULL-byte for debug tracing */
+		memmove(conn->buf, lastnl + 1, conn->buflen + 1);
+		tracef("dispatcher %d, post conn->buf: %s\n", self->id, conn->buf);
+	}
+}
+
 #define IDLE_DISCONNECT_TIME  (10 * 60 * 1000 * 1000)  /* 10 minutes */
 /**
  * Look at conn and see if works needs to be done.  If so, do it.  This
@@ -848,7 +986,6 @@ dispatch_process_dests(connection *conn, dispatcher *self, struct timeval now)
 static int
 dispatch_connection(connection *conn, dispatcher *self, struct timeval start)
 {
-	char *p, *q, *firstspace, *lastnl;
 	int len;
 
 	/* first try to resume any work being blocked */
@@ -883,125 +1020,7 @@ dispatch_connection(connection *conn, dispatcher *self, struct timeval start)
 			conn->buf[conn->buflen] = '\0';
 #endif
 		}
-
-		/* Metrics look like this: metric_path value timestamp\n
-		 * due to various messups we need to sanitise the
-		 * metrics_path here, to ensure we can calculate the metric
-		 * name off the filesystem path (and actually retrieve it in
-		 * the web interface).
-		 * Since tag support, metrics can look like this:
-		 *   metric_path[;tag=value ...] value timestamp\n
-		 * where the tag=value part can be repeated.  It should not be
-		 * sanitised, however. */
-		q = conn->metric;
-		firstspace = NULL;
-		lastnl = NULL;
-		for (p = conn->buf; p - conn->buf < conn->buflen; p++) {
-			if (*p == '\n' || *p == '\r') {
-				/* end of metric */
-				lastnl = p;
-
-				/* just a newline on it's own? some random garbage?
-				 * do we exceed the set limits? drop */
-				if (q == conn->metric || firstspace == NULL ||
-						q - conn->metric > self->maxinplen - 1 ||
-						firstspace - conn->metric > self->maxmetriclen)
-				{
-					__sync_add_and_fetch(&(self->discards), 1);
-					q = conn->metric;
-					firstspace = NULL;
-					continue;
-				}
-
-				__sync_add_and_fetch(&(self->metrics), 1);
-				/* add newline and terminate the string, we can do this
-				 * because we substract one from buf and we always store
-				 * a full metric in buf before we copy it to metric
-				 * (which is of the same size) */
-				*q++ = '\n';
-				*q = '\0';
-
-				/* perform routing of this metric */
-				tracef("dispatcher %d, connfd %d, metric %s",
-						self->id, conn->sock, conn->metric);
-				__sync_add_and_fetch(&(self->blackholes),
-						router_route(self->rtr,
-							conn->dests, &conn->destlen, CONN_DESTS_SIZE,
-							conn->srcaddr,
-							conn->metric, firstspace, self->id - 1));
-				tracef("dispatcher %d, connfd %d, destinations %zd\n",
-						self->id, conn->sock, conn->destlen);
-
-				/* restart building new one from the start */
-				q = conn->metric;
-				firstspace = NULL;
-
-				conn->hadwork = 1;
-				gettimeofday(&conn->lastwork, NULL);
-				conn->maxsenddelay = 0;
-				/* send the metric to where it is supposed to go */
-				if (dispatch_process_dests(conn, self, conn->lastwork) == 0)
-					break;
-			} else if (*p == ' ' || *p == '\t' || *p == '.') {
-				/* separator */
-				if (q == conn->metric) {
-					/* make sure we skip this on next iteration to
-					 * avoid an infinite loop, issues #8 and #51 */
-					lastnl = p;
-					continue;
-				}
-				if (*p == '\t')
-					*p = ' ';
-				if (*p == ' ' && firstspace == NULL) {
-					if (*(q - 1) == '.')
-						q--;  /* strip trailing separator */
-					firstspace = q;
-					*q++ = ' ';
-				} else {
-					/* metric_path separator or space,
-					 * - duplicate elimination
-					 * - don't start with separator/space */
-					if (*(q - 1) != *p && (q - 1) != firstspace)
-						*q++ = *p;
-				}
-			} else if (self->tags_supported && *p == ';') {
-				/* copy up to next space */
-				firstspace = q;
-				*q++ = *p;
-			} else if (
-					*p != '\0' && (
-						firstspace != NULL ||
-						(*p >= 'a' && *p <= 'z') ||
-						(*p >= 'A' && *p <= 'Z') ||
-						(*p >= '0' && *p <= '9') ||
-						strchr(self->allowed_chars, *p)
-					)
-				)
-			{
-				/* copy char */
-				*q++ = *p;
-			} else {
-				/* something barf, replace by underscore */
-				*q++ = '_';
-			}
-		}
-		conn->needmore = q != conn->metric;
-		if (lastnl != NULL) {
-			/* move remaining stuff to the front */
-			conn->buflen -= lastnl + 1 - conn->buf;
-			tracef("dispatcher %d, conn->buf: %p, lastnl: %p, diff: %zd, "
-					"conn->buflen: %d, sizeof(conn->buf): %lu, "
-					"memmove(%d, %lu, %d)\n",
-					self->id,
-					conn->buf, lastnl, lastnl - conn->buf,
-					conn->buflen, sizeof(conn->buf),
-					0, lastnl + 1 - conn->buf, conn->buflen + 1);
-			tracef("dispatcher %d, pre conn->buf: %s\n", self->id, conn->buf);
-			/* copy last NULL-byte for debug tracing */
-			memmove(conn->buf, lastnl + 1, conn->buflen + 1);
-			tracef("dispatcher %d, post conn->buf: %s\n", self->id, conn->buf);
-			lastnl = NULL;
-		}
+		dispatch_received_metrics(conn, self);
 	}
 	if (len == -1 && (errno == EINTR ||
 				errno == EAGAIN ||
