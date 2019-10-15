@@ -199,12 +199,20 @@ static inline ssize_t
 gzipread(z_strm *strm, void *buf, size_t sze)
 {
 	int ret;
+	z_stream *zstrm = &(strm->hdl.z);
+	/* update ibuf */
+	if ((Bytef *)strm->ibuf != zstrm->next_in) {
+		memmove(strm->ibuf, zstrm->next_in, zstrm->avail_in);
+		zstrm->next_in = (Bytef *)strm->ibuf;
+		strm->ipos = zstrm->avail_in;
+	}
 
 	/* read any available data, if it fits */
 	ret = strm->nextstrm->strmread(strm->nextstrm,
 			strm->ibuf + strm->ipos,
 			METRIC_BUFSIZ - strm->ipos);
 	if (ret > 0) {
+		zstrm->avail_in += ret;
 		strm->ipos += ret;
 	} else if (ret == 0) {
 		/* ret == 0: EOF, which means we didn't read anything here, so
@@ -213,6 +221,9 @@ gzipread(z_strm *strm, void *buf, size_t sze)
 		/* data in buffers may be exist, read with gzipreadbuf */
 		return 0;
 	}
+
+	zstrm->avail_in = (uInt)(strm->ipos);
+
 	return gzipreadbuf(strm, buf, sze, ret, errno);
 }
 
@@ -221,11 +232,8 @@ static inline ssize_t
 gzipreadbuf(z_strm *strm, void *buf, size_t sze, int last_ret, int err)
 {
 	z_stream *zstrm = &(strm->hdl.z);
-	char *ibuf = strm->ibuf;
 	int iret;
 
-	zstrm->next_in = (Bytef *)ibuf;
-	zstrm->avail_in = (uInt)(strm->ipos);
 	zstrm->next_out = (Bytef *)buf;
 	zstrm->avail_out = (uInt)sze;
 
@@ -233,11 +241,6 @@ gzipreadbuf(z_strm *strm, void *buf, size_t sze, int last_ret, int err)
 
 	switch (iret) {
 		case Z_OK:  /* progress has been made */
-			/* if inflate consumed something, update our ibuf */
-			if ((Bytef *)ibuf != zstrm->next_in) {
-				memmove(ibuf, zstrm->next_in, zstrm->avail_in);
-				strm->ipos = zstrm->avail_in;
-			}
 			/* calculate the "returned" bytes */
 			iret = sze - zstrm->avail_out;
 			if (iret == 0) {
@@ -719,6 +722,8 @@ dispatch_addconnection(int sock, listener *lsnr)
 		zstrm->hdl.z.zalloc = Z_NULL;
 		zstrm->hdl.z.zfree = Z_NULL;
 		zstrm->hdl.z.opaque = Z_NULL;
+		zstrm->hdl.z.next_in = (Bytef *)zstrm->ibuf;
+		zstrm->hdl.z.avail_in = 0;
 		zstrm->ipos = 0;
 		inflateInit2(&(zstrm->hdl.z), 15 + 16);
 		zstrm->strmread = &gzipread;
