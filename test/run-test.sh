@@ -30,7 +30,7 @@ export LD_PRELOAD=../.libs/libfaketime.so
 
 buftest_generate() {
 i=1
-end=1500
+end=5000
 rm -f buftest.payload buftest.payloadout
 while [ $i -le $end ]; do
     echo "foo.bar.${i} 1 349830001" >> buftest.payload
