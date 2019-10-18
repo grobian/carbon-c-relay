@@ -115,14 +115,15 @@ run_servertest() {
 	local test=${confarg%.*}
 	local confarg2=${test}-2.${confarg##*.}
 
-	if [ "${transport}" != "gzip" -a "${transport}" != "" ]; then
-		echo "unsupported transport ${transport}"
-		return 1
-	fi
 	if [ "${transport}" == "gzip" ]; then
 		SMARG="-z"
-	else
+	elif [ "${transport}" == "lz4" ]; then
+		SMARG="-c lz4"
+	elif [ "${transport}" == "" ]; then
 		SMARG=""
+	else
+		echo "unsupported transport ${transport}"
+		return 1
 	fi
 
 	[[ -e ${confarg2} ]] && mode=DUAL
@@ -301,6 +302,7 @@ large_ssl_generate
 large_gzip_generate
 
 ${EXEC} -v | grep -w gzip >/dev/null && HAVE_GZIP=1 || HAVE_GZIP=0
+${EXEC} -v | grep -w lz4 >/dev/null && HAVE_LZ4=1 || HAVE_LZ4=0
 
 tstcnt=0
 tstfail=0
@@ -319,6 +321,10 @@ for t in $* ; do
 		if [ -e ${t}.gz.stst -a "${HAVE_GZIP}" == "1" ]; then
 			: $((tstcnt++))
 			run_servertest "${t}.gz.stst" "${t}.payload" "gzip" || : $((tstfail++))
+		fi
+		if [ -e ${t}.lz4.stst -a "${HAVE_LZ4}" == "1" ]; then
+			: $((tstcnt++))
+			run_servertest "${t}.lz4.stst" "${t}.payload" "lz4" || : $((tstfail++))
 		fi
 	fi
 done

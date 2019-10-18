@@ -32,22 +32,45 @@
 #ifdef HAVE_GZIP
 #include <zlib.h>
 #endif
+#ifdef HAVE_LZ4
+#include <lz4.h>
+#include <lz4frame.h>
+#endif
+#ifdef HAVE_SNAPPY
+#include <snappy-c.h>
+#endif
+#ifdef HAVE_SSL
+#include <openssl/ssl.h>
+#include <openssl/err.h>
+#endif
 
 typedef struct _z_strm {
-        ssize_t (*strmwrite)(struct _z_strm *, const void *, size_t);
-        int (*strmflush)(struct _z_strm *);
-        int (*strmclose)(struct _z_strm *);
-        const char *(*strmerror)(struct _z_strm *, int);     /* get last err str */
-		struct _z_strm *nextstrm;
-		union {
-			int sock;
-#ifdef HAVE_GZIP
-			z_streamp gz;
+	ssize_t (*strmwrite)(struct _z_strm *, const void *, size_t);
+	int (*strmflush)(struct _z_strm *);
+	int (*strmclose)(struct _z_strm *);
+	const char *(*strmerror)(struct _z_strm *, int);     /* get last err str */
+	struct _z_strm *nextstrm;
+#ifdef HAVE_SSL
+	SSL_CTX *ctx;
 #endif
-		} hdl;
-        char *obuf;
-        int obuflen;
-        int obufsize;
+	union {
+		int sock;
+#ifdef HAVE_SSL
+		SSL *ssl;
+#endif
+#ifdef HAVE_GZIP
+		z_streamp gz;
+#endif
+#ifdef HAVE_LZ4
+		struct {
+			void *cbuf;
+			size_t cbuflen;
+		} z;
+#endif
+	} hdl;
+	char *obuf;
+	size_t obuflen;
+	size_t obufsize;
 } z_strm;
 
 
@@ -127,6 +150,9 @@ z_strm *socknew(size_t bufsize, int sock) {
 	strm->nextstrm = NULL;
 	strm->hdl.sock = sock;
 
+	strm->obuflen = 0;
+	strm->obufsize = bufsize;
+
 	strm->strmwrite = sockwrite;
 	strm->strmflush = sockflush;
 	strm->strmclose = sockclose;
@@ -145,8 +171,8 @@ gzipwrite(z_strm *strm, const void *buf, size_t sze)
 {
 	/* ensure we have space available */
 	if (strm->obuflen + sze > strm->obufsize)
-			if (gzipflush(strm) != 0)
-					return -1;
+		if (gzipflush(strm) != 0)
+			return -1;
 
 	/* append metric to buf */
 	memcpy(strm->obuf + strm->obuflen, buf, sze);
@@ -170,35 +196,35 @@ gzipflush(z_strm *strm)
 	strm->hdl.gz->avail_out = sizeof(cbuf);
 
 	do {
-			cret = deflate(strm->hdl.gz, Z_PARTIAL_FLUSH);
-			if (cret == Z_OK && strm->hdl.gz->avail_out == 0) {
-					/* too large output block, unlikely given the input, discard */
-					/* TODO */
-					break;
+		cret = deflate(strm->hdl.gz, Z_PARTIAL_FLUSH);
+		if (cret == Z_OK && strm->hdl.gz->avail_out == 0) {
+			/* too large output block, unlikely given the input, discard */
+			/* TODO */
+			break;
+		}
+		if (cret == Z_OK) {
+			cbufp = cbuf;
+			cbuflen = sizeof(cbuf) - strm->hdl.gz->avail_out;
+			while (cbuflen > 0) {
+				oret = strm->nextstrm->strmwrite(strm->nextstrm,
+							cbufp, cbuflen);
+				if (oret < 0)
+					return -1;  /* failure is failure */
+
+				/* update counters to possibly retry the remaining bit */
+				cbufp += oret;
+				cbuflen -= oret;
 			}
-			if (cret == Z_OK) {
-					cbufp = cbuf;
-					cbuflen = sizeof(cbuf) - strm->hdl.gz->avail_out;
-					while (cbuflen > 0) {
-							oret = strm->nextstrm->strmwrite(strm->nextstrm,
-											cbufp, cbuflen);
-							if (oret < 0)
-									return -1;  /* failure is failure */
 
-							/* update counters to possibly retry the remaining bit */
-							cbufp += oret;
-							cbuflen -= oret;
-					}
-
-					if (strm->hdl.gz->avail_in == 0)
-							break;
-
-					strm->hdl.gz->next_out = (Bytef *)cbuf;
-					strm->hdl.gz->avail_out = sizeof(cbuf);
-			} else {
-					/* discard */
+			if (strm->hdl.gz->avail_in == 0)
 					break;
-			}
+
+			strm->hdl.gz->next_out = (Bytef *)cbuf;
+			strm->hdl.gz->avail_out = sizeof(cbuf);
+		} else {
+			/* discard */
+			break;
+		}
 	} while (1);
 	/* flush whatever we wrote */
 	strm->nextstrm->strmflush(strm->nextstrm);
@@ -236,8 +262,10 @@ z_strm *gzipnew(size_t bufsize, int compression) {
 		return NULL;
 
 	strm->obuf = malloc(bufsize);
-	if (strm->obuf == NULL)
+	if (strm->obuf == NULL) {
+		free(strm);
 		return NULL;
+	}
 
 	strm->hdl.gz = malloc(sizeof(z_stream));
 	if (strm->hdl.gz == NULL) {
@@ -259,6 +287,7 @@ z_strm *gzipnew(size_t bufsize, int compression) {
 		free(strm);
 		return NULL;
 	}
+	strm->obufsize = bufsize;
 	strm->obuflen = 0;
 
 	strm->strmwrite = gzipwrite;
@@ -270,22 +299,150 @@ z_strm *gzipnew(size_t bufsize, int compression) {
 };
 #endif
 
+#ifdef HAVE_LZ4
+/* lz4 wrapped socket */
+
+static inline int lzflush(z_strm *strm);
+
+static inline ssize_t
+lzwrite(z_strm *strm, const void *buf, size_t sze)
+{
+	size_t towrite = sze;
+
+	/* ensure we have space available */
+	if (strm->obuflen + sze > strm->obufsize)
+		if (lzflush(strm) != 0)
+			return -1;
+
+	/* use the same strategy as gzip: fill the buffer until space
+	   runs out. we completely fill the output buffer before flushing */
+
+	while (towrite > 0) {
+
+		size_t avail = strm->obufsize - strm->obuflen;
+		size_t copysize = towrite > avail ? avail : towrite;
+
+		/* copy into the output buffer as much as we can */
+
+		if (copysize > 0) {
+			memcpy(strm->obuf + strm->obuflen, buf, copysize);
+			strm->obuflen += copysize;
+			towrite -= copysize;
+			buf += copysize;
+		}
+
+		/* if output buffer is full & still have bytes to write, flush now */
+
+		if (strm->obuflen == strm->obufsize && lzflush(strm) != 0) {
+			fprintf(stderr, "Failed to flush LZ4 data to make space\n");
+			return -1;
+		}
+	}
+
+	return sze;
+}
+
+static inline int
+lzflush(z_strm *strm)
+{
+	int oret;
+	size_t ret;
+
+	/* anything to do? */
+
+	if (strm->obuflen == 0)
+		return 0;
+
+	/* the buffered data goes out as a single frame */
+
+	ret = LZ4F_compressFrame(strm->hdl.z.cbuf, strm->hdl.z.cbuflen, strm->obuf, strm->obuflen, NULL);
+	if (LZ4F_isError(ret)) {
+		fprintf(stderr, "Failed to compress %d LZ4 bytes into a frame: %d\n",
+			   strm->obuflen, (int)ret);
+		return -1;
+	}
+
+	/* write and flush */
+	if ((oret = strm->nextstrm->strmwrite(strm->nextstrm,
+										  strm->hdl.z.cbuf, ret)) < 0) {
+		fprintf(stderr, "Failed to write %lu bytes of compressed LZ4 data: %d\n",
+			   ret, oret);
+		return oret;
+	}
+
+	strm->nextstrm->strmflush(strm->nextstrm);
+
+	/* the buffer is gone. reset the write position */
+
+	strm->obuflen = 0;
+	return 0;
+}
+
+static inline int
+lzclose(z_strm *strm)
+{
+	lzflush(strm);
+	free(strm->hdl.z.cbuf);
+	return strm->nextstrm->strmclose(strm->nextstrm);
+}
+
+static inline const char *
+lzerror(z_strm *strm, int rval)
+{
+	return strm->nextstrm->strmerror(strm->nextstrm, rval);
+}
+
+z_strm *lznew(size_t bufsize) {
+	z_strm *strm = malloc(sizeof(z_strm));
+	if (strm == NULL) {
+		return NULL;
+	}
+	strm->obuf = malloc(bufsize);
+	if (strm->obuf == NULL) {
+		free(strm);
+		return NULL;
+	}
+	strm->obuflen = 0;
+	strm->obufsize = bufsize;
+
+	/* get the maximum size that should ever be required and allocate for it */
+	strm->hdl.z.cbuflen = LZ4F_compressFrameBound(strm->obufsize, NULL);
+	if ((strm->hdl.z.cbuf = malloc(strm->hdl.z.cbuflen)) == NULL) {
+		free(strm->obuf);
+		free(strm);
+		return NULL;
+	}
+
+	strm->strmwrite = lzwrite;
+	strm->strmflush = lzflush;
+	strm->strmclose = lzclose;
+	strm->strmerror = lzerror;
+
+	return strm;
+}
+#endif
+
 /* simple utility to send metrics from stdin to a relay over a unix
- * socket */
+* socket */
 
 #ifndef PF_LOCAL
-# define PF_LOCAL PF_UNIX
+#define PF_LOCAL PF_UNIX
 #endif
+
+#define S_NONE  0
 
 #define S_LOCAL 1
 #define S_TCP   (1 << 1)
 #define S_UDP   (1 << 2)
 
 #define S_PLAIN (1 << 3)
-#define S_GZIP  (1 << 4)
+
+#define S_GZIP  1
+#define S_LZ4	2
 
 struct conf {
 	int stype;
+	int compress;
 	const char *spath;
 	ssize_t bsize;
 };
@@ -299,18 +456,28 @@ void do_usage(char *name, int exitcode)
 #ifdef HAVE_GZIP
         printf("  -z        Compress output with zlib\n");
 #endif
+#if defined(HAVE_GZIP) || defined(HAVE_LZ4)
+        printf("  -c        Compress output with other algorithms:");
+#ifdef HAVE_GZIP
+        printf(" zlib");
+#endif
+#ifdef HAVE_LZ4
+        printf(" lz4");
+#endif
+        printf("\n");
+#endif
         exit(exitcode);
 }
 
 void get_options(int argc, char *argv[], struct conf *c) {
 	int choice;
-	int subtype  = S_PLAIN;
 	while (1)
 	{
-		static const char *options = "b:ztuh";
+		static const char *options = "b:c:ztuh";
 		static const struct option long_options[] =
 		{
 			{ "bsize",  required_argument, 0, 'b' },
+			{ "compress",  required_argument, 0, 'c' },
 			{ "gzip",	no_argument,	   0, 'z'},
 			{ "tcp",	no_argument,	   0, 't'},
 			{ "udp",	no_argument,	   0, 'u'},
@@ -333,8 +500,21 @@ void get_options(int argc, char *argv[], struct conf *c) {
 					do_usage(argv[0], 1);
 				}
 				break;
+			case 'c':
+#ifdef HAVE_GZIP
+				if (strcmp(optarg, "gzip") == 0)
+					c->compress = S_GZIP;
+				else
+#endif
+#ifdef HAVE_LZ4
+				if (strcmp(optarg, "lz4") == 0)
+					c->compress = S_LZ4;
+				else
+#endif
+					do_usage(argv[0], 1);
+				break;
 			case 'z':
-				subtype = S_GZIP;
+				c->compress = S_GZIP;
 				break;
 			case 't':
 				c->stype = S_TCP;
@@ -350,7 +530,6 @@ void get_options(int argc, char *argv[], struct conf *c) {
 			default:
 				break;
    		}
-		c->stype |= subtype;
 	}
 
 	if (optind != argc - 1) {
@@ -443,8 +622,9 @@ int main(int argc, char *argv[]) {
 		fprintf(stderr, "stream alloc error. %s\n", strerror(errno));
 		GO_EXIT(-1);
 	}
+
 #ifdef HAVE_GZIP
-	if (c.stype & S_GZIP) {
+	if (c.compress == S_GZIP) {
 		z_strm *zstrm = gzipnew(c.bsize, Z_DEFAULT_COMPRESSION);
 		if (zstrm == NULL) {
 			close(fd);
@@ -454,8 +634,20 @@ int main(int argc, char *argv[]) {
 		zstrm->nextstrm = strm;
 		strm = zstrm;
 	}
+	else
 #endif
-
+#ifdef HAVE_LZ4
+	if (c.compress == S_LZ4) {
+		z_strm *zstrm = lznew(c.bsize);
+		if (zstrm == NULL) {
+			close(fd);
+			fprintf(stderr, "lz4 stream alloc error. %s\n", strerror(errno));
+			GO_EXIT(-1);
+		}
+		zstrm->nextstrm = strm;
+		strm = zstrm;
+	}
+#endif
 
 	while ((bread = fread(buf, 1, c.bsize, stdin)) > 0) {
 		/* garbage in/garbage out */
