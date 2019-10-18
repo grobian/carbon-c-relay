@@ -749,6 +749,7 @@ dispatch_addconnection(int sock, listener *lsnr)
 
 		lzstrm->strmread = &lzread;
 		lzstrm->strmclose = &lzclose;
+		lzstrm->strmreadbuf = NULL;
 		lzstrm->nextstrm = connections[c].strm;
 		connections[c].strm = lzstrm;
 	}
@@ -764,6 +765,7 @@ dispatch_addconnection(int sock, listener *lsnr)
 		}
 		lzstrm->strmread = &snappyread;
 		lzstrm->strmclose = &snappyclose;
+		lzstrm->strmreadbuf = NULL;
 		lzstrm->nextstrm = connections[c].strm;
 		connections[c].strm = lzstrm;
 	}
