@@ -33,8 +33,47 @@
 #ifdef HAVE_SSL
 #include <openssl/ssl.h>
 #include <openssl/err.h>
-#endif
 
+static char
+ssllisten(listener *lsnr)
+{
+	/* create a auto-negotiate context */
+	const SSL_METHOD *m = SSLv23_server_method();
+	lsnr->ctx = SSL_CTX_new(m);
+	if (lsnr->ctx == NULL) {
+		char *err = ERR_error_string(ERR_get_error(), NULL);
+		logerr("failed to create SSL context for listener on port %d: %s\n",
+				lsnr->port, err);
+		return 1;
+	}
+
+	/* load certificates */
+	if (SSL_CTX_use_certificate_file(
+				lsnr->ctx, lsnr->pemcert, SSL_FILETYPE_PEM) <= 0)
+	{
+		char *err = ERR_error_string(ERR_get_error(), NULL);
+		SSL_CTX_free(lsnr->ctx);
+		logerr("cannot load certificate from %s: %s\n", lsnr->pemcert, err);
+		return 1;
+	}
+	if (SSL_CTX_use_PrivateKey_file(
+				lsnr->ctx, lsnr->pemcert, SSL_FILETYPE_PEM) <= 0)
+	{
+		char *err = ERR_error_string(ERR_get_error(), NULL);
+		SSL_CTX_free(lsnr->ctx);
+		logerr("cannot load private key from %s: %s\n", lsnr->pemcert, err);
+		return 1;
+	}
+	if (!SSL_CTX_check_private_key(lsnr->ctx)) {
+		char *err = ERR_error_string(ERR_get_error(), NULL);
+		SSL_CTX_free(lsnr->ctx);
+		logerr("private key does not match public certificate in %s: %s\n",
+				lsnr->pemcert, err);
+		return 1;
+	}
+	return 0;
+}
+#endif
 
 static char
 bindlistenip(listener *lsnr, unsigned int backlog)
@@ -48,41 +87,8 @@ bindlistenip(listener *lsnr, unsigned int backlog)
 	int sockcur = 0;
 
 #ifdef HAVE_SSL
-	if ((lsnr->transport & ~0xFFFF) == W_SSL) {
-		/* create a auto-negotiate context */
-		const SSL_METHOD *m = SSLv23_server_method();
-		lsnr->ctx = SSL_CTX_new(m);
-		if (lsnr->ctx == NULL) {
-			char *err = ERR_error_string(ERR_get_error(), NULL);
-			logerr("failed to create SSL context for listener on port %d: %s\n",
-					lsnr->port, err);
-			return 1;
-		}
-
-		/* load certificates */
-		if (SSL_CTX_use_certificate_file(
-					lsnr->ctx, lsnr->pemcert, SSL_FILETYPE_PEM) <= 0)
-		{
-			char *err = ERR_error_string(ERR_get_error(), NULL);
-			SSL_CTX_free(lsnr->ctx);
-			logerr("cannot load certificate from %s: %s\n", lsnr->pemcert, err);
-			return 1;
-		}
-		if (SSL_CTX_use_PrivateKey_file(
-					lsnr->ctx, lsnr->pemcert, SSL_FILETYPE_PEM) <= 0)
-		{
-			char *err = ERR_error_string(ERR_get_error(), NULL);
-			SSL_CTX_free(lsnr->ctx);
-			logerr("cannot load private key from %s: %s\n", lsnr->pemcert, err);
-			return 1;
-		}
-		if (!SSL_CTX_check_private_key(lsnr->ctx)) {
-			char *err = ERR_error_string(ERR_get_error(), NULL);
-			SSL_CTX_free(lsnr->ctx);
-			logerr("private key does not match public certificate in %s: %s\n",
-					lsnr->pemcert, err);
-			return 1;
-		}
+	if ((lsnr->transport & ~0xFFFF) == W_SSL && ssllisten(lsnr)) {
+		return 1;
 	}
 #endif
 
@@ -170,6 +176,12 @@ bindlistenunix(listener *lsnr, unsigned int backlog)
 {
 	struct sockaddr_un srvr;
 	int sock;
+
+#ifdef HAVE_SSL
+	if ((lsnr->transport & ~0xFFFF) == W_SSL && ssllisten(lsnr)) {
+		return 1;
+	}
+#endif
 
 #ifndef PF_LOCAL
 # define PF_LOCAL PF_UNIX
