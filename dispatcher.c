@@ -48,6 +48,7 @@
 #endif
 #ifdef HAVE_SSL
 #include <openssl/ssl.h>
+#include <openssl/err.h>
 #endif
 
 enum conntype {
@@ -687,7 +688,12 @@ dispatch_addconnection(int sock, listener *lsnr)
 		}
 #ifdef HAVE_SSL
 	} else {
-		connections[c].strm->hdl.ssl = SSL_new(lsnr->ctx);
+		if ((connections[c].strm->hdl.ssl = SSL_new(lsnr->ctx)) == NULL) {
+			logerr("cannot add new connection: %s\n",
+					ERR_reason_error_string(ERR_get_error()));
+			__sync_bool_compare_and_swap(&(connections[c].takenby), -2, -1);
+			return -1;
+		};
 		SSL_set_fd(connections[c].strm->hdl.ssl, sock);
 		SSL_set_accept_state(connections[c].strm->hdl.ssl);
 
