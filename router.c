@@ -1315,7 +1315,7 @@ router_readconfig(router *orig,
 			char *p;
 			char *carets;
 			size_t carlen;
-			fprintf(stderr, "%s:%zd:%zd: %s\n", path, ret->parser_err.line,
+			logerr("%s:%zd:%zd: %s\n", path, ret->parser_err.line,
 					ret->parser_err.start, ret->parser_err.msg);
 			/* get some relevant context from buff and put ^^^^ below it
 			 * to point out the position of the error */
