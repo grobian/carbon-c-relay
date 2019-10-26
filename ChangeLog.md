@@ -1,4 +1,11 @@
-# 3.6 (unreleased master branch)
+# 3.7 (unreleased master branch)
+
+### New Features
+
+### Bugfixes
+
+
+# 3.6 (26-10-2019)
 
 ### New Features
 

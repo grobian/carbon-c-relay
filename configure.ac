@@ -2,11 +2,10 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ([2.69])
-AC_INIT([carbon-c-relay], [3.5], [])
-AC_SUBST([RELEASEDATE], [2019-02-22])
+AC_INIT([carbon-c-relay], [3.6], [])
+AC_SUBST([RELEASEDATE], [2019-10-26])
 AC_CONFIG_HEADERS([config.h])
 AM_INIT_AUTOMAKE
-AM_MAINTAINER_MODE([enable])
 LT_INIT
 AC_CONFIG_MACRO_DIRS([m4])
 
