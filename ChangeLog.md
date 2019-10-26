@@ -22,7 +22,9 @@
 * [Issue #381](https://github.com/grobian/carbon-c-relay/issues/381)
   segfault on reload after removal of node from cluster
 * [Issue #384](https://github.com/grobian/carbon-c-relay/issues/384)
-  Some errors in router_readconfig logging to closed stderr
+  some errors in router\_readconfig invisible due to closed stderr
+* [Issue #386](https://github.com/grobian/carbon-c-relay/issues/386)
+  some metrics on gzip tranported connections could get lost on close
 
 
 # 3.5 (22-02-2019)
