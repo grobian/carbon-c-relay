@@ -35,7 +35,10 @@ buftest_generate() {
 		echo "foo.bar.${i} 1 349830001" >> buftest.payloadout
 		i=$(($i+1))
 	done
-	gzip -c < buftest.payloadout > buftest.payload
+	gzip -c < buftest.payloadout > buftest.payload.gz
+	lz4 -c < buftest.payloadout > buftest.payload.lz4
+	ln -s buftest.payloadout buftest.payload.gzout
+	ln -s buftest.payloadout buftest.payload.lz4out
 }
 
 
@@ -115,7 +118,9 @@ run_servertest() {
 	local test=${confarg%.*}
 	local confarg2=${test}-2.${confarg##*.}
 
-	if [[ "${transport}" != "gzip" && "${transport}" != "" ]]; then
+	if [[ -n "${transport}" && \
+		"${transport}" != "gzip" && "${transport}" != "lz4" ]] ;
+	then
 		echo "unsupported transport ${transport}"
 		return 1
 	fi
@@ -193,8 +198,14 @@ run_servertest() {
 	echo -n "${test}: "
 	[[ "${transport}" != "" ]] && echo -n "${transport} "
 
-	if [ "${HAVE_GZIP}" == "0" ]; then
+	if [[ "${HAVE_GZIP}" == "0" ]] ; then
 		if grep -qE '^listen type linemode transport gzip ' "${confarg}" ; then
+			echo "SKIP"
+			return 0
+		fi
+	fi
+	if [[ "${HAVE_LZ4}" == "0" ]] ; then
+		if grep -qE '^listen type linemode transport lz4 ' "${confarg}" ; then
 			echo "SKIP"
 			return 0
 		fi
@@ -295,6 +306,7 @@ large_gzip_generate
 echo " done"
 
 ${EXEC} -v | grep -w gzip >/dev/null && HAVE_GZIP=1 || HAVE_GZIP=0
+${EXEC} -v | grep -w lz4 >/dev/null && HAVE_LZ4=1 || HAVE_LZ4=0
 
 tstcnt=0
 tstfail=0
@@ -312,15 +324,20 @@ for t in $* ; do
 		fi
 		if [[ -e ${t}.gz.stst && "${HAVE_GZIP}" == "1" ]] ; then
 			: $((tstcnt++))
-			run_servertest "${t}.gz.stst" "${t}.payload" \
+			run_servertest "${t}.gz.stst" "${t}.payload.gz" \
 				"gzip" || : $((tstfail++))
+		fi
+		if [[ -e ${t}.lz4.stst && "${HAVE_LZ4}" == "1" ]] ; then
+			: $((tstcnt++))
+			run_servertest "${t}.lz4.stst" "${t}.payload.lz4" \
+				"lz4" || : $((tstfail++))
 		fi
 	fi
 done
 
-rm -f buftest.payload buftest.payloadout large.payload \
-	large.payloadout large-ssl.payload large-ssl.payloadout \
-	large-gzip.payload large-gzip.payloadout
+rm -f buftest.payload.{gz,lz4} buftest.payload{,.gz,.lz4}out \
+	large.payload large.payloadout large-ssl.payload \
+	large-ssl.payloadout large-gzip.payload large-gzip.payloadout
 
 echo "Ran ${tstcnt} tests with ${tstfail} failing"
 exit ${tstfail}
