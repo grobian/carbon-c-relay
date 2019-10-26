@@ -122,10 +122,14 @@ CRTESTS = \
 	server-type \
 	basic \
 	metriclimits \
+	buftest \
+	large \
+	dual-gzip \
+	large-gzip \
 	$(NULL)
 
 if SSL_ENABLED
-CRTESTS += dual-ssl
+CRTESTS += dual-ssl large-ssl
 endif
 
 test: check
