@@ -40,7 +40,7 @@ trap "rm -Rf ${CHANGES}" EXIT
 sed -e "/^AC_INIT/s:\[${CURRELEASE}\]:[${NEXTRELEASE}]:" \
 	-e "/^AC_SUBST(\[RELEASEDATE\]/d" \
 	-e "/^AC_INIT/a AC_SUBST([RELEASEDATE], [${TODAY}])" \
-	-e "/^AM_MAINTAINER_MODE/d" \
+	-e "/^AM_MAINTAINER_MODE/s:\[enable\]:[disable\]:" \
 	configure.ac \
 	| diff -u \
 		--label "${CURRELEASE}/configure.ac" \
@@ -75,6 +75,12 @@ autoreconf -fiv || die
 echo "committing and tagging version bump"
 git commit -am "version bump to ${NEXTRELEASE}" || die
 git tag "v${NEXTRELEASE}" || die
+echo "restoring maintainer-mode in configure.ac"
+sed -i \
+	-e "/^AM_MAINTAINER_MODE/s:\[disable\]:[enable\]:" \
+	configure.ac || die
+autoreconf -fiv || die
+git commit -am "configure.ac: restoring maintainer mode"
 
 echo "building release tar"
 SRCDIR=${PWD}
@@ -82,6 +88,7 @@ mkdir "${CHANGES}"/build || die
 pushd "${CHANGES}"/build || die
 git clone "${SRCDIR}" carbon-c-relay
 pushd carbon-c-relay
+git checkout "v${NEXTRELEASE}" || die
 ./configure
 make dist
 mv carbon-c-relay-${NEXTRELEASE}.tar.* "${SRCDIR}"/ || die
