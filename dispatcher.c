@@ -198,6 +198,7 @@ gzipread(z_strm *strm, void *buf, size_t sze)
 	int ret;
 	int iret;
 	int err = 0;
+	int inflatemode = Z_SYNC_FLUSH;
 
 	/* read any available data, if it fits */
 	ret = strm->nextstrm->strmread(strm->nextstrm,
@@ -207,11 +208,13 @@ gzipread(z_strm *strm, void *buf, size_t sze)
 		strm->ipos += ret;
 	} else if (ret < 0) {
 		err = errno;
+		if (err != EAGAIN)
+			inflatemode = Z_FINISH;
 	} else {
 		/* ret == 0: EOF, which means we didn't read anything here, so
-		 * calling inflate again will be pointless, because there is
-		 * nothing new. */
-		return 0;
+		 * calling inflate should be to flush whatever is in the zlib
+		 * buffers, much like a read error. */
+		inflatemode = Z_FINISH;
 	}
 
 	zstrm->next_in = (Bytef *)ibuf;
@@ -219,7 +222,7 @@ gzipread(z_strm *strm, void *buf, size_t sze)
 	zstrm->next_out = (Bytef *)buf;
 	zstrm->avail_out = (uInt)sze;
 
-	iret = inflate(zstrm, Z_SYNC_FLUSH);
+	iret = inflate(zstrm, inflatemode);
 
 	/* if inflate consumed something, update our ibuf */
 	if ((Bytef *)ibuf != zstrm->next_in) {
