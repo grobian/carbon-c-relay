@@ -21,6 +21,8 @@
   periodic segfault on SIGHUP (diff popen failed)
 * [Issue #381](https://github.com/grobian/carbon-c-relay/issues/381)
   segfault on reload after removal of node from cluster
+* [Issue #384](https://github.com/grobian/carbon-c-relay/issues/384)
+  Some errors in router_readconfig logging to closed stderr
 
 
 # 3.5 (22-02-2019)
