@@ -78,8 +78,11 @@ typedef struct _z_strm {
 			size_t srcaddrlen;
 		} udp;
 	} hdl;
-	char ibuf[METRIC_BUFSIZ];
-	unsigned short ipos;
+#if defined(HAVE_GZIP) || defined(HAVE_LZ4) || defined(HAVE_SNAPPY)
+	char *ibuf;
+	size_t ipos;
+	size_t isize;
+#endif
 	struct _z_strm *nextstrm;
 } z_strm;
 
@@ -195,7 +198,6 @@ static inline ssize_t
 gzipread(z_strm *strm, void *buf, size_t sze)
 {
 	z_stream *zstrm = &(strm->hdl.z);
-	char *ibuf = strm->ibuf;
 	int ret;
 	int iret;
 	int err = 0;
@@ -203,8 +205,8 @@ gzipread(z_strm *strm, void *buf, size_t sze)
 
 	/* read any available data, if it fits */
 	ret = strm->nextstrm->strmread(strm->nextstrm,
-			ibuf + strm->ipos,
-			METRIC_BUFSIZ - strm->ipos);
+			strm->ibuf + strm->ipos,
+			strm->isize - strm->ipos);
 	if (ret > 0) {
 		strm->ipos += ret;
 	} else if (ret < 0) {
@@ -218,7 +220,7 @@ gzipread(z_strm *strm, void *buf, size_t sze)
 		inflatemode = Z_FINISH;
 	}
 
-	zstrm->next_in = (Bytef *)ibuf;
+	zstrm->next_in = (Bytef *)strm->ibuf;
 	zstrm->avail_in = (uInt)(strm->ipos);
 	zstrm->next_out = (Bytef *)buf;
 	zstrm->avail_out = (uInt)sze;
@@ -226,8 +228,8 @@ gzipread(z_strm *strm, void *buf, size_t sze)
 	iret = inflate(zstrm, inflatemode);
 
 	/* if inflate consumed something, update our ibuf */
-	if ((Bytef *)ibuf != zstrm->next_in) {
-		memmove(ibuf, zstrm->next_in, zstrm->avail_in);
+	if ((Bytef *)strm->ibuf != zstrm->next_in) {
+		memmove(strm->ibuf, zstrm->next_in, zstrm->avail_in);
 		strm->ipos = zstrm->avail_in;
 	}
 
@@ -287,14 +289,13 @@ gzipclose(z_strm *strm)
 static inline ssize_t
 lzread(z_strm *strm, void *buf, size_t sze)
 {
-	char *ibuf = strm->ibuf;
 	size_t srcsize;
 	size_t destsize;
 	int ret;
 
 	/* read any available data, if it fits */
 	ret = strm->nextstrm->strmread(strm->nextstrm,
-			ibuf + strm->ipos, METRIC_BUFSIZ - strm->ipos);
+			strm->ibuf + strm->ipos, strm->isize - strm->ipos);
 
 	/* if EOF(0) or no-data(-1) then only get out now if the input
 	 * buffer is empty because start of next frame may be waiting for us */
@@ -317,7 +318,7 @@ lzread(z_strm *strm, void *buf, size_t sze)
 	srcsize = strm->ipos;
 	destsize = sze;
 	
-	ret = LZ4F_decompress(strm->hdl.lz, buf, &destsize, ibuf, &srcsize, NULL);
+	ret = LZ4F_decompress(strm->hdl.lz, buf, &destsize, strm->ibuf, &srcsize, NULL);
 
 	/* check for error before doing anything else */
 
@@ -336,7 +337,7 @@ lzread(z_strm *strm, void *buf, size_t sze)
 	/* if we decompressed something, update our ibuf */
 
 	if (srcsize > 0) {
-		memmove(ibuf, ibuf + srcsize, strm->ipos - srcsize);
+		memmove(strm->ibuf, strm->ibuf + srcsize, strm->ipos - srcsize);
 		strm->ipos -= srcsize;
 	}
 
@@ -377,7 +378,7 @@ snappyread(z_strm *strm, void *buf, size_t sze)
 	/* read any available data, if it fits */
 	ret = strm->nextstrm->strmread(strm->nextstrm,
 			ibuf + strm->ipos,
-			METRIC_BUFSIZ - strm->ipos);
+			strm->isize - strm->ipos);
 	if (ret > 0) {
 		strm->ipos += ret;
 	} else if (ret < 0) {
@@ -592,6 +593,15 @@ dispatch_addconnection(int sock, listener *lsnr)
 	size_t c;
 	struct sockaddr_in6 saddr;
 	socklen_t saddr_len = sizeof(saddr);
+	int compress_type;
+#if defined(HAVE_GZIP) || defined(HAVE_LZ4) || defined(HAVE_SNAPPY)
+	char *ibuf;
+#endif
+
+	if (lsnr == NULL)
+		compress_type = 0;
+	else
+		compress_type = lsnr->transport & 0xFFFF;
 
 	pthread_rwlock_rdlock(&connectionslock);
 	for (c = 0; c < connectionslen; c++)
@@ -692,6 +702,7 @@ dispatch_addconnection(int sock, listener *lsnr)
 		if ((connections[c].strm->hdl.ssl = SSL_new(lsnr->ctx)) == NULL) {
 			logerr("cannot add new connection: %s\n",
 					ERR_reason_error_string(ERR_get_error()));
+			free(connections[c].strm);
 			__sync_bool_compare_and_swap(&(connections[c].takenby), -2, -1);
 			return -1;
 		};
@@ -703,16 +714,34 @@ dispatch_addconnection(int sock, listener *lsnr)
 #endif
 	}
 
+#if defined(HAVE_GZIP) || defined(HAVE_LZ4) || defined(HAVE_SNAPPY)
+	/* allocate input buffer */
+	if (compress_type == W_GZIP || compress_type == W_LZ4 || compress_type == W_SNAPPY) {
+		ibuf = malloc(METRIC_BUFSIZ);
+		if (ibuf == NULL) {
+			logerr("cannot add new connection: "
+					"out of memory allocating stream ibuf\n");
+			free(connections[c].strm);
+			__sync_bool_compare_and_swap(&(connections[c].takenby), -2, -1);
+			return -1;
+		}
+	} else
+		ibuf = NULL;
+#endif
+
+
 	/* setup decompressor */
 	if (lsnr == NULL) {
 		/* do nothing, catch case only */
 	}
 #ifdef HAVE_GZIP
-	else if ((lsnr->transport & 0xFFFF) == W_GZIP) {
+	else if (compress_type == W_GZIP) {
 		z_strm *zstrm = malloc(sizeof(z_strm));
 		if (zstrm == NULL) {
 			logerr("cannot add new connection: "
 					"out of memory allocating gzip stream\n");
+			free(ibuf);
+			free(connections[c].strm);
 			__sync_bool_compare_and_swap(&(connections[c].takenby), -2, -1);
 			return -1;
 		}
@@ -721,6 +750,10 @@ dispatch_addconnection(int sock, listener *lsnr)
 		zstrm->hdl.z.opaque = Z_NULL;
 		zstrm->ipos = 0;
 		inflateInit2(&(zstrm->hdl.z), 15 + 16);
+
+		zstrm->ibuf = ibuf;
+		zstrm->isize = METRIC_BUFSIZ;
+
 		zstrm->strmread = &gzipread;
 		zstrm->strmclose = &gzipclose;
 		zstrm->nextstrm = connections[c].strm;
@@ -728,11 +761,13 @@ dispatch_addconnection(int sock, listener *lsnr)
 	}
 #endif
 #ifdef HAVE_LZ4
-	else if ((lsnr->transport & 0xFFFF) == W_LZ4) {
+	else if (compress_type == W_LZ4) {
 		z_strm *lzstrm = malloc(sizeof(z_strm));
 		if (lzstrm == NULL) {
 			logerr("cannot add new connection: "
 					"out of memory allocating lz4 stream\n");
+			free(ibuf);
+			free(connections[c].strm);
 			__sync_bool_compare_and_swap(&(connections[c].takenby), -2, -1);
 			return -1;
 		}
@@ -748,20 +783,28 @@ dispatch_addconnection(int sock, listener *lsnr)
 	}
 #endif
 #ifdef HAVE_SNAPPY
-	else if ((lsnr->transport & 0xFFFF) == W_SNAPPY) {
+	else if (compress_type == W_SNAPPY) {
 		z_strm *lzstrm = malloc(sizeof(z_strm));
 		if (lzstrm == NULL) {
 			logerr("cannot add new connection: "
 					"out of memory allocating snappy stream\n");
 			__sync_bool_compare_and_swap(&(connections[c].takenby), -2, -1);
+			free(ibuf);
+			free(connections[c].strm);
+			__sync_bool_compare_and_swap(&(connections[c].takenby), -2, -1);
 			return -1;
 		}
+
+		lzstrm->ibuf = ibuf;
+		lzstrm->isize = METRIC_BUFSIZ;
+
 		lzstrm->strmread = &snappyread;
 		lzstrm->strmclose = &snappyclose;
 		lzstrm->nextstrm = connections[c].strm;
 		connections[c].strm = lzstrm;
 	}
 #endif
+
 	connections[c].buflen = 0;
 	connections[c].needmore = 0;
 	connections[c].noexpire = noexpire;
