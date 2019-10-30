@@ -2194,7 +2194,7 @@ router_printdiffs(router *old, router *new, FILE *out)
 	char *tmp = getenv("TMPDIR");
 	char patho[512];
 	char pathn[512];
-	char buf[1024];
+	char buf[1033];
 	size_t len;
 	int ret;
 	mode_t mask;
