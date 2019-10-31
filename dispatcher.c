@@ -69,7 +69,10 @@ typedef struct _z_strm {
 		} gz;
 #endif
 #ifdef HAVE_LZ4
-		LZ4F_decompressionContext_t lz;
+		struct lz4 {
+			LZ4F_decompressionContext_t lz;
+			size_t iloc; /* location for unprocessed input */
+		} lz4;
 #endif
 #ifdef HAVE_SSL
 		SSL *ssl;
@@ -313,9 +316,17 @@ lzreadbuf(z_strm *strm, void *buf, size_t sze, int rval, int err);
 static inline ssize_t
 lzread(z_strm *strm, void *buf, size_t sze)
 {
-	size_t srcsize;
-	size_t destsize;
 	int ret;
+	/* update ibuf */
+	if (strm->hdl.lz4.iloc > 0) {
+		memmove(strm->ibuf, strm->ibuf + strm->hdl.lz4.iloc, strm->ipos - strm->hdl.lz4.iloc);
+		strm->ipos -= strm->hdl.lz4.iloc;
+		strm->hdl.lz4.iloc = 0;
+	} else if (strm->ipos == strm->isize) {
+		logerr("buffer overflow during read of lz4 stream\n");
+		errno = EMSGSIZE;
+		return -1;
+	}
 
 	/* read any available data, if it fits */
 	ret = strm->nextstrm->strmread(strm->nextstrm,
@@ -334,15 +345,23 @@ lzread(z_strm *strm, void *buf, size_t sze)
 		if (strm->ipos == 0)
 			return 0;
 	}
+	return lzreadbuf(strm, buf, sze, ret, errno);
+}
 
+static inline ssize_t
+lzreadbuf(z_strm *strm, void *buf, size_t sze, int rval, int err)
+{
 	/* attempt to decompress something from the (partial) frame that's
 	 * arrived so far.  srcsize is updated to the number of bytes
 	 * consumed. likewise for destsize and bytes written */
+	size_t ret;
+	size_t srcsize;
+	size_t destsize;
 
-	srcsize = strm->ipos;
+	srcsize = strm->ipos - strm->hdl.lz4.iloc;
 	destsize = sze;
 	
-	ret = LZ4F_decompress(strm->hdl.lz, buf, &destsize, strm->ibuf, &srcsize, NULL);
+	ret = LZ4F_decompress(strm->hdl.lz4.lz, buf, &destsize, strm->ibuf + strm->hdl.lz4.iloc, &srcsize, NULL);
 
 	/* check for error before doing anything else */
 
@@ -350,22 +369,25 @@ lzread(z_strm *strm, void *buf, size_t sze)
 
 		/* liblz4 doesn't allow access to the error constants so have to
 		 * return a generic code */
-
-		logerr("Error %d reading LZ4 compressed data\n", (int)ret);
-		errno = EBADMSG;
-		strm->ipos = 0;
+		if (strm->hdl.lz4.iloc == 0 && strm->ipos == strm->isize) {
+			logerr("Error %s reading LZ4 compressed data, input buffer overflow\n", LZ4F_getErrorName(ret));
+			errno = EBADMSG;
+		} else if (rval == 0 ||
+				   (rval == -1 && errno != EINTR && errno != EAGAIN && errno != EWOULDBLOCK)) {
+			logerr("Error %s reading LZ4 compressed data, lost %lu bytes in input buffer\n",
+				   LZ4F_getErrorName(ret), strm->ipos - strm->hdl.lz4.iloc);
+			errno = EBADMSG;
+		} else
+			errno = EAGAIN;
 
 		return -1;
 	}
 
 	/* if we decompressed something, update our ibuf */
 
-	if (srcsize > 0) {
-		memmove(strm->ibuf, strm->ibuf + srcsize, strm->ipos - srcsize);
-		strm->ipos -= srcsize;
-	}
-
-	if (destsize == 0) {
+	if (destsize > 0) {
+		strm->hdl.lz4.iloc += srcsize;
+	} else if (destsize == 0) {
 		tracef("No LZ4 data was produced\n");
 		errno = EAGAIN;
 		return -1;
@@ -380,17 +402,11 @@ lzread(z_strm *strm, void *buf, size_t sze)
 	return (ssize_t)destsize;
 }
 
-static inline ssize_t
-lzreadbuf(z_strm *strm, void *buf, size_t sze, int rval, int err)
-{
-	return 0;
-}
-
 static inline int
 lzclose(z_strm *strm)
 {
 	int ret = strm->nextstrm->strmclose(strm->nextstrm);
-	LZ4F_freeDecompressionContext(strm->hdl.lz);
+	LZ4F_freeDecompressionContext(strm->hdl.lz4.lz);
 	free(strm->ibuf);
 	free(strm);
 	return ret;
@@ -820,10 +836,16 @@ dispatch_addconnection(int sock, listener *lsnr)
 			__sync_bool_compare_and_swap(&(connections[c].takenby), -2, -1);
 			return -1;
 		}
-		if (LZ4F_isError(LZ4F_createDecompressionContext(&lzstrm->hdl.lz, LZ4F_VERSION))) {
+		if (LZ4F_isError(LZ4F_createDecompressionContext(&lzstrm->hdl.lz4.lz, LZ4F_VERSION))) {
 			logerr("Failed to create LZ4 decompression context\n");
+			free(ibuf);
+			free(connections[c].strm);
 			return -1;
 		}
+		lzstrm->ibuf = ibuf;
+		lzstrm->isize = METRIC_BUFSIZ;
+		lzstrm->ipos = 0;
+		lzstrm->hdl.lz4.iloc = 0;
 
 		lzstrm->strmread = &lzread;
 		lzstrm->strmreadbuf = &lzreadbuf;
@@ -847,6 +869,7 @@ dispatch_addconnection(int sock, listener *lsnr)
 
 		lzstrm->ibuf = ibuf;
 		lzstrm->isize = METRIC_BUFSIZ;
+		lzstrm->ipos = 0;
 
 		lzstrm->strmread = &snappyread;
 		lzstrm->strmreadbuf = &snappyreadbuf;
