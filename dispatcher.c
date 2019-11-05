@@ -424,6 +424,7 @@ sslclose(z_strm *strm)
 {
 	int sock = SSL_get_fd(strm->hdl.ssl);
 	SSL_free(strm->hdl.ssl);
+	free(strm);
 	return close(sock);
 }
 #endif
