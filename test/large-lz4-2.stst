@@ -1,0 +1,6 @@
+# lz4-based test
+cluster "lz4" forward 127.0.0.1:@remoteport@ proto tcp transport lz4;
+
+rewrite ^compress\.(.*) into through-compress.\1;
+
+match ^through-compress\. send to "lz4" stop;
