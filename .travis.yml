@@ -29,6 +29,7 @@ script:
   # workaround git not retaining mtimes and bison/flex not being uptodate
   - touch conffile.yy.c conffile.tab.c conffile.tab.h
   - touch configure.ac Makefile.am aclocal.m4 configure Makefile.in config.h.in
+  - autoreconf -if
   - |
     if [[ ${CC} == coverity ]] ; then
       [[ -n ${COVERITY_SCAN_TOKEN} ]] || exit 0;  # don't fail on this for PRs
