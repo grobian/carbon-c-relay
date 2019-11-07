@@ -361,6 +361,9 @@ lzreadbuf(z_strm *strm, void *buf, size_t sze, int rval, int err)
 	size_t destsize;
 
 	srcsize = strm->ipos - strm->hdl.lz4.iloc;
+	if (srcsize == 0)	/* input buffer decompressed */
+		return 0;
+
 	destsize = sze;
 	
 	ret = LZ4F_decompress(strm->hdl.lz4.lz, buf, &destsize, strm->ibuf + strm->hdl.lz4.iloc, &srcsize, NULL);
@@ -380,7 +383,7 @@ lzreadbuf(z_strm *strm, void *buf, size_t sze, int rval, int err)
 				   LZ4F_getErrorName(ret), strm->ipos - strm->hdl.lz4.iloc);
 			errno = EBADMSG;
 		} else
-			errno = EAGAIN;
+			errno = err ? err : EAGAIN;
 
 		return -1;
 	}
@@ -391,7 +394,7 @@ lzreadbuf(z_strm *strm, void *buf, size_t sze, int rval, int err)
 		strm->hdl.lz4.iloc += srcsize;
 	} else if (destsize == 0) {
 		tracef("No LZ4 data was produced\n");
-		errno = EAGAIN;
+		errno = err ? err : EAGAIN;
 		return -1;
 	}
 
