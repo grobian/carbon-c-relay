@@ -94,10 +94,22 @@ typedef struct _z_strm {
 	struct _z_strm *nextstrm;
 } z_strm;
 
+#define SOCKGROWSZ  32768
+#define CONNGROWSZ  1024
+#define MAX_LISTENERS 32  /* hopefully enough */
+#define POLL_TIMEOUT  100
+#define IDLE_DISCONNECT_TIME  (10 * 60 * 1000 * 1000)  /* 10 minutes */
+
+/* connection takenby */
+#define C_SETUP -2 /* being setup */
+#define C_FREE  -1 /* free */
+#define C_IN  0    /* not taken */
+/* > 0	taken by worker with id */
+
 typedef struct _connection {
 	int sock;
 	z_strm *strm;
-	char takenby;   /* -2: being setup, -1: free, 0: not taken, >0: tid */
+	char takenby;
 	char srcaddr[24];  /* string representation of source address */
 	char buf[METRIC_BUFSIZ];
 	int buflen;
@@ -213,7 +225,7 @@ gzipread(z_strm *strm, void *buf, size_t sze)
 
 	if (zstrm->avail_in + 1 >= strm->isize) {
 		logerr("buffer overflow during read of gzip stream\n");
-		errno = EMSGSIZE;
+		errno = EBADMSG;
 		return -1;
 	}
 	/* update ibuf */
@@ -257,7 +269,6 @@ gzipreadbuf(z_strm *strm, void *buf, size_t sze, int rval, int err)
 	zstrm->total_out = 0;
 
 	iret = inflate(zstrm, strm->hdl.gz.inflatemode);
-
 	switch (iret) {
 		case Z_OK:  /* progress has been made */
 			/* calculate the "returned" bytes */
@@ -286,7 +297,7 @@ gzipreadbuf(z_strm *strm, void *buf, size_t sze, int rval, int err)
 	if (iret < 1) {
 		if (strm->ipos == strm->isize) {
 			logerr("buffer overflow during read of gzip stream\n");
-			errno = ENOMEM;
+			errno = EBADMSG;
 		} else if (rval < 0)
 			errno = err ? err : EAGAIN;
 	}
@@ -359,6 +370,9 @@ lzreadbuf(z_strm *strm, void *buf, size_t sze, int rval, int err)
 	size_t destsize;
 
 	srcsize = strm->ipos - strm->hdl.lz4.iloc;
+	if (srcsize == 0)	/* input buffer decompressed */
+		return 0;
+
 	destsize = sze;
 	
 	ret = LZ4F_decompress(strm->hdl.lz4.lz, buf, &destsize, strm->ibuf + strm->hdl.lz4.iloc, &srcsize, NULL);
@@ -378,7 +392,7 @@ lzreadbuf(z_strm *strm, void *buf, size_t sze, int rval, int err)
 				   LZ4F_getErrorName(ret), strm->ipos - strm->hdl.lz4.iloc);
 			errno = EBADMSG;
 		} else
-			errno = EAGAIN;
+			errno = err ? err : EAGAIN;
 
 		return -1;
 	}
@@ -389,7 +403,7 @@ lzreadbuf(z_strm *strm, void *buf, size_t sze, int rval, int err)
 		strm->hdl.lz4.iloc += srcsize;
 	} else if (destsize == 0) {
 		tracef("No LZ4 data was produced\n");
-		errno = EAGAIN;
+		errno = err ? err : EAGAIN;
 		return -1;
 	}
 
@@ -665,7 +679,7 @@ dispatch_addconnection(int sock, listener *lsnr)
 
 	pthread_rwlock_rdlock(&connectionslock);
 	for (c = 0; c < connectionslen; c++)
-		if (__sync_bool_compare_and_swap(&(connections[c].takenby), -1, -2))
+		if (__sync_bool_compare_and_swap(&(connections[c].takenby), C_FREE, C_SETUP))
 			break;
 	pthread_rwlock_unlock(&connectionslock);
 
@@ -699,11 +713,11 @@ dispatch_addconnection(int sock, listener *lsnr)
 
 		for (c = connectionslen; c < connectionslen + CONNGROWSZ; c++) {
 			memset(&newlst[c], '\0', sizeof(connection));
-			newlst[c].takenby = -1;  /* free */
+			newlst[c].takenby = C_FREE;  /* free */
 		}
 		connections = newlst;
 		c = connectionslen;  /* for the setup code below */
-		newlst[c].takenby = -2;
+		newlst[c].takenby = C_SETUP;
 		connectionslen += CONNGROWSZ;
 
 		pthread_rwlock_unlock(&connectionslock);
@@ -737,7 +751,7 @@ dispatch_addconnection(int sock, listener *lsnr)
 	if (connections[c].strm == NULL) {
 		logerr("cannot add new connection: "
 				"out of memory allocating stream\n");
-		__sync_bool_compare_and_swap(&(connections[c].takenby), -2, -1);
+		__sync_bool_compare_and_swap(&(connections[c].takenby), C_SETUP, C_FREE);
 		return -1;
 	}
 
@@ -764,7 +778,7 @@ dispatch_addconnection(int sock, listener *lsnr)
 			logerr("cannot add new connection: %s\n",
 					ERR_reason_error_string(ERR_get_error()));
 			free(connections[c].strm);
-			__sync_bool_compare_and_swap(&(connections[c].takenby), -2, -1);
+			__sync_bool_compare_and_swap(&(connections[c].takenby), C_SETUP, C_FREE);
 			return -1;
 		};
 		SSL_set_fd(connections[c].strm->hdl.ssl, sock);
@@ -783,7 +797,7 @@ dispatch_addconnection(int sock, listener *lsnr)
 			logerr("cannot add new connection: "
 					"out of memory allocating stream ibuf\n");
 			free(connections[c].strm);
-			__sync_bool_compare_and_swap(&(connections[c].takenby), -2, -1);
+			__sync_bool_compare_and_swap(&(connections[c].takenby), C_SETUP, C_FREE);
 			return -1;
 		}
 	} else
@@ -803,7 +817,7 @@ dispatch_addconnection(int sock, listener *lsnr)
 					"out of memory allocating gzip stream\n");
 			free(ibuf);
 			free(connections[c].strm);
-			__sync_bool_compare_and_swap(&(connections[c].takenby), -2, -1);
+			__sync_bool_compare_and_swap(&(connections[c].takenby), C_SETUP, C_FREE);
 			return -1;
 		}
 		zstrm->hdl.gz.z.zalloc = Z_NULL;
@@ -833,7 +847,7 @@ dispatch_addconnection(int sock, listener *lsnr)
 					"out of memory allocating lz4 stream\n");
 			free(ibuf);
 			free(connections[c].strm);
-			__sync_bool_compare_and_swap(&(connections[c].takenby), -2, -1);
+			__sync_bool_compare_and_swap(&(connections[c].takenby), C_SETUP, C_FREE);
 			return -1;
 		}
 		if (LZ4F_isError(LZ4F_createDecompressionContext(&lzstrm->hdl.lz4.lz, LZ4F_VERSION))) {
@@ -860,10 +874,10 @@ dispatch_addconnection(int sock, listener *lsnr)
 		if (lzstrm == NULL) {
 			logerr("cannot add new connection: "
 					"out of memory allocating snappy stream\n");
-			__sync_bool_compare_and_swap(&(connections[c].takenby), -2, -1);
+			__sync_bool_compare_and_swap(&(connections[c].takenby), C_SETUP, C_FREE);
 			free(ibuf);
 			free(connections[c].strm);
-			__sync_bool_compare_and_swap(&(connections[c].takenby), -2, -1);
+			__sync_bool_compare_and_swap(&(connections[c].takenby), C_SETUP, C_FREE);
 			return -1;
 		}
 
@@ -888,7 +902,7 @@ dispatch_addconnection(int sock, listener *lsnr)
 	gettimeofday(&connections[c].lastwork, NULL);
 	connections[c].hadwork = 1;  /* force first iteration before stalling */
 	/* after this dispatchers will pick this connection up */
-	__sync_bool_compare_and_swap(&(connections[c].takenby), -2, 0);
+	__sync_bool_compare_and_swap(&(connections[c].takenby), C_SETUP, C_IN);
 	__sync_add_and_fetch(&acceptedconnections, 1);
 
 	return c;
@@ -1110,14 +1124,14 @@ dispatch_connection(connection *conn, dispatcher *self, struct timeval start)
 
 	/* first try to resume any work being blocked */
 	if (dispatch_process_dests(conn, self, start) == 0) {
-		__sync_bool_compare_and_swap(&(conn->takenby), self->id, 0);
+		__sync_bool_compare_and_swap(&(conn->takenby), self->id, C_IN);
 		return 0;
 	}
 
 	/* don't poll (read) when the last time we ran nothing happened,
 	 * this is to avoid excessive CPU usage, issue #126 */
 	if (!conn->hadwork && timediff(conn->lastwork, start) < 100 * 1000) {
-		__sync_bool_compare_and_swap(&(conn->takenby), self->id, 0);
+		__sync_bool_compare_and_swap(&(conn->takenby), self->id, C_IN);
 		return 0;
 	}
 	conn->hadwork = 0;
@@ -1135,7 +1149,7 @@ dispatch_connection(connection *conn, dispatcher *self, struct timeval start)
 		ssize_t ilen;
 		if (len > 0) {
 			conn->buflen += len;
-			tracef("dispatcher %d, connfd %d, read %d bytes from socket\n",
+			tracef("dispatcher %d, connfd %d, read %zd bytes from socket\n",
 					self->id, conn->sock, len);
 #ifdef ENABLE_TRACE
 			conn->buf[conn->buflen] = '\0';
@@ -1174,7 +1188,7 @@ dispatch_connection(connection *conn, dispatcher *self, struct timeval start)
 			/* force close connection below */
 			len = 0;
 		} else {
-			__sync_bool_compare_and_swap(&(conn->takenby), self->id, 0);
+			__sync_bool_compare_and_swap(&(conn->takenby), self->id, C_IN);
 			return 0;
 		}
 	}
@@ -1188,11 +1202,11 @@ dispatch_connection(connection *conn, dispatcher *self, struct timeval start)
 			/* reset buffer only (UDP/aggregations) and move on */
 			conn->needmore = 1;
 			conn->buflen = 0;
-			__sync_bool_compare_and_swap(&(conn->takenby), self->id, 0);
+			__sync_bool_compare_and_swap(&(conn->takenby), self->id, C_IN);
 
 			return len > 0;
 		} else if (conn->destlen == 0) {
-			tracef("dispatcher: %d, connfd: %d, len: %d [%s], disconnecting\n",
+			tracef("dispatcher: %d, connfd: %d, len: %zd [%s], disconnecting\n",
 					self->id, conn->sock, len,
 					len < 0 ? strerror(errno) : "");
 			__sync_add_and_fetch(&closedconnections, 1);
@@ -1200,14 +1214,14 @@ dispatch_connection(connection *conn, dispatcher *self, struct timeval start)
 
 			/* flag this connection as no longer in use, unless there is
 			 * pending metrics to send */
-			__sync_bool_compare_and_swap(&(conn->takenby), self->id, -1);
+			__sync_bool_compare_and_swap(&(conn->takenby), self->id, C_FREE);
 
 			return 0;
 		}
 	}
 
 	/* "release" this connection again */
-	__sync_bool_compare_and_swap(&(conn->takenby), self->id, 0);
+	__sync_bool_compare_and_swap(&(conn->takenby), self->id, C_IN);
 
 	return 1;
 }
@@ -1302,13 +1316,13 @@ dispatch_runner(void *arg)
 				conn = &(connections[c]);
 				/* atomically try to "claim" this connection */
 				if (!__sync_bool_compare_and_swap(
-							&(conn->takenby), 0, self->id))
+							&(conn->takenby), C_IN, self->id))
 					continue;
 				if (__sync_bool_compare_and_swap(
 							&(self->hold), 1, 1) && !conn->isaggr)
 				{
 					__sync_bool_compare_and_swap(
-							&(conn->takenby), self->id, 0);
+							&(conn->takenby), self->id, C_IN);
 					continue;
 				}
 				work += dispatch_connection(conn, self, start);
