@@ -380,6 +380,8 @@ lzreadbuf(z_strm *strm, void *buf, size_t sze, int rval, int err)
 	/* check for error before doing anything else */
 
 	if (LZ4F_isError(ret)) {
+		/* need reset */
+		LZ4F_resetDecompressionContext(strm->hdl.lz4.lz);
 
 		/* liblz4 doesn't allow access to the error constants so have to
 		 * return a generic code */
