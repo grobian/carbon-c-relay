@@ -88,8 +88,8 @@ rm -f dual-large-gzip.payload dual-large-gzip.payloadout
 rm -f dual-large-lz4.payload dual-large-lz4.payloadout
 echo "foo.bar 1 2" > dual-large-compress.payload
 while [ $i -le $end ]; do
-    echo "compress.foo.bar.${i} 1 2" >> dual-large-compress.payload
-    echo "through-compress.foo.bar.${i} 1 2" >> dual-large-compress.payloadout
+    echo "large.foo.bar.${i} 1 2" >> dual-large-compress.payload
+    echo "through-large.foo.bar.${i} 1 2" >> dual-large-compress.payloadout
     i=$(($i+1))
 done
 ln -sf dual-large-compress.payload dual-large-gzip.payload
@@ -385,7 +385,7 @@ for t in $* ; do
 			: $((tstcnt++))
 			run_servertest "${t}.stst" "${t}.payload" || {
 				: $((tstfail++))
-				tstfailed="${tstfailed} ${t}.gz.stst"
+				tstfailed="${tstfailed} ${t}.stst"
 			}
 		fi
 		if [ -e ${t}.gz.stst -a "${HAVE_GZIP}" == "1" ]; then
