@@ -1,0 +1,3 @@
+listen type linemode transport lz4 127.0.0.1:@port@ proto tcp;
+
+match ^through-compress\. send to default;

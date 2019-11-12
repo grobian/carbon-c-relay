@@ -1,0 +1,6 @@
+# ssl-based test
+cluster "ssl" forward 127.0.0.1:@remoteport@ proto tcp transport plain ssl;
+
+rewrite ^compress\.(.*) into through-ssl.\1;
+
+match ^through-compress\. send to "ssl" stop;

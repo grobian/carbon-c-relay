@@ -80,6 +80,27 @@ ln -sf large-compress.payload large-lz4.payload
 ln -sf large-compress.payloadout large-lz4.payloadout
 }
 
+dual_large_compress_generate() {
+i=1
+end=10000
+rm -f dual-large-compress.payload dual-large-compress.payloadout
+rm -f dual-large-gzip.payload dual-large-gzip.payloadout
+rm -f dual-large-lz4.payload dual-large-lz4.payloadout
+echo "foo.bar 1 2" > dual-large-compress.payload
+while [ $i -le $end ]; do
+    echo "compress.foo.bar.${i} 1 2" >> dual-large-compress.payload
+    echo "through-compress.foo.bar.${i} 1 2" >> dual-large-compress.payloadout
+    i=$(($i+1))
+done
+ln -sf dual-large-compress.payload dual-large-gzip.payload
+ln -sf dual-large-compress.payloadout dual-large-gzip.payloadout
+ln -sf dual-large-compress.payload dual-large-lz4.payload
+ln -sf dual-large-compress.payloadout dual-large-lz4.payloadout
+ln -sf dual-large-compress.payload dual-large-ssl.payload
+ln -sf dual-large-compress.payloadout dual-large-ssl.payloadout
+}
+
+
 run_configtest() {
 	local eflags="$1"
 	local test=${2%.*}
@@ -336,6 +357,7 @@ buftest_generate
 large_generate
 large_ssl_generate
 large_compress_generate
+dual_large_compress_generate
 
 ${EXEC} -v | grep -w gzip >/dev/null && HAVE_GZIP=1 || HAVE_GZIP=0
 ${EXEC} -v | grep -w lz4 >/dev/null && HAVE_LZ4=1 || HAVE_LZ4=0
@@ -401,7 +423,8 @@ rm -f buftest.payload buftest.payloadout \
 	parttest.payload parttest.payloadout \
 	bundletest.payload bundletest.payloadout \
 	large.payload large.payloadout large-ssl.payload large-ssl.payloadout \
-	large-gzip.payload large-gzip.payloadout large-lz4.payload large-lz4.payloadout
+	large-gzip.payload large-gzip.payloadout large-lz4.payload large-lz4.payloadout \
+	dual-large-gzip.payload dual-large-gzip.payloadout dual-large-lz4.payload dual-large-lz4.payloadout dual-large-ssl.payload dual-large-ssl.payloadout
 
 echo "Ran ${tstcnt} tests with ${tstfail} failing"
 [ "${tstfailed}" == "" ] || echo "failed: ${tstfailed}"
