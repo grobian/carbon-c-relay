@@ -213,7 +213,7 @@ gzipread(z_strm *strm, void *buf, size_t sze)
 
 	if (zstrm->avail_in + 1 >= strm->isize) {
 		logerr("buffer overflow during read of gzip stream\n");
-		errno = EMSGSIZE;
+		errno = EBADMSG;
 		return -1;
 	}
 	/* update ibuf */
@@ -282,7 +282,7 @@ gzipreadbuf(z_strm *strm, void *buf, size_t sze, int rval, int err)
 			 * call should have increased the buffer size by consuming
 			 * whatever was valid, so if we're stuck here, the situation
 			 * isn't going to improve, and we better bail out */
-			errno = EMSGSIZE;
+			errno = EBADMSG;
 			return -1;
 			break;
 		default:
@@ -291,7 +291,7 @@ gzipreadbuf(z_strm *strm, void *buf, size_t sze, int rval, int err)
 	if (iret < 1) {
 		if (strm->ipos == strm->isize) {
 			logerr("buffer overflow during read of gzip stream\n");
-			errno = ENOMEM;
+			errno = EBADMSG;
 		} else if (rval < 0)
 			errno = err ? err : EAGAIN;
 	}
@@ -1134,7 +1134,7 @@ dispatch_connection(connection *conn, dispatcher *self, struct timeval start)
 		ssize_t ilen;
 		if (len > 0) {
 			conn->buflen += len;
-			tracef("dispatcher %d, connfd %d, read %d bytes from socket\n",
+			tracef("dispatcher %d, connfd %d, read %zd bytes from socket\n",
 					self->id, conn->sock, len);
 #ifdef ENABLE_TRACE
 			conn->buf[conn->buflen] = '\0';
