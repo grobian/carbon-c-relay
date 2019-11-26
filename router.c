@@ -3122,8 +3122,8 @@ router_test_intern(char *metric, char *firstspace, route *routes)
 						if (mode & MODE_DEBUG || d->next == NULL) {
 							stublen = 0;
 						} else {
-							char x;
-							stublen = snprintf(&x, 1,
+							char x[32];
+							stublen = snprintf(x, 32,
 									STUB_AGGR "%p__",
 									d->cl->members.aggregation);
 						}
