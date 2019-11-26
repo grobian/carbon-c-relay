@@ -2194,7 +2194,7 @@ router_printdiffs(router *old, router *new, FILE *out)
 	char *tmp = getenv("TMPDIR");
 	char patho[512];
 	char pathn[512];
-	char buf[1024];
+	char buf[1033];
 	size_t len;
 	int ret;
 	mode_t mask;
@@ -3122,8 +3122,8 @@ router_test_intern(char *metric, char *firstspace, route *routes)
 						if (mode & MODE_DEBUG || d->next == NULL) {
 							stublen = 0;
 						} else {
-							char x;
-							stublen = snprintf(&x, 1,
+							char x[32];
+							stublen = snprintf(x, 32,
 									STUB_AGGR "%p__",
 									d->cl->members.aggregation);
 						}
