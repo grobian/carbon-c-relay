@@ -100,7 +100,6 @@ ln -sf dual-large-compress.payload dual-large-ssl.payload
 ln -sf dual-large-compress.payloadout dual-large-ssl.payloadout
 }
 
-
 run_configtest() {
 	local eflags="$1"
 	local test=${2%.*}
@@ -126,6 +125,10 @@ run_configtest() {
 }
 
 run_servertest() {
+	local confarg=$1
+	local payload=$2
+	local transport=$3
+
 	local mode=SINGLE
 	local tmpdir=$(mktemp -d)
 	local output=
@@ -264,7 +267,7 @@ run_servertest() {
 	pidfile=${start_server_result[2]}
 	output=${start_server_result[3]}
 	if [[ ${mode} == DUAL ]] ; then
-		if ! start_server 2 ${port} ${confarg2} ; then
+		if ! start_server 2 ${port} ${confarg2} "" ; then
 			kill -KILL $(< ${pidfile})
 			return 1
 		fi
@@ -353,6 +356,7 @@ while [[ -n $1 ]] ; do
 	shift
 done
 
+echo -n "generating datasets ..."
 buftest_generate
 large_generate
 large_ssl_generate
@@ -363,6 +367,7 @@ ${EXEC} -v | grep -w gzip >/dev/null && HAVE_GZIP=1 || HAVE_GZIP=0
 ${EXEC} -v | grep -w lz4 >/dev/null && HAVE_LZ4=1 || HAVE_LZ4=0
 ${EXEC} -v | grep -w snappy >/dev/null && HAVE_SNAPPY=1 || HAVE_SNAPPY=0
 ${EXEC} -v | grep -w ssl >/dev/null && HAVE_SSL=1 || HAVE_SSL=0
+echo " done"
 
 tstcnt=0
 tstfail=0

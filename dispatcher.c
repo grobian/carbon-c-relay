@@ -257,7 +257,6 @@ gzipreadbuf(z_strm *strm, void *buf, size_t sze, int rval, int err)
 	zstrm->total_out = 0;
 
 	iret = inflate(zstrm, strm->hdl.gz.inflatemode);
-
 	switch (iret) {
 		case Z_OK:  /* progress has been made */
 			/* calculate the "returned" bytes */
