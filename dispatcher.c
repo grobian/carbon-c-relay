@@ -48,6 +48,7 @@
 #endif
 #ifdef HAVE_SSL
 #include <openssl/ssl.h>
+#include <openssl/err.h>
 #endif
 
 enum conntype {
@@ -57,13 +58,21 @@ enum conntype {
 
 typedef struct _z_strm {
 	ssize_t (*strmread)(struct _z_strm *, void *, size_t);  /* read func */
+	/* read from buffer only func, on error set errno to ENOMEM, EMSGSIZE or EBADMSG */
+	ssize_t (*strmreadbuf)(struct _z_strm *, void *, size_t, int, int);
 	int (*strmclose)(struct _z_strm *);
 	union {
 #ifdef HAVE_GZIP
-		z_stream z;
+		struct gz {
+			z_stream z;
+			int inflatemode;
+		} gz;
 #endif
 #ifdef HAVE_LZ4
-		LZ4F_decompressionContext_t lz;
+		struct lz4 {
+			LZ4F_decompressionContext_t lz;
+			size_t iloc; /* location for unprocessed input */
+		} lz4;
 #endif
 #ifdef HAVE_SSL
 		SSL *ssl;
@@ -77,8 +86,11 @@ typedef struct _z_strm {
 			size_t srcaddrlen;
 		} udp;
 	} hdl;
-	char ibuf[METRIC_BUFSIZ];
-	unsigned short ipos;
+#if defined(HAVE_GZIP) || defined(HAVE_LZ4) || defined(HAVE_SNAPPY)
+	char *ibuf;
+	size_t ipos;
+	size_t isize;
+#endif
 	struct _z_strm *nextstrm;
 } z_strm;
 
@@ -191,54 +203,64 @@ udpsockclose(z_strm *strm)
 #ifdef HAVE_GZIP
 /* gzip wrapped socket */
 static inline ssize_t
+gzipreadbuf(z_strm *strm, void *buf, size_t sze, int last_ret, int err);
+
+static inline ssize_t
 gzipread(z_strm *strm, void *buf, size_t sze)
 {
-	z_stream *zstrm = &(strm->hdl.z);
-	char *ibuf = strm->ibuf;
+	z_stream *zstrm = &(strm->hdl.gz.z);
 	int ret;
-	int iret;
-	int err = 0;
-	int inflatemode = Z_SYNC_FLUSH;
 
-	/* read any available data, if it fits */
-	ret = strm->nextstrm->strmread(strm->nextstrm,
-			ibuf + strm->ipos,
-			METRIC_BUFSIZ - strm->ipos);
-	if (ret > 0) {
-		strm->ipos += ret;
-	} else if (ret < 0) {
-		err = errno;
-		if (err != EAGAIN)
-			inflatemode = Z_FINISH;
-	} else {
-		/* ret == 0: EOF, which means we didn't read anything here, so
-		 * calling inflate should be to flush whatever is in the zlib
-		 * buffers, much like a read error. */
-		inflatemode = Z_FINISH;
+	if (zstrm->avail_in + 1 >= strm->isize) {
+		logerr("buffer overflow during read of gzip stream\n");
+		errno = EBADMSG;
+		return -1;
 	}
-
-	zstrm->next_in = (Bytef *)ibuf;
-	zstrm->avail_in = (uInt)(strm->ipos);
-	zstrm->next_out = (Bytef *)buf;
-	zstrm->avail_out = (uInt)sze;
-
-	iret = inflate(zstrm, inflatemode);
-
-	/* if inflate consumed something, update our ibuf */
-	if ((Bytef *)ibuf != zstrm->next_in) {
-		memmove(ibuf, zstrm->next_in, zstrm->avail_in);
+	/* update ibuf */
+	if ((Bytef *)strm->ibuf != zstrm->next_in) {
+		memmove(strm->ibuf, zstrm->next_in, zstrm->avail_in);
+		zstrm->next_in = (Bytef *)strm->ibuf;
 		strm->ipos = zstrm->avail_in;
 	}
 
+	/* read any available data, if it fits */
+	ret = strm->nextstrm->strmread(strm->nextstrm,
+			strm->ibuf + strm->ipos,
+			strm->isize - strm->ipos);
+	if (ret > 0) {
+		zstrm->avail_in += ret;
+		strm->ipos += ret;
+	} else if (ret < 0) {
+		if (errno != EINTR && errno != EAGAIN && errno != EWOULDBLOCK)
+			strm->hdl.gz.inflatemode = Z_FINISH;
+	} else {
+		/* ret == 0: EOF, which means we didn't read anything here, so
+		 * calling inflate should be to flush whatever is in the zlib
+		 * buffers, much like a read error.
+		 * data in buffers may be exist, read with gzipreadbuf */
+		strm->hdl.gz.inflatemode = Z_FINISH;
+		return 0;
+	}
+
+	return gzipreadbuf(strm, buf, sze, ret, errno);
+}
+
+/* read data from buffer */
+static inline ssize_t
+gzipreadbuf(z_strm *strm, void *buf, size_t sze, int rval, int err)
+{
+	z_stream *zstrm = &(strm->hdl.gz.z);
+	int iret;
+
+	zstrm->next_out = (Bytef *)buf;
+	zstrm->avail_out = (uInt)sze;
+	zstrm->total_out = 0;
+
+	iret = inflate(zstrm, strm->hdl.gz.inflatemode);
 	switch (iret) {
 		case Z_OK:  /* progress has been made */
 			/* calculate the "returned" bytes */
 			iret = sze - zstrm->avail_out;
-			if (iret == 0) {
-				/* something was done, so must have been reading input */
-				errno = EAGAIN;
-				return -1;
-			}
 			break;
 		case Z_STREAM_END:  /* everything uncompressed, nothing pending */
 			iret = sze - zstrm->avail_out;
@@ -247,25 +269,30 @@ gzipread(z_strm *strm, void *buf, size_t sze)
 			inflateSync(zstrm);
 			/* return isn't much of interest, we will call inflate next
 			 * time and sync again if it still fails */
-			errno = err ? err : EAGAIN;
-			return -1;
+			iret = -1;
 			break;
 		case Z_MEM_ERROR:  /* out of memory */
 			logerr("out of memory during read of gzip stream\n");
 			errno = ENOMEM;
 			return -1;
+			break;
 		case Z_BUF_ERROR:  /* output buffer full or nothing to read */
 			/* if this happens, zlib still can't write even though last
 			 * call should have increased the buffer size by consuming
 			 * whatever was valid, so if we're stuck here, the situation
 			 * isn't going to improve, and we better bail out */
-			errno = err ? err : EMSGSIZE;
+			errno = EBADMSG;
 			return -1;
+			break;
+		default:
+			iret = -1;
 	}
-
-	if (iret == 0 && ret != 0) {
-		errno = EAGAIN;
-		iret = -1;
+	if (iret < 1) {
+		if (strm->ipos == strm->isize) {
+			logerr("buffer overflow during read of gzip stream\n");
+			errno = EBADMSG;
+		} else if (rval < 0)
+			errno = err ? err : EAGAIN;
 	}
 
 	return (ssize_t)iret;
@@ -275,7 +302,8 @@ static inline int
 gzipclose(z_strm *strm)
 {
 	int ret = strm->nextstrm->strmclose(strm->nextstrm);
-	inflateEnd(&(strm->hdl.z));
+	inflateEnd(&(strm->hdl.gz.z));
+	free(strm->ibuf);
 	free(strm);
 	return ret;
 }
@@ -284,16 +312,26 @@ gzipclose(z_strm *strm)
 #ifdef HAVE_LZ4
 /* lz4 wrapped socket */
 static inline ssize_t
+lzreadbuf(z_strm *strm, void *buf, size_t sze, int rval, int err);
+
+static inline ssize_t
 lzread(z_strm *strm, void *buf, size_t sze)
 {
-	char *ibuf = strm->ibuf;
-	size_t srcsize;
-	size_t destsize;
 	int ret;
+	/* update ibuf */
+	if (strm->hdl.lz4.iloc > 0) {
+		memmove(strm->ibuf, strm->ibuf + strm->hdl.lz4.iloc, strm->ipos - strm->hdl.lz4.iloc);
+		strm->ipos -= strm->hdl.lz4.iloc;
+		strm->hdl.lz4.iloc = 0;
+	} else if (strm->ipos == strm->isize) {
+		logerr("buffer overflow during read of lz4 stream\n");
+		errno = EMSGSIZE;
+		return -1;
+	}
 
 	/* read any available data, if it fits */
 	ret = strm->nextstrm->strmread(strm->nextstrm,
-			ibuf + strm->ipos, METRIC_BUFSIZ - strm->ipos);
+			strm->ibuf + strm->ipos, strm->isize - strm->ipos);
 
 	/* if EOF(0) or no-data(-1) then only get out now if the input
 	 * buffer is empty because start of next frame may be waiting for us */
@@ -308,40 +346,56 @@ lzread(z_strm *strm, void *buf, size_t sze)
 		if (strm->ipos == 0)
 			return 0;
 	}
+	return lzreadbuf(strm, buf, sze, ret, errno);
+}
 
+static inline ssize_t
+lzreadbuf(z_strm *strm, void *buf, size_t sze, int rval, int err)
+{
 	/* attempt to decompress something from the (partial) frame that's
 	 * arrived so far.  srcsize is updated to the number of bytes
 	 * consumed. likewise for destsize and bytes written */
+	size_t ret;
+	size_t srcsize;
+	size_t destsize;
 
-	srcsize = strm->ipos;
+	srcsize = strm->ipos - strm->hdl.lz4.iloc;
+	if (srcsize == 0)	/* input buffer decompressed */
+		return 0;
+
 	destsize = sze;
 	
-	ret = LZ4F_decompress(strm->hdl.lz, buf, &destsize, ibuf, &srcsize, NULL);
+	ret = LZ4F_decompress(strm->hdl.lz4.lz, buf, &destsize, strm->ibuf + strm->hdl.lz4.iloc, &srcsize, NULL);
 
 	/* check for error before doing anything else */
 
 	if (LZ4F_isError(ret)) {
+		/* need reset */
+		LZ4F_resetDecompressionContext(strm->hdl.lz4.lz);
 
 		/* liblz4 doesn't allow access to the error constants so have to
 		 * return a generic code */
-
-		logerr("Error %d reading LZ4 compressed data\n", (int)ret);
-		errno = EBADMSG;
-		strm->ipos = 0;
+		if (strm->hdl.lz4.iloc == 0 && strm->ipos == strm->isize) {
+			logerr("Error %s reading LZ4 compressed data, input buffer overflow\n", LZ4F_getErrorName(ret));
+			errno = EBADMSG;
+		} else if (rval == 0 ||
+				   (rval == -1 && errno != EINTR && errno != EAGAIN && errno != EWOULDBLOCK)) {
+			logerr("Error %s reading LZ4 compressed data, lost %lu bytes in input buffer\n",
+				   LZ4F_getErrorName(ret), strm->ipos - strm->hdl.lz4.iloc);
+			errno = EBADMSG;
+		} else
+			errno = err ? err : EAGAIN;
 
 		return -1;
 	}
 
 	/* if we decompressed something, update our ibuf */
 
-	if (srcsize > 0) {
-		memmove(ibuf, ibuf + srcsize, strm->ipos - srcsize);
-		strm->ipos -= srcsize;
-	}
-
-	if (destsize == 0) {
+	if (destsize > 0) {
+		strm->hdl.lz4.iloc += srcsize;
+	} else if (destsize == 0) {
 		tracef("No LZ4 data was produced\n");
-		errno = EAGAIN;
+		errno = err ? err : EAGAIN;
 		return -1;
 	}
 
@@ -358,7 +412,8 @@ static inline int
 lzclose(z_strm *strm)
 {
 	int ret = strm->nextstrm->strmclose(strm->nextstrm);
-	LZ4F_freeDecompressionContext(strm->hdl.lz);
+	LZ4F_freeDecompressionContext(strm->hdl.lz4.lz);
+	free(strm->ibuf);
 	free(strm);
 	return ret;
 }
@@ -366,6 +421,9 @@ lzclose(z_strm *strm)
 
 #ifdef HAVE_SNAPPY
 /* snappy wrapped socket */
+static inline ssize_t
+snappyreadbuf(z_strm *strm, void *buf, size_t sze, int rval, int err);
+
 static inline ssize_t
 snappyread(z_strm *strm, void *buf, size_t sze)
 {
@@ -376,7 +434,7 @@ snappyread(z_strm *strm, void *buf, size_t sze)
 	/* read any available data, if it fits */
 	ret = strm->nextstrm->strmread(strm->nextstrm,
 			ibuf + strm->ipos,
-			METRIC_BUFSIZ - strm->ipos);
+			strm->isize - strm->ipos);
 	if (ret > 0) {
 		strm->ipos += ret;
 	} else if (ret < 0) {
@@ -401,10 +459,17 @@ snappyread(z_strm *strm, void *buf, size_t sze)
 	return (ssize_t)(ret == SNAPPY_OK ? buflen : -1);
 }
 
+static inline ssize_t
+snappyreadbuf(z_strm *strm, void *buf, size_t sze, int rval, int err)
+{
+	return 0;
+}
+
 static inline int
 snappyclose(z_strm *strm)
 {
 	int ret = strm->nextstrm->strmclose(strm->nextstrm);
+	free(strm->ibuf);
 	free(strm);
 	return ret;
 }
@@ -423,6 +488,7 @@ sslclose(z_strm *strm)
 {
 	int sock = SSL_get_fd(strm->hdl.ssl);
 	SSL_free(strm->hdl.ssl);
+	free(strm);
 	return close(sock);
 }
 #endif
@@ -590,6 +656,15 @@ dispatch_addconnection(int sock, listener *lsnr)
 	size_t c;
 	struct sockaddr_in6 saddr;
 	socklen_t saddr_len = sizeof(saddr);
+	int compress_type;
+#if defined(HAVE_GZIP) || defined(HAVE_LZ4) || defined(HAVE_SNAPPY)
+	char *ibuf;
+#endif
+
+	if (lsnr == NULL)
+		compress_type = 0;
+	else
+		compress_type = lsnr->transport & 0xFFFF;
 
 	pthread_rwlock_rdlock(&connectionslock);
 	for (c = 0; c < connectionslen; c++)
@@ -671,6 +746,7 @@ dispatch_addconnection(int sock, listener *lsnr)
 
 	/* set socket or SSL connection */
 	connections[c].strm->nextstrm = NULL;
+	connections[c].strm->strmreadbuf = NULL;
 	if (lsnr == NULL || (lsnr->transport & ~0xFFFF) != W_SSL) {
 		if (lsnr == NULL || lsnr->ctype != CON_UDP) {
 			connections[c].strm->hdl.sock = sock;
@@ -687,7 +763,13 @@ dispatch_addconnection(int sock, listener *lsnr)
 		}
 #ifdef HAVE_SSL
 	} else {
-		connections[c].strm->hdl.ssl = SSL_new(lsnr->ctx);
+		if ((connections[c].strm->hdl.ssl = SSL_new(lsnr->ctx)) == NULL) {
+			logerr("cannot add new connection: %s\n",
+					ERR_reason_error_string(ERR_get_error()));
+			free(connections[c].strm);
+			__sync_bool_compare_and_swap(&(connections[c].takenby), -2, -1);
+			return -1;
+		};
 		SSL_set_fd(connections[c].strm->hdl.ssl, sock);
 		SSL_set_accept_state(connections[c].strm->hdl.ssl);
 
@@ -696,65 +778,110 @@ dispatch_addconnection(int sock, listener *lsnr)
 #endif
 	}
 
+#if defined(HAVE_GZIP) || defined(HAVE_LZ4) || defined(HAVE_SNAPPY)
+	/* allocate input buffer */
+	if (compress_type == W_GZIP || compress_type == W_LZ4 || compress_type == W_SNAPPY) {
+		ibuf = malloc(METRIC_BUFSIZ);
+		if (ibuf == NULL) {
+			logerr("cannot add new connection: "
+					"out of memory allocating stream ibuf\n");
+			free(connections[c].strm);
+			__sync_bool_compare_and_swap(&(connections[c].takenby), -2, -1);
+			return -1;
+		}
+	} else
+		ibuf = NULL;
+#endif
+
+
 	/* setup decompressor */
 	if (lsnr == NULL) {
 		/* do nothing, catch case only */
 	}
 #ifdef HAVE_GZIP
-	else if ((lsnr->transport & 0xFFFF) == W_GZIP) {
+	else if (compress_type == W_GZIP) {
 		z_strm *zstrm = malloc(sizeof(z_strm));
 		if (zstrm == NULL) {
 			logerr("cannot add new connection: "
 					"out of memory allocating gzip stream\n");
+			free(ibuf);
+			free(connections[c].strm);
 			__sync_bool_compare_and_swap(&(connections[c].takenby), -2, -1);
 			return -1;
 		}
-		zstrm->hdl.z.zalloc = Z_NULL;
-		zstrm->hdl.z.zfree = Z_NULL;
-		zstrm->hdl.z.opaque = Z_NULL;
+		zstrm->hdl.gz.z.zalloc = Z_NULL;
+		zstrm->hdl.gz.z.zfree = Z_NULL;
+		zstrm->hdl.gz.z.opaque = Z_NULL;
 		zstrm->ipos = 0;
-		inflateInit2(&(zstrm->hdl.z), 15 + 16);
+		inflateInit2(&(zstrm->hdl.gz.z), 15 + 16);
+		zstrm->hdl.gz.inflatemode = Z_SYNC_FLUSH;
+
+		zstrm->ibuf = ibuf;
+		zstrm->isize = METRIC_BUFSIZ;
+		zstrm->hdl.gz.z.next_in = (Bytef *)zstrm->ibuf;
+		zstrm->hdl.gz.z.avail_in = 0;
+
 		zstrm->strmread = &gzipread;
+		zstrm->strmreadbuf = &gzipreadbuf;
 		zstrm->strmclose = &gzipclose;
 		zstrm->nextstrm = connections[c].strm;
 		connections[c].strm = zstrm;
 	}
 #endif
 #ifdef HAVE_LZ4
-	else if ((lsnr->transport & 0xFFFF) == W_LZ4) {
+	else if (compress_type == W_LZ4) {
 		z_strm *lzstrm = malloc(sizeof(z_strm));
 		if (lzstrm == NULL) {
 			logerr("cannot add new connection: "
 					"out of memory allocating lz4 stream\n");
+			free(ibuf);
+			free(connections[c].strm);
 			__sync_bool_compare_and_swap(&(connections[c].takenby), -2, -1);
 			return -1;
 		}
-		if (LZ4F_isError(LZ4F_createDecompressionContext(&lzstrm->hdl.lz, LZ4F_VERSION))) {
+		if (LZ4F_isError(LZ4F_createDecompressionContext(&lzstrm->hdl.lz4.lz, LZ4F_VERSION))) {
 			logerr("Failed to create LZ4 decompression context\n");
+			free(ibuf);
+			free(connections[c].strm);
 			return -1;
 		}
+		lzstrm->ibuf = ibuf;
+		lzstrm->isize = METRIC_BUFSIZ;
+		lzstrm->ipos = 0;
+		lzstrm->hdl.lz4.iloc = 0;
 		
 		lzstrm->strmread = &lzread;
+		lzstrm->strmreadbuf = &lzreadbuf;
 		lzstrm->strmclose = &lzclose;
 		lzstrm->nextstrm = connections[c].strm;
 		connections[c].strm = lzstrm;
 	}
 #endif
 #ifdef HAVE_SNAPPY
-	else if ((lsnr->transport & 0xFFFF) == W_SNAPPY) {
+	else if (compress_type == W_SNAPPY) {
 		z_strm *lzstrm = malloc(sizeof(z_strm));
 		if (lzstrm == NULL) {
 			logerr("cannot add new connection: "
 					"out of memory allocating snappy stream\n");
 			__sync_bool_compare_and_swap(&(connections[c].takenby), -2, -1);
+			free(ibuf);
+			free(connections[c].strm);
+			__sync_bool_compare_and_swap(&(connections[c].takenby), -2, -1);
 			return -1;
 		}
+
+		lzstrm->ibuf = ibuf;
+		lzstrm->isize = METRIC_BUFSIZ;
+		lzstrm->ipos = 0;
+
 		lzstrm->strmread = &snappyread;
+		lzstrm->strmreadbuf = &snappyreadbuf;
 		lzstrm->strmclose = &snappyclose;
 		lzstrm->nextstrm = connections[c].strm;
 		connections[c].strm = lzstrm;
 	}
 #endif
+
 	connections[c].buflen = 0;
 	connections[c].needmore = 0;
 	connections[c].noexpire = noexpire;
@@ -827,6 +954,131 @@ dispatch_process_dests(connection *conn, dispatcher *self, struct timeval now)
 	return 1;
 }
 
+/* Extract receivedi metrics from buffer */
+static void
+dispatch_received_metrics(connection *conn, dispatcher *self)
+{
+	/* Metrics look like this: metric_path value timestamp\n
+	 * due to various messups we need to sanitise the
+	 * metrics_path here, to ensure we can calculate the metric
+	 * name off the filesystem path (and actually retrieve it in
+	 * the web interface).
+	 * Since tag support, metrics can look like this:
+	 *   metric_path[;tag=value ...] value timestamp\n
+	 * where the tag=value part can be repeated.  It should not be
+	 * sanitised, however. */
+	char *p, *q, *firstspace, *lastnl;
+
+	q = conn->metric;
+	firstspace = NULL;
+	lastnl = NULL;
+	for (p = conn->buf; p - conn->buf < conn->buflen; p++) {
+		if (*p == '\n' || *p == '\r') {
+			/* end of metric */
+			lastnl = p;
+
+			/* just a newline on it's own? some random garbage?
+			 * do we exceed the set limits? drop */
+			if (q == conn->metric || firstspace == NULL ||
+					q - conn->metric > self->maxinplen - 1 ||
+					firstspace - conn->metric > self->maxmetriclen)
+			{
+				__sync_add_and_fetch(&(self->discards), 1);
+				q = conn->metric;
+				firstspace = NULL;
+				continue;
+			}
+
+			__sync_add_and_fetch(&(self->metrics), 1);
+			/* add newline and terminate the string, we can do this
+			 * because we substract one from buf and we always store
+			 * a full metric in buf before we copy it to metric
+			 * (which is of the same size) */
+			*q++ = '\n';
+			*q = '\0';
+
+			/* perform routing of this metric */
+			tracef("dispatcher %d, connfd %d, metric %s",
+					self->id, conn->sock, conn->metric);
+			__sync_add_and_fetch(&(self->blackholes),
+					router_route(self->rtr,
+						conn->dests, &conn->destlen, CONN_DESTS_SIZE,
+						conn->srcaddr,
+						conn->metric, firstspace, self->id - 1));
+			tracef("dispatcher %d, connfd %d, destinations %zd\n",
+					self->id, conn->sock, conn->destlen);
+
+			/* restart building new one from the start */
+			q = conn->metric;
+			firstspace = NULL;
+
+			conn->hadwork = 1;
+			gettimeofday(&conn->lastwork, NULL);
+			conn->maxsenddelay = 0;
+			/* send the metric to where it is supposed to go */
+			if (dispatch_process_dests(conn, self, conn->lastwork) == 0)
+				break;
+		} else if (*p == ' ' || *p == '\t' || *p == '.') {
+			/* separator */
+			if (q == conn->metric) {
+				/* make sure we skip this on next iteration to
+				 * avoid an infinite loop, issues #8 and #51 */
+				lastnl = p;
+				continue;
+			}
+			if (*p == '\t')
+				*p = ' ';
+			if (*p == ' ' && firstspace == NULL) {
+				if (*(q - 1) == '.')
+					q--;  /* strip trailing separator */
+				firstspace = q;
+				*q++ = ' ';
+			} else {
+				/* metric_path separator or space,
+				 * - duplicate elimination
+				 * - don't start with separator/space */
+				if (*(q - 1) != *p && (q - 1) != firstspace)
+					*q++ = *p;
+			}
+		} else if (self->tags_supported && *p == ';') {
+			/* copy up to next space */
+			firstspace = q;
+			*q++ = *p;
+		} else if (
+				*p != '\0' && (
+					firstspace != NULL ||
+					(*p >= 'a' && *p <= 'z') ||
+					(*p >= 'A' && *p <= 'Z') ||
+					(*p >= '0' && *p <= '9') ||
+					strchr(self->allowed_chars, *p)
+				)
+			)
+		{
+			/* copy char */
+			*q++ = *p;
+		} else {
+			/* something barf, replace by underscore */
+			*q++ = '_';
+		}
+	}
+	conn->needmore = q != conn->metric;
+	if (lastnl != NULL) {
+		/* move remaining stuff to the front */
+		conn->buflen -= lastnl + 1 - conn->buf;
+		tracef("dispatcher %d, conn->buf: %p, lastnl: %p, diff: %zd, "
+				"conn->buflen: %d, sizeof(conn->buf): %lu, "
+				"memmove(%d, %lu, %d)\n",
+				self->id,
+				conn->buf, lastnl, lastnl - conn->buf,
+				conn->buflen, sizeof(conn->buf),
+				0, lastnl + 1 - conn->buf, conn->buflen + 1);
+		tracef("dispatcher %d, pre conn->buf: %s\n", self->id, conn->buf);
+		/* copy last NULL-byte for debug tracing */
+		memmove(conn->buf, lastnl + 1, conn->buflen + 1);
+		tracef("dispatcher %d, post conn->buf: %s\n", self->id, conn->buf);
+	}
+}
+
 #define IDLE_DISCONNECT_TIME  (10 * 60 * 1000 * 1000)  /* 10 minutes */
 /**
  * Look at conn and see if works needs to be done.  If so, do it.  This
@@ -851,8 +1103,8 @@ dispatch_process_dests(connection *conn, dispatcher *self, struct timeval now)
 static int
 dispatch_connection(connection *conn, dispatcher *self, struct timeval start)
 {
-	char *p, *q, *firstspace, *lastnl;
-	int len;
+	ssize_t len;
+	int err;
 
 	/* first try to resume any work being blocked */
 	if (dispatch_process_dests(conn, self, start) == 0) {
@@ -878,132 +1130,32 @@ dispatch_connection(connection *conn, dispatcher *self, struct timeval start)
 						(sizeof(conn->buf) - 1) - conn->buflen)) > 0
 	   )
 	{
+		ssize_t ilen;
 		if (len > 0) {
 			conn->buflen += len;
-			tracef("dispatcher %d, connfd %d, read %d bytes from socket\n",
+			tracef("dispatcher %d, connfd %d, read %zd bytes from socket\n",
 					self->id, conn->sock, len);
 #ifdef ENABLE_TRACE
 			conn->buf[conn->buflen] = '\0';
 #endif
 		}
-
-		/* Metrics look like this: metric_path value timestamp\n
-		 * due to various messups we need to sanitise the
-		 * metrics_path here, to ensure we can calculate the metric
-		 * name off the filesystem path (and actually retrieve it in
-		 * the web interface).
-		 * Since tag support, metrics can look like this:
-		 *   metric_path[;tag=value ...] value timestamp\n
-		 * where the tag=value part can be repeated.  It should not be
-		 * sanitised, however. */
-		q = conn->metric;
-		firstspace = NULL;
-		lastnl = NULL;
-		for (p = conn->buf; p - conn->buf < conn->buflen; p++) {
-			if (*p == '\n' || *p == '\r') {
-				/* end of metric */
-				lastnl = p;
-
-				/* just a newline on it's own? some random garbage?
-				 * do we exceed the set limits? drop */
-				if (q == conn->metric || firstspace == NULL ||
-						q - conn->metric > self->maxinplen - 1 ||
-						firstspace - conn->metric > self->maxmetriclen)
-				{
-					__sync_add_and_fetch(&(self->discards), 1);
-					q = conn->metric;
-					firstspace = NULL;
-					continue;
-				}
-
-				__sync_add_and_fetch(&(self->metrics), 1);
-				/* add newline and terminate the string, we can do this
-				 * because we substract one from buf and we always store
-				 * a full metric in buf before we copy it to metric
-				 * (which is of the same size) */
-				*q++ = '\n';
-				*q = '\0';
-
-				/* perform routing of this metric */
-				tracef("dispatcher %d, connfd %d, metric %s",
-						self->id, conn->sock, conn->metric);
-				__sync_add_and_fetch(&(self->blackholes),
-						router_route(self->rtr,
-							conn->dests, &conn->destlen, CONN_DESTS_SIZE,
-							conn->srcaddr,
-							conn->metric, firstspace, self->id - 1));
-				tracef("dispatcher %d, connfd %d, destinations %zd\n",
-						self->id, conn->sock, conn->destlen);
-
-				/* restart building new one from the start */
-				q = conn->metric;
-				firstspace = NULL;
-
-				conn->hadwork = 1;
-				gettimeofday(&conn->lastwork, NULL);
-				conn->maxsenddelay = 0;
-				/* send the metric to where it is supposed to go */
-				if (dispatch_process_dests(conn, self, conn->lastwork) == 0)
-					break;
-			} else if (*p == ' ' || *p == '\t' || *p == '.') {
-				/* separator */
-				if (q == conn->metric) {
-					/* make sure we skip this on next iteration to
-					 * avoid an infinite loop, issues #8 and #51 */
-					lastnl = p;
-					continue;
-				}
-				if (*p == '\t')
-					*p = ' ';
-				if (*p == ' ' && firstspace == NULL) {
-					if (*(q - 1) == '.')
-						q--;  /* strip trailing separator */
-					firstspace = q;
-					*q++ = ' ';
-				} else {
-					/* metric_path separator or space,
-					 * - duplicate elimination
-					 * - don't start with separator/space */
-					if (*(q - 1) != *p && (q - 1) != firstspace)
-						*q++ = *p;
-				}
-			} else if (self->tags_supported && *p == ';') {
-				/* copy up to next space */
-				firstspace = q;
-				*q++ = *p;
-			} else if (
-					*p != '\0' && (
-						firstspace != NULL ||
-						(*p >= 'a' && *p <= 'z') ||
-						(*p >= 'A' && *p <= 'Z') ||
-						(*p >= '0' && *p <= '9') ||
-						strchr(self->allowed_chars, *p)
-					)
-				)
-			{
-				/* copy char */
-				*q++ = *p;
-			} else {
-				/* something barf, replace by underscore */
-				*q++ = '_';
+		err = errno;
+		dispatch_received_metrics(conn, self);
+		if (conn->strm->strmreadbuf != NULL) {
+			while((ilen = conn->strm->strmreadbuf(conn->strm,
+							conn->buf + conn->buflen,
+							(sizeof(conn->buf) - 1) - conn->buflen, len, err)) > 0) {
+				conn->buflen += ilen;
+				tracef("dispatcher %d, connfd %d, read %zd bytes from socket\n",
+						self->id, conn->sock, ilen);
+#ifdef ENABLE_TRACE
+				conn->buf[conn->buflen] = '\0';
+#endif
+				dispatch_received_metrics(conn, self);
 			}
-		}
-		conn->needmore = q != conn->metric;
-		if (lastnl != NULL) {
-			/* move remaining stuff to the front */
-			conn->buflen -= lastnl + 1 - conn->buf;
-			tracef("dispatcher %d, conn->buf: %p, lastnl: %p, diff: %zd, "
-					"conn->buflen: %d, sizeof(conn->buf): %lu, "
-					"memmove(%d, %lu, %d)\n",
-					self->id,
-					conn->buf, lastnl, lastnl - conn->buf,
-					conn->buflen, sizeof(conn->buf),
-					0, lastnl + 1 - conn->buf, conn->buflen + 1);
-			tracef("dispatcher %d, pre conn->buf: %s\n", self->id, conn->buf);
-			/* copy last NULL-byte for debug tracing */
-			memmove(conn->buf, lastnl + 1, conn->buflen + 1);
-			tracef("dispatcher %d, post conn->buf: %s\n", self->id, conn->buf);
-			lastnl = NULL;
+
+			if (ilen < 0 && errno == ENOMEM) /* input buffer overflow */
+				len = -1;
 		}
 	}
 	if (len == -1 && (errno == EINTR ||

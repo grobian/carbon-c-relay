@@ -60,6 +60,7 @@ relay_SOURCES = \
 	aggregator.c \
 	$(NULL)
 sendmetric_LINK = $(CCLD) $(AM_LDFLAGS) $(LDFLAGS) -o $@
+sendmetric_LDADD = $(LIBGZIP) $(LIBLZ4) $(LIBSNAPPY) $(LIBSSL)
 sendmetric_SOURCES = sendmetric.c
 libfaketime_la_SOURCES = faketime.c
 noinst_HEADERS = \
@@ -126,10 +127,14 @@ CRTESTS = \
 	large \
 	dual-gzip \
 	large-gzip \
+	dual-large-gzip \
+	dual-lz4 \
+	large-lz4 \
+	dual-large-lz4 \
 	$(NULL)
 
 if SSL_ENABLED
-CRTESTS += dual-ssl large-ssl
+CRTESTS += dual-ssl large-ssl dual-large-ssl
 endif
 
 test: check

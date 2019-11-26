@@ -1,0 +1,6 @@
+# lz4-based test
+cluster "lz4" forward 127.0.0.1:@remoteport@ proto tcp transport lz4;
+
+rewrite ^lz4\.(.*) into through-lz4.\1;
+
+match ^through-lz4\. send to "lz4" stop;
