@@ -24,7 +24,12 @@ script:
       brew update > /dev/null
       brew install openssl oniguruma pcre pcre2 snappy
     else
-      sudo apt-get install libonig-dev libpcre3-dev libssl-dev zlib1g-dev liblz4-dev libsnappy-dev
+      sudo apt-get install libonig-dev libpcre3-dev libssl-dev zlib1g-dev libsnappy-dev wget
+      # Install temporary bugfix for lz4
+      # https://bugs.launchpad.net/ubuntu/+source/lz4/+bug/1851499
+      wget https://github.com/msaf1980/repo/raw/master/xenial/liblz4-1_0.0%7Er131-2ubuntu2_amd64.deb
+      wget https://github.com/msaf1980/repo/raw/master/xenial/liblz4-dev_0.0%7Er131-2ubuntu2_amd64.deb
+      sudo dpkg -i liblz4-1_0.0~r131-2ubuntu2_amd64.deb liblz4-dev_0.0~r131-2ubuntu2_amd64.deb
     fi
   # workaround git not retaining mtimes and bison/flex not being uptodate
   - touch conffile.yy.c conffile.tab.c conffile.tab.h
