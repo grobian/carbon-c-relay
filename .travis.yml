@@ -22,7 +22,7 @@ script:
   - |
     if [ $TRAVIS_OS_NAME = osx ]; then
       brew update > /dev/null
-      brew install openssl oniguruma pcre pcre2 lz4 snappy
+      brew install openssl oniguruma pcre pcre2 snappy
     else
       sudo apt-get install libonig-dev libpcre3-dev libssl-dev zlib1g-dev liblz4-dev libsnappy-dev
     fi
