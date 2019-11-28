@@ -22,9 +22,9 @@ script:
   - |
     if [ $TRAVIS_OS_NAME = osx ]; then
       brew update > /dev/null
-      brew install lz4 openssl oniguruma pcre pcre2
+      brew install openssl oniguruma pcre pcre2 lz4 snappy
     else
-      sudo apt-get install libonig-dev libpcre3-dev zlib1g-dev
+      sudo apt-get install libonig-dev libpcre3-dev libssl-dev zlib1g-dev liblz4-dev libsnappy-dev
     fi
   # workaround git not retaining mtimes and bison/flex not being uptodate
   - touch conffile.yy.c conffile.tab.c conffile.tab.h
