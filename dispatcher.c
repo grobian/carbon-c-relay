@@ -852,6 +852,7 @@ static int
 dispatch_connection(connection *conn, dispatcher *self, struct timeval start)
 {
 	char *p, *q, *firstspace, *lastnl;
+	char search_tags;
 	int len;
 
 	/* first try to resume any work being blocked */
@@ -899,6 +900,7 @@ dispatch_connection(connection *conn, dispatcher *self, struct timeval start)
 		q = conn->metric;
 		firstspace = NULL;
 		lastnl = NULL;
+		search_tags = self->tags_supported;
 		for (p = conn->buf; p - conn->buf < conn->buflen; p++) {
 			if (*p == '\n' || *p == '\r') {
 				/* end of metric */
@@ -938,6 +940,7 @@ dispatch_connection(connection *conn, dispatcher *self, struct timeval start)
 				/* restart building new one from the start */
 				q = conn->metric;
 				firstspace = NULL;
+				search_tags = self->tags_supported;
 
 				conn->hadwork = 1;
 				gettimeofday(&conn->lastwork, NULL);
@@ -967,8 +970,9 @@ dispatch_connection(connection *conn, dispatcher *self, struct timeval start)
 					if (*(q - 1) != *p && (q - 1) != firstspace)
 						*q++ = *p;
 				}
-			} else if (self->tags_supported && *p == ';') {
+			} else if (search_tags && *p == ';') {
 				/* copy up to next space */
+				search_tags = 0;
 				firstspace = q;
 				*q++ = *p;
 			} else if (
