@@ -669,15 +669,10 @@ dispatch_addconnection(int sock, listener *lsnr)
 	size_t c;
 	struct sockaddr_in6 saddr;
 	socklen_t saddr_len = sizeof(saddr);
-	int compress_type;
 #if defined(HAVE_GZIP) || defined(HAVE_LZ4) || defined(HAVE_SNAPPY)
+	int compress_type;
 	char *ibuf;
 #endif
-
-	if (lsnr == NULL)
-		compress_type = 0;
-	else
-		compress_type = lsnr->transport & 0xFFFF;
 
 	pthread_rwlock_rdlock(&connectionslock);
 	for (c = 0; c < connectionslen; c++)
@@ -792,6 +787,11 @@ dispatch_addconnection(int sock, listener *lsnr)
 	}
 
 #if defined(HAVE_GZIP) || defined(HAVE_LZ4) || defined(HAVE_SNAPPY)
+	if (lsnr == NULL)
+		compress_type = 0;
+	else
+		compress_type = lsnr->transport & 0xFFFF;
+
 	/* allocate input buffer */
 	if (compress_type == W_GZIP || compress_type == W_LZ4 || compress_type == W_SNAPPY) {
 		ibuf = malloc(METRIC_BUFSIZ);
