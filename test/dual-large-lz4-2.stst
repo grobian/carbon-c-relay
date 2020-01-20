@@ -1,0 +1,6 @@
+# gzip-based test
+cluster "lz4" forward 127.0.0.1:@remoteport@ proto tcp transport lz4;
+
+rewrite ^large\.(.*) into through-large.\1;
+
+match ^through-large\. send to "lz4" stop;

@@ -106,7 +106,7 @@ build_triplet = @build@
 host_triplet = @host@
 bin_PROGRAMS = relay$(EXEEXT)
 check_PROGRAMS = sendmetric$(EXEEXT)
-@SSL_ENABLED_TRUE@am__append_1 = dual-ssl large-ssl
+@SSL_ENABLED_TRUE@am__append_1 = dual-ssl large-ssl dual-large-ssl
 subdir = .
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/m4/libtool.m4 \
@@ -175,7 +175,8 @@ relay_DEPENDENCIES = $(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
 	$(am__DEPENDENCIES_1)
 am_sendmetric_OBJECTS = sendmetric.$(OBJEXT)
 sendmetric_OBJECTS = $(am_sendmetric_OBJECTS)
-sendmetric_LDADD = $(LDADD)
+sendmetric_DEPENDENCIES = $(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
+	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
 AM_V_P = $(am__v_P_@AM_V@)
 am__v_P_ = $(am__v_P_@AM_DEFAULT_V@)
 am__v_P_0 = false
@@ -423,6 +424,7 @@ relay_SOURCES = \
 	$(NULL)
 
 sendmetric_LINK = $(CCLD) $(AM_LDFLAGS) $(LDFLAGS) -o $@
+sendmetric_LDADD = $(LIBGZIP) $(LIBLZ4) $(LIBSNAPPY) $(LIBSSL)
 sendmetric_SOURCES = sendmetric.c
 libfaketime_la_SOURCES = faketime.c
 noinst_HEADERS = \
@@ -460,7 +462,8 @@ CRTESTS = issue10 issue27 issue117 issue156 issue157 issue163 issue165 \
 	issue180 issue184 issue202 issue213 issue218 issue228 issue235 \
 	issue236 issue246 issue252 issue253 issue263 issue267 issue288 \
 	issue293 issue310 issue357 issue369 server-type basic \
-	metriclimits buftest large dual-gzip large-gzip $(NULL) \
+	metriclimits buftest large dual-gzip large-gzip \
+	dual-large-gzip dual-lz4 large-lz4 dual-large-lz4 $(NULL) \
 	$(am__append_1)
 all: config.h
 	$(MAKE) $(AM_MAKEFLAGS) all-am

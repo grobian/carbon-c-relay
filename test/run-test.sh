@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+
 # Copyright 2013-2018 Fabian Groffen
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -28,51 +29,75 @@ export DYLD_INSERT_LIBRARIES=../.libs/libfaketime.dylib
 export LD_PRELOAD=../.libs/libfaketime.so
 
 buftest_generate() {
-	i=1
-	end=1500
-	rm -f buftest.payload buftest.payloadout
-	while [ $i -le $end ]; do
-		echo "foo.bar.${i} 1 349830001" >> buftest.payloadout
-		i=$(($i+1))
-	done
-	gzip -c < buftest.payloadout > buftest.payload.gz
-	lz4 -c < buftest.payloadout > buftest.payload.lz4
-	ln -s buftest.payloadout buftest.payload.gzout
-	ln -s buftest.payloadout buftest.payload.lz4out
+i=1
+end=2000
+rm -f buftest.payload buftest.payloadout
+while [ $i -le $end ]; do
+    echo "foo.bar.${i} 1 349830001" >> buftest.payload
+    i=$(($i+1))
+done
+ln -sf buftest.payload buftest.payloadout
+ln -sf buftest.payload bundletest.payload
+ln -sf buftest.payload bundletest.payloadout
 }
 
-
 large_generate() {
-	i=1
-	end=1500
-	rm -f large.payload large.payloadout
-	while [ $i -le $end ]; do
-		echo "foo.bar.${i} 1 349830001" >> large.payload
-		i=$(($i+1))
-	done
-	ln -sf large.payload large.payloadout
+i=1
+end=10000
+rm -f large.payload large.payloadout
+while [ $i -le $end ]; do
+    echo "foo.bar.${i} 1 349830001" >> large.payload
+    i=$(($i+1))
+done
+ln -sf large.payload large.payloadout
 }
 
 large_ssl_generate() {
-	i=1
-	end=1500
-	rm -f large-ssl.payload large-ssl.payloadout
-	while [ $i -le $end ]; do
-		echo "ssl.foo.bar.${i} 1 349830001" >> large-ssl.payload
-		echo "through-ssl.foo.bar.${i} 1 349830001" >> large-ssl.payloadout
-		i=$(($i+1))
-	done
+i=1
+end=10000
+rm -f large-ssl.payload large-ssl.payloadout
+while [ $i -le $end ]; do
+    echo "ssl.foo.bar.${i} 1 349830001" >> large-ssl.payload
+    echo "through-ssl.foo.bar.${i} 1 349830001" >> large-ssl.payloadout
+    i=$(($i+1))
+done
 }
 
-large_gzip_generate() {
-	i=1
-	end=1500
-	rm -f large-gzip.payload large-gzip.payloadout
-	while [ $i -le $end ]; do
-		echo "gzip.foo.bar.${i} 1 349830001" >> large-gzip.payload
-		echo "through-gzip.foo.bar.${i} 1 349830001" >> large-gzip.payloadout
-		i=$(($i+1))
-	done
+large_compress_generate() {
+i=1
+end=10000
+rm -f large-compress.payload large-compress.payloadout
+rm -f large-gzip.payload large-gzip.payloadout
+rm -f large-lz4.payload large-lz4.payloadout
+while [ $i -le $end ]; do
+    echo "compress.foo.bar.${i} 1 349830001" >> large-compress.payload
+    echo "through-compress.foo.bar.${i} 1 349830001" >> large-compress.payloadout
+    i=$(($i+1))
+done
+ln -sf large-compress.payload large-gzip.payload
+ln -sf large-compress.payloadout large-gzip.payloadout
+ln -sf large-compress.payload large-lz4.payload
+ln -sf large-compress.payloadout large-lz4.payloadout
+}
+
+dual_large_compress_generate() {
+i=1
+end=10000
+rm -f dual-large-compress.payload dual-large-compress.payloadout
+rm -f dual-large-gzip.payload dual-large-gzip.payloadout
+rm -f dual-large-lz4.payload dual-large-lz4.payloadout
+echo "foo.bar 1 2" > dual-large-compress.payload
+while [ $i -le $end ]; do
+    echo "large.foo.bar.${i} 1 2" >> dual-large-compress.payload
+    echo "through-large.foo.bar.${i} 1 2" >> dual-large-compress.payloadout
+    i=$(($i+1))
+done
+ln -sf dual-large-compress.payload dual-large-gzip.payload
+ln -sf dual-large-compress.payloadout dual-large-gzip.payloadout
+ln -sf dual-large-compress.payload dual-large-lz4.payload
+ln -sf dual-large-compress.payloadout dual-large-lz4.payloadout
+ln -sf dual-large-compress.payload dual-large-ssl.payload
+ln -sf dual-large-compress.payloadout dual-large-ssl.payloadout
 }
 
 run_configtest() {
@@ -114,13 +139,24 @@ run_servertest() {
 	local pidfile2=
 	local port2=
 	local dataout="${tmpdir}"/data.out
+	local confarg=$1
+	local payload=$2
+	local transport=$3
 	local payloadexpect="${payload}out"
 	local test=${confarg%.*}
 	local confarg2=${test}-2.${confarg##*.}
 
-	if [[ -n "${transport}" && \
-		"${transport}" != "gzip" && "${transport}" != "lz4" ]] ;
-	then
+	if [ "${transport}" == "gzip" ]; then
+		SMARG="-c gzip"
+	elif [ "${transport}" == "lz4" ]; then
+		SMARG="-c lz4"
+	elif [ "${transport}" == "snappy" ]; then
+		SMARG="-c snappy"
+	elif [ "${transport}" == "ssl" ]; then
+		SMARG="-s"
+	elif [ "${transport}" == "" ]; then
+		SMARG=""
+	else
 		echo "unsupported transport ${transport}"
 		return 1
 	fi
@@ -149,7 +185,9 @@ run_servertest() {
 		[[ -e ${test}-${id}.args ]] && relayargs=$(< ${test}-${id}.args)
 		[[ -e ${ca} ]] && relayargs+=" -C ${ca}"
 
-		if [ "${transport}" != "" ]; then
+		if [ "${transport}" == "ssl" ]; then
+			transport="transport plain ${transport} ${cert}"
+		elif [ "${transport}" != "" ]; then
 			transport="transport ${transport}"
 		fi
 
@@ -198,14 +236,26 @@ run_servertest() {
 	echo -n "${test}: "
 	[[ "${transport}" != "" ]] && echo -n "${transport} "
 
-	if [[ "${HAVE_GZIP}" == "0" ]] ; then
-		if grep -qE '^listen type linemode transport gzip ' "${confarg}" ; then
+	if [ "${HAVE_GZIP}" == "0" ]; then
+		if egrep '^listen type linemode transport gzip ' ${confarg} >/dev/null; then
 			echo "SKIP"
 			return 0
 		fi
 	fi
-	if [[ "${HAVE_LZ4}" == "0" ]] ; then
-		if grep -qE '^listen type linemode transport lz4 ' "${confarg}" ; then
+	if [ "${HAVE_LZ4}" == "0" ]; then
+		if egrep '^listen type linemode transport lz4 ' ${confarg} >/dev/null; then
+			echo "SKIP"
+			return 0
+		fi
+	fi
+	if [ "${HAVE_SNAPPY}" == "0" ]; then
+		if egrep '^listen type linemode transport snappy ' ${confarg} >/dev/null; then
+			echo "SKIP"
+			return 0
+		fi
+	fi
+	if [ "${HAVE_SSL}" == "0" ]; then
+		if egrep '^listen type linemode transport .* ssl ' ${confarg} >/dev/null; then
 			echo "SKIP"
 			return 0
 		fi
@@ -227,10 +277,13 @@ run_servertest() {
 		output2=${start_server_result[3]}
 	fi
 
-	${SMEXEC} "${unixsock}" < "${payload}"
+	local smargs=
+	[[ -e ${test}.sargs ]] && smargs=$(< ${test}.sargs)
+	${SMEXEC} ${SMARG} ${smargs} "${unixsock}" < "${payload}"
 	if [[ $? != 0 ]] ; then
 		# hmmm
 		echo "failed to send payload"
+		exit 1
 		return 1
 	fi
 	# allow everything to be processed
@@ -257,16 +310,21 @@ run_servertest() {
 
 	# compare some notes
 	local ret
-	tdiff=$(${DIFF} "${payloadexpect}" "${dataout}" \
-			--label "${payloadexpect}" --label "${payloadexpect}" \
-		| ${POST} \
-		; exit ${PIPESTATUS[0]})
+	${DIFF} "${payloadexpect}" "${dataout}" \
+			--label "${payloadexpect}" --label "${payloadexpect}" > "${dataout}.diff"
 	if [[ $? == 0 ]] ; then
 		echo "PASS"
 		ret=0
 	else
 		echo "FAIL"
-		echo "${tdiff}"
+		lines=$( wc -l "${dataout}.diff" | awk '{ print $1; }' )
+		if [ "${lines}" == "" -o "${lines}" -lt "400" ]; then
+		    ${POST} < "${dataout}.diff"
+		else
+		    head -40 "${dataout}.diff" | ${POST}
+		    echo ... | ${POST}
+		    tail -40 "${dataout}.diff" | ${POST}
+		fi
 		ret=1
 	fi
 
@@ -302,42 +360,78 @@ echo -n "generating datasets ..."
 buftest_generate
 large_generate
 large_ssl_generate
-large_gzip_generate
-echo " done"
+large_compress_generate
+dual_large_compress_generate
 
 ${EXEC} -v | grep -w gzip >/dev/null && HAVE_GZIP=1 || HAVE_GZIP=0
 ${EXEC} -v | grep -w lz4 >/dev/null && HAVE_LZ4=1 || HAVE_LZ4=0
+${EXEC} -v | grep -w snappy >/dev/null && HAVE_SNAPPY=1 || HAVE_SNAPPY=0
+${EXEC} -v | grep -w ssl >/dev/null && HAVE_SSL=1 || HAVE_SSL=0
+echo " done"
 
 tstcnt=0
 tstfail=0
+tstfailed=""
 for t in $* ; do
 	if [[ -e ${t}.tst ]] ; then
 		: $((tstcnt++))
-		run_configtest "${EFLAGS}" "${t}.tst" || : $((tstfail++))
+		run_configtest "${EFLAGS}" "${t}.tst" || {
+			: $((tstfail++))
+			tstfailed="${tstfailed} ${t}.tst"
+		}
 	elif [[ -e ${t}.dbg ]] ; then
 		: $((tstcnt++))
-		run_configtest "${EFLAGS} -d" "${t}.dbg" || : $((tstfail++))
+		run_configtest "${EFLAGS} -d" "${t}.dbg" || {
+			: $((tstfail++))
+			tstfailed="${tstfailed} ${t}.tst"
+		}
 	else
 		if [[ -e ${t}.stst ]] ; then
 			: $((tstcnt++))
-			run_servertest "${t}.stst" "${t}.payload" || : $((tstfail++))
+			run_servertest "${t}.stst" "${t}.payload" || {
+				: $((tstfail++))
+				tstfailed="${tstfailed} ${t}.stst"
+			}
 		fi
-		if [[ -e ${t}.gz.stst && "${HAVE_GZIP}" == "1" ]] ; then
+		if [ -e ${t}.gz.stst -a "${HAVE_GZIP}" == "1" ]; then
 			: $((tstcnt++))
-			run_servertest "${t}.gz.stst" "${t}.payload.gz" \
-				"gzip" || : $((tstfail++))
+			run_servertest "${t}.gz.stst" "${t}.payload" "gzip" || {
+				: $((tstfail++))
+				tstfailed="${tstfailed} ${t}.gz.stst"
+			}
 		fi
-		if [[ -e ${t}.lz4.stst && "${HAVE_LZ4}" == "1" ]] ; then
+		if [ -e ${t}.lz4.stst -a "${HAVE_LZ4}" == "1" ]; then
 			: $((tstcnt++))
-			run_servertest "${t}.lz4.stst" "${t}.payload.lz4" \
-				"lz4" || : $((tstfail++))
+			run_servertest "${t}.lz4.stst" "${t}.payload" "lz4" || {
+				: $((tstfail++))
+				tstfailed="${tstfailed} ${t}.lz4.stst"
+			}
+		fi
+		if [ -e ${t}.snappy.stst -a "${HAVE_LZ4}" == "1" ]; then
+			: $((tstcnt++))
+			run_servertest "${t}.snappy.stst" "${t}.payload" "snappy" || {
+				: $((tstfail++))
+				tstfailed="${tstfailed} ${t}.snappy.stst"
+			}
+		fi
+		if [ -e ${t}.ssl.stst -a "${HAVE_SSL}" == "1" ]; then
+			: $((tstcnt++))
+			run_servertest "${t}.ssl.stst" "${t}.payload" "ssl" || {
+				: $((tstfail++))
+				tstfailed="${tstfailed} ${t}.ssl.stst"
+			}
 		fi
 	fi
 done
 
-rm -f buftest.payload.{gz,lz4} buftest.payload{,.gz,.lz4}out \
-	large.payload large.payloadout large-ssl.payload \
-	large-ssl.payloadout large-gzip.payload large-gzip.payloadout
+rm -f buftest.payload buftest.payloadout \
+	parttest.payload parttest.payloadout \
+	bundletest.payload bundletest.payloadout \
+	large.payload large.payloadout large-ssl.payload large-ssl.payloadout \
+	large-compress.payload large-compress.payloadout \
+	large-gzip.payload large-gzip.payloadout large-lz4.payload large-lz4.payloadout \
+	dual-large-gzip.payload dual-large-gzip.payloadout dual-large-lz4.payload dual-large-lz4.payloadout dual-large-ssl.payload dual-large-ssl.payloadout
 
 echo "Ran ${tstcnt} tests with ${tstfail} failing"
+[ "${tstfailed}" == "" ] || echo "failed: ${tstfailed}"
 exit ${tstfail}
