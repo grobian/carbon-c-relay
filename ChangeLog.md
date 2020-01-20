@@ -6,6 +6,9 @@
 
 * [Issue #398](https://github.com/grobian/carbon-c-relay/issues/398)
   metric includes all tags up to one before last
+* [Issue #394](https://github.com/grobian/carbon-c-relay/issues/394)
+  dispatcher can lost some metrics on connection with compression
+
 
 # 3.6 (26-10-2019)
 
