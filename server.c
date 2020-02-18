@@ -1240,10 +1240,10 @@ server_new(
  * file destinations.
  */
 char
-server_cmp(server *s, struct addrinfo *saddr, const char *ip)
+server_cmp(server *s, struct addrinfo *saddr, const char *ip, unsigned short port, con_proto proto)
 {
 	if ((saddr == NULL || s->saddr == NULL)) {
-		if (strcmp(s->ip, ip) == 0)
+		if (strcmp(s->ip, ip) == 0 && s->port == port && s->ctype == proto)
 			return 0;
 	} else if (
 			s->saddr->ai_family == saddr->ai_family &&
