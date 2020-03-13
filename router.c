@@ -2960,6 +2960,10 @@ router_route_intern(
 								firstspace,
 								w->dests->cl->members.routes,
 								dispatcher_id);
+						/* ensure recursion doesn't result in false
+						 * blachole stats #405 */
+						if (*blackholed == 0)
+							wassent = 1;
 					}	break;
 					case VALIDATION: {
 						/* test whether data matches, if not, either log
