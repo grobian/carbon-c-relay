@@ -125,6 +125,8 @@ CRTESTS = \
 	metriclimits \
 	buftest \
 	large \
+	dual-udp \
+	dual-tcp \
 	dual-gzip \
 	large-gzip \
 	dual-large-gzip \

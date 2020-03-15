@@ -462,9 +462,9 @@ CRTESTS = issue10 issue27 issue117 issue156 issue157 issue163 issue165 \
 	issue180 issue184 issue202 issue213 issue218 issue228 issue235 \
 	issue236 issue246 issue252 issue253 issue263 issue267 issue288 \
 	issue293 issue310 issue357 issue369 server-type basic \
-	metriclimits buftest large dual-gzip large-gzip \
-	dual-large-gzip dual-lz4 large-lz4 dual-large-lz4 $(NULL) \
-	$(am__append_1)
+	metriclimits buftest large dual-udp dual-tcp dual-gzip \
+	large-gzip dual-large-gzip dual-lz4 large-lz4 dual-large-lz4 \
+	$(NULL) $(am__append_1)
 all: config.h
 	$(MAKE) $(AM_MAKEFLAGS) all-am
 
