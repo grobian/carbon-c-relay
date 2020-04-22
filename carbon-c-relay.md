@@ -655,7 +655,7 @@ match *
 ```
 
 (Note the escape with backslash `\` of the space, you might be able to
-use `\s` or `[:space:]` instead, this depends on your libc
+use `\s` or `[:space:]` instead, this depends on your configured regex
 implementation.)
 
 The validation clause can exist on every match rule, so in principle,
