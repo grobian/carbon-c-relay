@@ -215,7 +215,7 @@ AC_ARG_WITH([pcre2], [use pcre2 regex library],
 LIBPCRE2=
 AS_IF([test "x${LIBONIGURUMA}" = "x" && test "x$with_pcre2" != xno],
 	  [AC_CHECK_HEADERS([pcre2posix.h], [], [LIBPCRE2=_missing_header])
-	   AC_CHECK_LIB([pcre2-posix${LIBPRCRE2}], [regexec],
+	   AC_CHECK_LIB([pcre2-posix${LIBPCRE2}], [regexec],
 					[LIBPCRE2="-lpcre2-posix"
 					AC_DEFINE([HAVE_PCRE2], [1], [Define if you have pcre2])
 					AC_SUBST([LIBPCRE2], ["${LIBPCRE2}"])
