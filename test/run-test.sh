@@ -35,8 +35,8 @@ buftest_generate() {
 		echo "foo.bar.${i} 1 349830001" >> buftest.payloadout
 		i=$(($i+1))
 	done
-	gzip -c < buftest.payloadout > buftest.payload.gz
-	lz4 -c < buftest.payloadout > buftest.payload.lz4
+	type gzip > /dev/null && gzip -c < buftest.payloadout > buftest.payload.gz
+	type lz4 > /dev/null && lz4 -c < buftest.payloadout > buftest.payload.lz4
 	ln -s buftest.payloadout buftest.payload.gzout
 	ln -s buftest.payloadout buftest.payload.lz4out
 }
@@ -322,12 +322,18 @@ for t in $* ; do
 			: $((tstcnt++))
 			run_servertest "${t}.stst" "${t}.payload" || : $((tstfail++))
 		fi
-		if [[ -e ${t}.gz.stst && "${HAVE_GZIP}" == "1" ]] ; then
+		if [[ -e ${t}.gz.stst \
+			&& -e ${t}.payload.gz \
+			&& "${HAVE_GZIP}" == "1" ]]
+		then
 			: $((tstcnt++))
 			run_servertest "${t}.gz.stst" "${t}.payload.gz" \
 				"gzip" || : $((tstfail++))
 		fi
-		if [[ -e ${t}.lz4.stst && "${HAVE_LZ4}" == "1" ]] ; then
+		if [[ -e ${t}.lz4.stst \
+			&& -e ${t}.payload.lz4 \
+			&& "${HAVE_LZ4}" == "1" ]]
+		then
 			: $((tstcnt++))
 			run_servertest "${t}.lz4.stst" "${t}.payload.lz4" \
 				"lz4" || : $((tstfail++))
