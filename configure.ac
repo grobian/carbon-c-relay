@@ -59,7 +59,10 @@ AC_CHECK_HEADERS([arpa/inet.h \
 				  [],
 				  [AC_MSG_ERROR([required header missing])])
 # non-mandatory headers
-AC_CHECK_HEADERS([dlfcn.h])
+AC_CHECK_HEADERS([dispatch/dispatch.h \
+				  dlfcn.h \
+				  semaphore.h \
+				  ])
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_C_INLINE
