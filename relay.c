@@ -647,7 +647,7 @@ main(int argc, char * const argv[])
 		workercnt = mode & MODE_SUBMISSION ? 2 : get_cores();
 
 	/* disable collector for submission mode */
-	if (mode & MODE_SUBMISSION)
+	if (mode & MODE_SUBMISSION && !(mode & MODE_DEBUG))
 		collector_interval = 0;
 
 	/* any_of failover maths need batchsize to be smaller than queuesize */
