@@ -1086,8 +1086,8 @@ static sem_t *datawaiting = NULL;
 static sem_t _datawaiting;
 static int sema_wait(sem_t *sem, int timeout) {
 	struct timespec wait;
-	wait.ts.tv_sec = 0;
-	wait.ts.tv_nsec = timeout;
+	wait.tv_sec = 0;
+	wait.tv_nsec = timeout;
 	return sem_timedwait(sem, &wait);
 }
 #endif
