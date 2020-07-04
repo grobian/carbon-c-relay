@@ -509,7 +509,9 @@ main(int argc, char * const argv[])
 				break;
 			case 'L':
 				maxstalls = atoi(optarg);
-				if (maxstalls < 0 || maxstalls >= (1 << SERVER_STALL_BITS)) {
+				if (maxstalls < 0 || maxstalls >= (1 << SERVER_STALL_BITS) ||
+						!isdigit(*optarg))
+				{
 					fprintf(stderr, "error: maximum stalls needs to be a number "
 							"between 0 and %d\n", (1 << SERVER_STALL_BITS) - 1);
 					do_usage(argv[0], 1);
@@ -541,7 +543,7 @@ main(int argc, char * const argv[])
 				break;
 			case 'm': {
 				int val = atoi(optarg);
-				if (val < 0) {
+				if (val < 0 || !isdigit(*optarg)) {
 					fprintf(stderr, "error: max metric length needs to "
 							"be a number >=0\n");
 					do_usage(argv[0], 1);
@@ -617,6 +619,11 @@ main(int argc, char * const argv[])
 				break;
 			case 'O': {
 				int val = atoi(optarg);
+				if (val == 0 && !isdigit(*optarg)) {
+					fprintf(stderr, "error: optimiser threshold needs to "
+							"be a number\n");
+					do_usage(argv[0], 1);
+				}
 				optimiserthreshold = val < 0 ? -1 : val;
 			}	break;
 			case '?':
