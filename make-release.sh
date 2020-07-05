@@ -89,6 +89,7 @@ pushd "${CHANGES}"/build || die
 git clone "${SRCDIR}" carbon-c-relay
 pushd carbon-c-relay
 git checkout "v${NEXTRELEASE}" || die
+libtoolize || glibtoolize  # get m4 macros for dist
 ./configure
 make dist
 mv carbon-c-relay-${NEXTRELEASE}.tar.* "${SRCDIR}"/ || die
