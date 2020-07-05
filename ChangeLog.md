@@ -4,6 +4,13 @@
 
 ### Bugfixes
 
+
+# 3.7.1 (05-07-2020)
+
+### New Features
+
+### Bugfixes
+
 * **dispatcher** fixed semaphore approach on Linux not to use excessive
   amounts of CPU
 
