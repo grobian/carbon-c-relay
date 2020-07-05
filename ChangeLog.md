@@ -4,6 +4,8 @@
 
 ### Bugfixes
 
+* **dispatcher** fixed semaphore approach on Linux not to use excessive
+  amounts of CPU
 
 # 3.7 (05-07-2020)
 

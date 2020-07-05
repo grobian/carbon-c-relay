@@ -1084,10 +1084,14 @@ static dispatch_semaphore_t _datawaiting;
 #else
 static sem_t *datawaiting = NULL;
 static sem_t _datawaiting;
-static int sema_wait(sem_t *sem, int timeout) {
+static int sema_wait(sem_t *sem, long int timeout) {
 	struct timespec wait;
-	wait.tv_sec = 0;
-	wait.tv_nsec = timeout;
+	clock_gettime(CLOCK_REALTIME, &wait);
+	wait.tv_nsec += timeout;
+	if (wait.tv_nsec >= 1000000000) {
+		wait.tv_sec++;
+		wait.tv_nsec -= 1000000000;
+	}
 	return sem_timedwait(sem, &wait);
 }
 #endif
@@ -1265,7 +1269,7 @@ dispatch_runner(void *arg)
 				/* wait a bit, but immediately spurt into action if
 				 * there's data available */
 				if (sema_wait(datawaiting,  /* 700ms - 999ms */
-							(700 + (rand() % 1000)) * 1000000) == 0)
+							(700 + (rand() % 300)) * 1000000) == 0)
 					tracef("dispatcher %d woken up\n", self->id);
 				gettimeofday(&stop, NULL);
 				__sync_add_and_fetch(&(self->sleeps), timediff(start, stop));
