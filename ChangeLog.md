@@ -1,4 +1,11 @@
-# 3.7 (unreleased master branch)
+# 3.8 (unreleased master branch)
+
+### New Features
+
+### Bugfixes
+
+
+# 3.7 (05-07-2020)
 
 ### New Features
 
