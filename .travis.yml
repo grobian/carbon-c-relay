@@ -30,11 +30,11 @@ addons:
   homebrew:
     packages:
     - lz4
-    - oniguruma
     - pcre
     - pcre2
     - libressl
-    update: true   # working around unknown bundle command
+      # oniguruma is useless since onigposix.h isn't shipped
+    #update: true   # working around unknown bundle command
 
 script:
   - |
@@ -75,12 +75,13 @@ script:
         v make CFLAGS="-O3 -Wall -Werror -Wshadow -pipe" clean relay || exit 1
       fi
       # test the regex implementations
-      echo "==> oniguruma enabled"
-      v ${econf} --with-oniguruma --without-pcre2 --without-pcre || exit
-      v make CFLAGS="-O3 -Wall -Werror -Wshadow -pipe" clean check || exit 1
       if [ $TRAVIS_OS_NAME = osx ] ; then
         echo "==> pcre2 enabled"
         v ${econf} --without-oniguruma --with-pcre2 --without-pcre || exit
+        v make CFLAGS="-O3 -Wall -Werror -Wshadow -pipe" clean check || exit 1
+      else
+        echo "==> oniguruma enabled"
+        v ${econf} --with-oniguruma --without-pcre2 --without-pcre || exit
         v make CFLAGS="-O3 -Wall -Werror -Wshadow -pipe" clean check || exit 1
       fi
       echo "==> pcre enabled"
