@@ -2,6 +2,10 @@
 
 ### New Features
 
+* **dispatcher** semaphore based thread suspension instead of interval
+  based processing should reduce CPU usage and improve response times
+  and throughput
+
 ### Bugfixes
 
 * [Issue #398](https://github.com/grobian/carbon-c-relay/issues/398)
