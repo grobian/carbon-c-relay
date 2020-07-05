@@ -1114,6 +1114,7 @@ dispatch_runner(void *arg)
 				if (ufds == NULL) {
 					logerr("dispatch: failed to allocate socket poll "
 							"space, cannot continue!\n");
+					pthread_rwlock_unlock(&connectionslock);
 					kill(getpid(), SIGTERM);
 					return NULL;
 				}
@@ -1158,7 +1159,8 @@ dispatch_runner(void *arg)
 							conn = &(connections[c]);
 							/* connection may be serviced at this point,
 							 * that's fine */
-							if (__sync_add_and_fetch(&(conn->takenby), 0) < 0)
+							if ((char)__sync_add_and_fetch(&(conn->takenby), 0)
+									< 0)
 								continue;
 							if (conn->sock == ufds[f].fd) {
 								__sync_bool_compare_and_swap(
@@ -1213,6 +1215,9 @@ dispatch_runner(void *arg)
 				}
 			}
 		}
+
+		if (ufds != NULL)
+			free(ufds);
 	} else if (self->type == CONNECTION) {
 		int work;
 		struct timeval start;
