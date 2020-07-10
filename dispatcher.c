@@ -1134,7 +1134,7 @@ dispatch_runner(void *arg)
 				if (__sync_bool_compare_and_swap(&(conn->datawaiting), 0, 0))
 				{
 					ufds[fds].fd = conn->sock;
-					ufds[fds].events = POLLIN | POLLERR;
+					ufds[fds].events = POLLIN;
 					fds++;
 				}
 			}
@@ -1157,7 +1157,7 @@ dispatch_runner(void *arg)
 			for (f = 0; f < fds; f++) {
 				if (f < cfds) {
 					/* connection has data available */
-					if (ufds[f].revents & (POLLIN | POLLERR)) {
+					if (ufds[f].revents & (POLLIN | POLLERR | POLLHUP)) {
 						pthread_rwlock_rdlock(&connectionslock);
 						for (c = 0; c < connectionslen; c++) {
 							conn = &(connections[c]);
