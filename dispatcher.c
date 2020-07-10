@@ -1183,16 +1183,12 @@ dispatch_runner(void *arg)
 						struct sockaddr addr;
 						socklen_t addrlen = sizeof(addr);
 
-						if ((client = accept(ufds[f].fd, &addr, &addrlen)) < 0)
-						{
-							logerr("dispatch: failed to "
-									"accept() new connection: %s "
-									"[%d/%d/%d=%d]\n",
-									strerror(errno),
-									fds, cfds, f, ufds[f].fd);
-							dispatch_check_rlimit_and_warn();
-							continue;
-						}
+						/* check if this connection belongs to an
+						 * existing listener, this is in particular of
+						 * importance when a listener was removed,
+						 * because thay may have interleaved here, and
+						 * we might get a POLLIN event for a closed
+						 * socket */
 						pthread_rwlock_rdlock(&listenerslock);
 						for (c = 0; c < MAX_LISTENERS; c++) {
 							if (listeners[c] == NULL)
@@ -1207,9 +1203,22 @@ dispatch_runner(void *arg)
 						}
 						pthread_rwlock_unlock(&listenerslock);
 						if (c == MAX_LISTENERS) {
-							logerr("dispatch: could not find listener for "
-									"socket, rejecting connection\n");
-							close(client);
+							/* be silent about this, because this
+							 * happens in tests, and isn't ever possible
+							 * in normal life */
+							tracef("dispatch: could not find listener for "
+									"socket, rejecting connection, fd=%d\n",
+									ufds[f].fd);
+							continue;
+						}
+
+						if ((client = accept(ufds[f].fd, &addr, &addrlen)) < 0)
+						{
+							logerr("dispatch: failed to "
+									"accept() new connection on %s:%d: %s\n",
+									listeners[c]->ip, listeners[c]->port,
+									strerror(errno));
+							dispatch_check_rlimit_and_warn();
 							continue;
 						}
 						if (dispatch_addconnection(client, listeners[c]) == -1)
