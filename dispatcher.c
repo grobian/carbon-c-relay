@@ -1186,8 +1186,10 @@ dispatch_runner(void *arg)
 						if ((client = accept(ufds[f].fd, &addr, &addrlen)) < 0)
 						{
 							logerr("dispatch: failed to "
-									"accept() new connection: %s\n",
-									strerror(errno));
+									"accept() new connection: %s "
+									"[%d/%d/%d=%d]\n",
+									strerror(errno),
+									fds, cfds, f, ufds[f].fd);
 							dispatch_check_rlimit_and_warn();
 							continue;
 						}
