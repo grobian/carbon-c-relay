@@ -4,6 +4,13 @@
 
 ### Bugfixes
 
+
+# 3.7.2 (10-07-2020)
+
+### New Features
+
+### Bugfixes
+
 * [Issue #415](https://github.com/grobian/carbon-c-relay/issues/415)
   fixed an issue with listeners during shutdown that showed up on some
   platforms
