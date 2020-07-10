@@ -140,7 +140,7 @@ run_servertest() {
 		local unixsock="${tmpdir}/sock.${port}"
 		local cert="${test}.cert"
 		local ca="${test}.cert"
-		local conf="${tmpdir}"/conf
+		local conf="${tmpdir}"/conf-${id}
 		local output="${tmpdir}"/relay-${id}.out
 		local pidfile="${tmpdir}"/pidfile-${id}
 
