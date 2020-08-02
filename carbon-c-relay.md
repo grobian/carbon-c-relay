@@ -316,7 +316,9 @@ key.  For example, usage like
 `10.0.0.1:2003=4d79d13554fa1301476c1f9fe968b0ac` would allow to change
 port and/or ip address of the server that receives data for the instance
 key.  Obviously, this way migration of data can be dealt with much more
-conveniently.  The `jump_fnv1a_ch` cluster is also a consistent hash
+conveniently.  When using `fnv1a_ch` consider using longer instance-names
+for better hash-distribution behavior.
+The `jump_fnv1a_ch` cluster is also a consistent hash
 cluster like the previous two, but it does not take the server
 information into account at all.  Whether this is useful to you depends
 on your scenario.  The jump hash has a much better balancing over the
