@@ -1,5 +1,5 @@
 /*
- * Copyright 2013-2020 Fabian Groffen
+ * Copyright 2013-2021 Fabian Groffen
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -723,7 +723,13 @@ dispatch_addconnection(int sock, listener *lsnr)
 		zstrm->hdl.z.zfree = Z_NULL;
 		zstrm->hdl.z.opaque = Z_NULL;
 		zstrm->ipos = 0;
-		inflateInit2(&(zstrm->hdl.z), 15 + 16);
+		if (inflateInit2(&(zstrm->hdl.z), 15 + 16) != Z_OK) {
+			free(zstrm);
+			zstrm = NULL;
+			logerr("Failed to create gzip decompression context\n");
+			__sync_bool_compare_and_swap(&(connections[c].takenby), -2, -1);
+			return -1;
+		}
 		zstrm->strmread = &gzipread;
 		zstrm->strmclose = &gzipclose;
 		zstrm->nextstrm = connections[c].strm;
