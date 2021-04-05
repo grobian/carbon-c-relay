@@ -24,6 +24,7 @@
 
 typedef struct _dispatcher dispatcher;
 
+char dispatch_global_alloc(void);
 void dispatch_check_rlimit_and_warn(void);
 int dispatch_addlistener(listener *lsnr);
 void dispatch_removelistener(listener *lsnr);

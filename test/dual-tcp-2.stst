@@ -1,0 +1,6 @@
+# gzip-based test
+cluster "tcp" forward 127.0.0.1:@remoteport@ proto tcp transport plain;
+
+rewrite ^tcp\.(.*) into through-tcp.\1;
+
+match ^through-tcp\. send to "tcp" stop;

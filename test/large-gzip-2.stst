@@ -1,6 +1,6 @@
 # gzip-based test
 cluster "gzip" forward 127.0.0.1:@remoteport@ proto tcp transport gzip;
 
-rewrite ^gzip\.(.*) into through-gzip.\1;
+rewrite ^compress\.(.*) into through-compress.\1;
 
-match ^through-gzip\. send to "gzip" stop;
+match ^through-compress\. send to "gzip" stop;

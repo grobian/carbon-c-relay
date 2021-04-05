@@ -1,0 +1,6 @@
+# gzip-based test
+cluster "udp" forward 127.0.0.1:@remoteport@ proto udp transport plain;
+
+rewrite ^udp\.(.*) into through-udp.\1;
+
+match ^through-udp\. send to "udp" stop;
