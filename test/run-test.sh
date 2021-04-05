@@ -29,75 +29,75 @@ export DYLD_INSERT_LIBRARIES=../.libs/libfaketime.dylib
 export LD_PRELOAD=../.libs/libfaketime.so
 
 buftest_generate() {
-i=1
-end=2000
-rm -f buftest.payload buftest.payloadout
-while [ $i -le $end ]; do
+  i=1
+  end=2000
+  rm -f buftest.payload buftest.payloadout
+  while [ $i -le $end ]; do
     echo "foo.bar.${i} 1 349830001" >> buftest.payload
     i=$(($i+1))
-done
-ln -sf buftest.payload buftest.payloadout
-ln -sf buftest.payload bundletest.payload
-ln -sf buftest.payload bundletest.payloadout
+  done
+  ln -sf buftest.payload buftest.payloadout
+  ln -sf buftest.payload bundletest.payload
+  ln -sf buftest.payload bundletest.payloadout
 }
 
 large_generate() {
-i=1
-end=10000
-rm -f large.payload large.payloadout
-while [ $i -le $end ]; do
+  i=1
+  end=10000
+  rm -f large.payload large.payloadout
+  while [ $i -le $end ]; do
     echo "foo.bar.${i} 1 349830001" >> large.payload
     i=$(($i+1))
-done
-ln -sf large.payload large.payloadout
+  done
+  ln -sf large.payload large.payloadout
 }
 
 large_ssl_generate() {
-i=1
-end=10000
-rm -f large-ssl.payload large-ssl.payloadout
-while [ $i -le $end ]; do
+  i=1
+  end=10000
+  rm -f large-ssl.payload large-ssl.payloadout
+  while [ $i -le $end ]; do
     echo "ssl.foo.bar.${i} 1 349830001" >> large-ssl.payload
     echo "through-ssl.foo.bar.${i} 1 349830001" >> large-ssl.payloadout
     i=$(($i+1))
-done
+  done
 }
 
 large_compress_generate() {
-i=1
-end=10000
-rm -f large-compress.payload large-compress.payloadout
-rm -f large-gzip.payload large-gzip.payloadout
-rm -f large-lz4.payload large-lz4.payloadout
-while [ $i -le $end ]; do
+  i=1
+  end=10000
+  rm -f large-compress.payload large-compress.payloadout
+  rm -f large-gzip.payload large-gzip.payloadout
+  rm -f large-lz4.payload large-lz4.payloadout
+  while [ $i -le $end ]; do
     echo "compress.foo.bar.${i} 1 349830001" >> large-compress.payload
     echo "through-compress.foo.bar.${i} 1 349830001" >> large-compress.payloadout
     i=$(($i+1))
-done
-ln -sf large-compress.payload large-gzip.payload
-ln -sf large-compress.payloadout large-gzip.payloadout
-ln -sf large-compress.payload large-lz4.payload
-ln -sf large-compress.payloadout large-lz4.payloadout
+  done
+  ln -sf large-compress.payload large-gzip.payload
+  ln -sf large-compress.payloadout large-gzip.payloadout  
+  ln -sf large-compress.payload large-lz4.payload
+  ln -sf large-compress.payloadout large-lz4.payloadout
 }
 
 dual_large_compress_generate() {
-i=1
-end=10000
-rm -f dual-large-compress.payload dual-large-compress.payloadout
-rm -f dual-large-gzip.payload dual-large-gzip.payloadout
-rm -f dual-large-lz4.payload dual-large-lz4.payloadout
-echo "foo.bar 1 2" > dual-large-compress.payload
-while [ $i -le $end ]; do
+  i=1
+  end=10000
+  rm -f dual-large-compress.payload dual-large-compress.payloadout
+  rm -f dual-large-gzip.payload dual-large-gzip.payloadout
+  rm -f dual-large-lz4.payload dual-large-lz4.payloadout
+  echo "foo.bar 1 2" > dual-large-compress.payload
+  while [ $i -le $end ]; do
     echo "large.foo.bar.${i} 1 2" >> dual-large-compress.payload
     echo "through-large.foo.bar.${i} 1 2" >> dual-large-compress.payloadout
     i=$(($i+1))
-done
-ln -sf dual-large-compress.payload dual-large-gzip.payload
-ln -sf dual-large-compress.payloadout dual-large-gzip.payloadout
-ln -sf dual-large-compress.payload dual-large-lz4.payload
-ln -sf dual-large-compress.payloadout dual-large-lz4.payloadout
-ln -sf dual-large-compress.payload dual-large-ssl.payload
-ln -sf dual-large-compress.payloadout dual-large-ssl.payloadout
+  done
+  ln -sf dual-large-compress.payload dual-large-gzip.payload
+  ln -sf dual-large-compress.payloadout dual-large-gzip.payloadout
+  ln -sf dual-large-compress.payload dual-large-lz4.payload
+  ln -sf dual-large-compress.payloadout dual-large-lz4.payloadout
+  ln -sf dual-large-compress.payload dual-large-ssl.payload
+  ln -sf dual-large-compress.payloadout dual-large-ssl.payloadout
 }
 
 run_configtest() {
@@ -176,7 +176,7 @@ run_servertest() {
 		local unixsock="${tmpdir}/sock.${port}"
 		local cert="${test}.cert"
 		local ca="${test}.cert"
-		local conf="${tmpdir}"/conf
+		local conf="${tmpdir}"/conf-${id}
 		local output="${tmpdir}"/relay-${id}.out
 		local pidfile="${tmpdir}"/pidfile-${id}
 

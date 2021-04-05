@@ -2,8 +2,8 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ([2.69])
-AC_INIT([carbon-c-relay], [3.6], [])
-AC_SUBST([RELEASEDATE], [2019-10-26])
+AC_INIT([carbon-c-relay], [3.7.2], [])
+AC_SUBST([RELEASEDATE], [2020-07-10])
 AC_CONFIG_HEADERS([config.h])
 AM_INIT_AUTOMAKE
 AM_MAINTAINER_MODE([enable])
@@ -59,7 +59,10 @@ AC_CHECK_HEADERS([arpa/inet.h \
 				  [],
 				  [AC_MSG_ERROR([required header missing])])
 # non-mandatory headers
-AC_CHECK_HEADERS([dlfcn.h])
+AC_CHECK_HEADERS([dispatch/dispatch.h \
+				  dlfcn.h \
+				  semaphore.h \
+				  ])
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_C_INLINE
@@ -215,7 +218,7 @@ AC_ARG_WITH([pcre2], [use pcre2 regex library],
 LIBPCRE2=
 AS_IF([test "x${LIBONIGURUMA}" = "x" && test "x$with_pcre2" != xno],
 	  [AC_CHECK_HEADERS([pcre2posix.h], [], [LIBPCRE2=_missing_header])
-	   AC_CHECK_LIB([pcre2-posix${LIBPRCRE2}], [regexec],
+	   AC_CHECK_LIB([pcre2-posix${LIBPCRE2}], [regexec],
 					[LIBPCRE2="-lpcre2-posix"
 					AC_DEFINE([HAVE_PCRE2], [1], [Define if you have pcre2])
 					AC_SUBST([LIBPCRE2], ["${LIBPCRE2}"])

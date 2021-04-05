@@ -1,5 +1,5 @@
 /*
- * Copyright 2013-2019 Fabian Groffen
+ * Copyright 2013-2021 Fabian Groffen
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -2362,10 +2362,13 @@ router_contains_listener(router *rtr, listener *lsnr)
 #ifdef HAVE_SSL
 					/* check pemmtimespec */
 					if ((lsnr->transport & ~0xFFFF) == W_SSL &&
-							lsnr->pemmtimespec.tv_sec ==
-									rwalk->pemmtimespec.tv_sec &&
-							lsnr->pemmtimespec.tv_nsec ==
-									rwalk->pemmtimespec.tv_nsec)
+							(lsnr->pemmtimespec.tv_sec !=
+									rwalk->pemmtimespec.tv_sec || 
+							lsnr->pemmtimespec.tv_nsec !=
+									rwalk->pemmtimespec.tv_nsec))
+					{
+						continue;
+					} else
 #endif
 					{
 						match = 1;

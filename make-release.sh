@@ -23,6 +23,16 @@ if [[ $1 == "-M" || $1 == "--major" ]] ; then
 	# major version bump
 	NEXTRELEASE="$(( ${CURRELEASE%%.*} + 1 )).0"
 	FUTURERELEASE="${NEXTRELEASE%.0}.1"
+elif [[ $1 == "-B" || $1 == "--bugfix" ]] ; then
+	# bugfix release
+	MINOR=${CURRELEASE#*.}
+	SUF=0
+	if [[ ${MINOR} == *.* ]] ; then
+		SUF=${MINOR#*.}
+		MINOR=${MINOR%.*}
+	fi
+	NEXTRELEASE="${CURRELEASE%%.*}.${MINOR}.$(( ${SUF} + 1 ))"
+	FUTURERELEASE="${CURRELEASE%%.*}.$(( ${MINOR} + 1 ))"
 else
 	# minor version bump
 	MINOR=${CURRELEASE#*.}
@@ -89,6 +99,7 @@ pushd "${CHANGES}"/build || die
 git clone "${SRCDIR}" carbon-c-relay
 pushd carbon-c-relay
 git checkout "v${NEXTRELEASE}" || die
+libtoolize || glibtoolize  # get m4 macros for dist
 ./configure
 make dist
 mv carbon-c-relay-${NEXTRELEASE}.tar.* "${SRCDIR}"/ || die

@@ -5,8 +5,16 @@ matrix:
   include:
     - compiler: gcc
       os: linux
+      dist: xenial
     - compiler: clang
       os: linux
+      dist: xenial
+    - compiler: gcc
+      os: linux
+      dist: bionic
+    - compiler: clang
+      os: linux
+      dist: bionic
     - compiler: coverity
       os: linux
       env:
@@ -16,15 +24,33 @@ matrix:
         - COVERITY_SCAN_BUILD_COMMAND="make"
     - compiler: clang
       os: osx
+      env:
+        - LDFLAGS="-L$(brew --prefix)/opt/libressl/lib"
+        - CPPFLAGS="-I$(brew --prefix)/opt/libressl/include"
     # gcc is actually clang on OSX, so pointless to test twice
+
+addons:
+  apt:
+    packages:
+    - libonig-dev
+    - libpcre3-dev
+    - libssl-dev
+    - zlib1g-dev
+    - libsnappy-dev
+    - wget
+  homebrew:
+    packages:
+    - lz4
+    - pcre
+    - pcre2
+    - snappy
+    - libressl
+      # oniguruma is useless since onigposix.h isn't shipped
+    #update: true   # working around unknown bundle command
 
 script:
   - |
-    if [ $TRAVIS_OS_NAME = osx ]; then
-      brew update > /dev/null
-      brew install openssl oniguruma pcre pcre2 snappy
-    else
-      sudo apt-get install libonig-dev libpcre3-dev libssl-dev zlib1g-dev libsnappy-dev wget
+    if [ $TRAVIS_OS_NAME != osx ]; then
       # Install temporary bugfix for lz4
       # https://bugs.launchpad.net/ubuntu/+source/lz4/+bug/1851499
       wget https://github.com/msaf1980/repo/raw/master/xenial/liblz4-1_0.0%7Er131-2ubuntu2_amd64.deb
@@ -68,12 +94,13 @@ script:
         v make CFLAGS="-O3 -Wall -Werror -Wshadow -pipe" clean relay || exit 1
       fi
       # test the regex implementations
-      echo "==> oniguruma enabled"
-      v ${econf} --with-oniguruma --without-pcre2 --without-pcre || exit
-      v make CFLAGS="-O3 -Wall -Werror -Wshadow -pipe" clean check || exit 1
       if [ $TRAVIS_OS_NAME = osx ] ; then
         echo "==> pcre2 enabled"
         v ${econf} --without-oniguruma --with-pcre2 --without-pcre || exit
+        v make CFLAGS="-O3 -Wall -Werror -Wshadow -pipe" clean check || exit 1
+      else
+        echo "==> oniguruma enabled"
+        v ${econf} --with-oniguruma --without-pcre2 --without-pcre || exit
         v make CFLAGS="-O3 -Wall -Werror -Wshadow -pipe" clean check || exit 1
       fi
       echo "==> pcre enabled"

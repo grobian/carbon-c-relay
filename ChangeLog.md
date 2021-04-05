@@ -1,6 +1,36 @@
-# 3.7 (unreleased master branch)
+# 3.8 (unreleased master branch)
 
 ### New Features
+
+### Bugfixes
+
+
+# 3.7.2 (10-07-2020)
+
+### New Features
+
+### Bugfixes
+
+* [Issue #415](https://github.com/grobian/carbon-c-relay/issues/415)
+  fixed an issue with listeners during shutdown that showed up on some
+  platforms
+
+# 3.7.1 (05-07-2020)
+
+### New Features
+
+### Bugfixes
+
+* **dispatcher** fixed semaphore approach on Linux not to use excessive
+  amounts of CPU
+
+# 3.7 (05-07-2020)
+
+### New Features
+
+* **dispatcher** semaphore based thread suspension instead of interval
+  based processing should reduce CPU usage and improve response times
+  and throughput
 
 ### Bugfixes
 

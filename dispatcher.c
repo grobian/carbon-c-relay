@@ -1,5 +1,5 @@
 /*
- * Copyright 2013-2018 Fabian Groffen
+ * Copyright 2013-2021 Fabian Groffen
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,6 +22,7 @@
 #include <errno.h>
 #include <poll.h>
 #include <pthread.h>
+#include <signal.h>
 #include <sys/uio.h>
 #include <sys/time.h>
 #include <sys/types.h>
@@ -50,6 +51,15 @@
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 #endif
+
+#if defined(HAVE_DISPATCH_DISPATCH_H)
+# include <dispatch/dispatch.h>
+#elif defined(HAVE_SEMAPHORE_H)
+# include <semaphore.h>
+#else
+# error "found no implementation for semaphores for your platform!"
+#endif
+
 
 enum conntype {
 	LISTENER,
@@ -115,20 +125,19 @@ typedef struct _connection {
 	int buflen;
 	char needmore:1;
 	char noexpire:1;
+	char isaggr:1;
+	char isudp:1;
+	char datawaiting; /* full byte for atomic access */
 	char metric[METRIC_BUFSIZ];
 	destination dests[CONN_DESTS_SIZE];
 	size_t destlen;
 	struct timeval lastwork;
 	unsigned int maxsenddelay;
-	char hadwork:1;
-	char isaggr:1;
-	char isudp:1;
 } connection;
 
 struct _dispatcher {
 	pthread_t tid;
 	enum conntype type;
-	char id;
 	size_t metrics;
 	size_t blackholes;
 	size_t discards;
@@ -139,13 +148,14 @@ struct _dispatcher {
 	size_t prevdiscards;
 	size_t prevticks;
 	size_t prevsleeps;
-	char keep_running;  /* full byte for atomic access */
+	char id;
+	char keep_running;  /* these all use a full byte for atomic access */
+	char route_refresh_pending;
+	char hold;
+	char tags_supported;
 	router *rtr;
 	router *pending_rtr;
-	char route_refresh_pending;  /* full byte for atomic access */
-	char hold;  /* full byte for atomic access */
 	char *allowed_chars;
-	char tags_supported;
 	int maxinplen;
 	int maxmetriclen;
 };
@@ -822,21 +832,18 @@ dispatch_addconnection(int sock, listener *lsnr)
 			__sync_bool_compare_and_swap(&(connections[c].takenby), C_SETUP, C_FREE);
 			return -1;
 		}
-		zstrm->hdl.gz.z.zalloc = Z_NULL;
-		zstrm->hdl.gz.z.zfree = Z_NULL;
-		zstrm->hdl.gz.z.opaque = Z_NULL;
 		zstrm->ipos = 0;
-		inflateInit2(&(zstrm->hdl.gz.z), 15 + 16);
-		zstrm->hdl.gz.inflatemode = Z_SYNC_FLUSH;
-
 		zstrm->ibuf = ibuf;
 		zstrm->isize = METRIC_BUFSIZ;
-		zstrm->hdl.gz.z.next_in = (Bytef *)zstrm->ibuf;
-		zstrm->hdl.gz.z.avail_in = 0;
-
 		zstrm->strmread = &gzipread;
 		zstrm->strmreadbuf = &gzipreadbuf;
 		zstrm->strmclose = &gzipclose;
+    zstrm->hdl.gz.inflatemode = Z_SYNC_FLUSH;
+		zstrm->hdl.gz.z.next_in = (Bytef *)zstrm->ibuf;
+		zstrm->hdl.gz.z.avail_in = 0;
+		zstrm->hdl.gz.z.zalloc = Z_NULL;
+		zstrm->hdl.gz.z.zfree = Z_NULL;
+		zstrm->hdl.gz.z.opaque = Z_NULL;
 		zstrm->nextstrm = connections[c].strm;
 		connections[c].strm = zstrm;
 	}
@@ -902,7 +909,7 @@ dispatch_addconnection(int sock, listener *lsnr)
 	connections[c].isudp = 0;
 	connections[c].destlen = 0;
 	gettimeofday(&connections[c].lastwork, NULL);
-	connections[c].hadwork = 1;  /* force first iteration before stalling */
+	connections[c].datawaiting = 0;
 	/* after this dispatchers will pick this connection up */
 	__sync_bool_compare_and_swap(&(connections[c].takenby), C_SETUP, C_IN);
 	__sync_add_and_fetch(&acceptedconnections, 1);
@@ -948,7 +955,8 @@ dispatch_process_dests(connection *conn, dispatcher *self, struct timeval now)
 					self->id, conn->sock, conn->dests[i].metric,
 					server_ip(conn->dests[i].dest),
 					server_port(conn->dests[i].dest));
-			if (server_send(conn->dests[i].dest, conn->dests[i].metric, force) == 0)
+			if (server_send(conn->dests[i].dest,
+						conn->dests[i].metric, force) == 0)
 				break;
 		}
 		if (i < conn->destlen) {
@@ -960,7 +968,6 @@ dispatch_process_dests(connection *conn, dispatcher *self, struct timeval now)
 			/* finally "complete" this metric */
 			conn->destlen = 0;
 			conn->lastwork = now;
-			conn->hadwork = 1;
 		}
 	}
 
@@ -1136,7 +1143,6 @@ dispatch_connection(connection *conn, dispatcher *self, struct timeval start)
 		__sync_bool_compare_and_swap(&(conn->takenby), self->id, C_IN);
 		return 0;
 	}
-	conn->hadwork = 0;
 
 	len = -2;
 	/* try to read more data, if that succeeds, or we still have data
@@ -1216,8 +1222,8 @@ dispatch_connection(connection *conn, dispatcher *self, struct timeval start)
 
 			/* flag this connection as no longer in use, unless there is
 			 * pending metrics to send */
+			conn->sock = -1;  /* ensure a poll won't match */
 			__sync_bool_compare_and_swap(&(conn->takenby), self->id, C_FREE);
-
 			return 0;
 		}
 	}
@@ -1232,6 +1238,27 @@ dispatch_connection(connection *conn, dispatcher *self, struct timeval start)
  * pthread compatible routine that handles connections and processes
  * whatever comes in on those.
  */
+#ifdef HAVE_DISPATCH_DISPATCH_H
+static dispatch_semaphore_t *datawaiting = NULL;
+static dispatch_semaphore_t _datawaiting;
+#define sem_init(X,Y,Z) *(X) = dispatch_semaphore_create(Z)
+#define sem_post(X)            dispatch_semaphore_signal(*(X))
+#define sema_wait(X,T)         dispatch_semaphore_wait(*(X), \
+                                 dispatch_time(DISPATCH_TIME_NOW, T))
+#else
+static sem_t *datawaiting = NULL;
+static sem_t _datawaiting;
+static int sema_wait(sem_t *sem, long int timeout) {
+	struct timespec wait;
+	clock_gettime(CLOCK_REALTIME, &wait);
+	wait.tv_nsec += timeout;
+	if (wait.tv_nsec >= 1000000000) {
+		wait.tv_sec++;
+		wait.tv_nsec -= 1000000000;
+	}
+	return sem_timedwait(sem, &wait);
+}
+#endif
 static void *
 dispatch_runner(void *arg)
 {
@@ -1240,12 +1267,44 @@ dispatch_runner(void *arg)
 	int c;
 
 	if (self->type == LISTENER) {
-		struct pollfd ufds[MAX_LISTENERS];
+		struct pollfd *ufds = NULL;
+		int ufdslen = 0;
 		int fds;
+		int cfds;
+		int f;
 		int *sock;
+
 		while (__sync_bool_compare_and_swap(&(self->keep_running), 1, 1)) {
-			pthread_rwlock_rdlock(&listenerslock);
+			pthread_rwlock_rdlock(&connectionslock);
+			if (ufdslen < MAX_LISTENERS + connectionslen) {
+				ufdslen = MAX_LISTENERS + connectionslen;
+				ufds = realloc(ufds, sizeof(ufds[0]) * ufdslen);
+				if (ufds == NULL) {
+					logerr("dispatch: failed to allocate socket poll "
+							"space, cannot continue!\n");
+					pthread_rwlock_unlock(&connectionslock);
+					kill(getpid(), SIGTERM);
+					return NULL;
+				}
+			}
 			fds = 0;
+			for (c = 0; c < connectionslen; c++) {
+				conn = &(connections[c]);
+				if (!__sync_bool_compare_and_swap(&(conn->takenby), 0, 0))
+					continue;
+				/* connections are only read from if we flagged that
+				 * there is data waiting, so sockets cannot disappear
+				 * for the read code doesn't trigger unless we polled it */
+				if (__sync_bool_compare_and_swap(&(conn->datawaiting), 0, 0))
+				{
+					ufds[fds].fd = conn->sock;
+					ufds[fds].events = POLLIN;
+					fds++;
+				}
+			}
+			pthread_rwlock_unlock(&connectionslock);
+			cfds = fds;
+			pthread_rwlock_rdlock(&listenerslock);
 			for (c = 0; c < MAX_LISTENERS; c++) {
 				if (listeners[c] == NULL)
 					continue;
@@ -1256,27 +1315,50 @@ dispatch_runner(void *arg)
 				}
 			}
 			pthread_rwlock_unlock(&listenerslock);
-			if (poll(ufds, fds, 1000) > 0) {
-				int f;
-				for (f = fds - 1; f >= 0; f--) {
+			if (poll(ufds, fds, 1000) <= 0)
+				continue;
+
+			for (f = 0; f < fds; f++) {
+				if (f < cfds) {
+					/* connection has data available */
+					if (ufds[f].revents & (POLLIN | POLLERR | POLLHUP)) {
+						pthread_rwlock_rdlock(&connectionslock);
+						for (c = 0; c < connectionslen; c++) {
+							conn = &(connections[c]);
+							/* connection may be serviced at this point,
+							 * that's fine */
+							if ((char)__sync_add_and_fetch(&(conn->takenby), 0)
+									< 0)
+								continue;
+							if (conn->sock == ufds[f].fd) {
+								__sync_bool_compare_and_swap(
+										&(conn->datawaiting), 0, 1);
+								sem_post(datawaiting);
+								tracef("data waiting on connection %d, "
+										"src %s\n", conn->sock, conn->srcaddr);
+							}
+						}
+						pthread_rwlock_unlock(&connectionslock);
+					}
+				} else {
+					/* listener has new connection */
 					if (ufds[f].revents & POLLIN) {
 						int client;
 						struct sockaddr addr;
 						socklen_t addrlen = sizeof(addr);
 
-						if ((client = accept(ufds[f].fd, &addr, &addrlen)) < 0)
-						{
-							logerr("dispatch: failed to "
-									"accept() new connection: %s\n",
-									strerror(errno));
-							dispatch_check_rlimit_and_warn();
-							continue;
-						}
+						/* check if this connection belongs to an
+						 * existing listener, this is in particular of
+						 * importance when a listener was removed,
+						 * because thay may have interleaved here, and
+						 * we might get a POLLIN event for a closed
+						 * socket */
 						pthread_rwlock_rdlock(&listenerslock);
 						for (c = 0; c < MAX_LISTENERS; c++) {
 							if (listeners[c] == NULL)
 								continue;
-							for (sock = listeners[c]->socks; *sock != -1; sock++) {
+							sock = listeners[c]->socks;
+							for ( ; *sock != -1; sock++) {
 								if (ufds[f].fd == *sock)
 									break;
 							}
@@ -1285,12 +1367,26 @@ dispatch_runner(void *arg)
 						}
 						pthread_rwlock_unlock(&listenerslock);
 						if (c == MAX_LISTENERS) {
-							logerr("dispatch: could not find listener for "
-									"socket, rejecting connection\n");
-							close(client);
+							/* be silent about this, because this
+							 * happens in tests, and isn't ever possible
+							 * in normal life */
+							tracef("dispatch: could not find listener for "
+									"socket, rejecting connection, fd=%d\n",
+									ufds[f].fd);
 							continue;
 						}
-						if (dispatch_addconnection(client, listeners[c]) == -1) {
+
+						if ((client = accept(ufds[f].fd, &addr, &addrlen)) < 0)
+						{
+							logerr("dispatch: failed to "
+									"accept() new connection on %s:%d: %s\n",
+									listeners[c]->ip, listeners[c]->port,
+									strerror(errno));
+							dispatch_check_rlimit_and_warn();
+							continue;
+						}
+						if (dispatch_addconnection(client, listeners[c]) == -1)
+						{
 							close(client);
 							continue;
 						}
@@ -1298,17 +1394,24 @@ dispatch_runner(void *arg)
 				}
 			}
 		}
+
+		if (ufds != NULL)
+			free(ufds);
 	} else if (self->type == CONNECTION) {
 		int work;
-		struct timeval start, stop;
+		struct timeval start;
+		struct timeval stop;
 
 		while (__sync_bool_compare_and_swap(&(self->keep_running), 1, 1)) {
 			work = 0;
 
-			if (__sync_bool_compare_and_swap(&(self->route_refresh_pending), 1, 1)) {
+			if (__sync_bool_compare_and_swap(&(self->route_refresh_pending),
+						1, 1))
+			{
 				self->rtr = self->pending_rtr;
 				self->pending_rtr = NULL;
-				__sync_bool_compare_and_swap(&(self->route_refresh_pending), 1, 0);
+				__sync_bool_compare_and_swap(&(self->route_refresh_pending),
+						1, 0);
 				__sync_and_and_fetch(&(self->hold), 0);
 			}
 
@@ -1338,7 +1441,11 @@ dispatch_runner(void *arg)
 					work == 0)
 			{
 				gettimeofday(&start, NULL);
-				usleep((100 + (rand() % 200)) * 1000);  /* 100ms - 300ms */
+				/* wait a bit, but immediately spurt into action if
+				 * there's data available */
+				if (sema_wait(datawaiting,  /* 700ms - 999ms */
+							(700 + (rand() % 300)) * 1000000) == 0)
+					tracef("dispatcher %d woken up\n", self->id);
 				gettimeofday(&stop, NULL);
 				__sync_add_and_fetch(&(self->sleeps), timediff(start, stop));
 			}
@@ -1371,6 +1478,11 @@ dispatch_new(
 	if (type == CONNECTION && r == NULL) {
 		free(ret);
 		return NULL;
+	}
+
+	if (type == CONNECTION && datawaiting == NULL) {
+		datawaiting = &_datawaiting;
+		sem_init(datawaiting, 0, 0);
 	}
 
 	ret->id = id + 1;  /* ensure > 0 */
