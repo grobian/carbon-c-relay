@@ -36,7 +36,7 @@
 #endif
 
 
-static char
+static int
 bindlistenip(listener *lsnr, unsigned int backlog)
 {
 	int sock;
@@ -165,7 +165,7 @@ bindlistenip(listener *lsnr, unsigned int backlog)
 	return 0;
 }
 
-static char
+static int
 bindlistenunix(listener *lsnr, unsigned int backlog)
 {
 	struct sockaddr_un srvr;
@@ -210,7 +210,7 @@ bindlistenunix(listener *lsnr, unsigned int backlog)
  * Open up sockets associated with listener.  Returns 0 when opening up
  * the listener succeeded, 1 otherwise.
  */
-char
+int
 bindlisten(listener *lsnr, unsigned int backlog)
 {
 	switch (lsnr->ctype) {
