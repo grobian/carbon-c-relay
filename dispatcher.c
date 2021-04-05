@@ -114,7 +114,7 @@ typedef struct _z_strm {
 #define C_SETUP -2 /* being setup */
 #define C_FREE  -1 /* free */
 #define C_IN  0    /* not taken */
-/* > 0	taken by worker with id */
+                   /* > 0 taken by worker with id */
 
 typedef struct _connection {
 	int sock;
@@ -686,7 +686,8 @@ dispatch_addconnection(int sock, listener *lsnr)
 
 	pthread_rwlock_rdlock(&connectionslock);
 	for (c = 0; c < connectionslen; c++)
-		if (__sync_bool_compare_and_swap(&(connections[c].takenby), C_FREE, C_SETUP))
+		if (__sync_bool_compare_and_swap(&(connections[c].takenby),
+					C_FREE, C_SETUP))
 			break;
 	pthread_rwlock_unlock(&connectionslock);
 
@@ -720,7 +721,7 @@ dispatch_addconnection(int sock, listener *lsnr)
 
 		for (c = connectionslen; c < connectionslen + CONNGROWSZ; c++) {
 			memset(&newlst[c], '\0', sizeof(connection));
-			newlst[c].takenby = C_FREE;  /* free */
+			newlst[c].takenby = C_FREE;
 		}
 		connections = newlst;
 		c = connectionslen;  /* for the setup code below */
@@ -758,7 +759,8 @@ dispatch_addconnection(int sock, listener *lsnr)
 	if (connections[c].strm == NULL) {
 		logerr("cannot add new connection: "
 				"out of memory allocating stream\n");
-		__sync_bool_compare_and_swap(&(connections[c].takenby), C_SETUP, C_FREE);
+		__sync_bool_compare_and_swap(&(connections[c].takenby),
+				C_SETUP, C_FREE);
 		return -1;
 	}
 
@@ -785,7 +787,8 @@ dispatch_addconnection(int sock, listener *lsnr)
 			logerr("cannot add new connection: %s\n",
 					ERR_reason_error_string(ERR_get_error()));
 			free(connections[c].strm);
-			__sync_bool_compare_and_swap(&(connections[c].takenby), C_SETUP, C_FREE);
+			__sync_bool_compare_and_swap(&(connections[c].takenby),
+					C_SETUP, C_FREE);
 			return -1;
 		};
 		SSL_set_fd(connections[c].strm->hdl.ssl, sock);
@@ -809,7 +812,8 @@ dispatch_addconnection(int sock, listener *lsnr)
 			logerr("cannot add new connection: "
 					"out of memory allocating stream ibuf\n");
 			free(connections[c].strm);
-			__sync_bool_compare_and_swap(&(connections[c].takenby), C_SETUP, C_FREE);
+			__sync_bool_compare_and_swap(&(connections[c].takenby),
+					C_SETUP, C_FREE);
 			return -1;
 		}
 	} else
@@ -829,7 +833,8 @@ dispatch_addconnection(int sock, listener *lsnr)
 					"out of memory allocating gzip stream\n");
 			free(ibuf);
 			free(connections[c].strm);
-			__sync_bool_compare_and_swap(&(connections[c].takenby), C_SETUP, C_FREE);
+			__sync_bool_compare_and_swap(&(connections[c].takenby),
+					C_SETUP, C_FREE);
 			return -1;
 		}
 		zstrm->ipos = 0;
@@ -838,7 +843,7 @@ dispatch_addconnection(int sock, listener *lsnr)
 		zstrm->strmread = &gzipread;
 		zstrm->strmreadbuf = &gzipreadbuf;
 		zstrm->strmclose = &gzipclose;
-    zstrm->hdl.gz.inflatemode = Z_SYNC_FLUSH;
+		zstrm->hdl.gz.inflatemode = Z_SYNC_FLUSH;
 		zstrm->hdl.gz.z.next_in = (Bytef *)zstrm->ibuf;
 		zstrm->hdl.gz.z.avail_in = 0;
 		zstrm->hdl.gz.z.zalloc = Z_NULL;
@@ -856,7 +861,8 @@ dispatch_addconnection(int sock, listener *lsnr)
 					"out of memory allocating lz4 stream\n");
 			free(ibuf);
 			free(connections[c].strm);
-			__sync_bool_compare_and_swap(&(connections[c].takenby), C_SETUP, C_FREE);
+			__sync_bool_compare_and_swap(&(connections[c].takenby),
+					C_SETUP, C_FREE);
 			return -1;
 		}
 		if (LZ4F_isError(LZ4F_createDecompressionContext(&lzstrm->hdl.lz4.lz, LZ4F_VERSION))) {
@@ -883,10 +889,12 @@ dispatch_addconnection(int sock, listener *lsnr)
 		if (lzstrm == NULL) {
 			logerr("cannot add new connection: "
 					"out of memory allocating snappy stream\n");
-			__sync_bool_compare_and_swap(&(connections[c].takenby), C_SETUP, C_FREE);
+			__sync_bool_compare_and_swap(&(connections[c].takenby),
+					C_SETUP, C_FREE);
 			free(ibuf);
 			free(connections[c].strm);
-			__sync_bool_compare_and_swap(&(connections[c].takenby), C_SETUP, C_FREE);
+			__sync_bool_compare_and_swap(&(connections[c].takenby),
+					C_SETUP, C_FREE);
 			return -1;
 		}
 
@@ -1035,7 +1043,6 @@ dispatch_received_metrics(connection *conn, dispatcher *self)
 			firstspace = NULL;
 			search_tags = self->tags_supported;
 
-			conn->hadwork = 1;
 			gettimeofday(&conn->lastwork, NULL);
 			conn->maxsenddelay = 0;
 			/* send the metric to where it is supposed to go */
@@ -1139,7 +1146,7 @@ dispatch_connection(connection *conn, dispatcher *self, struct timeval start)
 
 	/* don't poll (read) when the last time we ran nothing happened,
 	 * this is to avoid excessive CPU usage, issue #126 */
-	if (!conn->hadwork && timediff(conn->lastwork, start) < 100 * 1000) {
+	if (__sync_bool_compare_and_swap(&(conn->datawaiting), 0, 0)) {
 		__sync_bool_compare_and_swap(&(conn->takenby), self->id, C_IN);
 		return 0;
 	}
@@ -1167,9 +1174,11 @@ dispatch_connection(connection *conn, dispatcher *self, struct timeval start)
 		err = errno;
 		dispatch_received_metrics(conn, self);
 		if (conn->strm->strmreadbuf != NULL) {
-			while((ilen = conn->strm->strmreadbuf(conn->strm,
+			while ((ilen = conn->strm->strmreadbuf(conn->strm,
 							conn->buf + conn->buflen,
-							(sizeof(conn->buf) - 1) - conn->buflen, len, err)) > 0) {
+							(sizeof(conn->buf) - 1) - conn->buflen,
+							len, err)) > 0)
+			{
 				conn->buflen += ilen;
 				tracef("dispatcher %d, connfd %d, read %zd bytes from socket\n",
 						self->id, conn->sock, ilen);

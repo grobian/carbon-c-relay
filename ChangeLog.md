@@ -3,6 +3,8 @@
 ### New Features
 
 ### Bugfixes
+* [Issue #394](https://github.com/grobian/carbon-c-relay/issues/394)
+  dispatcher can lost some metrics on connection with compression
 
 
 # 3.7.2 (10-07-2020)
@@ -36,11 +38,8 @@
 
 * [Issue #398](https://github.com/grobian/carbon-c-relay/issues/398)
   metric includes all tags up to one before last
-* [Issue #394](https://github.com/grobian/carbon-c-relay/issues/394)
-  dispatcher can lost some metrics on connection with compression
 * [Issue #405](https://github.com/grobian/carbon-c-relay/issues/405)
   statistics 'send to cluster' counted as blackholed
-
 
 # 3.6 (26-10-2019)
 
