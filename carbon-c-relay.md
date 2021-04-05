@@ -890,6 +890,46 @@ ones.  Without a `stop` in the aggregate, this causes a loop, and
 without the `send to`, the metric name can't be kept its original name,
 for the output now directly goes to the cluster.
 
+
+When configuring cluster you might want to check how the metrics will be routed and hashed. That's what the `-t` flag is for. For the following configuration : 
+```
+cluster graphite_swarm_odd
+    fnv1a_ch replication 1
+        host01.dom:2003=31F7A65E315586AC198BD798B6629CE4903D089947
+        host03.dom:2003=9124E29E0C92EB63B3834C1403BD2632AA7508B740
+        host05.dom:2003=B653412CD96B13C797658D2C48D952AEC3EB667313
+;
+
+cluster graphite_swarm_even
+    fnv1a_ch replication 1
+        host02.dom:2003=31F7A65E315586AC198BD798B6629CE4903D089947
+        host04.dom:2003=9124E29E0C92EB63B3834C1403BD2632AA7508B740
+        host06.dom:2003=B653412CD96B13C797658D2C48D952AEC3EB667313
+
+;
+
+match *
+    send to
+        graphite_swarm_odd
+        graphite_swarm_even
+    stop
+;
+```
+Running the command : `echo "my.super.metric" | carbon-c-relay -f config.conf  -t`, will result in : 
+```
+[...]
+match
+    * -> my.super.metric
+    fnv1a_ch(graphite_swarm_odd)
+        host03.dom:2003
+    fnv1a_ch(graphite_swarm_even)
+        host04.dom:2003
+    stop
+
+```
+You now know that your metric `my.super.metric` will be hashed and arrive on the host03 and host04 machines.
+Adding the `-d` flag will increase the amount of information by showing you the hashring
+
 ## STATISTICS
 
 When **carbon-c-relay** is run without `-d` or `-s` arguments,
