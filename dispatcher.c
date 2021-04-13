@@ -836,6 +836,9 @@ dispatch_addconnection(int sock, listener *lsnr)
 					C_SETUP, C_FREE);
 			return -1;
 		}
+		zstrm->ipos = 0;
+		zstrm->ibuf = ibuf;
+		zstrm->isize = METRIC_BUFSIZ;
 		memset(&zstrm->hdl.gz.z, 0, sizeof(zstrm->hdl.gz.z));
 		zstrm->hdl.gz.z.next_in = (Bytef *)zstrm->ibuf;
 		zstrm->hdl.gz.z.avail_in = 0;
@@ -852,9 +855,6 @@ dispatch_addconnection(int sock, listener *lsnr)
 					C_SETUP, C_FREE);
 			return -1;
 		}
-		zstrm->ipos = 0;
-		zstrm->ibuf = ibuf;
-		zstrm->isize = METRIC_BUFSIZ;
 		zstrm->strmread = &gzipread;
 		zstrm->strmreadbuf = &gzipreadbuf;
 		zstrm->strmclose = &gzipclose;
