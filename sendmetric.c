@@ -1,5 +1,5 @@
 /*
- * Copyright 2013-2018 Fabian Groffen
+ * Copyright 2013-2021 Fabian Groffen
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -306,7 +306,7 @@ gzipflush(z_strm *strm)
 		return -1;
 
 	if (strm->hdl.z.error != Z_OK)
-			return -1;  /* we must reset/free gzip */
+		return -1;  /* we must reset/free gzip */
 
 	return 0;
 }
@@ -933,7 +933,7 @@ void do_usage(char *name, int exitcode)
 	    printf("  -d        Debug\n");
         printf("  -c alg    Compress output with other algorithms:\n");
 #ifdef HAVE_GZIP
-        printf(" zlib\n");
+        printf(" gzip\n");
 #endif
 #ifdef HAVE_LZ4
         printf(" lz4\n");
