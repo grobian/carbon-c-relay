@@ -865,10 +865,15 @@ dispatch_addconnection(int sock, listener *lsnr)
 					C_SETUP, C_FREE);
 			return -1;
 		}
-		if (LZ4F_isError(LZ4F_createDecompressionContext(&lzstrm->hdl.lz4.lz, LZ4F_VERSION))) {
+		if (LZ4F_isError(LZ4F_createDecompressionContext(
+						&lzstrm->hdl.lz4.lz, LZ4F_VERSION)))
+		{
 			logerr("Failed to create LZ4 decompression context\n");
 			free(ibuf);
 			free(connections[c].strm);
+			free(lzstrm);
+			__sync_bool_compare_and_swap(&(connections[c].takenby),
+					C_SETUP, C_FREE);
 			return -1;
 		}
 		lzstrm->ibuf = ibuf;
