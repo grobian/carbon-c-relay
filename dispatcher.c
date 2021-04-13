@@ -276,7 +276,6 @@ gzipreadbuf(z_strm *strm, void *buf, size_t sze, int rval, int err)
 
 	zstrm->next_out = (Bytef *)buf;
 	zstrm->avail_out = (uInt)sze;
-	zstrm->total_out = 0;
 
 	iret = inflate(zstrm, strm->hdl.gz.inflatemode);
 	switch (iret) {
@@ -837,6 +836,22 @@ dispatch_addconnection(int sock, listener *lsnr)
 					C_SETUP, C_FREE);
 			return -1;
 		}
+		memset(&zstrm->hdl.gz.z, 0, sizeof(zstrm->hdl.gz.z));
+		zstrm->hdl.gz.z.next_in = (Bytef *)zstrm->ibuf;
+		zstrm->hdl.gz.z.avail_in = 0;
+		zstrm->hdl.gz.z.zalloc = Z_NULL;
+		zstrm->hdl.gz.z.zfree = Z_NULL;
+		zstrm->hdl.gz.z.opaque = Z_NULL;
+		if (inflateInit2(&zstrm->hdl.gz.z, 15 + 16) != Z_OK)
+		{
+			logerr("cannot init gzip connection\n");
+			free(ibuf);
+			free(connections[c].strm);
+			free(zstrm);
+			__sync_bool_compare_and_swap(&(connections[c].takenby),
+					C_SETUP, C_FREE);
+			return -1;
+		}
 		zstrm->ipos = 0;
 		zstrm->ibuf = ibuf;
 		zstrm->isize = METRIC_BUFSIZ;
@@ -844,11 +859,6 @@ dispatch_addconnection(int sock, listener *lsnr)
 		zstrm->strmreadbuf = &gzipreadbuf;
 		zstrm->strmclose = &gzipclose;
 		zstrm->hdl.gz.inflatemode = Z_SYNC_FLUSH;
-		zstrm->hdl.gz.z.next_in = (Bytef *)zstrm->ibuf;
-		zstrm->hdl.gz.z.avail_in = 0;
-		zstrm->hdl.gz.z.zalloc = Z_NULL;
-		zstrm->hdl.gz.z.zfree = Z_NULL;
-		zstrm->hdl.gz.z.opaque = Z_NULL;
 		zstrm->nextstrm = connections[c].strm;
 		connections[c].strm = zstrm;
 	}
