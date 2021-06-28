@@ -709,13 +709,14 @@ dispatch_addconnection(int sock, listener *lsnr)
 			pthread_rwlock_unlock(&connectionslock);
 			return -1;
 		} else if (newlst != connections) {
-		    /* reset srcaddr after realloc due to issue 346 */
-		    for (c = 0; c < connectionslen; c++) {
-			if (newlst[c].isudp) {
-			    newlst[c].strm->hdl.udp.srcaddr = newlst[c].srcaddr;
-			    newlst[c].strm->hdl.udp.srcaddrlen = sizeof(newlst[c].srcaddr);
+			/* reset srcaddr after realloc due to issue 346 */
+			for (c = 0; c < connectionslen; c++) {
+				if (newlst[c].isudp) {
+					newlst[c].strm->hdl.udp.srcaddr = newlst[c].srcaddr;
+					newlst[c].strm->hdl.udp.srcaddrlen =
+						sizeof(newlst[c].srcaddr);
+				}
 			}
-		    }
 		}
 
 		for (c = connectionslen; c < connectionslen + CONNGROWSZ; c++) {
@@ -789,7 +790,7 @@ dispatch_addconnection(int sock, listener *lsnr)
 			__sync_bool_compare_and_swap(&(connections[c].takenby),
 					C_SETUP, C_FREE);
 			return -1;
-		};
+		}
 		SSL_set_fd(connections[c].strm->hdl.ssl, sock);
 		SSL_set_accept_state(connections[c].strm->hdl.ssl);
 
