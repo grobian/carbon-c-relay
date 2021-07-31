@@ -1,8 +1,8 @@
 #                                               -*- Autoconf -*-
 # Process this file with autoconf to produce a configure script.
 
-AC_PREREQ([2.69])
-AC_INIT([carbon-c-relay], [3.7.2], [])
+AC_PREREQ([2.71])
+AC_INIT([carbon-c-relay],[3.7.2],[])
 AC_SUBST([RELEASEDATE], [2020-07-10])
 AC_CONFIG_HEADERS([config.h])
 AM_INIT_AUTOMAKE
@@ -96,26 +96,22 @@ AC_CHECK_FUNCS([dlsym])
 # check if we need some special define for RTLD_NEXT (Linux)
 found_rtld_next=no
 AC_MSG_CHECKING([whether dlsym(RTLD_NEXT, ...) is available])
-AC_TRY_COMPILE([
+AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
 #include <dlfcn.h>
-],[
+]], [[
 void *foo = dlsym (RTLD_NEXT, "exit");
-],
-[AC_MSG_RESULT(yes)
-found_rtld_next=yes],
-[AC_MSG_RESULT(no)])
+]])],[AC_MSG_RESULT(yes)
+found_rtld_next=yes],[AC_MSG_RESULT(no)])
 if test x$found_rtld_next = xno ; then
 AC_MSG_CHECKING([whether dlsym(RTLD_NEXT, ...) is available using _GNU_SOURCE])
-AC_TRY_COMPILE([
+AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
 #define _GNU_SOURCE
 #include <dlfcn.h>
-],[
+]], [[
 void *foo = dlsym (RTLD_NEXT, "exit");
-],
-[AC_MSG_RESULT(yes)
+]])],[AC_MSG_RESULT(yes)
 AC_SUBST([DEF_EXTENSIONS], [-D_GNU_SOURCE])
-found_rtld_next=yes],
-[AC_MSG_RESULT(no)])
+found_rtld_next=yes],[AC_MSG_RESULT(no)])
 fi
 AC_DEFINE([HAVE_RTLD_NEXT], [$found_rtld_next], [Define if you have RTLD_NEXT])
 
