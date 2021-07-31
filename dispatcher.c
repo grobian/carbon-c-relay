@@ -36,6 +36,7 @@
 #include "server.h"
 #include "collector.h"
 #include "dispatcher.h"
+#include "receptor.h"
 
 #ifdef HAVE_GZIP
 #include <zlib.h>
@@ -615,20 +616,12 @@ dispatch_removelistener(listener *lsnr)
 		listeners[c] = NULL;
 		pthread_rwlock_unlock(&listenerslock);
 	}
-	/* cleanup */
-#ifdef HAVE_SSL
-	if ((lsnr->transport & ~0xFFFF) == W_SSL)
-		SSL_CTX_free(lsnr->ctx);
-#endif
 	/* acquire a write lock on connections, which is a bit wrong, but it
 	 * ensures all dispatchers are stopped while we close the sockets,
 	 * which avoids a race on the reading thereof if this is a UDP
 	 * connection */
 	pthread_rwlock_wrlock(&connectionslock);
-	for (socks = lsnr->socks; *socks != -1; socks++) {
-		close(*socks);
-		*socks = -1;
-	}
+	shutdownclose(lsnr);
 	pthread_rwlock_unlock(&connectionslock);
 	if (lsnr->saddrs) {
 		freeaddrinfo(lsnr->saddrs);

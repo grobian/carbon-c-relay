@@ -243,6 +243,10 @@ close_socks(listener *lsnr)
 	int i;
 	for (i = 0; lsnr->socks[i] != -1; i++)
 		close(lsnr->socks[i]);
+#ifdef HAVE_SSL
+	if ((lsnr->transport & ~0xFFFF) == W_SSL)
+		SSL_CTX_free(lsnr->ctx);
+#endif
 	logout("closed listener for %s %s:%u\n",
 			lsnr->ctype == CON_UDP ? "udp" : "tcp",
 			lsnr->ip == NULL ? "" : lsnr->ip, lsnr->port);
@@ -253,6 +257,10 @@ destroy_usock(listener *lsnr)
 {
 	close(lsnr->socks[0]);
 	unlink(lsnr->ip);
+#ifdef HAVE_SSL
+	if ((lsnr->transport & ~0xFFFF) == W_SSL)
+		SSL_CTX_free(lsnr->ctx);
+#endif
 	logout("removed listener for %s\n", lsnr->ip);
 }
 

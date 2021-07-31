@@ -195,7 +195,6 @@ do_reload(void)
 	for ( ; lsnrs != NULL; lsnrs = lsnrs->next) {
 		if (router_contains_listener(newrtr, lsnrs) == NULL) {
 			dispatch_removelistener(lsnrs);
-			shutdownclose(lsnrs);
 		}
 	}
 
@@ -1036,7 +1035,6 @@ main(int argc, char * const argv[])
 	lsnrs = router_get_listeners(rtr);
 	for ( ; lsnrs != NULL; lsnrs = lsnrs->next) {
 		dispatch_removelistener(lsnrs);
-		shutdownclose(lsnrs);
 	}
 	/* since workers will be freed, stop querying the structures */
 	collector_stop();
