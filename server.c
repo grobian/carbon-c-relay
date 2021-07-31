@@ -1,5 +1,5 @@
 /*
- * Copyright 2013-2019 Fabian Groffen
+ * Copyright 2013-2021 Fabian Groffen
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -1108,7 +1108,7 @@ server_new(
 		/* create an auto-negotiate context */
 		const SSL_METHOD *m = SSLv23_client_method();
 		ret->strm->ctx = SSL_CTX_new(m);
-		
+
 		if (sslCA != NULL) {
 			if (ret->strm->ctx == NULL ||
 				SSL_CTX_load_verify_locations(ret->strm->ctx,
@@ -1429,6 +1429,10 @@ server_free(server *s) {
 	}
 
 	queue_destroy(s->queue);
+#ifdef HAVE_SSL
+	if ((s->transport & ~0xFFFF) == W_SSL)
+		SSL_CTX_free(s->strm->ctx);
+#endif
 	free(s->batch);
 	if (s->instance)
 		free(s->instance);
