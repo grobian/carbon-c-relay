@@ -3,6 +3,13 @@
 ### New Features
 
 ### Bugfixes
+
+
+# 3.7.3 (09-11-2021)
+
+### New Features
+
+### Bugfixes
 * [Issue #394](https://github.com/grobian/carbon-c-relay/issues/394)
   dispatcher can lost some metrics on connection with compression
 
