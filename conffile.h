@@ -22,6 +22,7 @@
 #include "consistent-hash.h"
 #include "allocator.h"
 #include "receptor.h"
+#include "router.h"
 
 #define GRAPHITE_PORT 2003
 
@@ -116,7 +117,7 @@ char *router_add_cluster(router *r, cluster *cl);
 char *router_add_route(router *r, route *rte);
 char *router_add_aggregator(router *rtr, aggregator *a);
 char *router_add_stubroute(router *rtr, enum clusttype type, cluster *w, destinations *dw);
-char *router_add_listener(router *rtr, con_type ltype, con_trnsp trnsp, char *pemcert, con_proto ctype, char *ip, unsigned short port, struct addrinfo *saddrs);
+char *router_add_listener(router *rtr, con_type ltype, con_trnsp trnsp, char *pemcert, tlsprotover protomin, tlsprotover protomax, con_proto ctype, char *ip, unsigned short port, struct addrinfo *saddrs);
 char *router_set_statistics(router *rtr, destinations *dsts);
 char *router_set_collectorvals(router *rtr, int val, char *prefix, col_mode m);
 

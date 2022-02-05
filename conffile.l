@@ -231,19 +231,19 @@ listen				{
 						return crLINEMODE;
 					}
 <idli>transport			return crTRANSPORT;
-<idli>plain				return crPLAIN;
+<idli>plain			{
+						BEGIN(idli);
+						return crPLAIN;
+					}
 <idli>gzip			{
-						identstate = li;
 						BEGIN(idli);
 						return crGZIP;
 					}
 <idli>lz4			{
-						identstate = li;
 						BEGIN(idli);
 						return crLZ4;
 					}
 <idli>snappy		{
-						identstate = li;
 						BEGIN(idli);
 						return crSNAPPY;
 					}
@@ -251,6 +251,34 @@ listen				{
 						identstate = idli;
 						BEGIN(idli);
 						return crSSL;
+					}
+<li,idli>protomin	{
+						BEGIN(li);
+						return crPROTOMIN;
+					}
+<li,idli>protomax	{
+						BEGIN(li);
+						return crPROTOMAX;
+					}
+<li>ssl3			{
+						BEGIN(idli);
+						return crSSL3;
+					}
+<li>"tls1.0"		{
+						BEGIN(idli);
+						return crTLS1_0;
+					}
+<li>"tls1.1"		{
+						BEGIN(idli);
+						return crTLS1_1;
+					}
+<li>"tls1.2"		{
+						BEGIN(idli);
+						return crTLS1_2;
+					}
+<li>"tls1.3"		{
+						BEGIN(idli);
+						return crTLS1_3;
 					}
 <li,idli>proto		{
 						BEGIN(li);

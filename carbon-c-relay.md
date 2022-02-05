@@ -262,10 +262,12 @@ statistics
     ;
 
 listen
-    type linemode [transport <plain | gzip | lz4 | snappy> [ssl <pemcert>]]
+    type linemode [transport <plain | gzip | lz4 | snappy>
+            [ssl <pemcert> [protomin <tlsproto>] [protomax <tlsproto>]]]
         <<interface[:port] | port> proto <udp | tcp>> ...
         </ptah/to/file proto unix> ...
     ;
+    # tlsproto: <ssl3 | tls1.0 | tls1.1 | tls1.2 | tls1.3>
 
 include </path/to/file/or/glob>
     ;

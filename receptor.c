@@ -1,5 +1,5 @@
 /*
- * Copyright 2013-2021 Fabian Groffen
+ * Copyright 2013-2022 Fabian Groffen
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -38,13 +38,29 @@ static char
 ssllisten(listener *lsnr)
 {
 	/* create a auto-negotiate context */
-	const SSL_METHOD *m = SSLv23_server_method();
+	const SSL_METHOD *m = TLS_server_method();
 	lsnr->ctx = SSL_CTX_new(m);
 	if (lsnr->ctx == NULL) {
 		char *err = ERR_error_string(ERR_get_error(), NULL);
 		logerr("failed to create SSL context for listener on port %d: %s\n",
 				lsnr->port, err);
 		return 1;
+	}
+
+	/* handle possible restrictions to the flexible version method */
+	if (lsnr->protomin != 0) {
+		if (SSL_CTX_set_min_proto_version(lsnr->ctx, lsnr->protomin) == 0) {
+			char *err = ERR_error_string(ERR_get_error(), NULL);
+			logerr("SSL protomin version invalid: %s\n", err);
+			return 1;
+		}
+	}
+	if (lsnr->protomax != 0) {
+		if (SSL_CTX_set_max_proto_version(lsnr->ctx, lsnr->protomax) == 0) {
+			char *err = ERR_error_string(ERR_get_error(), NULL);
+			logerr("SSL protomax version invalid: %s\n", err);
+			return 1;
+		}
 	}
 
 	/* load certificates */

@@ -50,6 +50,23 @@ typedef struct {
 	server *dest;
 } destination;
 
+/* ensure we always define the protovers such that the parser can
+ * reference them, even though they will never get used */
+#ifdef HAVE_SSL
+# define TLSVER(S,V) S = V
+#else
+# define TLSVER(S,V) S
+#endif
+typedef enum _router_tlsprotover {
+	       _rp_UNSET = 0,
+	TLSVER(_rp_SSL3,   SSL3_VERSION),
+	TLSVER(_rp_TLS1_0, TLS1_VERSION),
+	TLSVER(_rp_TLS1_1, TLS1_1_VERSION),
+	TLSVER(_rp_TLS1_2, TLS1_2_VERSION),
+	TLSVER(_rp_TLS1_3, TLS1_3_VERSION)
+} tlsprotover;
+#undef TLSVER
+
 typedef struct _router_listener {
 	con_type lsnrtype;
 	con_trnsp transport;
@@ -61,6 +78,8 @@ typedef struct _router_listener {
 	SSL_CTX *ctx;
 	SSL **sslstrms;
 	char *pemcert;
+	tlsprotover protomin;
+	tlsprotover protomax;
 	struct timespec pemmtimespec;
 #endif
 	struct addrinfo *saddrs;

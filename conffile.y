@@ -4,6 +4,7 @@
 #include "conffile.tab.h"
 #include "aggregator.h"
 #include "receptor.h"
+#include "router.h"
 #include "config.h"
 
 int router_yylex(ROUTER_YYSTYPE *, ROUTER_YYLTYPE *, void *, router *, allocator *, allocator *);
@@ -47,9 +48,19 @@ struct _rcptr {
 	void *saddr;
 	struct _rcptr *next;
 };
+enum _rcptr_sslprototype {
+	_rp_PROTOMIN,
+	_rp_PROTOMAX
+};
+struct _rcptr_sslprotos {
+	enum _rcptr_sslprototype prtype;
+	tlsprotover prver;
+	struct _rcptr_sslprotos *next;
+};
 struct _rcptr_trsp {
 	con_trnsp mode;
 	char *pemcert;
+	struct _rcptr_sslprotos *protos;
 };
 }
 
@@ -109,10 +120,16 @@ struct _rcptr_trsp {
 %token crLISTEN
 %token crTYPE crLINEMODE crSYSLOGMODE crTRANSPORT
 %token crPLAIN crGZIP crLZ4 crSNAPPY crSSL crUNIX
+%token crPROTOMIN crPROTOMAX
+%token crSSL3 crTLS1_0 crTLS1_1 crTLS1_2 crTLS1_3
 %type <con_proto> rcptr_proto
 %type <struct _rcptr *> receptor opt_receptor receptors
 %type <struct _rcptr_trsp *> transport_mode transport_mode_trans
 	transport_opt_ssl
+%type <struct _rcptr_sslprotos *> transport_ssl_proto
+	transport_opt_ssl_protos
+%type <enum _rcptr_sslprototype> transport_ssl_prototype
+%type <tlsprotover> transport_ssl_protover
 %type <struct _lsnr *> listener
 
 %token crINCLUDE
@@ -851,10 +868,23 @@ listen: crLISTEN listener[lsnr]
 	  {
 	  	struct _rcptr *walk;
 		char *err;
+		struct _rcptr_sslprotos *prwalk;
+		int protomin;
+		int protomax;
 
 		for (walk = $lsnr->rcptr; walk != NULL; walk = walk->next) {
+			protomin = 0;
+			protomax = 0;
+			prwalk = $lsnr->transport->protos;
+			for (; prwalk != NULL; prwalk = prwalk->next) {
+				if (prwalk->prtype == _rp_PROTOMIN)
+					protomin = prwalk->prver;
+				else if (prwalk->prtype == _rp_PROTOMAX)
+					protomax = prwalk->prver;
+			}
 			err = router_add_listener(rtr, $lsnr->type,
 				$lsnr->transport->mode, $lsnr->transport->pemcert,
+				protomin, protomax,
 				walk->ctype, walk->ip, walk->port, walk->saddr);
 			if (err != NULL) {
 				router_yyerror(&yylloc, yyscanner, rtr,
@@ -893,7 +923,7 @@ transport_opt_ssl:
 				 {
 				 	$$ = NULL;
 				 }
-				 | crSSL crSTRING[pemcert]
+				 | crSSL crSTRING[pemcert] transport_opt_ssl_protos[protos]
 				 {
 #ifdef HAVE_SSL
 					if (($$ = ra_malloc(palloc,
@@ -904,6 +934,7 @@ transport_opt_ssl:
 					}
 					$$->mode = W_SSL;
 					$$->pemcert = ra_strdup(ralloc, $pemcert);
+					$$->protos = $protos;
 #else
 					router_yyerror(&yylloc, yyscanner, rtr,
 						ralloc, palloc,
@@ -912,6 +943,37 @@ transport_opt_ssl:
 #endif
 				 }
 				 ;
+transport_opt_ssl_protos:
+						{
+							$$ = NULL;
+						}
+						| transport_ssl_proto[p] transport_opt_ssl_protos[q]
+						{
+							$p->next = $q; $$ = $p;
+						}
+						;
+transport_ssl_proto: transport_ssl_prototype[tpe] transport_ssl_protover[ver]
+				   {
+						if (($$ = ra_malloc(palloc,
+								sizeof(struct _rcptr_sslprotos))) == NULL)
+						{
+							logerr("malloc failed\n");
+							YYABORT;
+						}
+						$$->prtype = $tpe;
+						$$->prver = $ver;
+						$$->next = NULL;
+				   }
+				   ;
+transport_ssl_prototype: crPROTOMIN  { $$ = _rp_PROTOMIN; }
+					   | crPROTOMAX  { $$ = _rp_PROTOMAX; }
+					   ;
+transport_ssl_protover: crSSL3    { $$ = _rp_SSL3;   }
+					  | crTLS1_0  { $$ = _rp_TLS1_0; }
+					  | crTLS1_1  { $$ = _rp_TLS1_1; }
+					  | crTLS1_2  { $$ = _rp_TLS1_2; }
+					  | crTLS1_3  { $$ = _rp_TLS1_3; }
+					  ;
 
 transport_mode_trans: crTRANSPORT crPLAIN
 					{

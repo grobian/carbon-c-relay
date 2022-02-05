@@ -319,7 +319,7 @@ router_yyerror(
 	regfree(&re);
 
 	/* clean up the keywords */
-	if (regcomp(&re, "cr([A-Z][A-Z0-9]*)", REG_EXTENDED) != 0) {
+	if (regcomp(&re, "cr([A-Z][A-Z0-9_]*)", REG_EXTENDED) != 0) {
 		r->parser_err.msg = ra_strdup(a, msg);
 		return;
 	}
@@ -1014,6 +1014,8 @@ router_add_listener(
 		con_type ltype,
 		con_trnsp trnsp,
 		char *pemcert,
+		tlsprotover protomin,
+		tlsprotover protomax,
 		con_proto ctype,
 		char *ip,
 		unsigned short port,
@@ -1097,6 +1099,8 @@ router_add_listener(
 	lwalk->ctx = NULL;
 	lwalk->sslstrms = NULL;
 	lwalk->pemcert = pemcert;
+	lwalk->protomin = protomin;
+	lwalk->protomax = protomax;
 	if (stat(pemcert, &st) != -1) {
 		memcpy(&(lwalk->pemmtimespec), &(st.st_mtime),
 				sizeof(struct timespec));
@@ -1369,7 +1373,7 @@ router_readconfig(router *orig,
 			router_validate_address(ret, &ip, &port, &saddrs, &hint,
 					sockbuf, CON_TCP);
 			free(hint);
-			router_add_listener(ret, T_LINEMODE, W_PLAIN, NULL, CON_TCP,
+			router_add_listener(ret, T_LINEMODE, W_PLAIN, NULL, 0, 0, CON_TCP,
 					ip, port, saddrs);
 
 			hint = NULL;
@@ -1377,12 +1381,12 @@ router_readconfig(router *orig,
 			router_validate_address(ret, &ip, &port, &saddrs, &hint,
 					sockbuf, CON_UDP);
 			free(hint);
-			router_add_listener(ret, T_LINEMODE, W_PLAIN, NULL, CON_UDP,
+			router_add_listener(ret, T_LINEMODE, W_PLAIN, NULL, 0, 0, CON_UDP,
 					ip, port, saddrs);
 
 			snprintf(sockbuf, sizeof(sockbuf), "%s/%s.%u",
 					TMPDIR, SOCKFILE, listenport);
-			router_add_listener(ret, T_LINEMODE, W_PLAIN, NULL, CON_UNIX,
+			router_add_listener(ret, T_LINEMODE, W_PLAIN, NULL, 0, 0, CON_UNIX,
 					sockbuf, 0, NULL);
 		}
 	}
@@ -1870,6 +1874,22 @@ static const char *router_quoteident(const char *ident)
 	return ident;
 }
 
+#ifdef HAVE_SSL
+const char *
+router_tlsprotostr(tlsprotover protover)
+{
+	switch (protover) {
+		case _rp_UNSET:   return "";          break;
+		case _rp_SSL3:    return " ssl3";     break;
+		case _rp_TLS1_0:  return " tls1.0";   break;
+		case _rp_TLS1_1:  return " tls1.1";   break;
+		case _rp_TLS1_2:  return " tls1.2";   break;
+		case _rp_TLS1_3:  return " tls1.3";   break;
+		default:          return " unknown";  break;
+	}
+}
+#endif
+
 /**
  * Mere debugging function to check if the configuration is picked up
  * alright.  If all is set to false, aggregation rules won't be printed.
@@ -1893,7 +1913,7 @@ router_printconfig(router *rtr, FILE *f, char pmode)
 		con_type_str[server_type(s->server)]
 #define PTRNSPFMT "%s%s%s"
 #define PTRNSP \
-	server_transport(s->server) == W_PLAIN ? "" : " transport ", \
+	server_transport(s->server) == W_PLAIN ? "" : " transport", \
 	(server_transport(s->server) & 0xFFFF) == W_PLAIN ? "" : \
 		con_trnsp_str[server_transport(s->server) & 0xFFFF], \
 	(server_transport(s->server) & ~0xFFFF) == W_SSL ? " ssl" : ""
@@ -1903,16 +1923,20 @@ router_printconfig(router *rtr, FILE *f, char pmode)
 		fprintf(f, "listen\n");
 		for (walk = rtr->listeners; walk != NULL; walk = walk->next) {
 			if (walk->lsnrtype == T_LINEMODE) {
-				fprintf(f, "    type linemode%s%s%s%s",
-						walk->transport == W_PLAIN ? "" : " transport ",
+				fprintf(f, "    type linemode%s%s%s%s%s%s%s%s",
+						walk->transport == W_PLAIN ? "" : " transport",
 						(walk->transport & 0xFFFF) == W_PLAIN ? "" :
 							con_trnsp_str[walk->transport & 0xFFFF],
 						(walk->transport & ~0xFFFF) == W_SSL ? " ssl " : "",
 #ifdef HAVE_SSL
 						(walk->transport & ~0xFFFF) == W_SSL ?
-						router_quoteident(walk->pemcert) : ""
+						router_quoteident(walk->pemcert) : "",
+						walk->protomin != 0 ? " protomin" : "",
+						router_tlsprotostr(walk->protomin),
+						walk->protomax != 0 ? " protomax" : "",
+						router_tlsprotostr(walk->protomax)
 #else
-						""
+						"", "", "", "", ""
 #endif
 						);
 #ifdef HAVE_SSL
