@@ -1,5 +1,5 @@
 /*
- * Copyright 2013-2020 Fabian Groffen
+ * Copyright 2013-2022 Fabian Groffen
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -74,6 +74,9 @@ static FILE *relay_stdout = NULL;
 static FILE *relay_stderr = NULL;
 static char relay_can_log = 0;
 
+#ifdef YYDEBUG
+extern int router_yydebug;
+#endif
 
 /**
  * Writes to the setup output stream, prefixed with a timestamp, and if
@@ -870,6 +873,11 @@ main(int argc, char * const argv[])
 	SSL_library_init();
 	SSL_load_error_strings();
 	OpenSSL_add_all_algorithms();
+#endif
+
+#ifdef YYDEBUG
+	if (mode & MODE_TRACE)
+		router_yydebug = 1;
 #endif
 
 	if ((rtr = router_readconfig(NULL, config, workercnt,
