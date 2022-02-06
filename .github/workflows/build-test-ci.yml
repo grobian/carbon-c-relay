@@ -5,10 +5,10 @@ name: Build+Test CI
 
 on:
   push:
-	branches:
-	  - master
-	tags:
-	  - v*
+    branches:
+      - master
+    tags:
+      - v*
   pull_request:
     types:
       - opened
