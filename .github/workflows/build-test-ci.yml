@@ -50,7 +50,9 @@ jobs:
       - name: install deps
         run: >
           sudo apt-get install -y
-          libonig-dev libpcre3-dev libssl-dev zlib1g-dev libsnappy-dev wget
+          libonig-dev libpcre3-dev libssl-dev
+          zlib1g-dev libsnappy-dev liblz4-dev
+          wget
       - uses: actions/checkout@v2
       - name: fix timestamps
         # workaround git not retaining mtimes and bison/flex not being
@@ -83,7 +85,7 @@ jobs:
       CC: ${{ matrix.cc }}
     steps:
       - name: install deps
-        run: brew install lz4 pcre pcre2 snappy opensl
+        run: brew install lz4 pcre pcre2 snappy openssl
       - uses: actions/checkout@v2
       - name: fix timestamps
         # workaround git not retaining mtimes and bison/flex not being
