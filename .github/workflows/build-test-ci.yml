@@ -61,10 +61,10 @@ jobs:
           touch conffile.yy.c conffile.tab.c conffile.tab.h
           touch configure.ac Makefile.am aclocal.m4 configure
           touch Makefile.in config.h.in
-      - name: build variant
-        run: |
-          ./configure --disable-maintainer-mode ${{ matrix.features }} || exit 1
-          make CFLAGS="-O3 -Wall -Werror -Wshadow -pipe" clean check
+      - name: configure variant
+        run: ./configure --disable-maintainer-mode ${{ matrix.features }}
+      - name: make variant
+        run: make CFLAGS="-O3 -Wall -Werror -Wshadow -pipe" clean check
 
   make-check-macos-x64:
     strategy:
@@ -94,10 +94,10 @@ jobs:
           touch conffile.yy.c conffile.tab.c conffile.tab.h
           touch configure.ac Makefile.am aclocal.m4 configure
           touch Makefile.in config.h.in
-      - name: build variant
-        run: |
-          ./configure --disable-maintainer-mode ${{ matrix.features }} || exit 1
-          make CFLAGS="-O3 -Wall -Werror -Wshadow -pipe" clean check
+      - name: configure variant
+        run: ./configure --disable-maintainer-mode ${{ matrix.features }}
+      - name: make variant
+        run: make CFLAGS="-O3 -Wall -Werror -Wshadow -pipe" clean check
 
   coverity:
     runs-on: ubuntu-latest
