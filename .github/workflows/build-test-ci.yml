@@ -63,7 +63,7 @@ jobs:
           touch Makefile.in config.h.in
       - name: build variant
         run: |
-          ./configure ${{ matrix.features }} || exit 1
+          ./configure --disable-maintainer-mode ${{ matrix.features }} || exit 1
           make CFLAGS="-O3 -Wall -Werror -Wshadow -pipe" clean check
 
   make-check-macos-x64:
@@ -96,7 +96,7 @@ jobs:
           touch Makefile.in config.h.in
       - name: build variant
         run: |
-          ./configure ${{ matrix.features }} || exit 1
+          ./configure --disable-maintainer-mode ${{ matrix.features }} || exit 1
           make CFLAGS="-O3 -Wall -Werror -Wshadow -pipe" clean check
 
   coverity:
@@ -111,7 +111,7 @@ jobs:
           touch configure.ac Makefile.am aclocal.m4 configure
           touch Makefile.in config.h.in
       - name: configure 
-        run: ./configure
+        run: ./configure --disable-maintainer-mode
       - uses: vapier/coverity-scan-action@v1
         with:
           email: ${{ secrets.COVERITY_SCAN_EMAIL }}
