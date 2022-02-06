@@ -798,7 +798,18 @@ dispatch_addconnection(int sock, listener *lsnr)
 		compress_type = lsnr->transport & 0xFFFF;
 
 	/* allocate input buffer */
-	if (compress_type == W_GZIP || compress_type == W_LZ4 || compress_type == W_SNAPPY) {
+	if (
+#ifdef HAVE_GZIP
+		compress_type == W_GZIP ||
+#endif
+#if HAVE_LZ4
+		compress_type == W_LZ4 ||
+#endif
+#ifdef HAVE_SNAPPY
+		compress_type == W_SNAPPY ||
+#endif
+		0)
+	{
 		ibuf = malloc(METRIC_BUFSIZ);
 		if (ibuf == NULL) {
 			logerr("cannot add new connection: "

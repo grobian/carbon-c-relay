@@ -59,9 +59,15 @@ typedef enum {
 } con_type;
 typedef enum {
 	W_PLAIN  = 1,
+#ifdef HAVE_GZIP
 	W_GZIP   = 2,
+#endif
+#ifdef HAVE_LZ4
 	W_LZ4    = 3,
+#endif
+#ifdef HAVE_SNAPPY
 	W_SNAPPY = 4,
+#endif
 	W_SSL    = 1 << 16   /* used as bit-flag */
 } con_trnsp;
 
