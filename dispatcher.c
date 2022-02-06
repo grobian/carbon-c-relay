@@ -599,7 +599,6 @@ void
 dispatch_removelistener(listener *lsnr)
 {
 	int c;
-	int *socks;
 
 	if (lsnr->ctype != CON_UDP) {
 		pthread_rwlock_wrlock(&listenerslock);
