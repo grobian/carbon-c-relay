@@ -115,6 +115,24 @@ ssllisten(listener *lsnr)
 #else
 # error "we don't understand this version of OpenSSL"
 #endif
+#ifdef HAVE_SSL_CTX_SET_CIPHER_LIST
+	if (lsnr->ciphers != NULL) {
+		if (SSL_CTX_set_cipher_list(lsnr->ctx, lsnr->ciphers) == 0) {
+			char *err = ERR_error_string(ERR_get_error(), NULL);
+			logerr("cannot set SSL cipher list: %s\n", err);
+			return 1;
+		}
+	}
+#endif
+#ifdef HAVE_SSL_CTX_SET_CIPHERSUITES
+	if (lsnr->ciphersuites != NULL) {
+		if (SSL_CTX_set_ciphersuites(lsnr->ctx, lsnr->ciphersuites) == 0) {
+			char *err = ERR_error_string(ERR_get_error(), NULL);
+			logerr("cannot set TLS ciphersuites: %s\n", err);
+			return 1;
+		}
+	}
+#endif
 
 	/* load certificates */
 	if (SSL_CTX_use_certificate_file(

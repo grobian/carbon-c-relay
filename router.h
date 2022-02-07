@@ -86,6 +86,8 @@ typedef struct _router_listener {
 	char *pemcert;
 	tlsprotover protomin;
 	tlsprotover protomax;
+	char *ciphers;
+	char *ciphersuites;
 	struct timespec pemmtimespec;
 #endif
 	struct addrinfo *saddrs;

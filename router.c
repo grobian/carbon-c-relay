@@ -1016,6 +1016,8 @@ router_add_listener(
 		char *pemcert,
 		tlsprotover protomin,
 		tlsprotover protomax,
+		char *ciphers,
+		char *suites,
 		con_proto ctype,
 		char *ip,
 		unsigned short port,
@@ -1101,6 +1103,8 @@ router_add_listener(
 	lwalk->pemcert = pemcert;
 	lwalk->protomin = protomin;
 	lwalk->protomax = protomax;
+	lwalk->ciphers = ciphers;
+	lwalk->ciphersuites = suites;
 	if (stat(pemcert, &st) != -1) {
 		memcpy(&(lwalk->pemmtimespec), &(st.st_mtime),
 				sizeof(struct timespec));
@@ -1373,21 +1377,21 @@ router_readconfig(router *orig,
 			router_validate_address(ret, &ip, &port, &saddrs, &hint,
 					sockbuf, CON_TCP);
 			free(hint);
-			router_add_listener(ret, T_LINEMODE, W_PLAIN, NULL, 0, 0, CON_TCP,
-					ip, port, saddrs);
+			router_add_listener(ret, T_LINEMODE, W_PLAIN, NULL, 0, 0,
+								NULL, NULL, CON_TCP, ip, port, saddrs);
 
 			hint = NULL;
 			snprintf(sockbuf, sizeof(sockbuf), ":%u", listenport);
 			router_validate_address(ret, &ip, &port, &saddrs, &hint,
 					sockbuf, CON_UDP);
 			free(hint);
-			router_add_listener(ret, T_LINEMODE, W_PLAIN, NULL, 0, 0, CON_UDP,
-					ip, port, saddrs);
+			router_add_listener(ret, T_LINEMODE, W_PLAIN, NULL, 0, 0,
+								NULL, NULL, CON_UDP, ip, port, saddrs);
 
 			snprintf(sockbuf, sizeof(sockbuf), "%s/%s.%u",
 					TMPDIR, SOCKFILE, listenport);
-			router_add_listener(ret, T_LINEMODE, W_PLAIN, NULL, 0, 0, CON_UNIX,
-					sockbuf, 0, NULL);
+			router_add_listener(ret, T_LINEMODE, W_PLAIN, NULL, 0, 0,
+								NULL, NULL, CON_UNIX, sockbuf, 0, NULL);
 		}
 	}
 
@@ -1879,13 +1883,13 @@ const char *
 router_tlsprotostr(tlsprotover protover)
 {
 	switch (protover) {
-		case _rp_UNSET:   return "";          break;
-		case _rp_SSL3:    return " ssl3";     break;
-		case _rp_TLS1_0:  return " tls1.0";   break;
-		case _rp_TLS1_1:  return " tls1.1";   break;
-		case _rp_TLS1_2:  return " tls1.2";   break;
-		case _rp_TLS1_3:  return " tls1.3";   break;
-		default:          return " unknown";  break;
+		case _rp_UNSET:   return "";         break;
+		case _rp_SSL3:    return "ssl3";     break;
+		case _rp_TLS1_0:  return "tls1.0";   break;
+		case _rp_TLS1_1:  return "tls1.1";   break;
+		case _rp_TLS1_2:  return "tls1.2";   break;
+		case _rp_TLS1_3:  return "tls1.3";   break;
+		default:          return "unknown";  break;
 	}
 }
 #endif
@@ -1923,28 +1927,31 @@ router_printconfig(router *rtr, FILE *f, char pmode)
 		fprintf(f, "listen\n");
 		for (walk = rtr->listeners; walk != NULL; walk = walk->next) {
 			if (walk->lsnrtype == T_LINEMODE) {
-				fprintf(f, "    type linemode%s%s%s%s%s%s%s%s",
-						walk->transport == W_PLAIN ? "" : " transport",
-						(walk->transport & 0xFFFF) == W_PLAIN ? "" :
-							con_trnsp_str[walk->transport & 0xFFFF],
-						(walk->transport & ~0xFFFF) == W_SSL ? " ssl " : "",
+				fprintf(f, "    type linemode");
+				if ((walk->transport & 0xFFFF) != W_PLAIN)
+					fprintf(f, " transport %s",
+							con_trnsp_str[walk->transport & 0xFFFF]);
 #ifdef HAVE_SSL
-						(walk->transport & ~0xFFFF) == W_SSL ?
-						router_quoteident(walk->pemcert) : "",
-						walk->protomin != 0 ? " protomin" : "",
-						router_tlsprotostr(walk->protomin),
-						walk->protomax != 0 ? " protomax" : "",
-						router_tlsprotostr(walk->protomax)
-#else
-						"", "", "", "", ""
-#endif
-						);
-#ifdef HAVE_SSL
-				if ((walk->transport & ~0xFFFF) == W_SSL && pmode & PMODE_PEMT)
-				{
-					fprintf(f, "  # mtime %ld.%ld",
-							walk->pemmtimespec.tv_sec,
-							walk->pemmtimespec.tv_nsec);
+				if ((walk->transport & ~0xFFFF) == W_SSL) {
+					fprintf(f, " ssl %s", router_quoteident(walk->pemcert));
+					if (walk->protomin != _rp_UNSET)
+						fprintf(f, " protomin %s",
+								router_tlsprotostr(walk->protomin));
+					if (walk->protomax != _rp_UNSET)
+						fprintf(f, " protomax %s",
+								router_tlsprotostr(walk->protomax));
+					if (walk->ciphers != NULL)
+						fprintf(f, " ciphers %s",
+								router_quoteident(walk->ciphers));
+					if (walk->ciphersuites != NULL)
+						fprintf(f, " ciphersuites %s",
+								router_quoteident(walk->ciphersuites));
+					if (pmode & PMODE_PEMT)
+					{
+						fprintf(f, "  # mtime %ld.%ld",
+								walk->pemmtimespec.tv_sec,
+								walk->pemmtimespec.tv_nsec);
+					}
 				}
 #endif
 				fprintf(f, "\n");

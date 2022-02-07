@@ -197,7 +197,9 @@ AM_CONDITIONAL([SSL_ENABLED], [test "x$LIBSSL" != x])
 save_LIBS="${LIBS}"
 test "x$LIBSSL" != x && LIBS="${LIBS} ${LIBSSL}"
 AC_CHECK_FUNCS([TLS_server_method \
-				SSLv23_server_method],
+				SSLv23_server_method \
+				SSL_CTX_set_cipher_list \
+				SSL_CTX_set_ciphersuites],
 			   [], [])
 LIBS="${save_LIBS}"
 

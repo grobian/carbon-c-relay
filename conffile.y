@@ -61,6 +61,8 @@ struct _rcptr_trsp {
 	con_trnsp mode;
 	char *pemcert;
 	struct _rcptr_sslprotos *protos;
+	char *ciphers;
+	char *suites;
 };
 }
 
@@ -122,12 +124,14 @@ struct _rcptr_trsp {
 %token crPLAIN crGZIP crLZ4 crSNAPPY crSSL crUNIX
 %token crPROTOMIN crPROTOMAX
 %token crSSL3 crTLS1_0 crTLS1_1 crTLS1_2 crTLS1_3
+%token crCIPHERS crCIPHERSUITES
 %type <con_proto> rcptr_proto
 %type <struct _rcptr *> receptor opt_receptor receptors
 %type <struct _rcptr_trsp *> transport_mode transport_mode_trans
 	transport_opt_ssl
 %type <struct _rcptr_sslprotos *> transport_ssl_proto
 	transport_opt_ssl_protos
+%type <char *> transport_opt_ssl_ciphers transport_opt_ssl_ciphersuites
 %type <enum _rcptr_sslprototype> transport_ssl_prototype
 %type <tlsprotover> transport_ssl_protover
 %type <struct _lsnr *> listener
@@ -885,6 +889,7 @@ listen: crLISTEN listener[lsnr]
 			err = router_add_listener(rtr, $lsnr->type,
 				$lsnr->transport->mode, $lsnr->transport->pemcert,
 				protomin, protomax,
+				$lsnr->transport->ciphers, $lsnr->transport->suites,
 				walk->ctype, walk->ip, walk->port, walk->saddr);
 			if (err != NULL) {
 				router_yyerror(&yylloc, yyscanner, rtr,
@@ -924,6 +929,8 @@ transport_opt_ssl:
 				 	$$ = NULL;
 				 }
 				 | crSSL crSTRING[pemcert] transport_opt_ssl_protos[protos]
+				         transport_opt_ssl_ciphers[ciphers]
+				         transport_opt_ssl_ciphersuites[suites]
 				 {
 #ifdef HAVE_SSL
 					if (($$ = ra_malloc(palloc,
@@ -935,6 +942,8 @@ transport_opt_ssl:
 					$$->mode = W_SSL;
 					$$->pemcert = ra_strdup(ralloc, $pemcert);
 					$$->protos = $protos;
+					$$->ciphers = $ciphers;
+					$$->suites = $suites;
 #else
 					router_yyerror(&yylloc, yyscanner, rtr,
 						ralloc, palloc,
@@ -974,6 +983,14 @@ transport_ssl_protover: crSSL3    { $$ = _rp_SSL3;   }
 					  | crTLS1_2  { $$ = _rp_TLS1_2; }
 					  | crTLS1_3  { $$ = _rp_TLS1_3; }
 					  ;
+transport_opt_ssl_ciphers:                                 { $$ = NULL; }
+						 | crCIPHERS crSTRING[ciphers]     { $$ = $ciphers; }
+						 ;
+transport_opt_ssl_ciphersuites:
+							  { $$ = NULL; }
+							  | crCIPHERSUITES crSTRING[suites]
+							  { $$ = $suites; }
+							  ;
 
 transport_mode_trans: crTRANSPORT crPLAIN
 					{

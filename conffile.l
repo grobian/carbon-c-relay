@@ -280,6 +280,14 @@ listen				{
 						BEGIN(idli);
 						return crTLS1_3;
 					}
+<li,idli>ciphersuites {
+						BEGIN(idli);
+						return crCIPHERSUITES;
+					}
+<li,idli>ciphers	{
+						BEGIN(idli);
+						return crCIPHERS;
+					}
 <li,idli>proto		{
 						BEGIN(li);
 						return crPROTO;
