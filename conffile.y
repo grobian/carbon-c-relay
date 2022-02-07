@@ -983,13 +983,15 @@ transport_ssl_protover: crSSL3    { $$ = _rp_SSL3;   }
 					  | crTLS1_2  { $$ = _rp_TLS1_2; }
 					  | crTLS1_3  { $$ = _rp_TLS1_3; }
 					  ;
-transport_opt_ssl_ciphers:                                 { $$ = NULL; }
-						 | crCIPHERS crSTRING[ciphers]     { $$ = $ciphers; }
+transport_opt_ssl_ciphers:
+						 { $$ = NULL; }
+						 | crCIPHERS crSTRING[ciphers]
+						 { $$ = ra_strdup(ralloc, $ciphers); }
 						 ;
 transport_opt_ssl_ciphersuites:
 							  { $$ = NULL; }
 							  | crCIPHERSUITES crSTRING[suites]
-							  { $$ = $suites; }
+							  { $$ = ra_strdup(ralloc, $suites); }
 							  ;
 
 transport_mode_trans: crTRANSPORT crPLAIN
