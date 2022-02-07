@@ -15020,6 +15020,18 @@ then :
   printf "%s\n" "#define HAVE_SSLV23_SERVER_METHOD 1" >>confdefs.h
 
 fi
+ac_fn_c_check_func "$LINENO" "SSL_CTX_set_cipher_list" "ac_cv_func_SSL_CTX_set_cipher_list"
+if test "x$ac_cv_func_SSL_CTX_set_cipher_list" = xyes
+then :
+  printf "%s\n" "#define HAVE_SSL_CTX_SET_CIPHER_LIST 1" >>confdefs.h
+
+fi
+ac_fn_c_check_func "$LINENO" "SSL_CTX_set_ciphersuites" "ac_cv_func_SSL_CTX_set_ciphersuites"
+if test "x$ac_cv_func_SSL_CTX_set_ciphersuites" = xyes
+then :
+  printf "%s\n" "#define HAVE_SSL_CTX_SET_CIPHERSUITES 1" >>confdefs.h
+
+fi
 
 LIBS="${save_LIBS}"
 

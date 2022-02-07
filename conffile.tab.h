@@ -106,9 +106,11 @@ struct _rcptr_trsp {
 	con_trnsp mode;
 	char *pemcert;
 	struct _rcptr_sslprotos *protos;
+	char *ciphers;
+	char *suites;
 };
 
-#line 112 "conffile.tab.h"
+#line 114 "conffile.tab.h"
 
 /* Token kinds.  */
 #ifndef ROUTER_YYTOKENTYPE
@@ -195,11 +197,13 @@ struct _rcptr_trsp {
     crTLS1_1 = 331,                /* crTLS1_1  */
     crTLS1_2 = 332,                /* crTLS1_2  */
     crTLS1_3 = 333,                /* crTLS1_3  */
-    crINCLUDE = 334,               /* crINCLUDE  */
-    crCOMMENT = 335,               /* crCOMMENT  */
-    crSTRING = 336,                /* crSTRING  */
-    crUNEXPECTED = 337,            /* crUNEXPECTED  */
-    crINTVAL = 338                 /* crINTVAL  */
+    crCIPHERS = 334,               /* crCIPHERS  */
+    crCIPHERSUITES = 335,          /* crCIPHERSUITES  */
+    crINCLUDE = 336,               /* crINCLUDE  */
+    crCOMMENT = 337,               /* crCOMMENT  */
+    crSTRING = 338,                /* crSTRING  */
+    crUNEXPECTED = 339,            /* crUNEXPECTED  */
+    crINTVAL = 340                 /* crINTVAL  */
   };
   typedef enum router_yytokentype router_yytoken_kind_t;
 #endif
@@ -214,6 +218,8 @@ union ROUTER_YYSTYPE
   char * cluster_opt_instance;             /* cluster_opt_instance  */
   char * match_opt_route;                  /* match_opt_route  */
   char * statistics_opt_prefix;            /* statistics_opt_prefix  */
+  char * transport_opt_ssl_ciphers;        /* transport_opt_ssl_ciphers  */
+  char * transport_opt_ssl_ciphersuites;   /* transport_opt_ssl_ciphersuites  */
   cluster * cluster;                       /* cluster  */
   col_mode statistics_opt_counters;        /* statistics_opt_counters  */
   con_proto cluster_opt_proto;             /* cluster_opt_proto  */
@@ -270,7 +276,7 @@ union ROUTER_YYSTYPE
   struct _rcptr_trsp * transport_mode;     /* transport_mode  */
   tlsprotover transport_ssl_protover;      /* transport_ssl_protover  */
 
-#line 274 "conffile.tab.h"
+#line 280 "conffile.tab.h"
 
 };
 typedef union ROUTER_YYSTYPE ROUTER_YYSTYPE;
