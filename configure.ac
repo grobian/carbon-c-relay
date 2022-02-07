@@ -29,7 +29,8 @@ fi
 LIBS="$saveLIBS $LIBS"
 
 # Checks for header files.
-AC_CHECK_HEADERS([arpa/inet.h \
+AC_CHECK_HEADERS([\
+				  arpa/inet.h \
 				  assert.h \
 				  errno.h \
 				  fcntl.h \
@@ -59,7 +60,8 @@ AC_CHECK_HEADERS([arpa/inet.h \
 				  [],
 				  [AC_MSG_ERROR([required header missing])])
 # non-mandatory headers
-AC_CHECK_HEADERS([dispatch/dispatch.h \
+AC_CHECK_HEADERS_ONCE([\
+				  dispatch/dispatch.h \
 				  dlfcn.h \
 				  semaphore.h \
 				  ])
@@ -74,7 +76,8 @@ AC_CHECK_SIZEOF([time_t])
 AC_FUNC_FORK
 AC_FUNC_MALLOC
 AC_FUNC_REALLOC
-AC_CHECK_FUNCS([gethostname \
+AC_CHECK_FUNCS([\
+				gethostname \
 				gettimeofday \
 				localtime_r \
 				memmove \
@@ -87,11 +90,12 @@ AC_CHECK_FUNCS([gethostname \
 				strdup \
 				strerror \
 				strstr \
-				strtol],
+				strtol \
+				],
 				[],
 				[AC_MSG_ERROR([required function missing])])
 # non-mandatory funcs
-AC_CHECK_FUNCS([dlsym])
+AC_CHECK_FUNCS_ONCE([dlsym])
 
 # check if we need some special define for RTLD_NEXT (Linux)
 found_rtld_next=no
@@ -189,6 +193,13 @@ AS_IF([test "x$with_ssl" != xno],
 					]
 	)])
 AM_CONDITIONAL([SSL_ENABLED], [test "x$LIBSSL" != x])
+# SSL-related funcs
+save_LIBS="${LIBS}"
+test "x$LIBSSL" != x && LIBS="${LIBS} ${LIBSSL}"
+AC_CHECK_FUNCS([TLS_server_method \
+				SSLv23_server_method],
+			   [], [])
+LIBS="${save_LIBS}"
 
 AC_ARG_WITH([oniguruma], [use oniguruma regex library],
 			[], [with_oniguruma=check])

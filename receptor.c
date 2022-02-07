@@ -38,7 +38,15 @@ static char
 ssllisten(listener *lsnr)
 {
 	/* create a auto-negotiate context */
-	const SSL_METHOD *m = TLS_server_method();
+	const SSL_METHOD *m;
+
+#if defined(HAVE_TLS_SERVER_METHOD)
+	m = TLS_server_method();
+#elif defined(HAVE_SSLV23_SERVER_METHOD)
+	m = SSLv23_server_method();
+#else
+# error "we don't understand this version of OpenSSL"
+#endif
 	lsnr->ctx = SSL_CTX_new(m);
 	if (lsnr->ctx == NULL) {
 		char *err = ERR_error_string(ERR_get_error(), NULL);
@@ -47,6 +55,7 @@ ssllisten(listener *lsnr)
 		return 1;
 	}
 
+#if defined(HAVE_TLS_SERVER_METHOD)
 	/* handle possible restrictions to the flexible version method */
 	if (lsnr->protomin != 0) {
 		if (SSL_CTX_set_min_proto_version(lsnr->ctx, lsnr->protomin) == 0) {
@@ -62,6 +71,50 @@ ssllisten(listener *lsnr)
 			return 1;
 		}
 	}
+#elif defined(HAVE_SSLV23_SERVER_METHOD)
+	/* handle restrictions by mapping the range of versions manually */
+	if (lsnr->protomin > 0 || lsnr->protomax > 0) {
+		long options = 0;
+
+		/* this is OpenSSL <1.1 which doesn't understand TLS1.3, we have
+		 * available:
+		 * SSL_OP_NO_SSLv2,
+		 * SSL_OP_NO_SSLv3,
+		 * SSL_OP_NO_TLSv1,
+		 * SSL_OP_NO_TLSv1_1 and
+		 * SSL_OP_NO_TLSv1_2 */
+		if (lsnr->protomax > 0) {
+			switch (lsnr->protomax) {
+				case SSL3_VERSION:
+					options |= SSL_OP_NO_TLSv1;
+				case TLS1_VERSION:
+					options |= SSL_OP_NO_TLSv1_1;
+				case TLS1_1_VERSION:
+					options |= SSL_OP_NO_TLSv1_2;
+				case TLS1_2_VERSION:
+				case TLS1_3_VERSION:
+					break;
+			}
+		}
+		if (lsnr->protomin > 0) {
+			switch (lsnr->protomin) {
+				case TLS1_3_VERSION:
+					options |= SSL_OP_NO_TLSv1_2;
+				case TLS1_2_VERSION:
+					options |= SSL_OP_NO_TLSv1_1;
+				case TLS1_1_VERSION:
+					options |= SSL_OP_NO_TLSv1;
+				case TLS1_VERSION:
+					options |= SSL_OP_NO_SSLv3;
+				case SSL3_VERSION:
+					break;
+			}
+		}
+		SSL_CTX_set_options(lsnr->ctx, options);
+	}
+#else
+# error "we don't understand this version of OpenSSL"
+#endif
 
 	/* load certificates */
 	if (SSL_CTX_use_certificate_file(

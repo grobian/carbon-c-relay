@@ -54,6 +54,12 @@ typedef struct {
  * reference them, even though they will never get used */
 #ifdef HAVE_SSL
 # define TLSVER(S,V) S = V
+# ifndef SSL3_VERSION
+#  define SSL3_VERSION   0x0300
+# endif
+# ifndef TLS1_3_VERSION
+#  define TLS1_3_VERSION 0x0304
+# endif
 #else
 # define TLSVER(S,V) S
 #endif
