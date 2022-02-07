@@ -263,7 +263,8 @@ statistics
 
 listen
     type linemode [transport <plain | gzip | lz4 | snappy>
-            [ssl <pemcert> [protomin <tlsproto>] [protomax <tlsproto>]]]
+            [ssl <pemcert> [protomin <tlsproto>] [protomax <tlsproto>]
+                           [ciphers <ssl-ciphers>] [ciphersuites <tls-suite>]]]
         <<interface[:port] | port> proto <udp | tcp>> ...
         </ptah/to/file proto unix> ...
     ;
