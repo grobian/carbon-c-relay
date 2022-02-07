@@ -2655,9 +2655,13 @@ as_fn_append ac_header_c_list " strings.h strings_h HAVE_STRINGS_H"
 as_fn_append ac_header_c_list " sys/stat.h sys_stat_h HAVE_SYS_STAT_H"
 as_fn_append ac_header_c_list " sys/types.h sys_types_h HAVE_SYS_TYPES_H"
 as_fn_append ac_header_c_list " unistd.h unistd_h HAVE_UNISTD_H"
+as_fn_append ac_header_c_list " dispatch/dispatch.h dispatch_dispatch_h HAVE_DISPATCH_DISPATCH_H"
+as_fn_append ac_header_c_list " dlfcn.h dlfcn_h HAVE_DLFCN_H"
+as_fn_append ac_header_c_list " semaphore.h semaphore_h HAVE_SEMAPHORE_H"
 as_fn_append ac_header_c_list " vfork.h vfork_h HAVE_VFORK_H"
 as_fn_append ac_func_c_list " fork HAVE_FORK"
 as_fn_append ac_func_c_list " vfork HAVE_VFORK"
+as_fn_append ac_func_c_list " dlsym HAVE_DLSYM"
 
 # Auxiliary files required by this configure script.
 ac_aux_files="compile config.guess config.sub ltmain.sh missing install-sh"
@@ -14048,24 +14052,9 @@ fi
 
 done
 # non-mandatory headers
-ac_fn_c_check_header_compile "$LINENO" "dispatch/dispatch.h" "ac_cv_header_dispatch_dispatch_h" "$ac_includes_default"
-if test "x$ac_cv_header_dispatch_dispatch_h" = xyes
-then :
-  printf "%s\n" "#define HAVE_DISPATCH_DISPATCH_H 1" >>confdefs.h
 
-fi
-ac_fn_c_check_header_compile "$LINENO" "dlfcn.h" "ac_cv_header_dlfcn_h" "$ac_includes_default"
-if test "x$ac_cv_header_dlfcn_h" = xyes
-then :
-  printf "%s\n" "#define HAVE_DLFCN_H 1" >>confdefs.h
 
-fi
-ac_fn_c_check_header_compile "$LINENO" "semaphore.h" "ac_cv_header_semaphore_h" "$ac_includes_default"
-if test "x$ac_cv_header_semaphore_h" = xyes
-then :
-  printf "%s\n" "#define HAVE_SEMAPHORE_H 1" >>confdefs.h
 
-fi
 
 
 # Checks for typedefs, structures, and compiler characteristics.
@@ -14562,12 +14551,7 @@ fi
 
 done
 # non-mandatory funcs
-ac_fn_c_check_func "$LINENO" "dlsym" "ac_cv_func_dlsym"
-if test "x$ac_cv_func_dlsym" = xyes
-then :
-  printf "%s\n" "#define HAVE_DLSYM 1" >>confdefs.h
 
-fi
 
 
 # check if we need some special define for RTLD_NEXT (Linux)
@@ -15021,6 +15005,23 @@ else
   SSL_ENABLED_FALSE=
 fi
 
+# SSL-related funcs
+save_LIBS="${LIBS}"
+test "x$LIBSSL" != x && LIBS="${LIBS} ${LIBSSL}"
+ac_fn_c_check_func "$LINENO" "TLS_server_method" "ac_cv_func_TLS_server_method"
+if test "x$ac_cv_func_TLS_server_method" = xyes
+then :
+  printf "%s\n" "#define HAVE_TLS_SERVER_METHOD 1" >>confdefs.h
+
+fi
+ac_fn_c_check_func "$LINENO" "SSLv23_server_method" "ac_cv_func_SSLv23_server_method"
+if test "x$ac_cv_func_SSLv23_server_method" = xyes
+then :
+  printf "%s\n" "#define HAVE_SSLV23_SERVER_METHOD 1" >>confdefs.h
+
+fi
+
+LIBS="${save_LIBS}"
 
 
 # Check whether --with-oniguruma was given.

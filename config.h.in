@@ -140,6 +140,9 @@
 /* Define if you have ssl */
 #undef HAVE_SSL
 
+/* Define to 1 if you have the `SSLv23_server_method' function. */
+#undef HAVE_SSLV23_SERVER_METHOD
+
 /* Define to 1 if you have the <stdarg.h> header file. */
 #undef HAVE_STDARG_H
 
@@ -196,6 +199,9 @@
 
 /* Define to 1 if you have the <time.h> header file. */
 #undef HAVE_TIME_H
+
+/* Define to 1 if you have the `TLS_server_method' function. */
+#undef HAVE_TLS_SERVER_METHOD
 
 /* Define to 1 if you have the <unistd.h> header file. */
 #undef HAVE_UNISTD_H
