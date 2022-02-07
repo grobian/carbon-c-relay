@@ -1146,7 +1146,7 @@ conffile.yy.c: conffile.l conffile.tab.h
 router.c: conffile.tab.h
 
 man:
-	sed -e '/travis-ci.org\/grobian\/carbon-c-relay.svg/d' carbon-c-relay.md | \
+	sed -e '/build-test-ci.yml\/badge.svg/d' carbon-c-relay.md | \
 	ronn \
 		--manual="Graphite data collection and visualisation" \
 		--organization=Graphite \

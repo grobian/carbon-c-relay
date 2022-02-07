@@ -1,6 +1,6 @@
 carbon-c-relay(1) -- graphite relay, aggregator and rewriter
 ============================================================
-[![Build Status](https://travis-ci.org/grobian/carbon-c-relay.svg)](https://travis-ci.org/grobian/carbon-c-relay)
+[![Build Status](https://github.com/grobian/carbon-c-relay/actions/workflows/build-test-ci.yml/badge.svg)](https://github.com/grobian/carbon-c-relay/actions/workflows/build-test-ci.yml)
 
 ## SYNOPSIS
 

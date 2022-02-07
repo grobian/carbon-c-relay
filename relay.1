@@ -1,7 +1,7 @@
 .\" generated with Ronn/v0.7.3
 .\" http://github.com/rtomayko/ronn/tree/0.7.3
 .
-.TH "CARBON\-C\-RELAY" "1" "August 2020" "Graphite" "Graphite data collection and visualisation"
+.TH "CARBON\-C\-RELAY" "1" "February 2022" "Graphite" "Graphite data collection and visualisation"
 .
 .SH "NAME"
 \fBcarbon\-c\-relay\fR \- graphite relay, aggregator and rewriter
@@ -163,10 +163,12 @@ statistics
     ;
 
 listen
-    type linemode [transport <plain | gzip | lz4 | snappy> [ssl <pemcert>]]
+    type linemode [transport <plain | gzip | lz4 | snappy>
+            [ssl <pemcert> [protomin <tlsproto>] [protomax <tlsproto>]]]
         <<interface[:port] | port> proto <udp | tcp>> \.\.\.
         </ptah/to/file proto unix> \.\.\.
     ;
+    # tlsproto: <ssl3 | tls1\.0 | tls1\.1 | tls1\.2 | tls1\.3>
 
 include </path/to/file/or/glob>
     ;
@@ -612,6 +614,21 @@ match * send to graphite;
 .
 .P
 It sends all incoming metrics to the graphite cluster, except the sys\.somemetric ones, which it replaces with a sum of all the incoming ones\. Without a \fBstop\fR in the aggregate, this causes a loop, and without the \fBsend to\fR, the metric name can\'t be kept its original name, for the output now directly goes to the cluster\.
+.
+.P
+When configuring cluster you might want to check how the metrics will be routed and hashed\. That\'s what the \fB\-t\fR flag is for\. For the following configuration : ``` cluster graphite_swarm_odd fnv1a_ch replication 1 host01\.dom:2003=31F7A65E315586AC198BD798B6629CE4903D089947 host03\.dom:2003=9124E29E0C92EB63B3834C1403BD2632AA7508B740 host05\.dom:2003=B653412CD96B13C797658D2C48D952AEC3EB667313 ;
+.
+.P
+cluster graphite_swarm_even fnv1a_ch replication 1 host02\.dom:2003=31F7A65E315586AC198BD798B6629CE4903D089947 host04\.dom:2003=9124E29E0C92EB63B3834C1403BD2632AA7508B740 host06\.dom:2003=B653412CD96B13C797658D2C48D952AEC3EB667313
+.
+.P
+;
+.
+.P
+match * send to graphite_swarm_odd graphite_swarm_even stop ; \fBRunning the command : `echo "my\.super\.metric" | carbon\-c\-relay \-f config\.conf \-t`, will result in :\fR [\.\.\.] match * \-> my\.super\.metric fnv1a_ch(graphite_swarm_odd) host03\.dom:2003 fnv1a_ch(graphite_swarm_even) host04\.dom:2003 stop
+.
+.P
+\fB`` You now know that your metric\fRmy\.super\.metric\fBwill be hashed and arrive on the host03 and host04 machines\. Adding the\fR\-d` flag will increase the amount of information by showing you the hashring
 .
 .SH "STATISTICS"
 When \fBcarbon\-c\-relay\fR is run without \fB\-d\fR or \fB\-s\fR arguments, statistics will be produced\. By default they are sent to the relay itself in the form of \fBcarbon\.relays\.<hostname>\.*\fR\. See the \fBstatistics\fR construct to override this prefix, sending interval and values produced\. While many metrics have a similar name to what carbon\-cache\.py would produce, their values are likely different\. By default, most values are running counters which only increase over time\. The use of the nonNegativeDerivative() function from graphite is useful with these\.
