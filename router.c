@@ -1,5 +1,5 @@
 /*
- * Copyright 2013-2021 Fabian Groffen
+ * Copyright 2013-2022 Fabian Groffen
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -1155,6 +1155,7 @@ router_readconfig(router *orig,
 {
 	FILE *cnf;
 	char *buf;
+	int fd;
 	size_t len = 0;
 	struct stat st;
 	router *ret = NULL;
@@ -1211,15 +1212,23 @@ router_readconfig(router *orig,
 		return ret;
 	} /* else: include path is a regular file path */
 
+	fd = open(path, O_RDONLY);
+	if (fd == -1) {
+		logerr("unable to open file '%s': %s\n", path, strerror(errno));
+		return NULL;
+	}
+
 	/* if there is no config, don't try anything */
-	if (stat(path, &st) == -1) {
+	if (fstat(fd, &st) == -1) {
 		logerr("unable to stat file '%s': %s\n", path, strerror(errno));
+		close(fd);
 		return NULL;
 	}
 
 	/* if we're not dealing with a file, say so */
 	if (!S_ISREG(st.st_mode)) {
 		logerr("cannot open non-regular file '%s'\n", path);
+		close(fd);
 		return NULL;
 	}
 
@@ -1230,11 +1239,13 @@ router_readconfig(router *orig,
 		/* get a return structure (and allocator) in place */
 		if ((ret = malloc(sizeof(router))) == NULL) {
 			logerr("malloc failed for router return struct\n");
+			close(fd);
 			return NULL;
 		}
 		ret->a = ra_new();
 		if (ret->a == NULL) {
 			logerr("malloc failed for allocator\n");
+			close(fd);
 			free(ret);
 			return NULL;
 		}
@@ -1247,6 +1258,7 @@ router_readconfig(router *orig,
 		if (err != NULL) {
 			logerr("setcollectorvals: %s\n", err);
 			router_free(ret);
+			close(fd);
 			return NULL;
 		}
 		ret->collector.stub = NULL;
@@ -1265,12 +1277,14 @@ router_readconfig(router *orig,
 		if (cl == NULL) {
 			logerr("malloc failed for blackhole cluster\n");
 			router_free(ret);
+			close(fd);
 			return NULL;
 		}
 		cl->name = ra_strdup(ret->a, "blackhole");
 		if (cl->name == NULL) {
 			logerr("malloc failed for blackhole cluster name\n");
 			router_free(ret);
+			close(fd);
 			return NULL;
 		}
 		cl->type = BLACKHOLE;
@@ -1286,6 +1300,7 @@ router_readconfig(router *orig,
 	if (palloc == NULL) {
 		logerr("malloc failed for parse allocator\n");
 		router_free(ret);
+		close(fd);
 		return NULL;
 	}
 
@@ -1293,13 +1308,15 @@ router_readconfig(router *orig,
 		logerr("malloc failed for config file buffer\n");
 		ra_free(palloc);
 		router_free(ret);
+		close(fd);
 		return NULL;
 	}
 
-	if ((cnf = fopen(path, "r")) == NULL) {
+	if ((cnf = fdopen(fd, "r")) == NULL) {
 		logerr("failed to open config file '%s': %s\n", path, strerror(errno));
 		ra_free(palloc);
 		router_free(ret);
+		close(fd);
 		return NULL;
 	}
 
