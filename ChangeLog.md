@@ -2,6 +2,13 @@
 
 ### New Features
 
+### Bugfixes
+
+
+# 3.7.4 (13-02-2022)
+
+### New Features
+
 * [Issue #442](https://github.com/grobian/carbon-c-relay/issues/442)
   allow setting min/max TLS protocol versions for SSL listener
 
