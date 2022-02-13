@@ -83,14 +83,14 @@ patch -p1 < "${CHANGES}"/srcdiffs
 echo "regenerating build files"
 autoreconf -fiv || die
 echo "committing and tagging version bump"
-git commit -am "version bump to ${NEXTRELEASE}" || die
+git commit --signoff -am "version bump to ${NEXTRELEASE}" || die
 git tag "v${NEXTRELEASE}" || die
 echo "restoring maintainer-mode in configure.ac"
 sed -i \
 	-e "/^AM_MAINTAINER_MODE/s:\[disable\]:[enable\]:" \
 	configure.ac || die
 autoreconf -fiv || die
-git commit -am "configure.ac: restoring maintainer mode"
+git commit --signoff -am "configure.ac: restoring maintainer mode"
 
 echo "building release tar"
 SRCDIR=${PWD}
