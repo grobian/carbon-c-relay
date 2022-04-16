@@ -785,6 +785,13 @@ dispatch_addconnection(int sock, listener *lsnr)
 		}
 		SSL_set_fd(connections[c].strm->hdl.ssl, sock);
 		SSL_set_accept_state(connections[c].strm->hdl.ssl);
+		if (lsnr->transport & W_MTLS) {  /* issue #444 */
+			SSL_set_verify(connections[c].strm->hdl.ssl,
+						   SSL_VERIFY_PEER |
+						   SSL_VERIFY_FAIL_IF_NO_PEER_CERT |
+						   SSL_VERIFY_CLIENT_ONCE,
+						   NULL);
+		}
 
 		connections[c].strm->strmread = &sslread;
 		connections[c].strm->strmclose = &sslclose;

@@ -2,6 +2,9 @@
 
 ### New Features
 
+* [Issue #442](https://github.com/grobian/carbon-c-relay/issues/444)
+  support mTLS for incoming and outgoing connections
+
 ### Bugfixes
 
 

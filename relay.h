@@ -68,6 +68,7 @@ typedef enum {
 #ifdef HAVE_SNAPPY
 	W_SNAPPY = 4,
 #endif
+	W_MTLS   = 1 << 15,  /* used as bit-flag */
 	W_SSL    = 1 << 16   /* used as bit-flag */
 } con_trnsp;
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2013-2018 Fabian Groffen
+ * Copyright 2013-2022 Fabian Groffen
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,6 +31,8 @@ server *server_new(
 		unsigned short port,
 		con_type type,
 		con_trnsp transport,
+		char *mtlspemcert,
+		char *mtlspemkey,
 		con_proto ctype,
 		struct addrinfo *saddr,
 		struct addrinfo *hint,

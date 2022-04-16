@@ -218,7 +218,7 @@ cluster <name>
         <host[:port][=instance] [proto <udp | tcp>]
                                 [type linemode]
                                 [transport <plain | gzip | lz4 | snappy>
-                                           [ssl]]> ...
+                                           [ssl | mtls]]> ...
     ;
 
 cluster <name>
@@ -263,8 +263,11 @@ statistics
 
 listen
     type linemode [transport <plain | gzip | lz4 | snappy>
-            [ssl <pemcert> [protomin <tlsproto>] [protomax <tlsproto>]
-                           [ciphers <ssl-ciphers>] [ciphersuites <tls-suite>]]]
+                      [<ssl | mtls> <pemcert>
+                          [protomin <tlsproto>] [protomax <tlsproto>]
+                          [ciphers <ssl-ciphers>] [ciphersuites <tls-suite>]
+                      ]
+                  ]
         <<interface[:port] | port> proto <udp | tcp>> ...
         </ptah/to/file proto unix> ...
     ;

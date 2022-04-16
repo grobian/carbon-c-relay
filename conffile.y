@@ -1,4 +1,20 @@
 %{
+/*
+ * Copyright 2013-2022 Fabian Groffen
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #include "allocator.h"
 #include "conffile.h"
 #include "conffile.tab.h"
@@ -20,7 +36,7 @@ struct _clhost {
 	char *inst;
 	int proto;
 	con_type type;
-	con_trnsp trnsp;
+	struct _rcptr_trsp_ssl *trnsp;
 	void *saddr;
 	void *hint;
 	struct _clhost *next;
@@ -57,6 +73,11 @@ struct _rcptr_sslprotos {
 	tlsprotover prver;
 	struct _rcptr_sslprotos *next;
 };
+struct _rcptr_trsp_ssl {
+	con_trnsp mode;
+	char *mtlspemcert;
+	char *mtlspemkey;
+};
 struct _rcptr_trsp {
 	con_trnsp mode;
 	char *pemcert;
@@ -85,8 +106,8 @@ struct _rcptr_trsp {
 %type <cluster *> cluster
 %type <struct _clhost *> cluster_host cluster_hosts cluster_opt_host
 	cluster_path cluster_paths cluster_opt_path
-%type <con_trnsp> cluster_opt_transport cluster_transport_trans
-	cluster_transport_opt_ssl
+%type <con_trnsp> cluster_transport_trans
+%type <struct _rcptr_trsp_ssl *> cluster_opt_transport cluster_transport_opt_ssl
 
 %token crMATCH
 %token crVALIDATE crELSE crLOG crDROP crROUTE crUSING
@@ -121,12 +142,13 @@ struct _rcptr_trsp {
 
 %token crLISTEN
 %token crTYPE crLINEMODE crSYSLOGMODE crTRANSPORT
-%token crPLAIN crGZIP crLZ4 crSNAPPY crSSL crUNIX
+%token crPLAIN crGZIP crLZ4 crSNAPPY crSSL crMTLS crUNIX
 %token crPROTOMIN crPROTOMAX
 %token crSSL3 crTLS1_0 crTLS1_1 crTLS1_2 crTLS1_3
 %token crCIPHERS crCIPHERSUITES
 %type <con_proto> rcptr_proto
 %type <struct _rcptr *> receptor opt_receptor receptors
+%type <con_type> transport_ssl_or_mtls
 %type <struct _rcptr_trsp *> transport_mode transport_mode_trans
 	transport_opt_ssl
 %type <struct _rcptr_sslprotos *> transport_ssl_proto
@@ -220,7 +242,8 @@ cluster: crCLUSTER crSTRING[name] cluster_type[type] cluster_hosts[servers]
 		
 		for (w = $servers; w != NULL; w = w->next) {
 			err = router_add_server(rtr, w->ip, w->port, w->inst,
-					w->type, w->trnsp, w->proto,
+					w->type, w->trnsp->mode, w->trnsp->mtlspemcert,
+					w->trnsp->mtlspemkey, w->proto,
 					w->saddr, w->hint, (char)$type.ival, $$);
 			if (err != NULL) {
 				router_yyerror(&yylloc, yyscanner, rtr, ralloc, palloc, err);
@@ -258,7 +281,7 @@ cluster: crCLUSTER crSTRING[name] cluster_type[type] cluster_hosts[servers]
 		
 		for (w = $paths; w != NULL; w = w->next) {
 			err = router_add_server(rtr, w->ip, w->port, w->inst,
-					T_LINEMODE, W_PLAIN, w->proto,
+					T_LINEMODE, W_PLAIN, NULL, NULL, w->proto,
 					w->saddr, w->hint, (char)$type.ival, $$);
 			if (err != NULL) {
 				router_yyerror(&yylloc, yyscanner, rtr, ralloc, palloc, err);
@@ -381,14 +404,34 @@ cluster_opt_type:                     { $$ = T_LINEMODE; }
 				| crTYPE crSYSLOGMODE { $$ = T_SYSLOGMODE; }
 				;
 
-cluster_opt_transport:                { $$ = W_PLAIN; }
+cluster_opt_transport:
+					 {
+						if (($$ = ra_malloc(palloc,
+								sizeof(struct _rcptr_trsp))) == NULL)
+						{
+							logerr("malloc failed\n");
+							YYABORT;
+						}
+						$$->mode = W_PLAIN;
+						$$->mtlspemcert = NULL;
+						$$->mtlspemkey = NULL;
+					 }
 					 | cluster_transport_trans[trns]
 					   cluster_transport_opt_ssl[ssl]
 					 {
-					 	if ($ssl == W_PLAIN) {
-							$$ = $trns;
+					 	if ($ssl->mode == W_PLAIN) {
+							if (($$ = ra_malloc(palloc,
+									sizeof(struct _rcptr_trsp))) == NULL)
+							{
+								logerr("malloc failed\n");
+								YYABORT;
+							}
+							$$->mode = $trns;
+							$$->mtlspemcert = NULL;
+							$$->mtlspemkey = NULL;
 						} else {
-							$$ = $trns | $ssl;
+							$ssl->mode |= $trns;
+							$$ = $ssl;
 						}
 					 }
 					 ;
@@ -424,11 +467,49 @@ cluster_transport_trans: crTRANSPORT crPLAIN  { $$ = W_PLAIN; }
 #endif
 					    }
 					    ;
-cluster_transport_opt_ssl: { $$ = W_PLAIN; }
+cluster_transport_opt_ssl:
+						 {
+							if (($$ = ra_malloc(palloc,
+									sizeof(struct _rcptr_trsp))) == NULL)
+							{
+								logerr("malloc failed\n");
+								YYABORT;
+							}
+							$$->mode = W_PLAIN;
+							$$->mtlspemcert = NULL;
+							$$->mtlspemkey = NULL;
+						 }
 						 | crSSL
 						 {
 #ifdef HAVE_SSL
-							$$ = W_SSL;
+							if (($$ = ra_malloc(palloc,
+									sizeof(struct _rcptr_trsp))) == NULL)
+							{
+								logerr("malloc failed\n");
+								YYABORT;
+							}
+							$$->mode = W_SSL;
+							$$->mtlspemcert = NULL;
+							$$->mtlspemkey = NULL;
+#else
+							router_yyerror(&yylloc, yyscanner, rtr,
+								ralloc, palloc,
+								"feature ssl not compiled in");
+							YYERROR;
+#endif
+					     }
+						 | crMTLS crSTRING[pemcert] crSTRING[pemkey]
+						 {
+#ifdef HAVE_SSL
+							if (($$ = ra_malloc(palloc,
+									sizeof(struct _rcptr_trsp))) == NULL)
+							{
+								logerr("malloc failed\n");
+								YYABORT;
+							}
+							$$->mode = W_SSL | W_MTLS;
+							$$->mtlspemcert = $pemcert;
+							$$->mtlspemkey = $pemkey;
 #else
 							router_yyerror(&yylloc, yyscanner, rtr,
 								ralloc, palloc,
@@ -924,11 +1005,14 @@ listener: crTYPE crLINEMODE transport_mode[mode] receptors[ifaces]
 		}
 		;
 
+transport_ssl_or_mtls: crSSL   { $$ = W_SSL;          }
+					 | crMTLS  { $$ = W_SSL | W_MTLS; }
 transport_opt_ssl:
 				 {
 				 	$$ = NULL;
 				 }
-				 | crSSL crSTRING[pemcert] transport_opt_ssl_protos[protos]
+				 | transport_ssl_or_mtls[tls]
+				         crSTRING[pemcert] transport_opt_ssl_protos[protos]
 				         transport_opt_ssl_ciphers[ciphers]
 				         transport_opt_ssl_ciphersuites[suites]
 				 {
@@ -939,7 +1023,7 @@ transport_opt_ssl:
 						logerr("malloc failed\n");
 						YYABORT;
 					}
-					$$->mode = W_SSL;
+					$$->mode = $tls;
 					$$->pemcert = ra_strdup(ralloc, $pemcert);
 					$$->protos = $protos;
 					$$->ciphers = $ciphers;

@@ -590,6 +590,8 @@ router_add_server(
 		char *inst,
 		con_type type,
 		con_trnsp transport,
+		char *mtlspemcert,
+		char *mtlspemkey,
 		con_proto proto,
 		struct addrinfo *saddrs,
 		struct addrinfo *hint,
@@ -633,7 +635,8 @@ router_add_server(
 		}
 		if (newserver == NULL) {
 			newserver = server_new(ip, port,
-					type, transport, proto, walk, hint,
+					type, transport, mtlspemcert, mtlspemkey,
+					proto, walk, hint,
 					ret->conf.queuesize, ret->conf.batchsize,
 					ret->conf.maxstalls, ret->conf.iotimeout,
 					ret->conf.sockbufsize);

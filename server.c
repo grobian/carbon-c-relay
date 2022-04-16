@@ -1,5 +1,5 @@
 /*
- * Copyright 2013-2021 Fabian Groffen
+ * Copyright 2013-2022 Fabian Groffen
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -101,6 +101,8 @@ struct _server {
 	const char **batch;
 	con_type type;
 	con_trnsp transport;
+	char *mtlspemcert;
+	char *mtlspemkey;
 	con_proto ctype;
 	pthread_t tid;
 	struct _server **secondaries;
@@ -924,6 +926,27 @@ server_queuereader(void *d)
 					self->fd = -1;
 					continue;
 				}
+				if (self->transport & W_MTLS) {
+					int ret;
+
+					/* issue #444 */
+					ret = SSL_use_certificate_file(sstrm->hdl.ssl,
+												   self->mtlspemcert,
+												   SSL_FILETYPE_PEM);
+					if (ret == 1) {
+						ret = SSL_use_PrivateKey_file(sstrm->hdl.ssl,
+													  self->mtlspemkey,
+													  SSL_FILETYPE_PEM);
+					}
+
+					if (ret != 1) {
+						logerr("failed to enable mTLS: %s\n",
+							   sslerror(sstrm, ret));
+						sstrm->strmclose(sstrm);
+						self->fd = -1;
+						continue;
+					}
+				}
 				if ((rv = SSL_connect(sstrm->hdl.ssl)) != 1) {
 					logerr("failed to connect ssl stream: %s\n",
 							sslerror(sstrm, rv));
@@ -1057,6 +1080,8 @@ server_new(
 		unsigned short port,
 		con_type type,
 		con_trnsp transport,
+		char *mtlspemcert,
+		char *mtlspemkey,
 		con_proto ctype,
 		struct addrinfo *saddr,
 		struct addrinfo *hint,

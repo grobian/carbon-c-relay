@@ -402,7 +402,8 @@ do_usage(char *name, int exitcode)
 	printf("  -q  server queue size, defaults to %d\n", queuesize);
 	printf("  -L  server max stalls, defaults to %d\n", maxstalls);
 #ifdef HAVE_SSL
-	printf("  -C  use CA <cert> to verify SSL connections\n");
+	printf("  -C  use CA <cert> to verify outgoing SSL connections or\n");
+	printf("      incoming mTLS connections\n");
 #endif
 	printf("  -B  connection listen backlog, defaults to 32\n");
 	printf("  -U  socket receive buffer size, max/min/default values depend on OS\n");
@@ -423,7 +424,8 @@ do_usage(char *name, int exitcode)
 	printf("  -H  hostname: override hostname (used in statistics)\n");
 	printf("  -D  daemonise: detach and run in background\n");
 	printf("  -P  pidfile: write a pid to a specified pidfile\n");
-	printf("  -O  minimum number of rules before optimising the ruleset, default: %d\n", optimiserthreshold); 
+	printf("  -O  minimum number of rules before optimising the ruleset, "
+		   "default: %d\n", optimiserthreshold); 
 
 	exit(exitcode);
 }
@@ -992,8 +994,8 @@ main(int argc, char * const argv[])
 	/* server used for delivering metrics produced inside the relay,
 	 * that is, the collector (statistics) */
 	if ((internal_submission = server_new(
-					"internal", listenport, T_LINEMODE, W_PLAIN, CON_PIPE,
-					NULL, NULL, 3000,
+					"internal", listenport, T_LINEMODE, W_PLAIN,
+					NULL, NULL, CON_PIPE, NULL, NULL, 3000,
 					batchsize, maxstalls, iotimeout, sockbufsize)) == NULL)
 	{
 		logerr("failed to create internal submission queue, shutting down\n");
