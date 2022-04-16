@@ -1,5 +1,5 @@
 /*
- * Copyright 2013-2018 Fabian Groffen
+ * Copyright 2013-2022 Fabian Groffen
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -44,8 +44,7 @@ ra_free(allocator *ra)
 }
 
 #define ra_alloc(RA, SZ) { \
-	assert(SZ >= 0); \
-	nsz = 256 * 1024; \
+	size_t nsz = 256 * 1024; \
 	if (SZ > nsz) \
 		nsz = ((SZ / 1024) + 1) * 1024; \
 	RA = malloc(sizeof(allocator)); \
@@ -69,7 +68,6 @@ allocator *
 ra_new(void)
 {
 	allocator *ret;
-	size_t nsz;
 
 	ra_alloc(ret, 0);
 
@@ -86,10 +84,11 @@ void *
 ra_malloc(allocator *ra, size_t sz)
 {
 	void *retp = NULL;
-	size_t nsz;  /* for ra_alloc macro */
 
 	for (; ra != NULL; ra = ra->next) {
 		if (ra->sz - (ra->nextp - ra->memory_region) >= sz) {
+			size_t nsz;
+
 			retp = ra->nextp;
 			/* align to arch-width boundaries */
 			nsz = sz % sizeof(size_t);
