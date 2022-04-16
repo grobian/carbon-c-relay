@@ -148,7 +148,7 @@ struct _rcptr_trsp {
 %token crCIPHERS crCIPHERSUITES
 %type <con_proto> rcptr_proto
 %type <struct _rcptr *> receptor opt_receptor receptors
-%type <con_type> transport_ssl_or_mtls
+%type <con_trnsp> transport_ssl_or_mtls
 %type <struct _rcptr_trsp *> transport_mode transport_mode_trans
 	transport_opt_ssl
 %type <struct _rcptr_sslprotos *> transport_ssl_proto

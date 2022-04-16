@@ -231,8 +231,8 @@ union ROUTER_YYSTYPE
   con_proto cluster_opt_proto;             /* cluster_opt_proto  */
   con_proto rcptr_proto;                   /* rcptr_proto  */
   con_trnsp cluster_transport_trans;       /* cluster_transport_trans  */
+  con_trnsp transport_ssl_or_mtls;         /* transport_ssl_or_mtls  */
   con_type cluster_opt_type;               /* cluster_opt_type  */
-  con_type transport_ssl_or_mtls;          /* transport_ssl_or_mtls  */
   destinations * match_opt_send_to;        /* match_opt_send_to  */
   destinations * match_send_to;            /* match_send_to  */
   destinations * match_dsts;               /* match_dsts  */
