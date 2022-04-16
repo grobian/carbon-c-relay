@@ -53,7 +53,7 @@
 extern int router_yydebug;
 #endif
 /* "%code requires" blocks.  */
-#line 12 "conffile.y"
+#line 28 "conffile.y"
 
 struct _clust {
 	enum clusttype t;
@@ -65,7 +65,7 @@ struct _clhost {
 	char *inst;
 	int proto;
 	con_type type;
-	con_trnsp trnsp;
+	struct _rcptr_trsp_ssl *trnsp;
 	void *saddr;
 	void *hint;
 	struct _clhost *next;
@@ -102,6 +102,11 @@ struct _rcptr_sslprotos {
 	tlsprotover prver;
 	struct _rcptr_sslprotos *next;
 };
+struct _rcptr_trsp_ssl {
+	con_trnsp mode;
+	char *mtlspemcert;
+	char *mtlspemkey;
+};
 struct _rcptr_trsp {
 	con_trnsp mode;
 	char *pemcert;
@@ -110,7 +115,7 @@ struct _rcptr_trsp {
 	char *suites;
 };
 
-#line 114 "conffile.tab.h"
+#line 119 "conffile.tab.h"
 
 /* Token kinds.  */
 #ifndef ROUTER_YYTOKENTYPE
@@ -189,21 +194,22 @@ struct _rcptr_trsp {
     crLZ4 = 323,                   /* crLZ4  */
     crSNAPPY = 324,                /* crSNAPPY  */
     crSSL = 325,                   /* crSSL  */
-    crUNIX = 326,                  /* crUNIX  */
-    crPROTOMIN = 327,              /* crPROTOMIN  */
-    crPROTOMAX = 328,              /* crPROTOMAX  */
-    crSSL3 = 329,                  /* crSSL3  */
-    crTLS1_0 = 330,                /* crTLS1_0  */
-    crTLS1_1 = 331,                /* crTLS1_1  */
-    crTLS1_2 = 332,                /* crTLS1_2  */
-    crTLS1_3 = 333,                /* crTLS1_3  */
-    crCIPHERS = 334,               /* crCIPHERS  */
-    crCIPHERSUITES = 335,          /* crCIPHERSUITES  */
-    crINCLUDE = 336,               /* crINCLUDE  */
-    crCOMMENT = 337,               /* crCOMMENT  */
-    crSTRING = 338,                /* crSTRING  */
-    crUNEXPECTED = 339,            /* crUNEXPECTED  */
-    crINTVAL = 340                 /* crINTVAL  */
+    crMTLS = 326,                  /* crMTLS  */
+    crUNIX = 327,                  /* crUNIX  */
+    crPROTOMIN = 328,              /* crPROTOMIN  */
+    crPROTOMAX = 329,              /* crPROTOMAX  */
+    crSSL3 = 330,                  /* crSSL3  */
+    crTLS1_0 = 331,                /* crTLS1_0  */
+    crTLS1_1 = 332,                /* crTLS1_1  */
+    crTLS1_2 = 333,                /* crTLS1_2  */
+    crTLS1_3 = 334,                /* crTLS1_3  */
+    crCIPHERS = 335,               /* crCIPHERS  */
+    crCIPHERSUITES = 336,          /* crCIPHERSUITES  */
+    crINCLUDE = 337,               /* crINCLUDE  */
+    crCOMMENT = 338,               /* crCOMMENT  */
+    crSTRING = 339,                /* crSTRING  */
+    crUNEXPECTED = 340,            /* crUNEXPECTED  */
+    crINTVAL = 341                 /* crINTVAL  */
   };
   typedef enum router_yytokentype router_yytoken_kind_t;
 #endif
@@ -224,10 +230,9 @@ union ROUTER_YYSTYPE
   col_mode statistics_opt_counters;        /* statistics_opt_counters  */
   con_proto cluster_opt_proto;             /* cluster_opt_proto  */
   con_proto rcptr_proto;                   /* rcptr_proto  */
-  con_trnsp cluster_opt_transport;         /* cluster_opt_transport  */
   con_trnsp cluster_transport_trans;       /* cluster_transport_trans  */
-  con_trnsp cluster_transport_opt_ssl;     /* cluster_transport_opt_ssl  */
   con_type cluster_opt_type;               /* cluster_opt_type  */
+  con_type transport_ssl_or_mtls;          /* transport_ssl_or_mtls  */
   destinations * match_opt_send_to;        /* match_opt_send_to  */
   destinations * match_send_to;            /* match_send_to  */
   destinations * match_dsts;               /* match_dsts  */
@@ -274,9 +279,11 @@ union ROUTER_YYSTYPE
   struct _rcptr_trsp * transport_opt_ssl;  /* transport_opt_ssl  */
   struct _rcptr_trsp * transport_mode_trans; /* transport_mode_trans  */
   struct _rcptr_trsp * transport_mode;     /* transport_mode  */
+  struct _rcptr_trsp_ssl * cluster_opt_transport; /* cluster_opt_transport  */
+  struct _rcptr_trsp_ssl * cluster_transport_opt_ssl; /* cluster_transport_opt_ssl  */
   tlsprotover transport_ssl_protover;      /* transport_ssl_protover  */
 
-#line 280 "conffile.tab.h"
+#line 287 "conffile.tab.h"
 
 };
 typedef union ROUTER_YYSTYPE ROUTER_YYSTYPE;
