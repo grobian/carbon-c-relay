@@ -409,11 +409,9 @@ lzreadbuf(z_strm *strm, void *buf, size_t sze, int rval, int err)
 		return -1;
 	}
 
-	/* if we decompressed something, update our ibuf */
+	strm->hdl.lz4.iloc += srcsize;
 
-	if (destsize > 0) {
-		strm->hdl.lz4.iloc += srcsize;
-	} else if (destsize == 0) {
+	if (destsize == 0) {
 		tracef("No LZ4 data was produced\n");
 		errno = err ? err : EAGAIN;
 		return -1;
