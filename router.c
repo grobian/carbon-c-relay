@@ -397,7 +397,7 @@ char *
 router_validate_address(
 		router *rtr,
 		char **retip, unsigned short *retport, void **retsaddr,
-		void **rethint, char *ip, con_proto proto)
+		void **rethint, char *ip, con_proto proto, char allowanyaddr)
 {
 	unsigned short port = GRAPHITE_PORT;
 	struct addrinfo *saddr = NULL;
@@ -435,8 +435,13 @@ router_validate_address(
 			return(ra_strdup(rtr->a, "expected ']'"));
 		}
 	}
-	if (lastcolon == ip)
-		ip = NULL;  /* only resolve port, e.g. any interface */
+	if (lastcolon == ip) {
+		if (allowanyaddr) {
+			ip = NULL;  /* only resolve port, e.g. any interface */
+		} else {
+			return(ra_strdup(rtr->a, "host or IP-address required"));
+		}
+	}
 
 	memset(&hint, 0, sizeof(hint));
 	saddr = NULL;
@@ -1395,7 +1400,7 @@ router_readconfig(router *orig,
 			hint = NULL;
 			snprintf(sockbuf, sizeof(sockbuf), ":%u", listenport);
 			router_validate_address(ret, &ip, &port, &saddrs, &hint,
-					sockbuf, CON_TCP);
+					sockbuf, CON_TCP, 1 /* use any address */);
 			free(hint);
 			router_add_listener(ret, T_LINEMODE, W_PLAIN, NULL, 0, 0,
 								NULL, NULL, CON_TCP, ip, port, saddrs);
@@ -1403,7 +1408,7 @@ router_readconfig(router *orig,
 			hint = NULL;
 			snprintf(sockbuf, sizeof(sockbuf), ":%u", listenport);
 			router_validate_address(ret, &ip, &port, &saddrs, &hint,
-					sockbuf, CON_UDP);
+					sockbuf, CON_UDP, 1 /* use any address */);
 			free(hint);
 			router_add_listener(ret, T_LINEMODE, W_PLAIN, NULL, 0, 0,
 								NULL, NULL, CON_UDP, ip, port, saddrs);

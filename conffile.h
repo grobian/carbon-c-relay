@@ -1,5 +1,5 @@
 /*
- * Copyright 2013-2019 Fabian Groffen
+ * Copyright 2013-2022 Fabian Groffen
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -108,7 +108,7 @@ typedef struct _route {
 } route;
 
 void router_yyerror(void *locp, void *, router *r, allocator *ra, allocator *pa, const char *msg);
-char *router_validate_address(router *rtr, char **retip, unsigned short *retport, void **retsaddr, void **rethint, char *ip, con_proto proto);
+char *router_validate_address(router *rtr, char **retip, unsigned short *retport, void **retsaddr, void **rethint, char *ip, con_proto proto, char allowanyaddr);
 char *router_validate_path(router *rtr, char *path);
 char *router_validate_expression(router *rtr, route **retr, char *pat);
 char *router_validate_cluster(router *rtr, cluster **retcl, char *cluster);

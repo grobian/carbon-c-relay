@@ -368,7 +368,7 @@ cluster_host: crSTRING[ip] cluster_opt_instance[inst]
 				char *err = router_validate_address(
 						rtr,
 						&(ret->ip), &(ret->port), &(ret->saddr), &(ret->hint),
-						$ip, $prot);
+						$ip, $prot, 0 /* require explicit host */);
 				if (err != NULL) {
 					router_yyerror(&yylloc, yyscanner, rtr,
 							ralloc, palloc, err);
@@ -1194,7 +1194,7 @@ receptor: crSTRING[ip] crPROTO rcptr_proto[prot]
 			err = router_validate_address(
 					rtr,
 					&($$->ip), &($$->port), &($$->saddr), &hint,
-					$ip, $prot);
+					$ip, $prot, 1 /* allow any address */);
 			/* help some static analysis tools to see bcip isn't going
 			 * out of scope */
 			$ip = NULL;
