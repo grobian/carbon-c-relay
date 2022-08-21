@@ -287,17 +287,18 @@ IPv4 or IPv6 address, or a hostname.  Since host is followed by an
 optional `:` and port, for IPv6 addresses not to be interpreted wrongly,
 either a port must be given, or the IPv6 address surrounded by brackets,
 e.g. `[::1]`.  Optional `transport` and `proto` clauses can be used to
-wrap the connection in a compression or encryption later or specify the
+wrap the connection in a compression or encryption layer or specify the
 use of UDP or TCP to connect to the remote server.  When omitted the
-connection defaults to an unwrapped TCP connection.  `type` can only be
-linemode at the moment.
+connection defaults to a plain TCP connection.  `type` can only be
+`linemode` at the moment, e.g. Python's pickle mode is not supported.
 
 DNS hostnames are resolved to a single address, according to the preference
 rules in [RFC 3484](https://www.ietf.org/rfc/rfc3484.txt).  The
 `any_of`, `failover` and `forward` clusters have an explicit `useall`
 flag that enables expansion for hostnames resolving to multiple
-addresses.  Using this option Each address returned becomes a cluster
-destination.
+addresses.  Using this option, each address of any type becomes a
+cluster destination.  This means for instance that both IPv4 and IPv6
+addresses are added.
 
 There are two groups of cluster types, simple forwarding clusters and
 consistent hashing clusters.
@@ -306,14 +307,14 @@ consistent hashing clusters.
 
   The `forward` and `file` clusters simply send everything they receive
   to the defined members (host addresses or files).  When a cluster has
-  multiple members, all incoming metrics are sent to /all/ members,
+  multiple members, all incoming metrics are sent to *all* members,
   basically duplicating the input metric stream over all members.
 
 * `any_of` cluster
 
   The `any_of` cluster is a small variant of the `forward` cluster, but
   instead of sending the input metrics to all defined members, it sends
-  each incoming metric to only one of defined members.  The purpose of
+  each incoming metric to only one of the defined members.  The purpose of
   this is a load-balanced scenario where any of the members can receive
   any metric.  As `any_of` suggests, when any of the members become
   unreachable, the remaining available members will immediately receive
@@ -321,47 +322,57 @@ consistent hashing clusters.
   members are used, each will receive approximately 25% of the input
   metrics.  When one member becomes unavailable (e.g. network
   interruption, or a restart of the service), the remaining 3 members
-  will each receive about 33% of the input.  When designing cluster
+  will each receive about 25% / 3 = ~8% more traffic (33%).  Alternatively,
+  they will receive 1/3rd the total input.  When designing cluster
   capacity, one should take into account that in the most extreme case,
   the final remaining member will receive all input traffic.
 
   An `any_of` cluster can in particular be useful when the cluster
   points to other relays or caches.  When used with other relays, it
-  effectively load-balances, and adapts immediately over inavailability
-  of targets.  When used with caches, the behaviour of the `any_of`
-  router to send the same metrics consistently to the same destination
-  helps caches to have a high hitrate on their internal buffers for the
-  same metrics (if they use them), but still allows for a
-  rolling-restart of the caches when e.g. on the same machine.
+  effectively load-balances, and adapts immediately to inavailability
+  of targets.  When used with caches, there is a small detail to how
+  `any_of` works, that makes it very suitable.  The implementation of
+  this router is not to round-robin over any available members, but
+  instead it uses a consistent hashing strategy to deliver the same
+  metrics to the same destination all the time.  This helps caches, and
+  makes it easier to retrieve uncommitted datapoints (from a single
+  cache), but still allows for a rolling restart of the caches.  When a
+  member becomes unavailable, the hash destinations are not changed, but
+  instead traffic destined for the unavailable node is spread evenly
+  over available nodes.
 
 * `failover` cluster
 
   The `failover` cluster is like the `any_of` cluster, but sticks to the
   order in which servers are defined.  This is to implement a pure
   failover scenario between servers.  All metrics are sent to at most 1
-  member, so no hashing or balancing is taking place.  A `failover`
-  cluster with two members will only send metrics to the second member
-  if the first becomes unavailable.
+  member, so no hashing or balancing is taking place.  For example, a
+  `failover` cluster with two members will only send metrics to the
+  second member when the first member becomes unavailable.  As soon as
+  the first member returns, all metrics are sent to the first node
+  again.
 
 * `carbon_ch` cluster
 
   The `carbon_ch` cluster sends the metrics to the member that is
-  responsible according to the consistent hash algorithm, as used in the
-  original carbon python relay, or multiple members if replication is
-  set to more than 1.  When `dynamic` is set, failure of any of the
-  servers does not result in metrics being dropped for that server, but
-  instead the undeliverable metrics are sent to any other server in the
-  cluster in order for the metrics not to get lost.  This is most useful
-  when replication is 1.
+  responsible according to the consistent hash algorithm as used in the
+  original carbon python relay.  Multiple members are possible if
+  replication is set to a value higher than 1.  When `dynamic` is set,
+  failure of any of the servers does not result in metrics being dropped
+  for that server, but instead the undeliverable metrics are sent to any
+  other server in the cluster in order for the metrics not to get lost.
+  This is most useful when replication is 1.
 
   The calculation of the hashring, that defines the way in which metrics
   are distributed, is based on the server host (or IP address) and the
-  optional instance of the member.  This means that using `carbon_ch`
+  optional `instance` of the member.  This means that using `carbon_ch`
   two targets on different ports but on the same host will map to the
   same hashkey, which means no distribution of metrics takes place.  The
   instance is used to remedy that situation.  An instance is appended to
-  the memeber after the port, and separated by an equals sign, e.g.
-  `127.0.0.1:2006=a` for instance `a`.
+  the member after the port, and separated by an equals sign, e.g.
+  `127.0.0.1:2006=a` for instance `a`.  Instances are a concept
+  introduced by original python carbon-cache, and need to be used in
+  accordance with the configuration of those.
 
   Consistent hashes are consistent in the sense that removal of a member
   from the cluster should not result in a complete re-mapping of all
@@ -376,46 +387,68 @@ consistent hashing clusters.
 
 * `fnv1a_ch` cluster
 
-  The `fnv1a_ch` cluster is a identical in behaviour to `carbon_ch`, but
-  it uses a different hash technique (FNV1a) which is faster but more
-  importantly defined to get by the beforementioned limitation of
-  `carbon_ch` to use both host and port from the members.  This is
-  useful when multiple targets live on the same host just separated by
-  port.
+  The `fnv1a_ch` cluster is an incompatible improvement to `carbon_ch`
+  introduced by carbon-c-relay.  It uses a different hash technique
+  (FNV1a) which is faster than the MD5-hashing used by `carbon_ch`.
+  More importantly, `fnv1a_ch` clusters use both host and port to
+  distinguish the members.  This is useful when multiple targets live on
+  the same host just separated by port.
 
-  Since the instance property is no longer necessary with `fnv1a_ch`
-  this way, this cluster type uses it to completely override the string
-  that the hashkey should be calculated off.  This allows for many
-  things, including masquerading old IP addresses, but it basically can
-  be used to make the hash key location agnostic of the (physical)
-  location of that key.  For example, usage like
-  `10.0.0.1:2003=4d79d13554fa1301476c1f9fe968b0ac` would allow to change
-  port and/or ip address of the server that receives data for the
-  instance key.  Obviously, this way migration of data can be dealt with
-  much more conveniently.  Note that since the instance name is used as
-  full hash input, instances as `a`, `b`, etc. will likely result in
-  poor hash distribution, since their hashes have very little input.
-  Consider using longer and mostly differing instance names such as
-  random hashes for better hash distribution behaviour.
+  Since the `instance` property is no longer necessary with `fnv1a_ch`
+  this way, it is used to completely override the host:port string
+  that the hashkey would be calculated off.  This is an important
+  aspect, since the hashkey defines which metrics a member receives.
+  Such override allows for many things, including masquerading old IP
+  addresses e.g. when a machine was migrated to newer hardware.  An
+  example of this would be `10.0.0.5:2003=10.0.0.2:2003` where a machine
+  at address 5 now receives the metrics for a machine that were at
+  address 2.
+
+  While using instances this way can be very useful to perform
+  migrations in existing clusters, for newly to setup clusters,
+  instances allow to avoid this work by using an instance from day one
+  to detach the machine location from the metrics it receives.  Consider
+  for instance
+  `10.0.0.1:2003=4d79d13554fa1301476c1f9fe968b0ac` where a random hash
+  as instance is used.  This would allow to change port and/or ip
+  address of the server that receives data as many times without having
+  deal with any legacy being visible, assuming the random hash is
+  retained.
+  Note that since the instance name is used as full hash input,
+  instances as `a`, `b`, etc. will likely result in poor hash
+  distribution, as their hashes have very little input.  For that
+  reason, consider using longer and mostly differing instance names such
+  as random hashes as used in above example for better hash distribution
+  behaviour.
 
 * `jump_fnv1a_ch` cluster
 
   The `jump_fnv1a_ch` cluster is also a consistent hash cluster like the
   previous two, but it does not take the member host, port or instance
-  into account at all.  Whether this is useful to you depends on your
-  scenario.  The jump hash has almost perfect balancing over the members
-  defined in the cluster, at the expense of not being able to remove any
-  member but the last in order as defined in the cluster.  What this
-  means is that this hash is fine to use with ever growing clusters
-  where older nodes are never removed.
+  into account at all.  This means this cluster type looks at the order
+  in which members are defined, see also below for more on this order.
+  Whether this is useful to you depends on your scenario.  In contrast
+  to the previous two consistent hash cluster types, the jump hash has
+  an almost perfect balancing over the members defined in the cluster.
+  However, this comes at the expense of not being able to remove any
+  member but the last from the cluster without causing a complete
+  re-mapping of all metrics over all members.  What this basically means
+  is that this hash is fine to use with constant or ever growing
+  clusters where older nodes are never removed, but replaced instead.
 
-  If you have a cluster where removal of old nodes takes place often,
+  If you have a cluster where removal of old nodes takes place,
   the jump hash is not suitable for you.  Jump hash works with servers
-  in an ordered list without gaps.  To influence the ordering, the
-  instance given to the server will be used as sorting key.  Without,
-  the order will be as given in the file.  It is a good practice to fix
-  the order of the servers with instances such that it is explicit what
-  the right nodes for the jump hash are.
+  in an ordered list.  Since this order is important, it can be made
+  explicit using the instance as used in previous cluster types.  When
+  an instance is given with the members, it will be used as sorting key.
+  Without this instance, the order will be as given in the configuration
+  file, which may be prone to changes when e.g. generated by some config
+  management software.
+  As such, it is probably a good practice to fix the order of the
+  servers with instances such that it is explicit what the right nodes
+  for the jump hash are.  One can just use numbers for these, but be
+  aware that sorting of 1, 2 and 10 results in 1, 10, 2, so better to
+  use something like P0001, P0002, P0010 instead.
 
 ### MATCHES
 Match rules are the way to direct incoming metrics to one or more
@@ -899,7 +932,8 @@ without the `send to`, the metric name can't be kept its original name,
 for the output now directly goes to the cluster.
 
 
-When configuring cluster you might want to check how the metrics will be routed and hashed. That's what the `-t` flag is for. For the following configuration : 
+When configuring cluster you might want to check how the metrics will be routed and hashed. That's what the `-t` flag is for. For the following configuration: 
+
 ```
 cluster graphite_swarm_odd
     fnv1a_ch replication 1
@@ -923,7 +957,9 @@ match *
     stop
 ;
 ```
-Running the command : `echo "my.super.metric" | carbon-c-relay -f config.conf  -t`, will result in : 
+
+Running the command: `echo "my.super.metric" | carbon-c-relay -f config.conf  -t`, will result in: 
+
 ```
 [...]
 match
@@ -933,8 +969,8 @@ match
     fnv1a_ch(graphite_swarm_even)
         host04.dom:2003
     stop
-
 ```
+
 You now know that your metric `my.super.metric` will be hashed and arrive on the host03 and host04 machines.
 Adding the `-d` flag will increase the amount of information by showing you the hashring
 
