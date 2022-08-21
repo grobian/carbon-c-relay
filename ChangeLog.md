@@ -7,6 +7,9 @@
 
 ### Bugfixes
 
+* [Issue #448](https://github.com/grobian/carbon-c-relay/issues/448)
+  fix crash when attempting to use cluster server without hostname
+
 
 # 3.7.4 (13-02-2022)
 
