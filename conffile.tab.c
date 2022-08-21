@@ -2104,7 +2104,7 @@ yyreduce:
 				char *err = router_validate_address(
 						rtr,
 						&(ret->ip), &(ret->port), &(ret->saddr), &(ret->hint),
-						(yyvsp[-4].crSTRING), (yyvsp[-2].cluster_opt_proto));
+						(yyvsp[-4].crSTRING), (yyvsp[-2].cluster_opt_proto), 0 /* require explicit host */);
 				if (err != NULL) {
 					router_yyerror(&yylloc, yyscanner, rtr,
 							ralloc, palloc, err);
@@ -3287,7 +3287,7 @@ yyreduce:
 			err = router_validate_address(
 					rtr,
 					&((yyval.receptor)->ip), &((yyval.receptor)->port), &((yyval.receptor)->saddr), &hint,
-					(yyvsp[-2].crSTRING), (yyvsp[0].rcptr_proto));
+					(yyvsp[-2].crSTRING), (yyvsp[0].rcptr_proto), 1 /* allow any address */);
 			/* help some static analysis tools to see bcip isn't going
 			 * out of scope */
 			(yyvsp[-2].crSTRING) = NULL;

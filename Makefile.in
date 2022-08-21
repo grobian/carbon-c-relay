@@ -14,7 +14,7 @@
 
 @SET_MAKE@
 
-# Copyright 2013-2019 Fabian Groffen
+# Copyright 2013-2022 Fabian Groffen
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -464,7 +464,7 @@ EXTRA_DIST = \
 CRTESTS = issue10 issue27 issue117 issue156 issue157 issue163 issue165 \
 	issue180 issue184 issue202 issue213 issue218 issue228 issue235 \
 	issue236 issue246 issue252 issue253 issue263 issue267 issue288 \
-	issue293 issue310 issue357 issue369 server-type basic \
+	issue293 issue310 issue357 issue369 issue448 server-type basic \
 	metriclimits buftest large dual-udp dual-tcp dual-gzip \
 	large-gzip dual-large-gzip dual-lz4 large-lz4 dual-large-lz4 \
 	$(NULL) $(am__append_1)
