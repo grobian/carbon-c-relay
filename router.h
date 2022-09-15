@@ -37,7 +37,7 @@
 #define PMODE_PEMT    (1 << 4)
 #define PMODE_DEBUG   (PMODE_HASH | PMODE_STUB)
 
-#define CONN_DESTS_SIZE    64
+#define CONN_DESTS_SIZE    128
 
 #ifndef TMPDIR
 # define TMPDIR "/tmp"
