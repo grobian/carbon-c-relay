@@ -4,8 +4,11 @@ ADD . /opt/carbon-c-relay-build
 WORKDIR /opt/carbon-c-relay-build
 
 RUN \
-  apk add --no-cache git bc build-base curl automake autoconf libtool && \
-  ./configure && make
+  apk add --no-cache build-base && \
+  touch conffile.tab.c conffile.tab.h conffile.yy.c \
+  configure.ac Makefile.am aclocal.m4 configure \
+  Makefile.in config.h.in && \
+  ./configure --disable-maintainer-mode && make
 
 FROM alpine:3.15
 

@@ -58,7 +58,7 @@ jobs:
         # workaround git not retaining mtimes and bison/flex not being
         # uptodate
         run: |
-          touch conffile.yy.c conffile.tab.c conffile.tab.h
+          touch conffile.tab.c conffile.tab.h conffile.yy.c
           touch configure.ac Makefile.am aclocal.m4 configure
           touch Makefile.in config.h.in
       - name: configure variant ${{ matrix.features }}
