@@ -11,6 +11,8 @@
   fix crash when attempting to use cluster server without hostname
 * [Issue #440](https://github.com/grobian/carbon-c-relay/issues/440)
   fix LZ4 decompression issue
+* [PR #450](https://github.com/grobian/carbon-c-relay/pull/450)
+  increase maximum cluster size from 64 to 128
 
 
 # 3.7.4 (13-02-2022)
