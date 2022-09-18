@@ -699,10 +699,10 @@ static const yytype_int16 yyrline[] =
      689,   690,   695,   740,   831,   832,   837,   838,   839,   842,
      846,   847,   849,   864,   865,   866,   867,   868,   869,   870,
      880,   881,   884,   885,   890,   905,   930,   931,   942,   943,
-     946,   947,   952,   984,  1008,  1009,  1011,  1014,  1040,  1043,
-    1048,  1061,  1062,  1064,  1065,  1066,  1067,  1068,  1071,  1072,
-    1076,  1077,  1081,  1091,  1108,  1125,  1145,  1154,  1165,  1168,
-    1169,  1172,  1209,  1231,  1232,  1237
+     946,   947,   952,   984,  1008,  1009,  1012,  1015,  1041,  1044,
+    1049,  1062,  1063,  1065,  1066,  1067,  1068,  1069,  1072,  1073,
+    1077,  1078,  1082,  1092,  1109,  1126,  1146,  1155,  1166,  1169,
+    1170,  1173,  1210,  1232,  1233,  1238
 };
 #endif
 
@@ -3009,7 +3009,7 @@ yyreduce:
     break;
 
   case 116: /* transport_opt_ssl: %empty  */
-#line 1011 "conffile.y"
+#line 1012 "conffile.y"
                                  {
 				 	(yyval.transport_opt_ssl) = NULL;
 				 }
@@ -3017,7 +3017,7 @@ yyreduce:
     break;
 
   case 117: /* transport_opt_ssl: transport_ssl_or_mtls crSTRING transport_opt_ssl_protos transport_opt_ssl_ciphers transport_opt_ssl_ciphersuites  */
-#line 1018 "conffile.y"
+#line 1019 "conffile.y"
                                  {
 #ifdef HAVE_SSL
 					if (((yyval.transport_opt_ssl) = ra_malloc(palloc,
@@ -3042,7 +3042,7 @@ yyreduce:
     break;
 
   case 118: /* transport_opt_ssl_protos: %empty  */
-#line 1040 "conffile.y"
+#line 1041 "conffile.y"
                                                 {
 							(yyval.transport_opt_ssl_protos) = NULL;
 						}
@@ -3050,7 +3050,7 @@ yyreduce:
     break;
 
   case 119: /* transport_opt_ssl_protos: transport_ssl_proto transport_opt_ssl_protos  */
-#line 1044 "conffile.y"
+#line 1045 "conffile.y"
                                                 {
 							(yyvsp[-1].transport_ssl_proto)->next = (yyvsp[0].transport_opt_ssl_protos); (yyval.transport_opt_ssl_protos) = (yyvsp[-1].transport_ssl_proto);
 						}
@@ -3058,7 +3058,7 @@ yyreduce:
     break;
 
   case 120: /* transport_ssl_proto: transport_ssl_prototype transport_ssl_protover  */
-#line 1049 "conffile.y"
+#line 1050 "conffile.y"
                                    {
 						if (((yyval.transport_ssl_proto) = ra_malloc(palloc,
 								sizeof(struct _rcptr_sslprotos))) == NULL)
@@ -3074,73 +3074,73 @@ yyreduce:
     break;
 
   case 121: /* transport_ssl_prototype: crPROTOMIN  */
-#line 1061 "conffile.y"
+#line 1062 "conffile.y"
                                      { (yyval.transport_ssl_prototype) = _rp_PROTOMIN; }
 #line 3080 "conffile.tab.c"
     break;
 
   case 122: /* transport_ssl_prototype: crPROTOMAX  */
-#line 1062 "conffile.y"
+#line 1063 "conffile.y"
                                                          { (yyval.transport_ssl_prototype) = _rp_PROTOMAX; }
 #line 3086 "conffile.tab.c"
     break;
 
   case 123: /* transport_ssl_protover: crSSL3  */
-#line 1064 "conffile.y"
+#line 1065 "conffile.y"
                                   { (yyval.transport_ssl_protover) = _rp_SSL3;   }
 #line 3092 "conffile.tab.c"
     break;
 
   case 124: /* transport_ssl_protover: crTLS1_0  */
-#line 1065 "conffile.y"
+#line 1066 "conffile.y"
                                                       { (yyval.transport_ssl_protover) = _rp_TLS1_0; }
 #line 3098 "conffile.tab.c"
     break;
 
   case 125: /* transport_ssl_protover: crTLS1_1  */
-#line 1066 "conffile.y"
+#line 1067 "conffile.y"
                                                       { (yyval.transport_ssl_protover) = _rp_TLS1_1; }
 #line 3104 "conffile.tab.c"
     break;
 
   case 126: /* transport_ssl_protover: crTLS1_2  */
-#line 1067 "conffile.y"
+#line 1068 "conffile.y"
                                                       { (yyval.transport_ssl_protover) = _rp_TLS1_2; }
 #line 3110 "conffile.tab.c"
     break;
 
   case 127: /* transport_ssl_protover: crTLS1_3  */
-#line 1068 "conffile.y"
+#line 1069 "conffile.y"
                                                       { (yyval.transport_ssl_protover) = _rp_TLS1_3; }
 #line 3116 "conffile.tab.c"
     break;
 
   case 128: /* transport_opt_ssl_ciphers: %empty  */
-#line 1071 "conffile.y"
+#line 1072 "conffile.y"
                                                  { (yyval.transport_opt_ssl_ciphers) = NULL; }
 #line 3122 "conffile.tab.c"
     break;
 
   case 129: /* transport_opt_ssl_ciphers: crCIPHERS crSTRING  */
-#line 1073 "conffile.y"
+#line 1074 "conffile.y"
                                                  { (yyval.transport_opt_ssl_ciphers) = ra_strdup(ralloc, (yyvsp[0].crSTRING)); }
 #line 3128 "conffile.tab.c"
     break;
 
   case 130: /* transport_opt_ssl_ciphersuites: %empty  */
-#line 1076 "conffile.y"
+#line 1077 "conffile.y"
                                                           { (yyval.transport_opt_ssl_ciphersuites) = NULL; }
 #line 3134 "conffile.tab.c"
     break;
 
   case 131: /* transport_opt_ssl_ciphersuites: crCIPHERSUITES crSTRING  */
-#line 1078 "conffile.y"
+#line 1079 "conffile.y"
                                                           { (yyval.transport_opt_ssl_ciphersuites) = ra_strdup(ralloc, (yyvsp[0].crSTRING)); }
 #line 3140 "conffile.tab.c"
     break;
 
   case 132: /* transport_mode_trans: crTRANSPORT crPLAIN  */
-#line 1082 "conffile.y"
+#line 1083 "conffile.y"
                                         {
 						if (((yyval.transport_mode_trans) = ra_malloc(palloc,
 								sizeof(struct _rcptr_trsp))) == NULL)
@@ -3154,7 +3154,7 @@ yyreduce:
     break;
 
   case 133: /* transport_mode_trans: crTRANSPORT crGZIP  */
-#line 1092 "conffile.y"
+#line 1093 "conffile.y"
                                         {
 #ifdef HAVE_GZIP
 						if (((yyval.transport_mode_trans) = ra_malloc(palloc,
@@ -3175,7 +3175,7 @@ yyreduce:
     break;
 
   case 134: /* transport_mode_trans: crTRANSPORT crLZ4  */
-#line 1109 "conffile.y"
+#line 1110 "conffile.y"
                                         {
 #ifdef HAVE_LZ4
 						if (((yyval.transport_mode_trans) = ra_malloc(palloc,
@@ -3196,7 +3196,7 @@ yyreduce:
     break;
 
   case 135: /* transport_mode_trans: crTRANSPORT crSNAPPY  */
-#line 1126 "conffile.y"
+#line 1127 "conffile.y"
                                         {
 #ifdef HAVE_SNAPPY
 						if (((yyval.transport_mode_trans) = ra_malloc(palloc,
@@ -3217,7 +3217,7 @@ yyreduce:
     break;
 
   case 136: /* transport_mode: %empty  */
-#line 1145 "conffile.y"
+#line 1146 "conffile.y"
                           { 
 				if (((yyval.transport_mode) = ra_malloc(palloc,
 						sizeof(struct _rcptr_trsp))) == NULL)
@@ -3231,7 +3231,7 @@ yyreduce:
     break;
 
   case 137: /* transport_mode: transport_mode_trans transport_opt_ssl  */
-#line 1155 "conffile.y"
+#line 1156 "conffile.y"
                           {
 			  	if ((yyvsp[0].transport_opt_ssl) == NULL) {
 					(yyval.transport_mode) = (yyvsp[-1].transport_mode_trans);
@@ -3244,25 +3244,25 @@ yyreduce:
     break;
 
   case 138: /* receptors: receptor opt_receptor  */
-#line 1165 "conffile.y"
+#line 1166 "conffile.y"
                                        { (yyvsp[-1].receptor)->next = (yyvsp[0].opt_receptor); (yyval.receptors) = (yyvsp[-1].receptor); }
 #line 3250 "conffile.tab.c"
     break;
 
   case 139: /* opt_receptor: %empty  */
-#line 1168 "conffile.y"
+#line 1169 "conffile.y"
                         { (yyval.opt_receptor) = NULL; }
 #line 3256 "conffile.tab.c"
     break;
 
   case 140: /* opt_receptor: receptors  */
-#line 1169 "conffile.y"
+#line 1170 "conffile.y"
                                     { (yyval.opt_receptor) = (yyvsp[0].receptors);   }
 #line 3262 "conffile.tab.c"
     break;
 
   case 141: /* receptor: crSTRING crPROTO rcptr_proto  */
-#line 1173 "conffile.y"
+#line 1174 "conffile.y"
                 {
 			char *err;
 			void *hint = NULL;
@@ -3303,7 +3303,7 @@ yyreduce:
     break;
 
   case 142: /* receptor: crSTRING crPROTO crUNIX  */
-#line 1210 "conffile.y"
+#line 1211 "conffile.y"
                 {
 			char *err;
 
@@ -3327,19 +3327,19 @@ yyreduce:
     break;
 
   case 143: /* rcptr_proto: crTCP  */
-#line 1231 "conffile.y"
+#line 1232 "conffile.y"
                    { (yyval.rcptr_proto) = CON_TCP; }
 #line 3333 "conffile.tab.c"
     break;
 
   case 144: /* rcptr_proto: crUDP  */
-#line 1232 "conffile.y"
+#line 1233 "conffile.y"
                            { (yyval.rcptr_proto) = CON_UDP; }
 #line 3339 "conffile.tab.c"
     break;
 
   case 145: /* include: crINCLUDE crSTRING  */
-#line 1238 "conffile.y"
+#line 1239 "conffile.y"
            {
 	   	if (router_readconfig(rtr, (yyvsp[0].crSTRING), 0, 0, 0, 0, 0, 0, 0) == NULL)
 			YYERROR;
