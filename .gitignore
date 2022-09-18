@@ -9,3 +9,6 @@
 /stamp-h1
 /relay
 /carbon-c-relay-*.tar.gz
+/test/dual-ssl.cert
+/test/dual-mtls.mcert
+/test/dual-mtls.key
