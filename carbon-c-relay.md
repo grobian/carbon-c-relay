@@ -218,7 +218,7 @@ cluster <name>
         <host[:port][=instance] [proto <udp | tcp>]
                                 [type linemode]
                                 [transport <plain | gzip | lz4 | snappy>
-                                           [ssl | mtls]]> ...
+                                           [ssl | mtls <pemcert> <pemkey>]]> ...
     ;
 
 cluster <name>

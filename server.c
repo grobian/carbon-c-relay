@@ -907,11 +907,12 @@ server_queuereader(void *d)
 #endif
 
 #ifdef HAVE_SSL
-			if ((self->transport & ~0xFFFF) == W_SSL) {
+			if (self->transport & W_SSL) {
 				int rv;
 				z_strm *sstrm;
 
-				if ((self->transport & 0xFFFF) == W_PLAIN) { /* just SSL, nothing else */
+				if ((self->transport & 0xFFFF) == W_PLAIN) {
+ 					/* just SSL, nothing else */
 					sstrm = self->strm;
 				} else {
 					sstrm = self->strm->nextstrm;
@@ -1098,6 +1099,8 @@ server_new(
 
 	ret->type = type;
 	ret->transport = transport;
+	ret->mtlspemcert = mtlspemcert == NULL ? NULL : strdup(mtlspemcert);
+	ret->mtlspemkey = mtlspemkey == NULL ? NULL : strdup(mtlspemkey);
 	ret->ctype = ctype;
 	ret->tid = 0;
 	ret->secondaries = NULL;
@@ -1129,7 +1132,7 @@ server_new(
 
 	/* setup normal or SSL-wrapped socket first */
 #ifdef HAVE_SSL
-	if ((transport & ~0xFFFF) == W_SSL) {
+	if (transport & W_SSL) {
 		/* create an auto-negotiate context */
 		const SSL_METHOD *m = SSLv23_client_method();
 		ret->strm->ctx = SSL_CTX_new(m);
@@ -1455,7 +1458,7 @@ server_free(server *s) {
 
 	queue_destroy(s->queue);
 #ifdef HAVE_SSL
-	if ((s->transport & ~0xFFFF) == W_SSL)
+	if (s->transport & W_SSL)
 		SSL_CTX_free(s->strm->ctx);
 #endif
 	free(s->batch);
@@ -1465,6 +1468,10 @@ server_free(server *s) {
 		freeaddrinfo(s->saddr);
 	if (s->hint)
 		free(s->hint);
+	if (s->mtlspemcert)
+		free(s->mtlspemcert);
+	if (s->mtlspemkey)
+		free(s->mtlspemkey);
 	free((char *)s->ip);
 	if (s->strm->nextstrm != NULL)
 		free(s->strm->nextstrm);

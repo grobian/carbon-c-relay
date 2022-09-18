@@ -1945,7 +1945,8 @@ router_printconfig(router *rtr, FILE *f, char pmode)
 	server_transport(s->server) == W_PLAIN ? "" : " transport", \
 	(server_transport(s->server) & 0xFFFF) == W_PLAIN ? "" : \
 		con_trnsp_str[server_transport(s->server) & 0xFFFF], \
-	(server_transport(s->server) & ~0xFFFF) == W_SSL ? " ssl" : ""
+	(server_transport(s->server) & W_MTLS) ? " mtls" : \
+	(server_transport(s->server) & W_SSL) ? " ssl" : ""
 
 	if (rtr->listeners != NULL) {
 		listener *walk;
@@ -1957,8 +1958,10 @@ router_printconfig(router *rtr, FILE *f, char pmode)
 					fprintf(f, " transport %s",
 							con_trnsp_str[walk->transport & 0xFFFF]);
 #ifdef HAVE_SSL
-				if ((walk->transport & ~0xFFFF) == W_SSL) {
-					fprintf(f, " ssl %s", router_quoteident(walk->pemcert));
+				if (walk->transport & W_SSL) {
+					fprintf(f, " %s %s",
+							walk->transport & W_MTLS ? "mtls" : "ssl",
+							router_quoteident(walk->pemcert));
 					if (walk->protomin != _rp_UNSET)
 						fprintf(f, " protomin %s",
 								router_tlsprotostr(walk->protomin));
@@ -2417,7 +2420,7 @@ router_contains_listener(router *rtr, listener *lsnr)
 				if (lsnr->port == rwalk->port && strcmp(l, r) == 0) {
 #ifdef HAVE_SSL
 					/* check pemmtimespec */
-					if ((lsnr->transport & ~0xFFFF) == W_SSL &&
+					if (lsnr->transport & W_SSL &&
 							(lsnr->pemmtimespec.tv_sec !=
 									rwalk->pemmtimespec.tv_sec || 
 							lsnr->pemmtimespec.tv_nsec !=

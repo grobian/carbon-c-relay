@@ -1,0 +1,5 @@
+# mtls-based test, this is actually a variation of the ssl test
+
+listen type linemode transport plain mtls @cert@ 127.0.0.1:@port@ proto tcp;
+
+match ^through-ssl\. send to default;

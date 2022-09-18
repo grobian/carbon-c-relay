@@ -137,7 +137,7 @@ CRTESTS = \
 	$(NULL)
 
 if SSL_ENABLED
-CRTESTS += dual-ssl large-ssl dual-large-ssl
+CRTESTS += dual-ssl large-ssl dual-large-ssl dual-mtls
 endif
 
 test: check

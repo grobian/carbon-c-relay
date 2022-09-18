@@ -1007,6 +1007,7 @@ listener: crTYPE crLINEMODE transport_mode[mode] receptors[ifaces]
 
 transport_ssl_or_mtls: crSSL   { $$ = W_SSL;          }
 					 | crMTLS  { $$ = W_SSL | W_MTLS; }
+					 ;
 transport_opt_ssl:
 				 {
 				 	$$ = NULL;

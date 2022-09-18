@@ -1,0 +1,7 @@
+# mtls-based test
+cluster "mtls" forward 127.0.0.1:@remoteport@ proto tcp transport plain
+	mtls @mcert@ @key@;
+
+rewrite ^ssl\.(.*) into through-ssl.\1;
+
+match ^through-ssl\. send to "mtls" stop;

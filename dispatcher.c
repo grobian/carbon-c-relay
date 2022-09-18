@@ -1,5 +1,5 @@
 /*
- * Copyright 2013-2021 Fabian Groffen
+ * Copyright 2013-2022 Fabian Groffen
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -641,7 +641,7 @@ dispatch_transplantlistener(listener *olsnr, listener *nlsnr, router *r)
 		if (listeners[c] == olsnr) {
 			router_transplant_listener_socks(r, olsnr, nlsnr);
 #ifdef HAVE_SSL
-			if ((nlsnr->transport & ~0xFFFF) == W_SSL)
+			if (nlsnr->transport & W_SSL)
 				nlsnr->ctx = olsnr->ctx;
 #endif
 			if (olsnr->saddrs) {
@@ -757,7 +757,7 @@ dispatch_addconnection(int sock, listener *lsnr)
 	/* set socket or SSL connection */
 	connections[c].strm->nextstrm = NULL;
 	connections[c].strm->strmreadbuf = NULL;
-	if (lsnr == NULL || (lsnr->transport & ~0xFFFF) != W_SSL) {
+	if (lsnr == NULL || !(lsnr->transport & W_SSL)) {
 		if (lsnr == NULL || lsnr->ctype != CON_UDP) {
 			connections[c].strm->hdl.sock = sock;
 			connections[c].strm->strmread = &sockread;

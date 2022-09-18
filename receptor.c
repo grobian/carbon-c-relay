@@ -158,6 +158,18 @@ ssllisten(listener *lsnr)
 				lsnr->pemcert, err);
 		return 1;
 	}
+	if (lsnr->transport & W_MTLS && sslCA != NULL) {  /* issue #444 */
+		if (SSL_CTX_load_verify_locations(lsnr->ctx,
+										  sslCAisdir ? NULL : sslCA,
+										  sslCAisdir ? sslCA : NULL) == 0)
+		{
+			char *err = ERR_error_string(ERR_get_error(), NULL);
+			SSL_CTX_free(lsnr->ctx);
+			logerr("failed to load SSL verify locations from %s for "
+				   "mTLS connection: %s\n", sslCA, err);
+			return 1;
+		}
+	}
 	return 0;
 }
 #endif
@@ -174,9 +186,8 @@ bindlistenip(listener *lsnr, unsigned int backlog)
 	int sockcur = 0;
 
 #ifdef HAVE_SSL
-	if ((lsnr->transport & ~0xFFFF) == W_SSL && ssllisten(lsnr)) {
+	if (lsnr->transport & W_SSL && ssllisten(lsnr))
 		return 1;
-	}
 #endif
 
 	tv.tv_sec = 0;
@@ -265,9 +276,8 @@ bindlistenunix(listener *lsnr, unsigned int backlog)
 	int sock;
 
 #ifdef HAVE_SSL
-	if ((lsnr->transport & ~0xFFFF) == W_SSL && ssllisten(lsnr)) {
+	if (lsnr->transport & W_SSL && ssllisten(lsnr))
 		return 1;
-	}
 #endif
 
 #ifndef PF_LOCAL
@@ -331,7 +341,7 @@ close_socks(listener *lsnr)
 	for (i = 0; lsnr->socks[i] != -1; i++)
 		close(lsnr->socks[i]);
 #ifdef HAVE_SSL
-	if ((lsnr->transport & ~0xFFFF) == W_SSL)
+	if (lsnr->transport & W_SSL)
 		SSL_CTX_free(lsnr->ctx);
 #endif
 	logout("closed listener for %s %s:%u\n",
@@ -345,7 +355,7 @@ destroy_usock(listener *lsnr)
 	close(lsnr->socks[0]);
 	unlink(lsnr->ip);
 #ifdef HAVE_SSL
-	if ((lsnr->transport & ~0xFFFF) == W_SSL)
+	if (lsnr->transport & W_SSL)
 		SSL_CTX_free(lsnr->ctx);
 #endif
 	logout("removed listener for %s\n", lsnr->ip);

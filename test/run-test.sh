@@ -178,6 +178,8 @@ run_servertest() {
     local unixsock="${tmpdir}/sock.${port}"
     local cert="${test}.cert"
     local ca="${test}.cert"
+    local mcert="${test}.mcert"
+    local key="${test}.key"
     local conf="${tmpdir}"/conf-${id}
     local output="${tmpdir}"/relay-${id}.out
     local pidfile="${tmpdir}"/pidfile-${id}
@@ -187,7 +189,7 @@ run_servertest() {
     [[ -e ${test}-${id}.args ]] && relayargs=$(< ${test}-${id}.args)
     [[ -e ${ca} ]] && relayargs+=" -C ${ca}"
 
-    if [ "${transport}" == "ssl" ]; then
+    if [ "${transport}" == "ssl" ] || [ "${transport}" == "mtls" ]; then
       transport="transport plain ${transport} ${cert}"
     elif [ "${transport}" != "" ]; then
       transport="transport ${transport}"
@@ -214,6 +216,8 @@ run_servertest() {
         -e "s/@port@/${port}/g" \
         -e "s/@remoteport@/${remoteport}/g" \
         -e "s/@cert@/${cert}/g" \
+        -e "s/@mcert@/${mcert}/g" \
+        -e "s/@key@/${key}/g" \
         "${confarg}"
     } > "${conf}"
 
@@ -257,7 +261,7 @@ run_servertest() {
     fi
   fi
   if [ "${HAVE_SSL}" == "0" ]; then
-    if egrep '^listen type linemode transport .* ssl ' ${confarg} >/dev/null; then
+    if egrep '^listen type linemode transport .* (ssl|mtls) ' ${confarg} >/dev/null; then
       echo "SKIP"
       return 0
     fi
@@ -369,6 +373,8 @@ ${EXEC} -v | grep -w gzip >/dev/null && HAVE_GZIP=1 || HAVE_GZIP=0
 ${EXEC} -v | grep -w lz4 >/dev/null && HAVE_LZ4=1 || HAVE_LZ4=0
 ${EXEC} -v | grep -w snappy >/dev/null && HAVE_SNAPPY=1 || HAVE_SNAPPY=0
 ${EXEC} -v | grep -w ssl >/dev/null && HAVE_SSL=1 || HAVE_SSL=0
+
+test x$HAVE_SSL = x1 && sh ./create-self-cert.sh
 echo " done"
 
 tstcnt=0
@@ -423,6 +429,13 @@ for t in $* ; do
         tstfailed="${tstfailed} ${t}.ssl.stst"
       }
     fi
+    if [ -e ${t}.mtls.stst -a "${HAVE_SSL}" == "1" ]; then
+      : $((tstcnt++))
+      run_servertest "${t}.mtls.stst" "${t}.payload" "mtls" || {
+        : $((tstfail++))
+        tstfailed="${tstfailed} ${t}.mtls.stst"
+      }
+    fi
   fi
 done
 
@@ -431,9 +444,12 @@ rm -f buftest.payload buftest.payloadout \
   bundletest.payload bundletest.payloadout \
   large.payload large.payloadout large-ssl.payload large-ssl.payloadout \
   large-compress.payload large-compress.payloadout \
-  large-gzip.payload large-gzip.payloadout large-lz4.payload large-lz4.payloadout \
-  dual-large-gzip.payload dual-large-gzip.payloadout dual-large-lz4.payload dual-large-lz4.payloadout \
-  dual-large-ssl.payload dual-large-ssl.payloadout dual-large-compress.payload dual-large-compress.payloadout
+  large-gzip.payload large-gzip.payloadout \
+  large-lz4.payload large-lz4.payloadout \
+  dual-large-gzip.payload dual-large-gzip.payloadout \
+  dual-large-lz4.payload dual-large-lz4.payloadout \
+  dual-large-ssl.payload dual-large-ssl.payloadout \
+  dual-large-compress.payload dual-large-compress.payloadout
 
 echo "Ran ${tstcnt} tests with ${tstfail} failing"
 [ "${tstfailed}" == "" ] || echo "failed: ${tstfailed}"

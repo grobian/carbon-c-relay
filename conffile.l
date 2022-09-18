@@ -89,6 +89,7 @@ cluster				{
 <idcl>lz4				return crLZ4;
 <idcl>snappy			return crSNAPPY;
 <idcl>ssl				return crSSL;
+<idcl>mtls				return crMTLS;
 <idcl>=					return '=';
 
 match				{
@@ -251,6 +252,11 @@ listen				{
 						identstate = idli;
 						BEGIN(idli);
 						return crSSL;
+					}
+<idli>mtls			{
+						identstate = idli;
+						BEGIN(idli);
+						return crMTLS;
 					}
 <li,idli>protomin	{
 						BEGIN(li);
