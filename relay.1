@@ -1,7 +1,7 @@
 .\" generated with Ronn/v0.7.3
 .\" http://github.com/rtomayko/ronn/tree/0.7.3
 .
-.TH "CARBON\-C\-RELAY" "1" "August 2022" "Graphite" "Graphite data collection and visualisation"
+.TH "CARBON\-C\-RELAY" "1" "September 2022" "Graphite" "Graphite data collection and visualisation"
 .
 .SH "NAME"
 \fBcarbon\-c\-relay\fR \- graphite relay, aggregator and rewriter
@@ -43,6 +43,9 @@ These options control the behaviour of \fBcarbon\-c\-relay\fR\.
 .
 .IP "\(bu" 4
 \fB\-s\fR: Enable submission mode\. In this mode, internal statistics are not generated\. Instead, queue pressure and metrics drops are reported on stdout\. This mode is useful when used as submission relay which\' job is just to forward to (a set of) main relays\. Statistics about the submission relays in this case are not needed, and could easily cause a non\-desired flood of metrics e\.g\. when used on each and every host locally\.
+.
+.IP "\(bu" 4
+\fB\-S\fR: Enable iostat\-like mode where every second the current state of statistics are reported\. This implies submission mode \fB\-s\fR\.
 .
 .IP "\(bu" 4
 \fB\-t\fR: Test mode\. This mode doesn\'t do any routing at all, but instead reads input from stdin and prints what actions would be taken given the loaded configuration\. This mode is very useful for testing relay routes for regular expression syntax etc\. It also allows to give insight on how routing is applied in complex configurations, for it shows rewrites and aggregates taking place as well\. When \fB\-t\fR is repeated, the relay will only test the configuration for validity and exit immediately afterwards\. Any standard output is suppressed in this mode, making it ideal for start\-scripts to test a (new) configuration\.
@@ -119,7 +122,7 @@ cluster <name>
         <host[:port][=instance] [proto <udp | tcp>]
                                 [type linemode]
                                 [transport <plain | gzip | lz4 | snappy>
-                                           [ssl | mtls]]> \.\.\.
+                                           [ssl | mtls <pemcert> <pemkey>]]> \.\.\.
     ;
 
 cluster <name>

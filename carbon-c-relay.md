@@ -64,6 +64,10 @@ These options control the behaviour of **carbon-c-relay**.
     cause a non-desired flood of metrics e.g. when used on each and
     every host locally.
 
+  * `-S`:
+    Enable iostat-like mode where every second the current state of
+    statistics are reported.  This implies submission mode `-s`.
+
   * `-t`:
     Test mode.  This mode doesn't do any routing at all, but instead reads
     input from stdin and prints what actions would be taken given the loaded
