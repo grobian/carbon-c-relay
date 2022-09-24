@@ -64,7 +64,6 @@ static int optimiserthreshold = 50;
 static int sockbufsize = 0;
 static int collector_interval = 60;
 static unsigned int listenbacklog = 32;
-static col_mode smode = CUM;
 static dispatcher **workers = NULL;
 static char workercnt = 0;
 static router *rtr = NULL;
@@ -420,6 +419,7 @@ do_usage(char *name, int exitcode)
 #endif
 	printf("  -s  submission mode: don't add any metrics to the stream like\n"
 	       "      statistics, report drop counts and queue pressure to log\n");
+	printf("  -S  implies submission mode, print iostat-like statistics\n");
 	printf("  -t  config test mode: prints rule matches from input on stdin\n");
 	printf("  -H  hostname: override hostname (used in statistics)\n");
 	printf("  -D  daemonise: detach and run in background\n");
@@ -450,7 +450,7 @@ main(int argc, char * const argv[])
 		snprintf(relay_hostname, sizeof(relay_hostname), "127.0.0.1");
 
 	while ((ch = getopt(argc, argv,
-					":hvdstf:l:p:w:b:q:L:C:T:c:m:M:H:B:U:EDP:O:")) != -1)
+					":hvdsStf:l:p:w:b:q:L:C:T:c:m:M:H:B:U:EDP:O:")) != -1)
 	{
 		switch (ch) {
 			case 'v':
@@ -468,6 +468,9 @@ main(int argc, char * const argv[])
 				break;
 			case 's':
 				mode |= MODE_SUBMISSION;
+				break;
+			case 'S':
+				mode |= MODE_SUBMISSION | MODE_METRICSTAT;
 				break;
 			case 't':
 				/* -t: test interactively, -tt: test config and exit */
@@ -1018,7 +1021,7 @@ main(int argc, char * const argv[])
 
 	logout("starting statistics collector\n");
 	if (internal_submission != NULL)
-		collector_start(&workers[1], rtr, internal_submission, smode == CUM);
+		collector_start(&workers[1], rtr, internal_submission);
 
 	logout("starting servers\n");
 	if (router_start(rtr) != 0) {

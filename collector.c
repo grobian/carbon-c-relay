@@ -1,5 +1,5 @@
 /*
- * Copyright 2013-2018 Fabian Groffen
+ * Copyright 2013-2022 Fabian Groffen
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,7 +29,6 @@
 #include "collector.h"
 
 static dispatcher **dispatchers;
-static char debug = 0;
 static pthread_t collectorid;
 static char keep_running = 1;
 static router *pending_router = NULL;
@@ -84,7 +83,7 @@ collector_runner(void *s)
 	size_t (*a_dropped)(aggregator *) = NULL;
 
 #define send(metric) \
-	if (debug & 1) \
+	if (mode & MODE_DEBUG) \
 		logout("%s", metric); \
 	else { \
 		size_t len = strlen(metric); \
@@ -299,7 +298,7 @@ collector_runner(void *s)
 			send(metric);
 		}
 
-		if (debug & 1)
+		if (mode & MODE_DEBUG)
 			fflush(stdout);
 	}
 
@@ -343,7 +342,7 @@ collector_writer(void *unused)
 		}
 		assert(srvs != NULL);
 		sleep(1);
-		if (debug & 1) {
+		if (mode & MODE_METRICSTAT) {
 			size_t mpsout;
 			size_t totout;
 			size_t mpsdrop;
@@ -405,6 +404,7 @@ collector_writer(void *unused)
 					totdisc - lastdisc, totdisc,
 					(int)(((double)dticks * 100.0) / (double)(dticks + dsleeps))
 				  );
+			fflush(stdout);
 			lastconn = totconn;
 			lastdisc = totdisc;
 		}
@@ -468,20 +468,17 @@ collector_reloadcomplete(void)
  * Initialises and starts the collector.
  */
 void
-collector_start(dispatcher **d, router *rtr, server *submission, char cum)
+collector_start(dispatcher **d, router *rtr, server *submission)
 {
 	dispatchers = d;
 	collector_schedulereload(rtr);
-
-	if (mode & MODE_DEBUG)
-		debug = 1;
-	debug |= (cum ? 0 : 2);
 
 	if (mode & MODE_SUBMISSION) {
 		if (pthread_create(&collectorid, NULL, collector_writer, NULL) != 0)
 			logerr("failed to start collector!\n");
 	} else {
-		if (pthread_create(&collectorid, NULL, collector_runner, submission) != 0)
+		if (pthread_create(&collectorid, NULL,
+						   collector_runner, submission) != 0)
 			logerr("failed to start collector!\n");
 	}
 }

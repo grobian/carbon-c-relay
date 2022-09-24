@@ -1,5 +1,5 @@
 /*
- * Copyright 2013-2018 Fabian Groffen
+ * Copyright 2013-2022 Fabian Groffen
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,6 +31,7 @@
 #define MODE_DAEMON     (1 << 3)
 #define MODE_TRACE      (1 << 4)
 #define MODE_CONFIGTEST (1 << 5)
+#define MODE_METRICSTAT (1 << 6)
 extern unsigned char mode;
 
 #ifdef ENABLE_TRACE

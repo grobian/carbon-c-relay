@@ -13,6 +13,8 @@
   fix LZ4 decompression issue
 * [PR #450](https://github.com/grobian/carbon-c-relay/pull/450)
   increase maximum cluster size from 64 to 128
+* fix collector in submission mode and debug, for stats, now use -S
+  option (problem revealed by musl libc stdio handling)
 
 
 # 3.7.4 (13-02-2022)
