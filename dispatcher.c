@@ -1025,7 +1025,7 @@ dispatch_received_metrics(connection *conn, dispatcher *self)
 	q = conn->metric;
 	firstspace = NULL;
 	lastnl = NULL;
-	search_tags = self->tags_supported;
+	search_tags = self->tags_supported ? 1 : 0;
 	for (p = conn->buf; p - conn->buf < conn->buflen; p++) {
 		if (*p == '\n' || *p == '\r') {
 			/* end of metric */
@@ -1065,14 +1065,16 @@ dispatch_received_metrics(connection *conn, dispatcher *self)
 			/* restart building new one from the start */
 			q = conn->metric;
 			firstspace = NULL;
-			search_tags = self->tags_supported;
+			search_tags = self->tags_supported ? 1 : 0;
 
 			gettimeofday(&conn->lastwork, NULL);
 			conn->maxsenddelay = 0;
 			/* send the metric to where it is supposed to go */
 			if (dispatch_process_dests(conn, self, conn->lastwork) == 0)
 				break;
-		} else if (*p == ' ' || *p == '\t' || *p == '.') {
+		} else if (search_tags != 2 && /* leave tags alone, issue #453 */
+				   (*p == ' ' || *p == '\t' || *p == '.'))
+		{
 			/* separator */
 			if (q == conn->metric) {
 				/* make sure we skip this on next iteration to
@@ -1080,6 +1082,7 @@ dispatch_received_metrics(connection *conn, dispatcher *self)
 				lastnl = p;
 				continue;
 			}
+
 			if (*p == '\t')
 				*p = ' ';
 			if (*p == ' ' && firstspace == NULL) {
@@ -1094,9 +1097,9 @@ dispatch_received_metrics(connection *conn, dispatcher *self)
 				if (*(q - 1) != *p && (q - 1) != firstspace)
 					*q++ = *p;
 			}
-		} else if (search_tags && *p == ';') {
+		} else if (search_tags == 1 && *p == ';') {
 			/* copy up to next space */
-			search_tags = 0;
+			search_tags = 2;
 			firstspace = q;
 			*q++ = *p;
 		} else if (
