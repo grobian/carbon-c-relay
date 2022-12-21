@@ -15,6 +15,8 @@
   increase maximum cluster size from 64 to 128
 * fix collector in submission mode and debug, for stats, now use -S
   option (problem revealed by musl libc stdio handling)
+* [Issue #454](https://github.com/grobian/carbon-c-relay/issues/454)
+  any\_of failing nodes cause lag and possible metrics loss
 
 
 # 3.7.4 (13-02-2022)

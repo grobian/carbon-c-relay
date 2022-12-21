@@ -2899,9 +2899,12 @@ router_route_intern(
 					}	break;
 					case ANYOF: {
 						/* we queue the same metrics at the same server */
-						unsigned int hash;
+						server         *s;
+						unsigned int    hash;
+						unsigned int    pos;
+						unsigned short  i;
 						
-						fnv1a_32(hash, p, metric, firstspace);
+						failif(retsize, *curlen + 1);
 
 						/* We could use the retry approach here, but since
 						 * our c is very small compared to MAX_INT, the bias
@@ -2909,10 +2912,27 @@ router_route_intern(
 						 * (MAX_INT % c) can be considered neglicible given
 						 * the number of occurances of c in the range of
 						 * MAX_INT, therefore we stick with a simple mod. */
-						hash %= d->cl->members.anyof->count;
-						failif(retsize, *curlen + 1);
-						ret[*curlen].dest =
-							d->cl->members.anyof->servers[hash];
+						fnv1a_32(hash, p, metric, firstspace);
+
+						/* find first non-failed server from here, but
+						 * be careful not to dump everything onto the
+						 * next neighbour */
+						pos   = hash % d->cl->members.anyof->count;
+						hash += rand();
+						for (i = 0; i < d->cl->members.anyof->count; i++) {
+							s = d->cl->members.anyof->servers[pos];
+							if (!server_failed(s)) {
+								ret[*curlen].dest = s;
+								break;
+							}
+							pos = (hash + i + 1) % d->cl->members.anyof->count;
+						}
+						if (ret[*curlen].dest == NULL) {
+							/* all failed, take original matching server */
+							ret[*curlen].dest =
+								d->cl->members.anyof->servers[hash];
+						}
+
 						produce_metric(ret[*curlen]);
 						set_metric(ret[*curlen]);
 						(*curlen)++;
@@ -2920,21 +2940,23 @@ router_route_intern(
 					}	break;
 					case FAILOVER: {
 						/* queue at the first non-failing server */
-						unsigned short i;
+						server         *s;
+						unsigned short  i;
 
 						failif(retsize, *curlen + 1);
 						ret[*curlen].dest = NULL;
 						for (i = 0; i < d->cl->members.anyof->count; i++) {
-							server *s = d->cl->members.anyof->servers[i];
+							s = d->cl->members.anyof->servers[i];
 							if (server_failed(s))
 								continue;
 							ret[*curlen].dest = s;
 							break;
 						}
-						if (ret[*curlen].dest == NULL)
+						if (ret[*curlen].dest == NULL) {
 							/* all failed, take first server */
 							ret[*curlen].dest =
 								d->cl->members.anyof->servers[0];
+						}
 
 						produce_metric(ret[*curlen]);
 						set_metric(ret[*curlen]);

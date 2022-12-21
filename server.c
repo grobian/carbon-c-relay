@@ -54,6 +54,10 @@
 #include <openssl/err.h>
 #endif
 
+#define FAIL_WAIT_TIME          6  /* 6 * 250ms = 1.5s */
+#define DISCONNECT_WAIT_TIME   12  /* 12 * 250ms = 3s */
+#define LEN_CRITICAL(Q)        (queue_free(Q) < self->bsize)
+
 typedef struct _z_strm {
 	ssize_t (*strmwrite)(struct _z_strm *, const void *, size_t);
 	int (*strmflush)(struct _z_strm *);
@@ -497,9 +501,6 @@ server_queuereader(void *d)
 
 	*metric = NULL;
 
-#define FAIL_WAIT_TIME   6  /* 6 * 250ms = 1.5s */
-#define DISCONNECT_WAIT_TIME   12  /* 12 * 250ms = 3s */
-#define LEN_CRITICAL(Q)  (queue_free(Q) < self->bsize)
 	self->running = 1;
 	while (1) {
 		if (queue_len(self->queue) == 0) {
@@ -1579,7 +1580,10 @@ server_failed(server *s)
 {
 	if (s == NULL)
 		return 0;
-	return __sync_add_and_fetch(&(s->failure), 0);
+	if (!s->failover && s->secondariescnt > 0)
+		return __sync_add_and_fetch(&(s->failure), 0) >= FAIL_WAIT_TIME;
+	else
+		return __sync_add_and_fetch(&(s->failure), 0) > 0;
 }
 
 /**
