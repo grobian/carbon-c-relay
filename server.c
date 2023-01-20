@@ -651,7 +651,8 @@ server_queuereader(void *d)
 				/* re-lookup the address info, if it fails, stay with
 				 * whatever we have such that resolution errors incurred
 				 * after starting the relay won't make it fail */
-				freeaddrinfo(self->saddr);
+				if (self->saddr)
+					freeaddrinfo(self->saddr);
 				snprintf(sport, sizeof(sport), "%u", self->port);
 				if (getaddrinfo(self->ip, sport, self->hint, &saddr) == 0) {
 					self->saddr = saddr;

@@ -1,5 +1,5 @@
 /*
- * Copyright 2013-2022 Fabian Groffen
+ * Copyright 2013-2023 Fabian Groffen
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -78,7 +78,8 @@ ra_new(void)
  * malloc() in one of the regions for this allocator.  If insufficient
  * memory is available in the region, a new one is allocated.  If
  * that fails, NULL is returned, else a pointer that can be written to
- * up to sz bytes.  The returned region is aligned.
+ * up to sz bytes.  The returned region is aligned, and clean.  (Thus
+ * this function could better be called ra_zalloc instead.)
  */
 void *
 ra_malloc(allocator *ra, size_t sz)
@@ -95,6 +96,8 @@ ra_malloc(allocator *ra, size_t sz)
 			if (nsz != 0)
 				sz += sizeof(size_t) - nsz;
 			ra->nextp += sz;
+
+			memset(retp, '\0', sz);
 			return retp;
 		}
 		if (ra->next == NULL)
