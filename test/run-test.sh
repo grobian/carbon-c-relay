@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # vim: ts=2 sw=2 expandtab:
 
-# Copyright 2013-2022 Fabian Groffen
+# Copyright 2013-2023 Fabian Groffen
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -243,25 +243,25 @@ run_servertest() {
   [[ "${transport}" != "" ]] && echo -n "${transport} "
 
   if [ "${HAVE_GZIP}" == "0" ]; then
-    if egrep '^listen type linemode transport gzip ' ${confarg} >/dev/null; then
+    if grep -E '^listen type linemode transport gzip ' ${confarg} >/dev/null; then
       echo "SKIP"
       return 0
     fi
   fi
   if [ "${HAVE_LZ4}" == "0" ]; then
-    if egrep '^listen type linemode transport lz4 ' ${confarg} >/dev/null; then
+    if grep -E '^listen type linemode transport lz4 ' ${confarg} >/dev/null; then
       echo "SKIP"
       return 0
     fi
   fi
   if [ "${HAVE_SNAPPY}" == "0" ]; then
-    if egrep '^listen type linemode transport snappy ' ${confarg} >/dev/null; then
+    if grep -E '^listen type linemode transport snappy ' ${confarg} >/dev/null; then
       echo "SKIP"
       return 0
     fi
   fi
   if [ "${HAVE_SSL}" == "0" ]; then
-    if egrep '^listen type linemode transport .* (ssl|mtls) ' ${confarg} >/dev/null; then
+    if grep -E '^listen type linemode transport .* (ssl|mtls) ' ${confarg} >/dev/null; then
       echo "SKIP"
       return 0
     fi
