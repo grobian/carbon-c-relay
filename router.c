@@ -459,20 +459,14 @@ router_validate_address(
 		int err;
 		/* now resolve this the normal way to check validity */
 		hint.ai_flags = AI_NUMERICSERV;
-		if ((err = getaddrinfo(ip, sport, &hint, &saddr)) != 0) {
-			char errmsg[512];
-			snprintf(errmsg, sizeof(errmsg), "warning: failed to resolve "
-					"%s, port %s, proto %s: %s",
-					ip == NULL ? "<any>" : ip, sport,
-					proto == CON_UDP ? "udp" : "tcp",
-					gai_strerror(err));
+		if ((err = getaddrinfo(ip, sport, &hint, &saddr)) != 0)
 			saddr = NULL;
-		}
 
 		/* no ra_malloc, it gets owned by server */
 		*rethint = malloc(sizeof(hint));
 		if (*rethint == NULL) {
-			freeaddrinfo(saddr);
+			if (saddr != NULL)
+				freeaddrinfo(saddr);
 			return(ra_strdup(rtr->a, "out of memory copying hint structure"));
 		}
 		memcpy(*rethint, &hint, sizeof(hint));
@@ -615,7 +609,12 @@ router_add_server(
 		servers *s;
 		lwalk = NULL;
 
-		if (useall) {
+		/* Since #293 unresolvable targets are allowed, but when there's
+		 * only one target such as in #455 we end up here crashing
+		 * because walk is NULL.  So, in that scenario, basically ignore
+		 * the useall, and if the address lateron becomes resolvable,
+		 * treat it as single target. */
+		if (useall && walk != NULL) {
 			/* serialise the IP address, to make the targets explicit
 			 * (since we're expanding all A/AAAA records) */
 			saddr_ntop(walk, hnbuf);

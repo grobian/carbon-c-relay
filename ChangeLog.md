@@ -19,6 +19,8 @@
   any\_of failing nodes cause lag and possible metrics loss
 * [Issue #453](https://github.com/grobian/carbon-c-relay/issues/453)
   tag values are sanitised while they should not
+* [Issue_#455](https://github.com/grobian/carbon-c-relay/issues/455)
+  crash when useall cluster host cannot be resolved
 
 
 # 3.7.4 (13-02-2022)
