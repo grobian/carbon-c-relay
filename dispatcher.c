@@ -1,5 +1,5 @@
 /*
- * Copyright 2013-2022 Fabian Groffen
+ * Copyright 2013-2024 Fabian Groffen
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -655,8 +655,6 @@ dispatch_transplantlistener(listener *olsnr, listener *nlsnr, router *r)
 	pthread_rwlock_unlock(&listenerslock);
 }
 
-#define CONNGROWSZ  1024
-
 /**
  * Adds a connection socket to the chain of connections.
  * Connection sockets are those which need to be read from.
@@ -682,6 +680,7 @@ dispatch_addconnection(int sock, listener *lsnr)
 
 	if (c == connectionslen) {
 		connection *newlst;
+		size_t      growlen;
 
 		pthread_rwlock_wrlock(&connectionslock);
 		if (connectionslen > c) {
@@ -689,8 +688,17 @@ dispatch_addconnection(int sock, listener *lsnr)
 			pthread_rwlock_unlock(&connectionslock);
 			return dispatch_addconnection(sock, lsnr);
 		}
+		/* take it slow with extending connections, because each
+		 * connection struct is 65K, so use an exponential approach
+		 * ceiled by CONNGROWSZ */
+		growlen = connectionslen * 5 / 10;
+		c = mode & MODE_SUBMISSION ? 2 : 10;
+		if (growlen < c)
+			growlen = c;
+		else if (growlen > CONNGROWSZ)
+			growlen = CONNGROWSZ;
 		newlst = realloc(connections,
-				sizeof(connection) * (connectionslen + CONNGROWSZ));
+				sizeof(connection) * (connectionslen + growlen));
 		if (newlst == NULL) {
 			logerr("cannot add new connection: "
 					"out of memory allocating more slots (max = %zu)\n",
@@ -709,14 +717,14 @@ dispatch_addconnection(int sock, listener *lsnr)
 			}
 		}
 
-		for (c = connectionslen; c < connectionslen + CONNGROWSZ; c++) {
+		for (c = connectionslen; c < connectionslen + growlen; c++) {
 			memset(&newlst[c], '\0', sizeof(connection));
 			newlst[c].takenby = C_FREE;
 		}
 		connections = newlst;
 		c = connectionslen;  /* for the setup code below */
 		newlst[c].takenby = C_SETUP;
-		connectionslen += CONNGROWSZ;
+		connectionslen += growlen;
 
 		pthread_rwlock_unlock(&connectionslock);
 	}
