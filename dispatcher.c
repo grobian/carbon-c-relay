@@ -124,10 +124,10 @@ typedef struct _connection {
 	char srcaddr[24];  /* string representation of source address */
 	char buf[METRIC_BUFSIZ];
 	int buflen;
-	char needmore:1;
-	char noexpire:1;
-	char isaggr:1;
-	char isudp:1;
+	unsigned char needmore:1;
+	unsigned char noexpire:1;
+	unsigned char isaggr:1;
+	unsigned char isudp:1;
 	char datawaiting; /* full byte for atomic access */
 	char metric[METRIC_BUFSIZ];
 	destination dests[CONN_DESTS_SIZE];

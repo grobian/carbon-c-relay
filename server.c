@@ -94,7 +94,6 @@ struct _server {
 	char *instance;
 	struct addrinfo *saddr;
 	struct addrinfo *hint;
-	char reresolve:1;
 	int fd;
 	z_strm *strm;
 	queue *queue;
@@ -111,7 +110,8 @@ struct _server {
 	pthread_t tid;
 	struct _server **secondaries;
 	size_t secondariescnt;
-	char failover:1;
+	unsigned char reresolve:1;
+	unsigned char failover:1;
 	char failure;       /* full byte for atomic access */
 	char running;       /* full byte for atomic access */
 	char keep_running;  /* full byte for atomic access */

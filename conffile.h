@@ -70,7 +70,7 @@ typedef struct _validate {
 typedef struct _cluster {
 	char *name;
 	enum clusttype type;
-	char isdynamic:1;
+	unsigned char isdynamic:1;
 	union {
 		chashring *ch;
 		servers *forward;
@@ -95,7 +95,7 @@ typedef struct _route {
 	char *strmatch;   /* string to search for if type not REGEX or MATCHALL */
 	destinations *dests; /* where matches should go */
 	char *masq;       /* when set, what to feed to the hashfunc when routing */
-	char stop:1;      /* whether to continue matching rules after this one */
+	unsigned char stop:1;/* whether to continue matching rules after this one */
 	enum {
 		MATCHALL,     /* the '*', don't do anything, just match everything */
 		REGEX,        /* a regex match */
