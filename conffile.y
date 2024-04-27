@@ -193,6 +193,9 @@ cluster: crCLUSTER crSTRING[name] cluster_type[type] cluster_hosts[servers]
 		int srvcnt;
 		int replcnt;
 
+		/* just to silence clang */
+		(void)yynerrs;
+
 		/* count number of servers for ch_new */
 		for (srvcnt = 0, w = $servers; w != NULL; w = w->next, srvcnt++)
 			;
