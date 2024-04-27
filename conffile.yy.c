@@ -239,6 +239,22 @@
 /* First, we deal with  platform-specific or compiler-specific issues. */
 
 /* begin standard C headers. */
+/* Feature test macros. Flex uses functions that require a minimum set of
+ * macros defined. As defining some macros may hide function declarations that
+ * user code might use, be conservative and respect user's definitions as much
+ * as possible. In glibc, feature test macros may not be all set up until one
+ * of the libc header (that includes <features.h>) is included. This creates
+ * a circular dependency when we check the macros. <assert.h> is the safest
+ * header we can include and does not declare too many functions we don't need.
+ */
+#if !defined(__GNU_LIBRARY__) && defined(__STDC__)
+#include <assert.h>
+#endif
+#if !(defined(_POSIX_C_SOURCE) || defined(_XOPEN_SOURCE) || \
+    defined(_POSIX_SOURCE))
+# define _POSIX_C_SOURCE 1 /* Required for fileno() */
+# define _POSIX_SOURCE 1
+#endif
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
@@ -255,8 +271,8 @@
 
 #if defined (__STDC_VERSION__) && __STDC_VERSION__ >= 199901L
 
-/* C99 says to define __STDC_LIMIT_MACROS before including stdint.h,
- * if you want the limit (max/min) macros for int types. 
+/* C++ systems might need __STDC_LIMIT_MACROS defined before including
+ * <stdint.h>, if you want the limit (max/min) macros for int types.
  */
 #ifndef __STDC_LIMIT_MACROS
 #define __STDC_LIMIT_MACROS 1
@@ -1109,10 +1125,10 @@ static const flex_int32_t yy_rule_can_match_eol[121] =
 #define YY_USER_INIT yycolumn = 0; yylineno = 0;
 
 int identstate = 0;
-#line 1112 "conffile.yy.c"
+#line 1128 "conffile.yy.c"
 #define YY_NO_INPUT 1
 
-#line 1115 "conffile.yy.c"
+#line 1131 "conffile.yy.c"
 
 #define INITIAL 0
 #define cl 1
@@ -1404,7 +1420,7 @@ YY_DECL
 	char string_buf[1024];
 	char *strbuf = NULL;
 
-#line 1407 "conffile.yy.c"
+#line 1423 "conffile.yy.c"
 
 	while ( /*CONSTCOND*/1 )		/* loops until end-of-file is reached */
 		{
@@ -2312,7 +2328,7 @@ YY_RULE_SETUP
 #line 400 "conffile.l"
 ECHO;
 	YY_BREAK
-#line 2315 "conffile.yy.c"
+#line 2331 "conffile.yy.c"
 case YY_STATE_EOF(INITIAL):
 case YY_STATE_EOF(cl):
 case YY_STATE_EOF(ma):
