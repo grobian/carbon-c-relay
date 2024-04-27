@@ -39,8 +39,7 @@ man:
 	> relay.1
 
 bin_PROGRAMS = relay
-check_PROGRAMS = sendmetric
-lib_LTLIBRARIES = libfaketime.la
+check_PROGRAMS = relaytest sendmetric
 relay_LINK = $(CCLD) $(AM_LDFLAGS) $(LDFLAGS) -o $@
 relay_LDADD = $(LIBGZIP) $(LIBLZ4) $(LIBSNAPPY) $(LIBSSL) \
 			  $(LIBONIGURUMA) $(LIBPCRE2) $(LIBPCRE)
@@ -59,10 +58,15 @@ relay_SOURCES = \
 	collector.c \
 	aggregator.c \
 	$(NULL)
+relaytest_LINK = $(relay_LINK)
+relaytest_LDADD = $(relay_LDADD)
+relaytest_SOURCES = $(relay_SOURCES) \
+                    faketime.c
+relaytest_CPPFLAGS = $(AM_CPPFLAGS) \
+                     -Dtime=faketime -Dgettimeofday=fakegettimeofday
 sendmetric_LINK = $(CCLD) $(AM_LDFLAGS) $(LDFLAGS) -o $@
 sendmetric_LDADD = $(LIBGZIP) $(LIBLZ4) $(LIBSNAPPY) $(LIBSSL)
 sendmetric_SOURCES = sendmetric.c
-libfaketime_la_SOURCES = faketime.c
 noinst_HEADERS = \
 	relay.h \
 	md5.h \
@@ -79,6 +83,7 @@ noinst_HEADERS = \
 	collector.h \
 	aggregator.h \
 	posixregex.h \
+	faketime.h \
 	$(NULL)
 man_MANS = relay.1
 
@@ -141,12 +146,11 @@ CRTESTS += dual-ssl large-ssl dual-large-ssl dual-mtls
 endif
 
 test: check
-test-%: relay libfaketime.la sendmetric
+test-%: relaytest sendmetric
 	@( cd test && ./run-test.sh $* )
 approve-%: relay sendmetric
 	@( cd test && ./run-test.sh -a $* )
 check-local:
 	@( cd test && ./run-test.sh $(CRTESTS) )
 install-exec-local:  # libtool refuses to build shared for check or noinst trg
-	$(LIBTOOL) $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=uninstall \
-		rm -f "$(DESTDIR)$(libdir)/libfaketime.la"
+	$(LIBTOOL) $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=uninstall

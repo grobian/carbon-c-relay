@@ -15,7 +15,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-EXEC=../relay
+EXEC=../relaytest
 SMEXEC=../sendmetric
 EFLAGS="-Htest.hostname -t"
 DIFF="diff -Nu"
@@ -24,10 +24,6 @@ CNFCLN=( sed -e '/^configuration:/,/^parsed configuration follows:/d'
              -e '/starting carbon-c-relay v/d'
              -e 's/^\[[0-9][0-9\-]* [0-9][0-9:]*\] //'
              -e 's/_stub_[0-9a-fx][0-9a-fx]*__/_stub_0xc0d3__/')
-
-export DYLD_FORCE_FLAT_NAMESPACE=1
-export DYLD_INSERT_LIBRARIES=../.libs/libfaketime.dylib
-export LD_PRELOAD=../.libs/libfaketime.so
 
 buftest_generate() {
   i=1

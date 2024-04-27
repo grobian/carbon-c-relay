@@ -1,5 +1,5 @@
 /*
- * Copyright 2013-2020 Fabian Groffen
+ * Copyright 2013-2024 Fabian Groffen
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,55 +18,23 @@
 #include "config.h"
 #endif
 
-#ifndef HAVE_RTLD_NEXT
-# error must have dlsym/RTLD_NEXT to fake time
-#endif
+/* avoid overrides here, we need the real thing */
+#undef time
+#undef gettimeofday
 
-#if 0
-/* we cannot include time.h and sys/time.h due to gettimeofday
- * definition being different on some platforms with
- * complex/incompatible restrict definitions, but we do need struct
- * timeval, so we're faking the necessary bits here */
 #include <time.h>
 #include <sys/time.h>
-#else
-#define _TIME_H
-#define _SYS_TIME_H
-/* internal definition, we only access tv_sec so don't care about the
- * type/definition of tv_usec */
-#if SIZEOF_TIME_T == 4
-#define fttime_t int
-#elif SIZEOF_TIME_T == 8
-#define fttime_t long long int
-#else
-#define fttime_t ssize_t
-#endif
-struct fttimeval {
-	fttime_t tv_sec;
-};
-#define NULL (void *)0
-#endif
-
-#include <dlfcn.h>
 
 /* for repeatability, always return time starting from 1981-02-01 from the
  * first call to time().  This way we can control the aggregator time
  * buckets */
 #define MYEPOCH  349830000
 
-fttime_t (*orig_time)(fttime_t *tloc) = NULL;
-int (*orig_gettimeofday)(struct fttimeval *tp, void *tz) = NULL;
-fttime_t fake_offset = 0;
+static time_t fake_offset = 0;
+time_t faketime(time_t *tloc) {
+	time_t now;
 
-__attribute__((constructor)) void init(void) {
-	orig_time = dlsym(RTLD_NEXT, "time");
-	orig_gettimeofday = dlsym(RTLD_NEXT, "gettimeofday");
-}
-
-fttime_t time(fttime_t *tloc) {
-	fttime_t now;
-
-	(void)orig_time(&now);
+	(void)time(&now);
 
 	if (fake_offset == 0)
 		fake_offset = now - MYEPOCH;
@@ -77,18 +45,19 @@ fttime_t time(fttime_t *tloc) {
 	return now;
 }
 
-int gettimeofday(struct fttimeval *tp, void *tzp) {
+int fakegettimeofday(struct timeval *tp, void *tzp) {
 	/* some platforms, like Darwin and Solaris, have an implementation
 	 * of gettimeofday that does not call time(), others, like glibc do
 	 * which means we need to deal with that here */
-	fttime_t now;
+	time_t now;
 
-	int ret = orig_gettimeofday(tp, tzp);
+	int ret = gettimeofday(tp, tzp);
 	if (ret != 0)
 		return ret;
 
 	/* setup clock offset */
-	now = time(NULL);
+	if (fake_offset == 0)
+		now = time(NULL);
 	now += fake_offset;
 
 	if (now >= tp->tv_sec)
