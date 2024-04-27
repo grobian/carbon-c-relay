@@ -29,7 +29,6 @@
 # limitations under the License.
 
 
-
 VPATH = @srcdir@
 am__is_gnu_make = { \
   if test -z '$(MAKELEVEL)'; then \
@@ -105,7 +104,7 @@ POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
 bin_PROGRAMS = relay$(EXEEXT)
-check_PROGRAMS = sendmetric$(EXEEXT)
+check_PROGRAMS = relaytest$(EXEEXT) sendmetric$(EXEEXT)
 @SSL_ENABLED_TRUE@am__append_1 = dual-ssl large-ssl dual-large-ssl dual-mtls
 subdir = .
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
@@ -123,9 +122,104 @@ mkinstalldirs = $(install_sh) -d
 CONFIG_HEADER = config.h
 CONFIG_CLEAN_FILES =
 CONFIG_CLEAN_VPATH_FILES =
-am__installdirs = "$(DESTDIR)$(bindir)" "$(DESTDIR)$(libdir)" \
-	"$(DESTDIR)$(man1dir)"
+am__installdirs = "$(DESTDIR)$(bindir)" "$(DESTDIR)$(man1dir)"
 PROGRAMS = $(bin_PROGRAMS)
+am_relay_OBJECTS = relay.$(OBJEXT) md5.$(OBJEXT) \
+	consistent-hash.$(OBJEXT) receptor.$(OBJEXT) \
+	dispatcher.$(OBJEXT) conffile.tab.$(OBJEXT) \
+	conffile.yy.$(OBJEXT) allocator.$(OBJEXT) router.$(OBJEXT) \
+	queue.$(OBJEXT) server.$(OBJEXT) collector.$(OBJEXT) \
+	aggregator.$(OBJEXT)
+relay_OBJECTS = $(am_relay_OBJECTS)
+am__DEPENDENCIES_1 =
+relay_DEPENDENCIES = $(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
+	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
+	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
+	$(am__DEPENDENCIES_1)
+am__objects_1 = relaytest-relay.$(OBJEXT) relaytest-md5.$(OBJEXT) \
+	relaytest-consistent-hash.$(OBJEXT) \
+	relaytest-receptor.$(OBJEXT) relaytest-dispatcher.$(OBJEXT) \
+	relaytest-conffile.tab.$(OBJEXT) \
+	relaytest-conffile.yy.$(OBJEXT) relaytest-allocator.$(OBJEXT) \
+	relaytest-router.$(OBJEXT) relaytest-queue.$(OBJEXT) \
+	relaytest-server.$(OBJEXT) relaytest-collector.$(OBJEXT) \
+	relaytest-aggregator.$(OBJEXT)
+am_relaytest_OBJECTS = $(am__objects_1) relaytest-faketime.$(OBJEXT)
+relaytest_OBJECTS = $(am_relaytest_OBJECTS)
+am__DEPENDENCIES_2 = $(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
+	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
+	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
+	$(am__DEPENDENCIES_1)
+relaytest_DEPENDENCIES = $(am__DEPENDENCIES_2)
+am_sendmetric_OBJECTS = sendmetric.$(OBJEXT)
+sendmetric_OBJECTS = $(am_sendmetric_OBJECTS)
+sendmetric_DEPENDENCIES = $(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
+	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
+AM_V_P = $(am__v_P_@AM_V@)
+am__v_P_ = $(am__v_P_@AM_DEFAULT_V@)
+am__v_P_0 = false
+am__v_P_1 = :
+AM_V_GEN = $(am__v_GEN_@AM_V@)
+am__v_GEN_ = $(am__v_GEN_@AM_DEFAULT_V@)
+am__v_GEN_0 = @echo "  GEN     " $@;
+am__v_GEN_1 = 
+AM_V_at = $(am__v_at_@AM_V@)
+am__v_at_ = $(am__v_at_@AM_DEFAULT_V@)
+am__v_at_0 = @
+am__v_at_1 = 
+DEFAULT_INCLUDES = -I.@am__isrc@
+depcomp = $(SHELL) $(top_srcdir)/depcomp
+am__maybe_remake_depfiles = depfiles
+am__depfiles_remade = ./$(DEPDIR)/aggregator.Po \
+	./$(DEPDIR)/allocator.Po ./$(DEPDIR)/collector.Po \
+	./$(DEPDIR)/conffile.tab.Po ./$(DEPDIR)/conffile.yy.Po \
+	./$(DEPDIR)/consistent-hash.Po ./$(DEPDIR)/dispatcher.Po \
+	./$(DEPDIR)/md5.Po ./$(DEPDIR)/queue.Po \
+	./$(DEPDIR)/receptor.Po ./$(DEPDIR)/relay.Po \
+	./$(DEPDIR)/relaytest-aggregator.Po \
+	./$(DEPDIR)/relaytest-allocator.Po \
+	./$(DEPDIR)/relaytest-collector.Po \
+	./$(DEPDIR)/relaytest-conffile.tab.Po \
+	./$(DEPDIR)/relaytest-conffile.yy.Po \
+	./$(DEPDIR)/relaytest-consistent-hash.Po \
+	./$(DEPDIR)/relaytest-dispatcher.Po \
+	./$(DEPDIR)/relaytest-faketime.Po ./$(DEPDIR)/relaytest-md5.Po \
+	./$(DEPDIR)/relaytest-queue.Po \
+	./$(DEPDIR)/relaytest-receptor.Po \
+	./$(DEPDIR)/relaytest-relay.Po ./$(DEPDIR)/relaytest-router.Po \
+	./$(DEPDIR)/relaytest-server.Po ./$(DEPDIR)/router.Po \
+	./$(DEPDIR)/sendmetric.Po ./$(DEPDIR)/server.Po
+am__mv = mv -f
+AM_V_lt = $(am__v_lt_@AM_V@)
+am__v_lt_ = $(am__v_lt_@AM_DEFAULT_V@)
+am__v_lt_0 = --silent
+am__v_lt_1 = 
+COMPILE = $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
+	$(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
+LTCOMPILE = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
+	$(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) \
+	$(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) \
+	$(AM_CFLAGS) $(CFLAGS)
+AM_V_CC = $(am__v_CC_@AM_V@)
+am__v_CC_ = $(am__v_CC_@AM_DEFAULT_V@)
+am__v_CC_0 = @echo "  CC      " $@;
+am__v_CC_1 = 
+CCLD = $(CC)
+LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
+	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
+	$(AM_LDFLAGS) $(LDFLAGS) -o $@
+AM_V_CCLD = $(am__v_CCLD_@AM_V@)
+am__v_CCLD_ = $(am__v_CCLD_@AM_DEFAULT_V@)
+am__v_CCLD_0 = @echo "  CCLD    " $@;
+am__v_CCLD_1 = 
+SOURCES = $(relay_SOURCES) $(relaytest_SOURCES) $(sendmetric_SOURCES)
+DIST_SOURCES = $(relay_SOURCES) $(relaytest_SOURCES) \
+	$(sendmetric_SOURCES)
+am__can_run_installinfo = \
+  case $$AM_UPDATE_INFO_DIR in \
+    n|no|NO) false;; \
+    *) (install-info --version) >/dev/null 2>&1;; \
+  esac
 am__vpath_adj_setup = srcdirstrip=`echo "$(srcdir)" | sed 's|.|.|g'`;
 am__vpath_adj = case $$p in \
     $(srcdir)/*) f=`echo "$$p" | sed "s|^$$srcdirstrip/||"`;; \
@@ -153,81 +247,6 @@ am__uninstall_files_from_dir = { \
     || { echo " ( cd '$$dir' && rm -f" $$files ")"; \
          $(am__cd) "$$dir" && rm -f $$files; }; \
   }
-LTLIBRARIES = $(lib_LTLIBRARIES)
-libfaketime_la_LIBADD =
-am_libfaketime_la_OBJECTS = faketime.lo
-libfaketime_la_OBJECTS = $(am_libfaketime_la_OBJECTS)
-AM_V_lt = $(am__v_lt_@AM_V@)
-am__v_lt_ = $(am__v_lt_@AM_DEFAULT_V@)
-am__v_lt_0 = --silent
-am__v_lt_1 = 
-am_relay_OBJECTS = relay.$(OBJEXT) md5.$(OBJEXT) \
-	consistent-hash.$(OBJEXT) receptor.$(OBJEXT) \
-	dispatcher.$(OBJEXT) conffile.tab.$(OBJEXT) \
-	conffile.yy.$(OBJEXT) allocator.$(OBJEXT) router.$(OBJEXT) \
-	queue.$(OBJEXT) server.$(OBJEXT) collector.$(OBJEXT) \
-	aggregator.$(OBJEXT)
-relay_OBJECTS = $(am_relay_OBJECTS)
-am__DEPENDENCIES_1 =
-relay_DEPENDENCIES = $(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(am__DEPENDENCIES_1)
-am_sendmetric_OBJECTS = sendmetric.$(OBJEXT)
-sendmetric_OBJECTS = $(am_sendmetric_OBJECTS)
-sendmetric_DEPENDENCIES = $(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
-AM_V_P = $(am__v_P_@AM_V@)
-am__v_P_ = $(am__v_P_@AM_DEFAULT_V@)
-am__v_P_0 = false
-am__v_P_1 = :
-AM_V_GEN = $(am__v_GEN_@AM_V@)
-am__v_GEN_ = $(am__v_GEN_@AM_DEFAULT_V@)
-am__v_GEN_0 = @echo "  GEN     " $@;
-am__v_GEN_1 = 
-AM_V_at = $(am__v_at_@AM_V@)
-am__v_at_ = $(am__v_at_@AM_DEFAULT_V@)
-am__v_at_0 = @
-am__v_at_1 = 
-DEFAULT_INCLUDES = -I.@am__isrc@
-depcomp = $(SHELL) $(top_srcdir)/depcomp
-am__maybe_remake_depfiles = depfiles
-am__depfiles_remade = ./$(DEPDIR)/aggregator.Po \
-	./$(DEPDIR)/allocator.Po ./$(DEPDIR)/collector.Po \
-	./$(DEPDIR)/conffile.tab.Po ./$(DEPDIR)/conffile.yy.Po \
-	./$(DEPDIR)/consistent-hash.Po ./$(DEPDIR)/dispatcher.Po \
-	./$(DEPDIR)/faketime.Plo ./$(DEPDIR)/md5.Po \
-	./$(DEPDIR)/queue.Po ./$(DEPDIR)/receptor.Po \
-	./$(DEPDIR)/relay.Po ./$(DEPDIR)/router.Po \
-	./$(DEPDIR)/sendmetric.Po ./$(DEPDIR)/server.Po
-am__mv = mv -f
-COMPILE = $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
-	$(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
-LTCOMPILE = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
-	$(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) \
-	$(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) \
-	$(AM_CFLAGS) $(CFLAGS)
-AM_V_CC = $(am__v_CC_@AM_V@)
-am__v_CC_ = $(am__v_CC_@AM_DEFAULT_V@)
-am__v_CC_0 = @echo "  CC      " $@;
-am__v_CC_1 = 
-CCLD = $(CC)
-LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
-	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
-	$(AM_LDFLAGS) $(LDFLAGS) -o $@
-AM_V_CCLD = $(am__v_CCLD_@AM_V@)
-am__v_CCLD_ = $(am__v_CCLD_@AM_DEFAULT_V@)
-am__v_CCLD_0 = @echo "  CCLD    " $@;
-am__v_CCLD_1 = 
-SOURCES = $(libfaketime_la_SOURCES) $(relay_SOURCES) \
-	$(sendmetric_SOURCES)
-DIST_SOURCES = $(libfaketime_la_SOURCES) $(relay_SOURCES) \
-	$(sendmetric_SOURCES)
-am__can_run_installinfo = \
-  case $$AM_UPDATE_INFO_DIR in \
-    n|no|NO) false;; \
-    *) (install-info --version) >/dev/null 2>&1;; \
-  esac
 man1dir = $(mandir)/man1
 NROFF = nroff
 MANS = $(man_MANS)
@@ -301,7 +320,6 @@ EGREP = @EGREP@
 ETAGS = @ETAGS@
 EXEEXT = @EXEEXT@
 FGREP = @FGREP@
-FILECMD = @FILECMD@
 GREP = @GREP@
 INSTALL = @INSTALL@
 INSTALL_DATA = @INSTALL_DATA@
@@ -406,7 +424,6 @@ AUTOMAKE_OPTIONS = foreign
 ACLOCAL_AMFLAGS = -I m4
 GIT_VERSION := $(shell git describe --abbrev=6 --dirty --always 2>/dev/null || echo $(RELEASEDATE))
 GVCFLAGS = -DGIT_VERSION=\"$(GIT_VERSION)\"
-lib_LTLIBRARIES = libfaketime.la
 relay_LINK = $(CCLD) $(AM_LDFLAGS) $(LDFLAGS) -o $@
 relay_LDADD = $(LIBGZIP) $(LIBLZ4) $(LIBSNAPPY) $(LIBSSL) \
 			  $(LIBONIGURUMA) $(LIBPCRE2) $(LIBPCRE)
@@ -427,10 +444,17 @@ relay_SOURCES = \
 	aggregator.c \
 	$(NULL)
 
+relaytest_LINK = $(relay_LINK)
+relaytest_LDADD = $(relay_LDADD)
+relaytest_SOURCES = $(relay_SOURCES) \
+                    faketime.c
+
+relaytest_CPPFLAGS = $(AM_CPPFLAGS) \
+                     -Dtime=faketime -Dgettimeofday=fakegettimeofday
+
 sendmetric_LINK = $(CCLD) $(AM_LDFLAGS) $(LDFLAGS) -o $@
 sendmetric_LDADD = $(LIBGZIP) $(LIBLZ4) $(LIBSNAPPY) $(LIBSSL)
 sendmetric_SOURCES = sendmetric.c
-libfaketime_la_SOURCES = faketime.c
 noinst_HEADERS = \
 	relay.h \
 	md5.h \
@@ -447,6 +471,7 @@ noinst_HEADERS = \
 	collector.h \
 	aggregator.h \
 	posixregex.h \
+	faketime.h \
 	$(NULL)
 
 man_MANS = relay.1
@@ -581,47 +606,13 @@ clean-checkPROGRAMS:
 	echo " rm -f" $$list; \
 	rm -f $$list
 
-install-libLTLIBRARIES: $(lib_LTLIBRARIES)
-	@$(NORMAL_INSTALL)
-	@list='$(lib_LTLIBRARIES)'; test -n "$(libdir)" || list=; \
-	list2=; for p in $$list; do \
-	  if test -f $$p; then \
-	    list2="$$list2 $$p"; \
-	  else :; fi; \
-	done; \
-	test -z "$$list2" || { \
-	  echo " $(MKDIR_P) '$(DESTDIR)$(libdir)'"; \
-	  $(MKDIR_P) "$(DESTDIR)$(libdir)" || exit 1; \
-	  echo " $(LIBTOOL) $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=install $(INSTALL) $(INSTALL_STRIP_FLAG) $$list2 '$(DESTDIR)$(libdir)'"; \
-	  $(LIBTOOL) $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=install $(INSTALL) $(INSTALL_STRIP_FLAG) $$list2 "$(DESTDIR)$(libdir)"; \
-	}
-
-uninstall-libLTLIBRARIES:
-	@$(NORMAL_UNINSTALL)
-	@list='$(lib_LTLIBRARIES)'; test -n "$(libdir)" || list=; \
-	for p in $$list; do \
-	  $(am__strip_dir) \
-	  echo " $(LIBTOOL) $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=uninstall rm -f '$(DESTDIR)$(libdir)/$$f'"; \
-	  $(LIBTOOL) $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=uninstall rm -f "$(DESTDIR)$(libdir)/$$f"; \
-	done
-
-clean-libLTLIBRARIES:
-	-test -z "$(lib_LTLIBRARIES)" || rm -f $(lib_LTLIBRARIES)
-	@list='$(lib_LTLIBRARIES)'; \
-	locs=`for p in $$list; do echo $$p; done | \
-	      sed 's|^[^/]*$$|.|; s|/[^/]*$$||; s|$$|/so_locations|' | \
-	      sort -u`; \
-	test -z "$$locs" || { \
-	  echo rm -f $${locs}; \
-	  rm -f $${locs}; \
-	}
-
-libfaketime.la: $(libfaketime_la_OBJECTS) $(libfaketime_la_DEPENDENCIES) $(EXTRA_libfaketime_la_DEPENDENCIES) 
-	$(AM_V_CCLD)$(LINK) -rpath $(libdir) $(libfaketime_la_OBJECTS) $(libfaketime_la_LIBADD) $(LIBS)
-
 relay$(EXEEXT): $(relay_OBJECTS) $(relay_DEPENDENCIES) $(EXTRA_relay_DEPENDENCIES) 
 	@rm -f relay$(EXEEXT)
 	$(AM_V_GEN)$(relay_LINK) $(relay_OBJECTS) $(relay_LDADD) $(LIBS)
+
+relaytest$(EXEEXT): $(relaytest_OBJECTS) $(relaytest_DEPENDENCIES) $(EXTRA_relaytest_DEPENDENCIES) 
+	@rm -f relaytest$(EXEEXT)
+	$(AM_V_GEN)$(relaytest_LINK) $(relaytest_OBJECTS) $(relaytest_LDADD) $(LIBS)
 
 sendmetric$(EXEEXT): $(sendmetric_OBJECTS) $(sendmetric_DEPENDENCIES) $(EXTRA_sendmetric_DEPENDENCIES) 
 	@rm -f sendmetric$(EXEEXT)
@@ -640,11 +631,24 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/conffile.yy.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/consistent-hash.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/dispatcher.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/faketime.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/md5.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/queue.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/receptor.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/relay.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/relaytest-aggregator.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/relaytest-allocator.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/relaytest-collector.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/relaytest-conffile.tab.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/relaytest-conffile.yy.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/relaytest-consistent-hash.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/relaytest-dispatcher.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/relaytest-faketime.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/relaytest-md5.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/relaytest-queue.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/relaytest-receptor.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/relaytest-relay.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/relaytest-router.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/relaytest-server.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/router.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sendmetric.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/server.Po@am__quote@ # am--include-marker
@@ -675,6 +679,202 @@ am--depfiles: $(am__depfiles_remade)
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='$<' object='$@' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LTCOMPILE) -c -o $@ $<
+
+relaytest-relay.o: relay.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(relaytest_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT relaytest-relay.o -MD -MP -MF $(DEPDIR)/relaytest-relay.Tpo -c -o relaytest-relay.o `test -f 'relay.c' || echo '$(srcdir)/'`relay.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/relaytest-relay.Tpo $(DEPDIR)/relaytest-relay.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='relay.c' object='relaytest-relay.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(relaytest_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o relaytest-relay.o `test -f 'relay.c' || echo '$(srcdir)/'`relay.c
+
+relaytest-relay.obj: relay.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(relaytest_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT relaytest-relay.obj -MD -MP -MF $(DEPDIR)/relaytest-relay.Tpo -c -o relaytest-relay.obj `if test -f 'relay.c'; then $(CYGPATH_W) 'relay.c'; else $(CYGPATH_W) '$(srcdir)/relay.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/relaytest-relay.Tpo $(DEPDIR)/relaytest-relay.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='relay.c' object='relaytest-relay.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(relaytest_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o relaytest-relay.obj `if test -f 'relay.c'; then $(CYGPATH_W) 'relay.c'; else $(CYGPATH_W) '$(srcdir)/relay.c'; fi`
+
+relaytest-md5.o: md5.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(relaytest_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT relaytest-md5.o -MD -MP -MF $(DEPDIR)/relaytest-md5.Tpo -c -o relaytest-md5.o `test -f 'md5.c' || echo '$(srcdir)/'`md5.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/relaytest-md5.Tpo $(DEPDIR)/relaytest-md5.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='md5.c' object='relaytest-md5.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(relaytest_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o relaytest-md5.o `test -f 'md5.c' || echo '$(srcdir)/'`md5.c
+
+relaytest-md5.obj: md5.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(relaytest_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT relaytest-md5.obj -MD -MP -MF $(DEPDIR)/relaytest-md5.Tpo -c -o relaytest-md5.obj `if test -f 'md5.c'; then $(CYGPATH_W) 'md5.c'; else $(CYGPATH_W) '$(srcdir)/md5.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/relaytest-md5.Tpo $(DEPDIR)/relaytest-md5.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='md5.c' object='relaytest-md5.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(relaytest_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o relaytest-md5.obj `if test -f 'md5.c'; then $(CYGPATH_W) 'md5.c'; else $(CYGPATH_W) '$(srcdir)/md5.c'; fi`
+
+relaytest-consistent-hash.o: consistent-hash.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(relaytest_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT relaytest-consistent-hash.o -MD -MP -MF $(DEPDIR)/relaytest-consistent-hash.Tpo -c -o relaytest-consistent-hash.o `test -f 'consistent-hash.c' || echo '$(srcdir)/'`consistent-hash.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/relaytest-consistent-hash.Tpo $(DEPDIR)/relaytest-consistent-hash.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='consistent-hash.c' object='relaytest-consistent-hash.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(relaytest_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o relaytest-consistent-hash.o `test -f 'consistent-hash.c' || echo '$(srcdir)/'`consistent-hash.c
+
+relaytest-consistent-hash.obj: consistent-hash.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(relaytest_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT relaytest-consistent-hash.obj -MD -MP -MF $(DEPDIR)/relaytest-consistent-hash.Tpo -c -o relaytest-consistent-hash.obj `if test -f 'consistent-hash.c'; then $(CYGPATH_W) 'consistent-hash.c'; else $(CYGPATH_W) '$(srcdir)/consistent-hash.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/relaytest-consistent-hash.Tpo $(DEPDIR)/relaytest-consistent-hash.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='consistent-hash.c' object='relaytest-consistent-hash.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(relaytest_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o relaytest-consistent-hash.obj `if test -f 'consistent-hash.c'; then $(CYGPATH_W) 'consistent-hash.c'; else $(CYGPATH_W) '$(srcdir)/consistent-hash.c'; fi`
+
+relaytest-receptor.o: receptor.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(relaytest_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT relaytest-receptor.o -MD -MP -MF $(DEPDIR)/relaytest-receptor.Tpo -c -o relaytest-receptor.o `test -f 'receptor.c' || echo '$(srcdir)/'`receptor.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/relaytest-receptor.Tpo $(DEPDIR)/relaytest-receptor.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='receptor.c' object='relaytest-receptor.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(relaytest_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o relaytest-receptor.o `test -f 'receptor.c' || echo '$(srcdir)/'`receptor.c
+
+relaytest-receptor.obj: receptor.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(relaytest_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT relaytest-receptor.obj -MD -MP -MF $(DEPDIR)/relaytest-receptor.Tpo -c -o relaytest-receptor.obj `if test -f 'receptor.c'; then $(CYGPATH_W) 'receptor.c'; else $(CYGPATH_W) '$(srcdir)/receptor.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/relaytest-receptor.Tpo $(DEPDIR)/relaytest-receptor.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='receptor.c' object='relaytest-receptor.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(relaytest_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o relaytest-receptor.obj `if test -f 'receptor.c'; then $(CYGPATH_W) 'receptor.c'; else $(CYGPATH_W) '$(srcdir)/receptor.c'; fi`
+
+relaytest-dispatcher.o: dispatcher.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(relaytest_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT relaytest-dispatcher.o -MD -MP -MF $(DEPDIR)/relaytest-dispatcher.Tpo -c -o relaytest-dispatcher.o `test -f 'dispatcher.c' || echo '$(srcdir)/'`dispatcher.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/relaytest-dispatcher.Tpo $(DEPDIR)/relaytest-dispatcher.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='dispatcher.c' object='relaytest-dispatcher.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(relaytest_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o relaytest-dispatcher.o `test -f 'dispatcher.c' || echo '$(srcdir)/'`dispatcher.c
+
+relaytest-dispatcher.obj: dispatcher.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(relaytest_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT relaytest-dispatcher.obj -MD -MP -MF $(DEPDIR)/relaytest-dispatcher.Tpo -c -o relaytest-dispatcher.obj `if test -f 'dispatcher.c'; then $(CYGPATH_W) 'dispatcher.c'; else $(CYGPATH_W) '$(srcdir)/dispatcher.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/relaytest-dispatcher.Tpo $(DEPDIR)/relaytest-dispatcher.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='dispatcher.c' object='relaytest-dispatcher.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(relaytest_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o relaytest-dispatcher.obj `if test -f 'dispatcher.c'; then $(CYGPATH_W) 'dispatcher.c'; else $(CYGPATH_W) '$(srcdir)/dispatcher.c'; fi`
+
+relaytest-conffile.tab.o: conffile.tab.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(relaytest_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT relaytest-conffile.tab.o -MD -MP -MF $(DEPDIR)/relaytest-conffile.tab.Tpo -c -o relaytest-conffile.tab.o `test -f 'conffile.tab.c' || echo '$(srcdir)/'`conffile.tab.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/relaytest-conffile.tab.Tpo $(DEPDIR)/relaytest-conffile.tab.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='conffile.tab.c' object='relaytest-conffile.tab.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(relaytest_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o relaytest-conffile.tab.o `test -f 'conffile.tab.c' || echo '$(srcdir)/'`conffile.tab.c
+
+relaytest-conffile.tab.obj: conffile.tab.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(relaytest_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT relaytest-conffile.tab.obj -MD -MP -MF $(DEPDIR)/relaytest-conffile.tab.Tpo -c -o relaytest-conffile.tab.obj `if test -f 'conffile.tab.c'; then $(CYGPATH_W) 'conffile.tab.c'; else $(CYGPATH_W) '$(srcdir)/conffile.tab.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/relaytest-conffile.tab.Tpo $(DEPDIR)/relaytest-conffile.tab.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='conffile.tab.c' object='relaytest-conffile.tab.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(relaytest_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o relaytest-conffile.tab.obj `if test -f 'conffile.tab.c'; then $(CYGPATH_W) 'conffile.tab.c'; else $(CYGPATH_W) '$(srcdir)/conffile.tab.c'; fi`
+
+relaytest-conffile.yy.o: conffile.yy.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(relaytest_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT relaytest-conffile.yy.o -MD -MP -MF $(DEPDIR)/relaytest-conffile.yy.Tpo -c -o relaytest-conffile.yy.o `test -f 'conffile.yy.c' || echo '$(srcdir)/'`conffile.yy.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/relaytest-conffile.yy.Tpo $(DEPDIR)/relaytest-conffile.yy.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='conffile.yy.c' object='relaytest-conffile.yy.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(relaytest_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o relaytest-conffile.yy.o `test -f 'conffile.yy.c' || echo '$(srcdir)/'`conffile.yy.c
+
+relaytest-conffile.yy.obj: conffile.yy.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(relaytest_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT relaytest-conffile.yy.obj -MD -MP -MF $(DEPDIR)/relaytest-conffile.yy.Tpo -c -o relaytest-conffile.yy.obj `if test -f 'conffile.yy.c'; then $(CYGPATH_W) 'conffile.yy.c'; else $(CYGPATH_W) '$(srcdir)/conffile.yy.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/relaytest-conffile.yy.Tpo $(DEPDIR)/relaytest-conffile.yy.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='conffile.yy.c' object='relaytest-conffile.yy.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(relaytest_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o relaytest-conffile.yy.obj `if test -f 'conffile.yy.c'; then $(CYGPATH_W) 'conffile.yy.c'; else $(CYGPATH_W) '$(srcdir)/conffile.yy.c'; fi`
+
+relaytest-allocator.o: allocator.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(relaytest_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT relaytest-allocator.o -MD -MP -MF $(DEPDIR)/relaytest-allocator.Tpo -c -o relaytest-allocator.o `test -f 'allocator.c' || echo '$(srcdir)/'`allocator.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/relaytest-allocator.Tpo $(DEPDIR)/relaytest-allocator.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='allocator.c' object='relaytest-allocator.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(relaytest_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o relaytest-allocator.o `test -f 'allocator.c' || echo '$(srcdir)/'`allocator.c
+
+relaytest-allocator.obj: allocator.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(relaytest_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT relaytest-allocator.obj -MD -MP -MF $(DEPDIR)/relaytest-allocator.Tpo -c -o relaytest-allocator.obj `if test -f 'allocator.c'; then $(CYGPATH_W) 'allocator.c'; else $(CYGPATH_W) '$(srcdir)/allocator.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/relaytest-allocator.Tpo $(DEPDIR)/relaytest-allocator.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='allocator.c' object='relaytest-allocator.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(relaytest_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o relaytest-allocator.obj `if test -f 'allocator.c'; then $(CYGPATH_W) 'allocator.c'; else $(CYGPATH_W) '$(srcdir)/allocator.c'; fi`
+
+relaytest-router.o: router.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(relaytest_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT relaytest-router.o -MD -MP -MF $(DEPDIR)/relaytest-router.Tpo -c -o relaytest-router.o `test -f 'router.c' || echo '$(srcdir)/'`router.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/relaytest-router.Tpo $(DEPDIR)/relaytest-router.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='router.c' object='relaytest-router.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(relaytest_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o relaytest-router.o `test -f 'router.c' || echo '$(srcdir)/'`router.c
+
+relaytest-router.obj: router.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(relaytest_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT relaytest-router.obj -MD -MP -MF $(DEPDIR)/relaytest-router.Tpo -c -o relaytest-router.obj `if test -f 'router.c'; then $(CYGPATH_W) 'router.c'; else $(CYGPATH_W) '$(srcdir)/router.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/relaytest-router.Tpo $(DEPDIR)/relaytest-router.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='router.c' object='relaytest-router.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(relaytest_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o relaytest-router.obj `if test -f 'router.c'; then $(CYGPATH_W) 'router.c'; else $(CYGPATH_W) '$(srcdir)/router.c'; fi`
+
+relaytest-queue.o: queue.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(relaytest_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT relaytest-queue.o -MD -MP -MF $(DEPDIR)/relaytest-queue.Tpo -c -o relaytest-queue.o `test -f 'queue.c' || echo '$(srcdir)/'`queue.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/relaytest-queue.Tpo $(DEPDIR)/relaytest-queue.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='queue.c' object='relaytest-queue.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(relaytest_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o relaytest-queue.o `test -f 'queue.c' || echo '$(srcdir)/'`queue.c
+
+relaytest-queue.obj: queue.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(relaytest_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT relaytest-queue.obj -MD -MP -MF $(DEPDIR)/relaytest-queue.Tpo -c -o relaytest-queue.obj `if test -f 'queue.c'; then $(CYGPATH_W) 'queue.c'; else $(CYGPATH_W) '$(srcdir)/queue.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/relaytest-queue.Tpo $(DEPDIR)/relaytest-queue.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='queue.c' object='relaytest-queue.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(relaytest_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o relaytest-queue.obj `if test -f 'queue.c'; then $(CYGPATH_W) 'queue.c'; else $(CYGPATH_W) '$(srcdir)/queue.c'; fi`
+
+relaytest-server.o: server.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(relaytest_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT relaytest-server.o -MD -MP -MF $(DEPDIR)/relaytest-server.Tpo -c -o relaytest-server.o `test -f 'server.c' || echo '$(srcdir)/'`server.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/relaytest-server.Tpo $(DEPDIR)/relaytest-server.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='server.c' object='relaytest-server.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(relaytest_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o relaytest-server.o `test -f 'server.c' || echo '$(srcdir)/'`server.c
+
+relaytest-server.obj: server.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(relaytest_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT relaytest-server.obj -MD -MP -MF $(DEPDIR)/relaytest-server.Tpo -c -o relaytest-server.obj `if test -f 'server.c'; then $(CYGPATH_W) 'server.c'; else $(CYGPATH_W) '$(srcdir)/server.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/relaytest-server.Tpo $(DEPDIR)/relaytest-server.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='server.c' object='relaytest-server.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(relaytest_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o relaytest-server.obj `if test -f 'server.c'; then $(CYGPATH_W) 'server.c'; else $(CYGPATH_W) '$(srcdir)/server.c'; fi`
+
+relaytest-collector.o: collector.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(relaytest_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT relaytest-collector.o -MD -MP -MF $(DEPDIR)/relaytest-collector.Tpo -c -o relaytest-collector.o `test -f 'collector.c' || echo '$(srcdir)/'`collector.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/relaytest-collector.Tpo $(DEPDIR)/relaytest-collector.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='collector.c' object='relaytest-collector.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(relaytest_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o relaytest-collector.o `test -f 'collector.c' || echo '$(srcdir)/'`collector.c
+
+relaytest-collector.obj: collector.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(relaytest_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT relaytest-collector.obj -MD -MP -MF $(DEPDIR)/relaytest-collector.Tpo -c -o relaytest-collector.obj `if test -f 'collector.c'; then $(CYGPATH_W) 'collector.c'; else $(CYGPATH_W) '$(srcdir)/collector.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/relaytest-collector.Tpo $(DEPDIR)/relaytest-collector.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='collector.c' object='relaytest-collector.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(relaytest_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o relaytest-collector.obj `if test -f 'collector.c'; then $(CYGPATH_W) 'collector.c'; else $(CYGPATH_W) '$(srcdir)/collector.c'; fi`
+
+relaytest-aggregator.o: aggregator.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(relaytest_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT relaytest-aggregator.o -MD -MP -MF $(DEPDIR)/relaytest-aggregator.Tpo -c -o relaytest-aggregator.o `test -f 'aggregator.c' || echo '$(srcdir)/'`aggregator.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/relaytest-aggregator.Tpo $(DEPDIR)/relaytest-aggregator.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='aggregator.c' object='relaytest-aggregator.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(relaytest_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o relaytest-aggregator.o `test -f 'aggregator.c' || echo '$(srcdir)/'`aggregator.c
+
+relaytest-aggregator.obj: aggregator.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(relaytest_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT relaytest-aggregator.obj -MD -MP -MF $(DEPDIR)/relaytest-aggregator.Tpo -c -o relaytest-aggregator.obj `if test -f 'aggregator.c'; then $(CYGPATH_W) 'aggregator.c'; else $(CYGPATH_W) '$(srcdir)/aggregator.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/relaytest-aggregator.Tpo $(DEPDIR)/relaytest-aggregator.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='aggregator.c' object='relaytest-aggregator.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(relaytest_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o relaytest-aggregator.obj `if test -f 'aggregator.c'; then $(CYGPATH_W) 'aggregator.c'; else $(CYGPATH_W) '$(srcdir)/aggregator.c'; fi`
+
+relaytest-faketime.o: faketime.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(relaytest_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT relaytest-faketime.o -MD -MP -MF $(DEPDIR)/relaytest-faketime.Tpo -c -o relaytest-faketime.o `test -f 'faketime.c' || echo '$(srcdir)/'`faketime.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/relaytest-faketime.Tpo $(DEPDIR)/relaytest-faketime.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='faketime.c' object='relaytest-faketime.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(relaytest_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o relaytest-faketime.o `test -f 'faketime.c' || echo '$(srcdir)/'`faketime.c
+
+relaytest-faketime.obj: faketime.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(relaytest_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT relaytest-faketime.obj -MD -MP -MF $(DEPDIR)/relaytest-faketime.Tpo -c -o relaytest-faketime.obj `if test -f 'faketime.c'; then $(CYGPATH_W) 'faketime.c'; else $(CYGPATH_W) '$(srcdir)/faketime.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/relaytest-faketime.Tpo $(DEPDIR)/relaytest-faketime.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='faketime.c' object='relaytest-faketime.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(relaytest_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o relaytest-faketime.obj `if test -f 'faketime.c'; then $(CYGPATH_W) 'faketime.c'; else $(CYGPATH_W) '$(srcdir)/faketime.c'; fi`
 
 mostlyclean-libtool:
 	-rm -f *.lo
@@ -962,14 +1162,9 @@ check-am: all-am
 	$(MAKE) $(AM_MAKEFLAGS) $(check_PROGRAMS)
 	$(MAKE) $(AM_MAKEFLAGS) check-local
 check: check-am
-all-am: Makefile $(PROGRAMS) $(LTLIBRARIES) $(MANS) $(HEADERS) \
-		config.h
-install-binPROGRAMS: install-libLTLIBRARIES
-
-install-checkPROGRAMS: install-libLTLIBRARIES
-
+all-am: Makefile $(PROGRAMS) $(MANS) $(HEADERS) config.h
 installdirs:
-	for dir in "$(DESTDIR)$(bindir)" "$(DESTDIR)$(libdir)" "$(DESTDIR)$(man1dir)"; do \
+	for dir in "$(DESTDIR)$(bindir)" "$(DESTDIR)$(man1dir)"; do \
 	  test -z "$$dir" || $(MKDIR_P) "$$dir"; \
 	done
 install: install-am
@@ -1005,7 +1200,7 @@ maintainer-clean-generic:
 clean: clean-am
 
 clean-am: clean-binPROGRAMS clean-checkPROGRAMS clean-generic \
-	clean-libLTLIBRARIES clean-libtool mostlyclean-am
+	clean-libtool mostlyclean-am
 
 distclean: distclean-am
 	-rm -f $(am__CONFIG_DISTCLEAN_FILES)
@@ -1016,11 +1211,24 @@ distclean: distclean-am
 	-rm -f ./$(DEPDIR)/conffile.yy.Po
 	-rm -f ./$(DEPDIR)/consistent-hash.Po
 	-rm -f ./$(DEPDIR)/dispatcher.Po
-	-rm -f ./$(DEPDIR)/faketime.Plo
 	-rm -f ./$(DEPDIR)/md5.Po
 	-rm -f ./$(DEPDIR)/queue.Po
 	-rm -f ./$(DEPDIR)/receptor.Po
 	-rm -f ./$(DEPDIR)/relay.Po
+	-rm -f ./$(DEPDIR)/relaytest-aggregator.Po
+	-rm -f ./$(DEPDIR)/relaytest-allocator.Po
+	-rm -f ./$(DEPDIR)/relaytest-collector.Po
+	-rm -f ./$(DEPDIR)/relaytest-conffile.tab.Po
+	-rm -f ./$(DEPDIR)/relaytest-conffile.yy.Po
+	-rm -f ./$(DEPDIR)/relaytest-consistent-hash.Po
+	-rm -f ./$(DEPDIR)/relaytest-dispatcher.Po
+	-rm -f ./$(DEPDIR)/relaytest-faketime.Po
+	-rm -f ./$(DEPDIR)/relaytest-md5.Po
+	-rm -f ./$(DEPDIR)/relaytest-queue.Po
+	-rm -f ./$(DEPDIR)/relaytest-receptor.Po
+	-rm -f ./$(DEPDIR)/relaytest-relay.Po
+	-rm -f ./$(DEPDIR)/relaytest-router.Po
+	-rm -f ./$(DEPDIR)/relaytest-server.Po
 	-rm -f ./$(DEPDIR)/router.Po
 	-rm -f ./$(DEPDIR)/sendmetric.Po
 	-rm -f ./$(DEPDIR)/server.Po
@@ -1046,8 +1254,7 @@ install-dvi: install-dvi-am
 
 install-dvi-am:
 
-install-exec-am: install-binPROGRAMS install-exec-local \
-	install-libLTLIBRARIES
+install-exec-am: install-binPROGRAMS install-exec-local
 
 install-html: install-html-am
 
@@ -1079,11 +1286,24 @@ maintainer-clean: maintainer-clean-am
 	-rm -f ./$(DEPDIR)/conffile.yy.Po
 	-rm -f ./$(DEPDIR)/consistent-hash.Po
 	-rm -f ./$(DEPDIR)/dispatcher.Po
-	-rm -f ./$(DEPDIR)/faketime.Plo
 	-rm -f ./$(DEPDIR)/md5.Po
 	-rm -f ./$(DEPDIR)/queue.Po
 	-rm -f ./$(DEPDIR)/receptor.Po
 	-rm -f ./$(DEPDIR)/relay.Po
+	-rm -f ./$(DEPDIR)/relaytest-aggregator.Po
+	-rm -f ./$(DEPDIR)/relaytest-allocator.Po
+	-rm -f ./$(DEPDIR)/relaytest-collector.Po
+	-rm -f ./$(DEPDIR)/relaytest-conffile.tab.Po
+	-rm -f ./$(DEPDIR)/relaytest-conffile.yy.Po
+	-rm -f ./$(DEPDIR)/relaytest-consistent-hash.Po
+	-rm -f ./$(DEPDIR)/relaytest-dispatcher.Po
+	-rm -f ./$(DEPDIR)/relaytest-faketime.Po
+	-rm -f ./$(DEPDIR)/relaytest-md5.Po
+	-rm -f ./$(DEPDIR)/relaytest-queue.Po
+	-rm -f ./$(DEPDIR)/relaytest-receptor.Po
+	-rm -f ./$(DEPDIR)/relaytest-relay.Po
+	-rm -f ./$(DEPDIR)/relaytest-router.Po
+	-rm -f ./$(DEPDIR)/relaytest-server.Po
 	-rm -f ./$(DEPDIR)/router.Po
 	-rm -f ./$(DEPDIR)/sendmetric.Po
 	-rm -f ./$(DEPDIR)/server.Po
@@ -1103,8 +1323,7 @@ ps: ps-am
 
 ps-am:
 
-uninstall-am: uninstall-binPROGRAMS uninstall-libLTLIBRARIES \
-	uninstall-man
+uninstall-am: uninstall-binPROGRAMS uninstall-man
 
 uninstall-man: uninstall-man1
 
@@ -1112,24 +1331,23 @@ uninstall-man: uninstall-man1
 
 .PHONY: CTAGS GTAGS TAGS all all-am am--depfiles am--refresh check \
 	check-am check-local clean clean-binPROGRAMS \
-	clean-checkPROGRAMS clean-cscope clean-generic \
-	clean-libLTLIBRARIES clean-libtool cscope cscopelist-am ctags \
-	ctags-am dist dist-all dist-bzip2 dist-gzip dist-lzip \
-	dist-shar dist-tarZ dist-xz dist-zip dist-zstd distcheck \
-	distclean distclean-compile distclean-generic distclean-hdr \
-	distclean-libtool distclean-tags distcleancheck distdir \
-	distuninstallcheck dvi dvi-am html html-am info info-am \
-	install install-am install-binPROGRAMS install-data \
-	install-data-am install-dvi install-dvi-am install-exec \
-	install-exec-am install-exec-local install-html \
-	install-html-am install-info install-info-am \
-	install-libLTLIBRARIES install-man install-man1 install-pdf \
-	install-pdf-am install-ps install-ps-am install-strip \
-	installcheck installcheck-am installdirs maintainer-clean \
-	maintainer-clean-generic mostlyclean mostlyclean-compile \
-	mostlyclean-generic mostlyclean-libtool pdf pdf-am ps ps-am \
-	tags tags-am uninstall uninstall-am uninstall-binPROGRAMS \
-	uninstall-libLTLIBRARIES uninstall-man uninstall-man1
+	clean-checkPROGRAMS clean-cscope clean-generic clean-libtool \
+	cscope cscopelist-am ctags ctags-am dist dist-all dist-bzip2 \
+	dist-gzip dist-lzip dist-shar dist-tarZ dist-xz dist-zip \
+	dist-zstd distcheck distclean distclean-compile \
+	distclean-generic distclean-hdr distclean-libtool \
+	distclean-tags distcleancheck distdir distuninstallcheck dvi \
+	dvi-am html html-am info info-am install install-am \
+	install-binPROGRAMS install-data install-data-am install-dvi \
+	install-dvi-am install-exec install-exec-am install-exec-local \
+	install-html install-html-am install-info install-info-am \
+	install-man install-man1 install-pdf install-pdf-am install-ps \
+	install-ps-am install-strip installcheck installcheck-am \
+	installdirs maintainer-clean maintainer-clean-generic \
+	mostlyclean mostlyclean-compile mostlyclean-generic \
+	mostlyclean-libtool pdf pdf-am ps ps-am tags tags-am uninstall \
+	uninstall-am uninstall-binPROGRAMS uninstall-man \
+	uninstall-man1
 
 .PRECIOUS: Makefile
 
@@ -1155,15 +1373,14 @@ man:
 	> relay.1
 
 test: check
-test-%: relay libfaketime.la sendmetric
+test-%: relaytest sendmetric
 	@( cd test && ./run-test.sh $* )
 approve-%: relay sendmetric
 	@( cd test && ./run-test.sh -a $* )
 check-local:
 	@( cd test && ./run-test.sh $(CRTESTS) )
 install-exec-local:  # libtool refuses to build shared for check or noinst trg
-	$(LIBTOOL) $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=uninstall \
-		rm -f "$(DESTDIR)$(libdir)/libfaketime.la"
+	$(LIBTOOL) $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=uninstall
 
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.

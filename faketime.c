@@ -56,8 +56,7 @@ int fakegettimeofday(struct timeval *tp, void *tzp) {
 		return ret;
 
 	/* setup clock offset */
-	if (fake_offset == 0)
-		now = time(NULL);
+	now = time(NULL);
 	now += fake_offset;
 
 	if (now >= tp->tv_sec)
