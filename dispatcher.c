@@ -670,15 +670,17 @@ dispatch_addconnection(int sock, listener *lsnr)
 	int compress_type;
 	char *ibuf;
 #endif
+	char checksize;
 
 	pthread_rwlock_rdlock(&connectionslock);
 	for (c = 0; c < connectionslen; c++)
 		if (__sync_bool_compare_and_swap(&(connections[c].takenby),
 					C_FREE, C_SETUP))
 			break;
+	checksize = c == connectionslen;
 	pthread_rwlock_unlock(&connectionslock);
 
-	if (c == connectionslen) {
+	if (checksize) {
 		connection *newlst;
 		size_t      growlen;
 
