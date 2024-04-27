@@ -261,10 +261,13 @@ aggregator_putmetric(
 				 * requested in issue #72.
 				 * For consistency with other tools/old carbon-aggregator
 				 * align the buckets to interval boundaries such that it is
-				 * predictable what intervals will be taken, issue #104. */
+				 * predictable what intervals will be taken, issue #104.
+				 * Reduce maximum splay to a couple of seconds at most,
+				 * issue #435. */
 				time(&now);
 				now = ((now - s->expire) / s->interval) * s->interval;
-				invocation->expire = s->expire + (rand() % s->interval);
+				invocation->expire = s->expire +
+					(rand() % s->interval < 10 ? s->interval : 10);
 
 				/* allocate enough buckets to hold the past + future */
 				invocation->buckets =
