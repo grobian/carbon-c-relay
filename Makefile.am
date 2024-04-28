@@ -152,5 +152,3 @@ approve-%: relay sendmetric
 	@( cd test && ./run-test.sh -a $* )
 check-local:
 	@( cd test && ./run-test.sh $(CRTESTS) )
-install-exec-local:  # libtool refuses to build shared for check or noinst trg
-	$(LIBTOOL) $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=uninstall

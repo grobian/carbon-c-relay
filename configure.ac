@@ -7,7 +7,6 @@ AC_SUBST([RELEASEDATE], [2024-04-28])
 AC_CONFIG_HEADERS([config.h])
 AM_INIT_AUTOMAKE
 AM_MAINTAINER_MODE([enable])
-LT_INIT
 AC_CONFIG_MACRO_DIRS([m4])
 
 # Checks for programs.
@@ -18,7 +17,6 @@ AC_PROG_MAKE_SET
 AC_SEARCH_LIBS([sqrt], [m])
 AC_SEARCH_LIBS([gethostbyname], [nsl])
 AC_SEARCH_LIBS([socket], [socket])
-AC_SEARCH_LIBS([dlsym], [dl])
 saveLIBS="$LIBS"
 LIBS=
 AC_SEARCH_LIBS([pthread_create], [pthread])
@@ -62,15 +60,11 @@ AC_CHECK_HEADERS([\
 # non-mandatory headers
 AC_CHECK_HEADERS_ONCE([\
 				  dispatch/dispatch.h \
-				  dlfcn.h \
 				  semaphore.h \
 				  ])
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_C_INLINE
-
-# Necessary for emulation in faketime
-AC_CHECK_SIZEOF([time_t])
 
 # Checks for library functions.
 AC_FUNC_FORK
@@ -94,30 +88,6 @@ AC_CHECK_FUNCS([\
 				],
 				[],
 				[AC_MSG_ERROR([required function missing])])
-# non-mandatory funcs
-AC_CHECK_FUNCS_ONCE([dlsym])
-
-# check if we need some special define for RTLD_NEXT (Linux)
-found_rtld_next=no
-AC_MSG_CHECKING([whether dlsym(RTLD_NEXT, ...) is available])
-AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
-#include <dlfcn.h>
-]], [[
-void *foo = dlsym (RTLD_NEXT, "exit");
-]])],[AC_MSG_RESULT(yes)
-found_rtld_next=yes],[AC_MSG_RESULT(no)])
-if test x$found_rtld_next = xno ; then
-AC_MSG_CHECKING([whether dlsym(RTLD_NEXT, ...) is available using _GNU_SOURCE])
-AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
-#define _GNU_SOURCE
-#include <dlfcn.h>
-]], [[
-void *foo = dlsym (RTLD_NEXT, "exit");
-]])],[AC_MSG_RESULT(yes)
-AC_SUBST([DEF_EXTENSIONS], [-D_GNU_SOURCE])
-found_rtld_next=yes],[AC_MSG_RESULT(no)])
-fi
-AC_DEFINE([HAVE_RTLD_NEXT], [$found_rtld_next], [Define if you have RTLD_NEXT])
 
 AC_ARG_WITH([gzip], [support gzip compression for sending/receiving],
 			[], [with_gzip=check])

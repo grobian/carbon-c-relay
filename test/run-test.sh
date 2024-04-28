@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # vim: ts=2 sw=2 expandtab:
 
-# Copyright 2013-2023 Fabian Groffen
+# Copyright 2013-2024 Fabian Groffen
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -332,8 +332,7 @@ run_servertest() {
 
   if [[ -n ${RUN_TEST_DROP_IN_SHELL} ]] ; then
     echo "dropping shell in ${tmpdir}"
-    ( unset DYLD_FORCE_FLAT_NAMESPACE DYLD_INSERT_LIBRARIES LD_PRELOAD;
-      cd ${tmpdir} && ${SHELL} )
+    ( cd ${tmpdir} && ${SHELL} )
   fi
 
   # cleanup
