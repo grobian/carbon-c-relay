@@ -6,6 +6,7 @@
   support mTLS for incoming and outgoing connections
 * [Issue #342](https://github.com/grobian/carbon-c-relay/issues/342)
   re-open destinations on file clusters after SIGHUP
+* decrease memory footprint especially in submission mode
 
 ### Bugfixes
 
