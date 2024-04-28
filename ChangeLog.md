@@ -4,6 +4,13 @@
 
 ### Bugfixes
 
+
+# 3.8.1 (28-04-2024)
+
+### New Features
+
+### Bugfixes
+
 * cleanup of libtool build stuff left around after libfaketime removal
 
 
