@@ -4,6 +4,8 @@
 
 ### Bugfixes
 
+* cleanup of libtool build stuff left around after libfaketime removal
+
 
 # 3.8 (28-04-2024)
 
