@@ -1407,8 +1407,8 @@ Optional Features:
   --enable-FEATURE[=ARG]  include FEATURE [ARG=yes]
   --enable-silent-rules   less verbose build output (undo: "make V=1")
   --disable-silent-rules  verbose build output (undo: "make V=0")
-  --enable-maintainer-mode
-                          enable make rules and dependencies not useful (and
+  --disable-maintainer-mode
+                          disable make rules and dependencies not useful (and
                           sometimes confusing) to the casual installer
   --enable-dependency-tracking
                           do not reject slow dependency extractors
@@ -3208,7 +3208,7 @@ if test ${enable_maintainer_mode+y}
 then :
   enableval=$enable_maintainer_mode; USE_MAINTAINER_MODE=$enableval
 else $as_nop
-  USE_MAINTAINER_MODE=no
+  USE_MAINTAINER_MODE=yes
 fi
 
   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $USE_MAINTAINER_MODE" >&5
