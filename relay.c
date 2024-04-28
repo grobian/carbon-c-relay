@@ -1,5 +1,5 @@
 /*
- * Copyright 2013-2022 Fabian Groffen
+ * Copyright 2013-2024 Fabian Groffen
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -188,6 +188,8 @@ do_reload(void)
 		/* no changes, shortcut */
 		logout("no config changes found\n");
 		router_free(newrtr);
+		/* check if there are file targets, make them reopen files #342 */
+		router_reopen_files(rtr);
 		logout("SIGHUP handler complete\n");
 		return;
 	}

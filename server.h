@@ -1,5 +1,5 @@
 /*
- * Copyright 2013-2022 Fabian Groffen
+ * Copyright 2013-2024 Fabian Groffen
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -43,6 +43,7 @@ server *server_new(
 		unsigned int sockbufsize);
 char server_cmp(server *s, struct addrinfo *saddr, const char *ip);
 char server_start(server *s);
+void server_closecon(server *s);
 void server_add_secondaries(server *d, server **sec, size_t cnt);
 void server_set_failover(server *d);
 void server_set_instance(server *d, char *inst);

@@ -1,5 +1,5 @@
 /*
- * Copyright 2013-2023 Fabian Groffen
+ * Copyright 2013-2024 Fabian Groffen
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -2345,6 +2345,22 @@ router_transplant_queues(router *new, router *old)
 				continue;
 			}
 		}
+	}
+}
+
+/**
+ * Signal all file target servers to close their files.  Doing so means
+ * on the next event their file is re-opened.  This allows logrotate to
+ * move the file and HUP to start a new one.  #342
+ */
+void
+router_reopen_files(router *rtr)
+{
+	servers *s;
+
+	for (s = rtr->srvrs; s != NULL; s = s->next) {
+		if (server_ctype(s->server) == CON_FILE)
+			server_closecon(s->server);
 	}
 }
 

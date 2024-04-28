@@ -115,6 +115,7 @@ struct _server {
 	char failure;       /* full byte for atomic access */
 	char running;       /* full byte for atomic access */
 	char keep_running;  /* full byte for atomic access */
+	char reopen_con;    /* full byte for atomic access */
 	unsigned char stallseq;  /* full byte for atomic access */
 	size_t metrics;
 	size_t dropped;
@@ -503,6 +504,11 @@ server_queuereader(void *d)
 
 	self->running = 1;
 	while (1) {
+		/* close connection when we're asked to reopen */
+		if (__sync_bool_compare_and_swap(&(self->reopen_con), 1, 0)) {
+			self->strm->strmclose(self->strm);
+			self->fd = -1;
+		}
 		if (queue_len(self->queue) == 0) {
 			/* if we're idling, close the TCP connection, this allows us
 			 * to reduce connections, while keeping the connection alive
@@ -1384,6 +1390,15 @@ server_send(server *s, const char *d, char force)
 	queue_enqueue(s->queue, d);
 
 	return 1;
+}
+
+/**
+ * Flag worker main loop to close the connection if currently open.
+ */
+void
+server_closecon(server *s)
+{
+	__sync_bool_compare_and_swap(&(s->reopen_con), 0, 1);
 }
 
 /**

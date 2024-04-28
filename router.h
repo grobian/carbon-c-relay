@@ -1,5 +1,5 @@
 /*
- * Copyright 2013-2018 Fabian Groffen
+ * Copyright 2013-2024 Fabian Groffen
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -104,6 +104,7 @@ void router_optimise(router *r, int threshold);
 char router_printdiffs(router *old, router *new, FILE *out);
 listener *router_contains_listener(router *rtr, listener *lsnr);
 void router_transplant_queues(router *new, router *old);
+void router_reopen_files(router *rtr);
 void router_transplant_listener_socks(router *rtr, listener *olsnr, listener *nlsnr);
 char router_start(router *r);
 size_t router_rewrite_metric(char (*newmetric)[METRIC_BUFSIZ], char **newfirstspace, const char *metric, const char *firstspace, const char *replacement, const size_t nmatch, const regmatch_t *pmatch);
