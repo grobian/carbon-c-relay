@@ -1,5 +1,5 @@
 /*
- * Copyright 2013-2018 Fabian Groffen
+ * Copyright 2013-2024 Fabian Groffen
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -85,6 +85,8 @@ queue_destroy(queue *q)
 void
 queue_enqueue(queue *q, const char *p)
 {
+	char *tofree = NULL;
+
 	/* queue normal:
 	 * |=====-----------------------------|  4
 	 * ^    ^
@@ -102,7 +104,7 @@ queue_enqueue(queue *q, const char *p)
 	if (q->len == q->end) {
 		if (q->read == q->end)
 			q->read = 0;
-		free((char *)(q->queue[q->read]));
+		tofree = (char *)(q->queue[q->read]);
 		q->read++;
 		q->len--;
 	}
@@ -112,6 +114,9 @@ queue_enqueue(queue *q, const char *p)
 	q->write++;
 	q->len++;
 	pthread_mutex_unlock(&q->lock);
+
+	if (tofree != NULL)
+		free(tofree);
 }
 
 /**
