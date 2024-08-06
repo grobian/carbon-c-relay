@@ -939,9 +939,7 @@ server_queuereader(void *d)
 					int ret;
 
 					/* issue #444 */
-					ret = SSL_use_certificate_file(sstrm->hdl.ssl,
-												   self->mtlspemcert,
-												   SSL_FILETYPE_PEM);
+					ret = SSL_use_certificate_chain_file(sstrm->hdl.ssl, self->mtlspemcert);
 					if (ret == 1) {
 						ret = SSL_use_PrivateKey_file(sstrm->hdl.ssl,
 													  self->mtlspemkey,
