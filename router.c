@@ -2608,6 +2608,7 @@ router_rewrite_metric(
 	const char *t;
 	enum rewrite_case { RETAIN, LOWER, UPPER,
 	                    RETAIN_DOT, LOWER_DOT, UPPER_DOT } rcase = RETAIN;
+	enum capture_case { NUMMATCH, GMATCH, GMATCH_BRACES } ccase = NUMMATCH;
 
 	assert(pmatch != NULL);
 
@@ -2647,6 +2648,10 @@ router_rewrite_metric(
 					escape = 2;
 					ref *= 10;
 					ref += *p - '0';
+				} else if (escape && ref == 0 && *p == 'g') {
+					ccase = GMATCH;
+				} else if (escape && ref == 0 && ccase == GMATCH && *p == '{') {
+					ccase = GMATCH_BRACES;
 				} else {
 					if (escape) {
 						if (ref > 0 && ref <= nmatch
@@ -2702,9 +2707,14 @@ router_rewrite_metric(
 						}
 						ref = 0;
 					}
-					if (*p != '\\') { /* \1\2 case */
+					if (ccase == GMATCH_BRACES && *p == '}') { /* End case of \g{n} */
 						escape = 0;
 						rcase = RETAIN;
+						ccase = NUMMATCH;
+					} else if (*p != '\\') { /* \1\2 case */
+						escape = 0;
+						rcase = RETAIN;
+						ccase = NUMMATCH;
 						if (s - *newmetric + 1 < sizeof(*newmetric))
 							*s++ = *p;
 					}

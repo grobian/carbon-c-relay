@@ -486,10 +486,11 @@ needed aggregation instances.
 ### REWRITES
 Rewrite rules take a regular expression as input to match incoming
 metrics, and transform them into the desired new metric name.  In the
-replacement,
-backreferences are allowed to match capture groups defined in the input
-regular expression.  A match of `server\.(x|y|z)\.` allows to use e.g.
-`role.\1.` in the substitution.  A few caveats apply to the current
+replacement, backreferences are allowed to match capture groups
+defined in the input regular expression.  A match of `server\.(x|y|z)\.`
+ allows to use e.g.  `role.\1.` in the substitution. If needed, a notation
+of `\g{n}` can be used instead of `\n` where the backreference is followed
+by an integer, such as `\g{1}100`.  A few caveats apply to the current
 implementation of rewrite rules.  First, their location in the config
 file determines when the rewrite is performed.  The rewrite is done
 in-place, as such a match rule before the rewrite would match the
@@ -817,6 +818,18 @@ For rewrite rules hold the same as for matches, that their order
 matters.  Hence to build on top of the old/new cluster example done
 earlier, the following would store the original metric name in the old
 cluster, and the new metric name in the new cluster:
+
+```
+rewrite ^server\.(.+)\.(.+)\.([a-zA-Z]+)([0-9]+)
+    into server.\_1.\2.\3.\3\4
+    ;
+rewrite ^server\.(.+)\.(.+)\.([a-zA-Z]+)([0-9]+)
+    into server.\g{_1}.\g{2}.\g{3}.\g{3}\g{4}
+    ;
+```
+
+The alternate syntax for backreference notation using `g\{n}` instead of `\n`
+notation shown above.  Both rewrite rules are identical.
 
 ```
 match * send to old;

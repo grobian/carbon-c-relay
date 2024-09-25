@@ -1,0 +1,48 @@
+listen
+    type linemode
+        2003 proto tcp
+        2003 proto udp
+        /tmp/.s.carbon-c-relay.2003 proto unix
+    ;
+
+statistics
+    submit every 60 seconds
+    prefix with carbon.relays.test_hostname
+    ;
+
+cluster default
+    fnv1a_ch replication 1
+        127.0.0.1:2103
+    ;
+
+aggregate ^sys\.somemetric\.([A-Za-z0-9_]+)\.percentile
+    every 60 seconds
+    expire after 75 seconds
+    timestamp at end of bucket
+    compute sum write to
+        sys.somemetric.\1sum
+    compute percentile50 write to
+        sys.somemetric.\g{1}50
+    compute percentile75 write to
+        sys.somemetric.\g{1}75
+    compute percentile90 write to
+        sys.somemetric.\g{^1}90
+    compute percentile99 write to
+        sys.somemetric.\g{_1}99
+    send to default
+    stop
+    ;
+match *
+    send to default
+    stop
+    ;
+
+aggregation
+    ^sys\.somemetric\.([A-Za-z0-9_]+)\.percentile (regex) -> sys.somemetric.random.percentile
+    sum(sys.somemetric.\1sum) -> sys.somemetric.randomsum 
+    percentile50(sys.somemetric.\g{1}50) -> sys.somemetric.random50 
+    percentile75(sys.somemetric.\g{1}75) -> sys.somemetric.random75 
+    percentile90(sys.somemetric.\g{^1}90) -> sys.somemetric.RANDOM90 
+    percentile99(sys.somemetric.\g{_1}99) -> sys.somemetric.random99 
+    fnv1a_ch(default)
+    stop

@@ -126,6 +126,7 @@ CRTESTS = \
 	issue357 \
 	issue369 \
 	issue448 \
+	issue462 \
 	server-type \
 	basic \
 	metriclimits \
