@@ -4,6 +4,8 @@
 
 * [PR #463](https://github.com/grobian/carbon-c-relay/pull/463)
   support rewrite form \g{n} to allow for integers to follow expansion
+* [PR #464](https://github.com/grobian/carbon-c-relay/pull/464)
+  support stop in aggregate section without send to
 
 ### Bugfixes
 
