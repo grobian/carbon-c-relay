@@ -488,7 +488,7 @@ Rewrite rules take a regular expression as input to match incoming
 metrics, and transform them into the desired new metric name.  In the
 replacement, backreferences are allowed to match capture groups
 defined in the input regular expression.  A match of `server\.(x|y|z)\.`
- allows to use e.g.  `role.\1.` in the substitution. If needed, a notation
+allows to use e.g.  `role.\1.` in the substitution. If needed, a notation
 of `\g{n}` can be used instead of `\n` where the backreference is followed
 by an integer, such as `\g{1}100`.  A few caveats apply to the current
 implementation of rewrite rules.  First, their location in the config
@@ -556,7 +556,7 @@ Given the input expression, the following match groups are available:
 something like `carbon.relays.\_2` for certain scenarios, to always use
 the lowercased short hostname, which following the expression doesn't
 contain a dot.  By default, the metrics are submitted every 60 seconds,
-this can be changed using the `submit every <interval> seconds` clause.  
+this can be changed using the `submit every <interval> seconds` clause
 To obtain a more compatible set of values to carbon-cache.py, use the
 `reset counters after interval` clause to make values non-cumulative,
 that is, they will report the change compared to the previous value.
@@ -949,7 +949,8 @@ without the `send to`, the metric name can't be kept its original name,
 for the output now directly goes to the cluster.
 
 
-When configuring cluster you might want to check how the metrics will be routed and hashed. That's what the `-t` flag is for. For the following configuration: 
+When configuring cluster you might want to check how the metrics will be routed
+and hashed. That's what the `-t` flag is for. For the following configuration:
 
 ```
 cluster graphite_swarm_odd
@@ -975,7 +976,8 @@ match *
 ;
 ```
 
-Running the command: `echo "my.super.metric" | carbon-c-relay -f config.conf  -t`, will result in: 
+Running the command:
+`echo "my.super.metric" | carbon-c-relay -f config.conf  -t`, will result in:
 
 ```
 [...]
@@ -988,8 +990,9 @@ match
     stop
 ```
 
-You now know that your metric `my.super.metric` will be hashed and arrive on the host03 and host04 machines.
-Adding the `-d` flag will increase the amount of information by showing you the hashring
+You now know that your metric `my.super.metric` will be hashed and arrive on the
+host03 and host04 machines.  Adding the `-d` flag will increase the amount of
+information by showing you the hashring
 
 ## STATISTICS
 
@@ -1159,8 +1162,8 @@ provides a multithreaded relay which can address multiple targets and
 clusters for each and every metric based on pattern matches.
 
 There are a couple more replacement projects out there, which
-are [carbon-relay-ng](https://github.com/graphite-ng/carbon-relay-ng) and [graphite-relay](https://github.com/markchadwick/graphite-relay
-).
+are [carbon-relay-ng](https://github.com/graphite-ng/carbon-relay-ng) and
+[graphite-relay](https://github.com/markchadwick/graphite-relay).
 
 Compared to carbon-relay-ng, this project does provide carbon's
 consistent-hash routing.  graphite-relay, which does this, however
