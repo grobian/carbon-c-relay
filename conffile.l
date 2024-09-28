@@ -125,7 +125,7 @@ match				{
 						return crTO;
 					}
 <idcl>blackhole			return crBLACKHOLE;
-<ma,idcl>stop			return crSTOP;
+<ma,idcl,ag>stop		return crSTOP;
 
 rewrite				{
 						identstate = re;
