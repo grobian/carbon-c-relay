@@ -1275,8 +1275,10 @@ server_new(
 			free(ret->mtlspemcert);
 		if (ret->mtlspemkey != NULL)
 			free(ret->mtlspemkey);
+#ifdef HAVE_SSL
 		if (ret->strm->ctx != NULL)
 			SSL_CTX_free(ret->strm->ctx);
+#endif
 		if (ret->strm->nextstrm != NULL)
 			free(ret->strm->nextstrm);
 		free(ret->strm);
