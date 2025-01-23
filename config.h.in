@@ -15,13 +15,13 @@
 /* Define to 1 if you have the <fcntl.h> header file. */
 #undef HAVE_FCNTL_H
 
-/* Define to 1 if you have the `fork' function. */
+/* Define to 1 if you have the 'fork' function. */
 #undef HAVE_FORK
 
-/* Define to 1 if you have the `gethostname' function. */
+/* Define to 1 if you have the 'gethostname' function. */
 #undef HAVE_GETHOSTNAME
 
-/* Define to 1 if you have the `gettimeofday' function. */
+/* Define to 1 if you have the 'gettimeofday' function. */
 #undef HAVE_GETTIMEOFDAY
 
 /* Define to 1 if you have the <glob.h> header file. */
@@ -33,7 +33,7 @@
 /* Define to 1 if you have the <inttypes.h> header file. */
 #undef HAVE_INTTYPES_H
 
-/* Define to 1 if you have the `localtime_r' function. */
+/* Define to 1 if you have the 'localtime_r' function. */
 #undef HAVE_LOCALTIME_R
 
 /* Define if you have lz4 */
@@ -45,17 +45,17 @@
 /* Define to 1 if you have the <lz4.h> header file. */
 #undef HAVE_LZ4_H
 
-/* Define to 1 if your system has a GNU libc compatible `malloc' function, and
+/* Define to 1 if your system has a GNU libc compatible 'malloc' function, and
    to 0 otherwise. */
 #undef HAVE_MALLOC
 
 /* Define to 1 if you have the <math.h> header file. */
 #undef HAVE_MATH_H
 
-/* Define to 1 if you have the `memmove' function. */
+/* Define to 1 if you have the 'memmove' function. */
 #undef HAVE_MEMMOVE
 
-/* Define to 1 if you have the `memset' function. */
+/* Define to 1 if you have the 'memset' function. */
 #undef HAVE_MEMSET
 
 /* Define to 1 if you have the <netdb.h> header file. */
@@ -94,17 +94,17 @@
 /* Define to 1 if you have the <poll.h> header file. */
 #undef HAVE_POLL_H
 
-/* Define to 1 if you have the `pow' function. */
+/* Define to 1 if you have the 'pow' function. */
 #undef HAVE_POW
 
 /* Define to 1 if you have the <pthread.h> header file. */
 #undef HAVE_PTHREAD_H
 
-/* Define to 1 if your system has a GNU libc compatible `realloc' function,
+/* Define to 1 if your system has a GNU libc compatible 'realloc' function,
    and to 0 otherwise. */
 #undef HAVE_REALLOC
 
-/* Define to 1 if you have the `regcomp' function. */
+/* Define to 1 if you have the 'regcomp' function. */
 #undef HAVE_REGCOMP
 
 /* Define to 1 if you have the <regex.h> header file. */
@@ -122,22 +122,22 @@
 /* Define to 1 if you have the <snappy-c.h> header file. */
 #undef HAVE_SNAPPY_C_H
 
-/* Define to 1 if you have the `socket' function. */
+/* Define to 1 if you have the 'socket' function. */
 #undef HAVE_SOCKET
 
-/* Define to 1 if you have the `sqrt' function. */
+/* Define to 1 if you have the 'sqrt' function. */
 #undef HAVE_SQRT
 
 /* Define if you have ssl */
 #undef HAVE_SSL
 
-/* Define to 1 if you have the `SSLv23_server_method' function. */
+/* Define to 1 if you have the 'SSLv23_server_method' function. */
 #undef HAVE_SSLV23_SERVER_METHOD
 
-/* Define to 1 if you have the `SSL_CTX_set_ciphersuites' function. */
+/* Define to 1 if you have the 'SSL_CTX_set_ciphersuites' function. */
 #undef HAVE_SSL_CTX_SET_CIPHERSUITES
 
-/* Define to 1 if you have the `SSL_CTX_set_cipher_list' function. */
+/* Define to 1 if you have the 'SSL_CTX_set_cipher_list' function. */
 #undef HAVE_SSL_CTX_SET_CIPHER_LIST
 
 /* Define to 1 if you have the <stdarg.h> header file. */
@@ -152,13 +152,13 @@
 /* Define to 1 if you have the <stdlib.h> header file. */
 #undef HAVE_STDLIB_H
 
-/* Define to 1 if you have the `strchr' function. */
+/* Define to 1 if you have the 'strchr' function. */
 #undef HAVE_STRCHR
 
-/* Define to 1 if you have the `strdup' function. */
+/* Define to 1 if you have the 'strdup' function. */
 #undef HAVE_STRDUP
 
-/* Define to 1 if you have the `strerror' function. */
+/* Define to 1 if you have the 'strerror' function. */
 #undef HAVE_STRERROR
 
 /* Define to 1 if you have the <strings.h> header file. */
@@ -167,10 +167,10 @@
 /* Define to 1 if you have the <string.h> header file. */
 #undef HAVE_STRING_H
 
-/* Define to 1 if you have the `strstr' function. */
+/* Define to 1 if you have the 'strstr' function. */
 #undef HAVE_STRSTR
 
-/* Define to 1 if you have the `strtol' function. */
+/* Define to 1 if you have the 'strtol' function. */
 #undef HAVE_STRTOL
 
 /* Define to 1 if you have the <sys/resource.h> header file. */
@@ -197,22 +197,22 @@
 /* Define to 1 if you have the <time.h> header file. */
 #undef HAVE_TIME_H
 
-/* Define to 1 if you have the `TLS_server_method' function. */
+/* Define to 1 if you have the 'TLS_server_method' function. */
 #undef HAVE_TLS_SERVER_METHOD
 
 /* Define to 1 if you have the <unistd.h> header file. */
 #undef HAVE_UNISTD_H
 
-/* Define to 1 if you have the `vfork' function. */
+/* Define to 1 if you have the 'vfork' function. */
 #undef HAVE_VFORK
 
 /* Define to 1 if you have the <vfork.h> header file. */
 #undef HAVE_VFORK_H
 
-/* Define to 1 if `fork' works. */
+/* Define to 1 if 'fork' works. */
 #undef HAVE_WORKING_FORK
 
-/* Define to 1 if `vfork' works. */
+/* Define to 1 if 'vfork' works. */
 #undef HAVE_WORKING_VFORK
 
 /* Define to 1 if you have the <zlib.h> header file. */
@@ -239,7 +239,7 @@
 /* Define to the version of this package. */
 #undef PACKAGE_VERSION
 
-/* Define to 1 if all of the C90 standard headers exist (not just the ones
+/* Define to 1 if all of the C89 standard headers exist (not just the ones
    required in a freestanding environment). This macro is provided for
    backward compatibility; new code need not use it. */
 #undef STDC_HEADERS
@@ -247,7 +247,7 @@
 /* Version number of package */
 #undef VERSION
 
-/* Define to `__inline__' or `__inline' if that's what the C compiler
+/* Define to '__inline__' or '__inline' if that's what the C compiler
    calls it, or to nothing if 'inline' is not supported under any name.  */
 #ifndef __cplusplus
 #undef inline
@@ -262,5 +262,5 @@
 /* Define to rpl_realloc if the replacement function should be used. */
 #undef realloc
 
-/* Define as `fork' if `vfork' does not work. */
+/* Define as 'fork' if 'vfork' does not work. */
 #undef vfork
