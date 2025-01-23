@@ -1,5 +1,5 @@
 /*
- * Copyright 2013-2021 Fabian Groffen
+ * Copyright 2013-2025 Fabian Groffen
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -167,7 +167,7 @@ sockflush(z_strm *strm)
 			len -= slen;
 			if (len == 0) {
 				if (debug)
-					fprintf(stderr, "sockflush: %lu bytes\n", strm->obuflen);
+					fprintf(stderr, "sockflush: %zu bytes\n", strm->obuflen);
 				strm->obuflen = 0;
 				return 0;
 			}
