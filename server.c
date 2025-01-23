@@ -1113,6 +1113,10 @@ server_new(
 	ret->secondariescnt = 0;
 	ret->ip = strdup(ip);
 	if (ret->ip == NULL) {
+		if (ret->mtlspemcert != NULL)
+			free(ret->mtlspemcert);
+		if (ret->mtlspemkey != NULL)
+			free(ret->mtlspemkey);
 		free(ret);
 		return NULL;
 	}
@@ -1123,12 +1127,20 @@ server_new(
 	ret->sockbufsize = sockbufsize;
 	ret->maxstalls = maxstalls;
 	if ((ret->batch = malloc(sizeof(char *) * (bsize + 1))) == NULL) {
+		if (ret->mtlspemcert != NULL)
+			free(ret->mtlspemcert);
+		if (ret->mtlspemkey != NULL)
+			free(ret->mtlspemkey);
 		free((char *)ret->ip);
 		free(ret);
 		return NULL;
 	}
 	ret->fd = -1;
 	if ((ret->strm = malloc(sizeof(z_strm))) == NULL) {
+		if (ret->mtlspemcert != NULL)
+			free(ret->mtlspemcert);
+		if (ret->mtlspemkey != NULL)
+			free(ret->mtlspemkey);
 		free((char *)ret->ip);
 		free(ret->batch);
 		free(ret);
@@ -1152,8 +1164,13 @@ server_new(
 				char *err = ERR_error_string(ERR_get_error(), NULL);
 				logerr("failed to load SSL verify locations from %s for "
 						"%s:%d: %s\n", sslCA, ret->ip, ret->port, err);
+				if (ret->mtlspemcert != NULL)
+					free(ret->mtlspemcert);
+				if (ret->mtlspemkey != NULL)
+					free(ret->mtlspemkey);
 				free((char *)ret->ip);
 				free(ret->batch);
+				SSL_CTX_free(ret->strm->ctx);
 				free(ret->strm);
 				free(ret);
 				return NULL;
@@ -1182,6 +1199,10 @@ server_new(
 	else if ((transport & 0xFFFF) == W_GZIP) {
 		z_strm *gzstrm = malloc(sizeof(z_strm));
 		if (gzstrm == NULL) {
+			if (ret->mtlspemcert != NULL)
+				free(ret->mtlspemcert);
+			if (ret->mtlspemkey != NULL)
+				free(ret->mtlspemkey);
 			free((char *)ret->ip);
 			free(ret->batch);
 			free(ret->strm);
@@ -1200,6 +1221,10 @@ server_new(
 	else if ((transport & 0xFFFF) == W_LZ4) {
 		z_strm *lzstrm = malloc(sizeof(z_strm));
 		if (lzstrm == NULL) {
+			if (ret->mtlspemcert != NULL)
+				free(ret->mtlspemcert);
+			if (ret->mtlspemkey != NULL)
+				free(ret->mtlspemkey);
 			free((char *)ret->ip);
 			free(ret->batch);
 			free(ret->strm);
@@ -1218,6 +1243,10 @@ server_new(
 	else if ((transport & 0xFFFF) == W_SNAPPY) {
 		z_strm *snpstrm = malloc(sizeof(z_strm));
 		if (snpstrm == NULL) {
+			if (ret->mtlspemcert != NULL)
+				free(ret->mtlspemcert);
+			if (ret->mtlspemkey != NULL)
+				free(ret->mtlspemkey);
 			free((char *)ret->ip);
 			free(ret->batch);
 			free(ret->strm);
@@ -1242,6 +1271,15 @@ server_new(
 	}
 	ret->queue = queue_new(qsize);
 	if (ret->queue == NULL) {
+		if (ret->mtlspemcert != NULL)
+			free(ret->mtlspemcert);
+		if (ret->mtlspemkey != NULL)
+			free(ret->mtlspemkey);
+		if (ret->strm->ctx != NULL)
+			SSL_CTX_free(ret->strm->ctx);
+		if (ret->strm->nextstrm != NULL)
+			free(ret->strm->nextstrm);
+		free(ret->strm);
 		free(ret->batch);
 		free((char *)ret->ip);
 		free(ret);
