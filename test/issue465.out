@@ -1,0 +1,40 @@
+listen
+    type linemode
+        2003 proto tcp
+        2003 proto udp
+        /tmp/.s.carbon-c-relay.2003 proto unix
+    ;
+
+statistics
+    submit every 60 seconds
+    prefix with carbon.relays.test_hostname
+    ;
+
+
+aggregate host\.b[0-9]+\.(.+)\.c
+    every 60 seconds
+    expire after 120 seconds
+    timestamp at start of bucket
+    compute average write to
+        aggregation.\\1.c
+    ;
+aggregate host\.b[0-9]+\.component1\.c
+    every 60 seconds
+    expire after 120 seconds
+    timestamp at start of bucket
+    compute average write to
+        aggregation.component1.c
+    ;
+
+aggregation
+    host\.b[0-9]+\.(.+)\.c (regex) -> host.b0123456.component1.c
+    average(aggregation.\\1.c) -> aggregation.component1.c 
+aggregation
+    host\.b[0-9]+\.component1\.c (regex) -> host.b0123456.component1.c
+    average -> aggregation.component1.c 
+aggregation
+    host\.b[0-9]+\.(.+)\.c (regex) -> host.b0123456.component1.c_rate
+    average(aggregation.\\1.c) -> aggregation.component1.c_rate 
+aggregation
+    host\.b[0-9]+\.component1\.c (regex) -> host.b0123456.component1.c_rate
+    average -> aggregation.component1.c_rate 

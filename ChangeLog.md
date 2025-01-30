@@ -9,6 +9,9 @@
 
 ### Bugfixes
 
+* [Issue #465](https://github.com/grobian/carbon-c-relay/issues/465)
+  fix inconsistent rewrite result when expansions are or aren't present
+
 
 # 3.8.1 (28-04-2024)
 

@@ -189,9 +189,7 @@ aggregator_putmetric(
 	epoch = atoll(v + 1);
 
 	for (compute = s->computes; compute != NULL; compute = compute->next) {
-		if (nmatch == 0) {
-			ometric = compute->metric;
-		} else if ((len = router_rewrite_metric(
+		if ((len = router_rewrite_metric(
 						&newmetric, &newfirstspace,
 						metric, firstspace,
 						compute->metric,

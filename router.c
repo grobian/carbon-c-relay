@@ -2622,107 +2622,121 @@ router_rewrite_metric(
 		return 0;  /* won't fit, don't try further */
 	}
 
-	for (p = replacement; ; p++) {
-		switch (*p) {
-			case '\\':
-				if (!escape) {
-					escape = 1;
-					rcase = RETAIN;
-					break;
-				}
-				/* fall through so we handle \1\2 */
-			default:
-				if (escape == 1 && rcase == RETAIN && *p == '_') {
-					rcase = LOWER;
-				} else if (escape == 1 && rcase == RETAIN && *p == '^') {
-					rcase = UPPER;
-				} else if (escape == 1 && *p == '.') {
-					if (rcase == LOWER) {
-						rcase = LOWER_DOT;
-					} else if (rcase == UPPER) {
-						rcase = UPPER_DOT;
-					} else {
-						rcase = RETAIN_DOT;
+	if (nmatch == 0) {
+		/* shortcut case with no replacements */
+		for (p = replacement; (*s++ = *p) != '\0'; p++)
+			;
+	} else {
+		for (p = replacement; ; p++) {
+			switch (*p) {
+				case '\\':
+					if (!escape) {
+						escape = 1;
+						rcase = RETAIN;
+						break;
 					}
-				} else if (escape && *p >= '0' && *p <= '9') {
-					escape = 2;
-					ref *= 10;
-					ref += *p - '0';
-				} else if (escape && ref == 0 && *p == 'g') {
-					ccase = GMATCH;
-				} else if (escape && ref == 0 && ccase == GMATCH && *p == '{') {
-					ccase = GMATCH_BRACES;
-				} else {
-					if (escape) {
-						if (ref > 0 && ref <= nmatch
-								&& pmatch[ref].rm_so >= 0)
-						{
-							/* insert match part */
-							q = metric + pmatch[ref].rm_so;
-							t = metric + pmatch[ref].rm_eo;
-							if (s - *newmetric + t - q < sizeof(*newmetric)) {
-								switch (rcase) {
-									case RETAIN:
-										while (q < t)
-											*s++ = *q++;
-										break;
-									case LOWER:
-										while (q < t)
-											*s++ = (char)tolower(*q++);
-										break;
-									case UPPER:
-										while (q < t)
-											*s++ = (char)toupper(*q++);
-										break;
+					/* fall through so we handle \1\2 */
+				default:
+					if (escape == 1 && rcase == RETAIN && *p == '_') {
+						rcase = LOWER;
+					} else if (escape == 1 && rcase == RETAIN && *p == '^') {
+						rcase = UPPER;
+					} else if (escape == 1 && *p == '.') {
+						if (rcase == LOWER) {
+							rcase = LOWER_DOT;
+						} else if (rcase == UPPER) {
+							rcase = UPPER_DOT;
+						} else {
+							rcase = RETAIN_DOT;
+						}
+					} else if (escape && *p >= '0' && *p <= '9') {
+						escape = 2;
+						ref *= 10;
+						ref += *p - '0';
+					} else if (escape && ref == 0 && *p == 'g') {
+						ccase = GMATCH;
+					} else if (escape && ref == 0 &&
+							   ccase == GMATCH &&
+							   *p == '{')
+					{
+						ccase = GMATCH_BRACES;
+					} else {
+						if (escape) {
+							if (ref > 0 &&
+								ref <= nmatch &&
+								pmatch[ref].rm_so >= 0)
+							{
+								/* insert match part */
+								q = metric + pmatch[ref].rm_so;
+								t = metric + pmatch[ref].rm_eo;
+								if (s - *newmetric + t - q <
+									sizeof(*newmetric))
+								{
+									switch (rcase) {
+										case RETAIN:
+											while (q < t)
+												*s++ = *q++;
+											break;
+										case LOWER:
+											while (q < t)
+												*s++ = (char)tolower(*q++);
+											break;
+										case UPPER:
+											while (q < t)
+												*s++ = (char)toupper(*q++);
+											break;
 
-									case RETAIN_DOT:
-										while (q < t) {
-											if (*q == '.')
-												*s++ = '_';
-											else
-												*s++ = *q;
-											q++;
-										}
-										break;
-									case LOWER_DOT:
-										while (q < t) {
-											if (*q == '.')
-												*s++ = '_';
-											else
-												*s++ = (char)tolower(*q);
-											q++;
-										}
-										break;
-									case UPPER_DOT:
-										while (q < t) {
-											if (*q == '.')
-												*s++ = '_';
-											else
-												*s++ = (char)toupper(*q);
-											q++;
-										}
-										break;
+										case RETAIN_DOT:
+											while (q < t) {
+												if (*q == '.')
+													*s++ = '_';
+												else
+													*s++ = *q;
+												q++;
+											}
+											break;
+										case LOWER_DOT:
+											while (q < t) {
+												if (*q == '.')
+													*s++ = '_';
+												else
+													*s++ = (char)tolower(*q);
+												q++;
+											}
+											break;
+										case UPPER_DOT:
+											while (q < t) {
+												if (*q == '.')
+													*s++ = '_';
+												else
+													*s++ = (char)toupper(*q);
+												q++;
+											}
+											break;
+									}
 								}
 							}
+							ref = 0;
 						}
-						ref = 0;
+						if (ccase == GMATCH_BRACES &&
+							*p == '}')
+						{ /* End case of \g{n} */
+							escape = 0;
+							rcase = RETAIN;
+							ccase = NUMMATCH;
+						} else if (*p != '\\') { /* \1\2 case */
+							escape = 0;
+							rcase = RETAIN;
+							ccase = NUMMATCH;
+							if (s - *newmetric + 1 < sizeof(*newmetric))
+								*s++ = *p;
+						}
 					}
-					if (ccase == GMATCH_BRACES && *p == '}') { /* End case of \g{n} */
-						escape = 0;
-						rcase = RETAIN;
-						ccase = NUMMATCH;
-					} else if (*p != '\\') { /* \1\2 case */
-						escape = 0;
-						rcase = RETAIN;
-						ccase = NUMMATCH;
-						if (s - *newmetric + 1 < sizeof(*newmetric))
-							*s++ = *p;
-					}
-				}
+					break;
+			}
+			if (*p == '\0')
 				break;
 		}
-		if (*p == '\0')
-			break;
 	}
 	/* undo trailing \0 */
 	s--;
@@ -3244,7 +3258,7 @@ router_test_intern(char *metric, char *firstspace, route *routes)
 
 						for (ac = d->cl->members.aggregation->computes; ac != NULL; ac = ac->next)
 						{
-							if (w->nmatch == 0 || (len = router_rewrite_metric(
+							if ((len = router_rewrite_metric(
 											&newmetric, &newfirstspace,
 											metric, firstspace,
 											ac->metric,
