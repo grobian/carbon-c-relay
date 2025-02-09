@@ -153,6 +153,7 @@ determine_if_regex(allocator *a, char workercnt, route *r, char *pat)
 	char *e = pat;
 	char *pb = patbuf;
 	char escape = 0;
+	char capgroup = 0;
 	r->matchtype = CONTAINS;
 	r->nmatch = 0;
 
@@ -168,7 +169,6 @@ determine_if_regex(allocator *a, char workercnt, route *r, char *pat)
 				escape = !escape;
 				break;
 			case '.':
-			case '^':
 			case '*':
 			case '+':
 				if (!escape)
@@ -176,16 +176,27 @@ determine_if_regex(allocator *a, char workercnt, route *r, char *pat)
 				*pb++ = *e;
 				escape = 0;
 				break;
+			case '(':
+				if (!escape) {
+					r->matchtype = REGEX;
+					capgroup = 1;
+				}
+				*pb++ = *e;
+				escape = 0;
+				break;
 			case '$':
 				if (!escape && e[1] == '\0') {
 					if (r->matchtype == STARTS_WITH) {
 						r->matchtype = MATCHES;
-					} else {
+					} else if (r->matchtype != REGEX) {
 						r->matchtype = ENDS_WITH;
+					} else {
+						r->matchtype = REGEX;
 					}
-				} else {
-					r->matchtype = REGEX;
 				}
+				/* don't copy $, if it's REGEX we don't care about
+				 * patbuf, if it's MATCHES or ENDS_WITH we don't want to
+				 * include it */
 				escape = 0;
 				break;
 			default:
@@ -207,7 +218,7 @@ determine_if_regex(allocator *a, char workercnt, route *r, char *pat)
 		}
 		if (pb - patbuf == sizeof(patbuf))
 			r->matchtype = REGEX;
-		if (r->matchtype == REGEX)
+		if (r->matchtype == REGEX && capgroup > 0)
 			break;
 	}
 	if (r->matchtype != REGEX) {
@@ -224,13 +235,29 @@ determine_if_regex(allocator *a, char workercnt, route *r, char *pat)
 					"regular expressions\n");
 			return REG_ESPACE;  /* lie closest to the truth */
 		}
-		ret = regcomp(&r->rule[0], pat, REG_EXTENDED);
+		/* issue 465: when no groups are used, regcmp will return
+		 * re_nsub == 0, which in turn means we do not know what part of
+		 * the input string matched the expression
+		 * clumbsily surround the expression with ( ) to force nsub > 0
+		 * and thus that the pmatch.re_so and eo will be generated */
+		if (capgroup == 0) {
+			i = 2 + strlen(pat) + 1;
+			r->pattern = ra_malloc(a, i);
+			snprintf(r->pattern, i, "(%s)", pat);
+		} else {
+			r->pattern = ra_strdup(a, pat);
+		}
+		ret = regcomp(&r->rule[0], r->pattern, REG_EXTENDED);
 		if (ret != 0)
 			return ret;  /* allow use of regerror */
 		if (r->rule[0].re_nsub > 0) {
-			/* we need +1 because position 0 contains the entire
-			 * expression */
-			r->nmatch = r->rule[0].re_nsub + 1;
+			if (capgroup == 0) {
+				r->nmatch = 0;
+			} else {
+				/* we need +1 because position 0 contains the entire
+				 * expression */
+				r->nmatch = r->rule[0].re_nsub + 1;
+			}
 			if (r->nmatch > RE_MAX_MATCHES) {
 				logerr("determine_if_regex: too many match groups, "
 						"please increase RE_MAX_MATCHES in router.h\n");
@@ -239,7 +266,7 @@ determine_if_regex(allocator *a, char workercnt, route *r, char *pat)
 			}
 		}
 		for (i = 1; i < workercnt; i++) {
-			if (regcomp(&r->rule[i], pat, REG_EXTENDED) != 0) {
+			if (regcomp(&r->rule[i], r->pattern, REG_EXTENDED) != 0) {
 				while (--i >= 0)
 					regfree(&r->rule[i]);
 				logerr("determine_if_regex: out of memory allocating "
@@ -247,8 +274,12 @@ determine_if_regex(allocator *a, char workercnt, route *r, char *pat)
 				return REG_ESPACE;  /* lie closest to the truth */
 			}
 		}
+		/* undo fake capture group not to cause confusing output */
+		if (capgroup == 0) {
+			r->pattern++;
+			r->pattern[strlen(r->pattern) - 1] = '\0';
+		}
 		r->strmatch = NULL;
-		r->pattern = ra_strdup(a, pat);
 	}
 
 	return 0;
@@ -2543,7 +2574,8 @@ router_metric_matches(
 			break;
 		case REGEX:
 			*firstspace = '\0';
-			ret = regexec(&r->rule[dispatcher_id], metric, r->nmatch, pmatch, 0) == 0;
+			ret = regexec(&r->rule[dispatcher_id], metric,
+						  r->nmatch, pmatch, 0) == 0;
 			*firstspace = firstspc;
 			break;
 		case CONTAINS:
@@ -3256,7 +3288,9 @@ router_test_intern(char *metric, char *firstspace, route *routes)
 									d->cl->members.aggregation);
 						}
 
-						for (ac = d->cl->members.aggregation->computes; ac != NULL; ac = ac->next)
+						for (ac = d->cl->members.aggregation->computes;
+							 ac != NULL;
+							 ac = ac->next)
 						{
 							if ((len = router_rewrite_metric(
 											&newmetric, &newfirstspace,
